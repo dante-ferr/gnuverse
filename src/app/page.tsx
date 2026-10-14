@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function Home() {
   return (
     <main className="relative isolate flex min-h-svh flex-col overflow-hidden px-6 py-8 sm:px-12 lg:px-20">
@@ -16,9 +18,9 @@ export default function Home() {
             Como o software livre pode democratizar o acesso à tecnologia?
             Uma pergunta para investigar, experimentar e discutir juntos.
           </p>
-          <a href="#ponto-de-partida" className="mt-10 inline-flex items-center gap-8 rounded-full bg-violet-700 px-6 py-4 text-sm text-white transition duration-300 hover:-translate-y-1 hover:bg-violet-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-700">
-            Nosso ponto de partida <span aria-hidden="true">↗</span>
-          </a>
+          <Link href="/artigos/" className="mt-10 inline-flex items-center gap-8 rounded-full bg-violet-700 px-6 py-4 text-sm text-white transition duration-300 hover:-translate-y-1 hover:bg-violet-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-700">
+            Explorar artigos <span aria-hidden="true">↗</span>
+          </Link>
         </div>
         <div aria-hidden="true" className="network relative mx-auto aspect-square w-full max-w-sm">
           <svg viewBox="0 0 400 400" className="absolute inset-0 h-full w-full fill-none stroke-violet-400" strokeWidth="1.5">

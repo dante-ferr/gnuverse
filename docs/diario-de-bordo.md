@@ -31,3 +31,7 @@ Cada integrante escreve em primeira pessoa, identificando nome e data. Abordar c
 5. Nome / data / reflexão:
 6. Nome / data / reflexão:
 7. Nome / data / reflexão:
+
+## Registro técnico — integração editorial em 14/10/2026
+
+A pedido do usuário, o Codex registrou a decisão de separar CMS em nuvem e site público estático, implementou uma base Payload com papéis admin/editor, rascunhos e publicação, rotas de artigos, sincronização no build, cópia de capas e solicitação de deploy por hook. Incluiu conteúdo de demonstração e instruções para inserção manual pelo grupo. As credenciais e contas de produção não foram utilizadas. O grupo deve registrar sua própria avaliação e as alterações após os testes.

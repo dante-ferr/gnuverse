@@ -1,42 +1,65 @@
 # GNUverse
 
-Base local do site interativo para o Projeto Multimodal de MATA68 (2026.2).
-GNUverse é o nome do projeto. Tema: software livre como forma de democratizar o acesso à tecnologia. Público, recorte, tese e identidade visual final serão discutidos pelo grupo.
+Projeto multimodal de MATA68 (2026.2) sobre software livre como forma de democratizar o acesso à tecnologia. Stack: Next.js App Router, Tailwind e TypeScript.
 
-## Executar
+## Arquitetura escolhida
 
-Requer Node.js >= 20.9 e npm. As versões instaladas estão fixadas no `package-lock.json`.
+- Site público estático na raiz, preparado para Cloudflare Pages.
+- Payload CMS separado em `cms/`, preparado para Render.
+- Banco PostgreSQL e mídia S3 no Supabase em produção; SQLite e disco local somente no desenvolvimento.
+- Conteúdo é salvo no banco, sem commits editoriais. Publicar solicita novo build por deploy hook.
+- Artigos e capas são copiados durante o build: o visitante não precisa esperar o CMS acordar.
+
+Leia [as decisões](docs/arquitetura-cms.md) e [o guia de teste e credenciais](docs/teste-cms.md).
+
+## Teste local
+
+Requer Node.js 22+, npm e GNU Make. Versões fixadas nos dois arquivos `package-lock.json`.
+
+Na primeira vez:
 
 ```bash
-npm ci
-npm run dev
+make setup
 ```
 
-Abra http://localhost:3000.
+Depois, para iniciar CMS e site juntos:
 
 ```bash
-npm run typecheck
-npm run build
-npm start
+make dev
 ```
+
+Abra http://localhost:3001/admin, crie seu administrador e insira o artigo de teste descrito em `docs/teste-cms.md`. O site fica no endereço impresso no terminal, normalmente http://localhost:3000/artigos/.
+
+O setup instala as duas aplicações, gera o segredo do CMS e prepara `.env.local` para o modo live, preservando arquivos de ambiente existentes. `make dev` aguarda o CMS antes de iniciar o site; Ctrl+C encerra os dois.
+
+Depois de editar/publicar no CMS, pare e execute `make dev` novamente para atualizar o conteúdo. A sincronização acontece na inicialização, não a cada visita.
+
+Sem configuração, o site usa um artigo claramente identificado como demonstração. Em modo live, falhas do CMS abortam a sincronização; nunca substituem o conteúdo real pelo exemplo.
+
+## Exportação e verificação
+
+```bash
+make check
+make build
+make preview
+```
+
+`make build` sincroniza o conteúdo e exporta o site para `out/`. `make preview` serve esses arquivos, sem servidor Next.js ou consulta ao CMS. O build usa Webpack para evitar a restrição de processos/portas do Turbopack observada neste ambiente.
+
+Use `make help` para listar os atalhos. Para trabalhar em terminais separados: `make cms` e `make site`. Os scripts npm continuam disponíveis, inclusive nos provedores de nuvem.
 
 ## Estrutura
 
-- `src/app/page.tsx`: página provisória.
-- `src/app/layout.tsx`: idioma e metadados.
-- `src/app/globals.css`: Tailwind, cores, rede ilustrativa e duas animações iniciais com respeito à preferência por movimento reduzido.
-- `docs/planejamento.md`: divisão de trabalho e cronograma proposto.
-- `docs/diario-de-bordo.md`: modelo de registro coletivo e individual.
+- `src/app/`: abertura, lista e páginas de artigos.
+- `src/lib/articles.ts`: leitura do snapshot preparado no build.
+- `scripts/`: leitura da API, validação e cópia das capas.
+- `content/demo-article.json`: exemplo técnico, não publicado automaticamente no banco.
+- `cms/`: painel, usuários, artigos, uploads, testes e migrações PostgreSQL.
+- `docs/planejamento.md`: responsabilidades dos sete integrantes e cronograma.
+- `docs/diario-de-bordo.md`: modelo coletivo e individual.
 
-Stack: Next.js App Router, React, TypeScript em modo estrito e Tailwind CSS via PostCSS.
-Configuração baseada na [documentação do Next.js](https://nextjs.org/docs/app/getting-started/installation) e na [integração oficial do Tailwind](https://tailwindcss.com/docs/installation/framework-guides/nextjs).
+Apenas uma integração editorial inicial está implementada; conteúdo acadêmico e experiências mais elaboradas continuam sob desenvolvimento do grupo. As contas de nuvem, o remoto GitHub e as credenciais de produção ainda precisam ser configurados. Nenhum serviço externo foi publicado nesta etapa.
 
-## Limite desta etapa
+Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sem alterar os arquivos de ambiente. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
 
-Somente uma base visual e técnica. Sem conteúdo acadêmico final, backend, biblioteca de animação ou publicação. A aparência inicial é uma proposta reversível. Interações e animações mais elaboradas serão discutidas depois de definir a narrativa.
-
-## Colaboração
-
-Cada tarefa tem uma pessoa responsável e outra revisora, mas as decisões de tema, público e tese são coletivas. Quem não programa pode desenvolver conteúdo, roteiro, mídia, storyboard e testes de compreensão. Registrar contribuições e uso de IA no diário.
-
-O Git local foi encontrado vazio em `main`. Nenhum repositório remoto foi criado. Após definir onde o grupo vai colaborar, conectar o remoto e compartilhar o acesso.
+Encerre servidores deste mesmo projeto antes de usar `make dev`: o Next.js permite apenas uma sessão de desenvolvimento por diretório, mesmo em portas diferentes.

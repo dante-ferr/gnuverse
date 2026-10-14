@@ -73,3 +73,9 @@ Datas intermediárias são propostas. Data da apresentação final depende da or
 - Quais nomes assumirão cada responsabilidade?
 
 Escolher essas respostas antes de expandir páginas e animações.
+
+## Atualização técnica — CMS e publicação
+
+A estrutura será uma publicação editorial com artigos e módulos interativos. O grupo alimenta o Payload CMS em nuvem; os artigos ficam no PostgreSQL, as imagens no storage e o site público é pré-gerado no Cloudflare Pages. Não haverá commits de conteúdo a cada edição. O painel pode suspender no plano gratuito, mas visitantes leem uma cópia estática independente. Ver `arquitetura-cms.md` e `teste-cms.md`.
+
+As pessoas responsáveis pelas experiências também podem publicar artigos associados a elas, com autoria, referências e revisão cruzada. A pessoa 1 cuida da integração; o administrador cria contas de editor para os demais. Estes papéis técnicos não substituem as responsabilidades humanas descritas acima.

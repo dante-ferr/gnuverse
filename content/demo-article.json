@@ -1,0 +1,25 @@
+{
+  "title": "Olá, GNUverse!",
+  "slug": "ola-gnuverse",
+  "summary": "Um artigo de demonstração para testar o caminho entre o CMS e o site.",
+  "author": "Equipe GNUverse",
+  "category": "experiencias",
+  "body": {
+    "root": {
+      "type": "root", "version": 1, "format": "", "indent": 0, "direction": "ltr",
+      "children": [
+        {
+          "type": "paragraph", "version": 1, "format": "", "indent": 0, "direction": "ltr",
+          "children": [{ "type": "text", "version": 1, "text": "Este é um conteúdo de teste do GNUverse. Nosso grupo vai investigar como o software livre pode ampliar o acesso à tecnologia.", "format": 0, "detail": 0, "mode": "normal", "style": "" }],
+          "textFormat": 0, "textStyle": ""
+        },
+        {
+          "type": "paragraph", "version": 1, "format": "", "indent": 0, "direction": "ltr",
+          "children": [{ "type": "text", "version": 1, "text": "Esta página serve apenas para verificar a integração. Os textos finais, exemplos e posicionamentos serão produzidos e revisados pelos integrantes.", "format": 0, "detail": 0, "mode": "normal", "style": "" }],
+          "textFormat": 0, "textStyle": ""
+        }
+      ]
+    }
+  },
+  "references": []
+}
