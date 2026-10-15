@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import nextEnv from '@next/env'
 import { fetchPublishedArticles } from './cms-content.mjs'
+import { getContentCMSURL, loadLocalEnvironment } from '../cms/scripts/local-config.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-nextEnv.loadEnvConfig(root)
+loadLocalEnvironment()
 const mode = process.env.CMS_CONTENT_MODE || 'demo'
 if (!['demo', 'live'].includes(mode)) throw new Error('CMS_CONTENT_MODE precisa ser demo ou live.')
 
@@ -17,15 +17,15 @@ await mkdir(mediaDirectory, { recursive: true })
 if (mode === 'demo') {
   articles = [JSON.parse(await readFile(path.join(root, 'content/demo-article.json'), 'utf8'))]
 } else {
-  if (!process.env.CMS_URL) throw new Error('Configure CMS_URL antes de usar o modo live.')
-  articles = await fetchPublishedArticles(process.env.CMS_URL)
+  const cmsURL = getContentCMSURL()
+  articles = await fetchPublishedArticles(cmsURL)
   for (const article of articles) {
     if (!article.cover) continue
     const media = article.cover
     if (!media.url || !media.alt || !media.credit) throw new Error(`Capa incompleta: ${article.slug}`)
-    const url = new URL(media.url, process.env.CMS_URL)
+    const url = new URL(media.url, cmsURL)
     // O adaptador S3 é servido pela rota do Payload. Não seguir URLs arbitrárias de capas.
-    if (url.origin !== new URL(process.env.CMS_URL).origin) throw new Error('A capa deve ser servida pelo mesmo CMS_URL.')
+    if (url.origin !== new URL(cmsURL).origin) throw new Error('A capa deve ser servida pelo mesmo CMS_URL.')
     const response = await fetch(url, { signal: AbortSignal.timeout(120000), redirect: 'error' })
     if (!response.ok) throw new Error(`Não foi possível copiar a capa de ${article.slug}.`)
     const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }

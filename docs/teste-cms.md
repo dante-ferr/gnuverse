@@ -9,7 +9,7 @@ make setup
 make dev
 ```
 
-Abra http://localhost:3001/admin. `make dev` inicia CMS e site juntos e Ctrl+C encerra ambos. O setup gera `cms/.env` com segredo local aleatório e cria o diretório do SQLite. O segredo não é mostrado e não entra no Git. Essa base de desenvolvimento não será transferida automaticamente ao Supabase.
+Abra a URL do painel impressa no terminal. `make dev` inicia CMS e site juntos e Ctrl+C encerra ambos. O setup gera `cms/.env` com segredo local aleatório e cria o diretório do SQLite. O segredo não é mostrado e não entra no Git. Essa base de desenvolvimento não será transferida automaticamente ao Supabase.
 
 No primeiro acesso, crie seu usuário com nome, e-mail e senha. Ele será administrador. Depois, em **Integrantes**, você poderá criar contas com papel **Editor**. Não é necessário pagar por esses papéis nem obter uma chave de API do Payload.
 
@@ -34,11 +34,11 @@ No editor **Texto**, cole os dois parágrafos:
 
 As referências podem ficar vazias nesse teste técnico. O mesmo exemplo está em `content/demo-article.json`; ele não é inserido automaticamente no banco, para você testar a criação pelo painel.
 
-Primeiro salve como **rascunho**. Abra http://localhost:3001/api/articles sem autenticação (janela privada): o artigo não deve aparecer. Volte ao painel e clique em **Publicar**. A API pública passa a incluir o artigo.
+Primeiro salve como **rascunho**. Abra a URL do CMS seguida de `/api/articles` sem autenticação (janela privada): o artigo não deve aparecer. Volte ao painel e clique em **Publicar**. A API pública passa a incluir o artigo.
 
 ## 3. Conectar o site ao CMS local
 
-`make setup` já cria `.env.local` na raiz com `CMS_CONTENT_MODE=live` e `CMS_URL=http://localhost:3001`, se o arquivo ainda não existir. Se você já tinha esse arquivo, o setup o preserva; confira esses dois valores. Use o mesmo host em `CMS_SERVER_URL` no ambiente do CMS.
+`make setup` prepara `.env.local` na raiz. A porta local tem uma única origem: `CMS_PORT`. O painel, a espera pela API e a sincronização derivam a URL dessa variável. Para trocar a porta, edite apenas `CMS_PORT` e reinicie os servidores. `CMS_URL` fica vazio localmente; preencha-o somente para um CMS remoto. `CMS_SERVER_URL` é necessário somente em produção. Configurações antigas geradas pelo setup são migradas preservando os demais valores.
 
 Depois de publicar o artigo, pare `make dev` com Ctrl+C e inicie novamente:
 
@@ -87,7 +87,7 @@ Não precisamos de `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` ou chave de 
 
 1. Suba o repositório para sua conta GitHub. A integração de contas ainda precisa ser feita por você.
 2. Crie um **Web Service** no Render conectado ao repositório, com **Root Directory: `cms`** e instância Free.
-3. Configure Node.js 22 ou 24, por exemplo `NODE_VERSION=22`.
+3. Configure Node.js 22 ou 24, por exemplo `NODE_VERSION=22`, e `NODE_ENV=production`.
 4. **Build Command:** `npm ci && npm run generate:importmap && npm run build`.
 5. **Start Command:** `npm run migrate && npm start`. O Next.js usa a variável `PORT` fornecida pelo Render. A migração inicial já está versionada; não gerar migrações automaticamente em produção.
 6. Configure as variáveis do CMS na tabela. O deploy hook pode ficar vazio enquanto o site público não existir.
@@ -118,6 +118,6 @@ O teste do CMS cria um banco temporário independente e verifica permissões e p
 
 Use `make help` para listar os comandos. As instruções de build/start nos provedores continuam usando npm, sem depender de Make instalado na nuvem.
 
-Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sem alterar os arquivos de ambiente. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
+Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sobrescrevendo a porta definida no ambiente apenas para essa execução. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
 
 Encerre servidores deste mesmo projeto antes de usar `make dev`: o Next.js permite apenas uma sessão de desenvolvimento por diretório, mesmo em portas diferentes.

@@ -10,11 +10,15 @@ import sharp from 'sharp'
 import { Users } from './collections/Users'
 import { Articles } from './collections/Articles'
 import { Media } from './collections/Media'
+import { getLocalCMSURL, loadLocalEnvironment } from '../scripts/local-config.mjs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const postgres = process.env.DATABASE_ADAPTER === 'postgres'
 const s3 = process.env.STORAGE_ADAPTER === 's3'
-const serverURL = process.env.CMS_SERVER_URL || 'http://localhost:3001'
+if (process.env.NODE_ENV !== 'production') loadLocalEnvironment()
+const serverURL = process.env.NODE_ENV === 'production'
+  ? required('CMS_SERVER_URL')
+  : getLocalCMSURL()
 
 if (!process.env.PAYLOAD_SECRET) throw new Error('Configure PAYLOAD_SECRET no ambiente do CMS.')
 if (process.env.NODE_ENV === 'production' && (!postgres || !s3)) {

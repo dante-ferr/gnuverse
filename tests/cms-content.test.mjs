@@ -14,7 +14,7 @@ test('rascunhos não podem entrar na exportação e slugs não podem escapar da 
 
 test('lê todas as páginas com filtro de publicação, sem credenciais de usuário', async () => {
   const urls = []
-  const articles = await fetchPublishedArticles('http://localhost:3001', async (url, options) => {
+  const articles = await fetchPublishedArticles('https://cms.example.test', async (url, options) => {
     urls.push(url)
     assert.equal(options.headers, undefined)
     const page = Number(url.searchParams.get('page'))
@@ -25,5 +25,5 @@ test('lê todas as páginas com filtro de publicação, sem credenciais de usuá
 })
 
 test('falha de CMS aborta a publicação em vez de substituir por conteúdo demo', async () => {
-  await assert.rejects(fetchPublishedArticles('http://localhost:3001', async () => new Response('', { status: 503 })), /indisponível/)
+  await assert.rejects(fetchPublishedArticles('https://cms.example.test', async () => new Response('', { status: 503 })), /indisponível/)
 })

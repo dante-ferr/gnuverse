@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { getLocalCMSURL, loadLocalEnvironment } from '../cms/scripts/local-config.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const cmsPort = process.env.CMS_PORT || '3001'
-const cmsURL = `http://localhost:${cmsPort}`
+loadLocalEnvironment()
+const cmsURL = getLocalCMSURL()
 const children = new Set()
 const controller = new AbortController()
 let stopping = false
@@ -49,7 +50,7 @@ process.on('SIGINT', () => stop())
 process.on('SIGTERM', () => stop())
 
 console.log(`Iniciando CMS em ${cmsURL}/admin. Aguardando a API antes de iniciar o site…`)
-start(['--prefix', 'cms', 'run', 'dev', '--', '--port', cmsPort], 'CMS', { CMS_SERVER_URL: cmsURL })
+start(['run', 'cms:dev'], 'CMS')
 const deadline = Date.now() + 180000
 let ready = false
 try {

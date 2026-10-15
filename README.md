@@ -28,9 +28,9 @@ Depois, para iniciar CMS e site juntos:
 make dev
 ```
 
-Abra http://localhost:3001/admin, crie seu administrador e insira o artigo de teste descrito em `docs/teste-cms.md`. O site fica no endereço impresso no terminal, normalmente http://localhost:3000/artigos/.
+Abra a URL do painel impressa no terminal, crie seu administrador e insira o artigo de teste descrito em `docs/teste-cms.md`. O site fica no endereço impresso no terminal, normalmente http://localhost:3000/artigos/.
 
-O setup instala as duas aplicações, gera o segredo do CMS e prepara `.env.local` para o modo live, preservando arquivos de ambiente existentes. `make dev` aguarda o CMS antes de iniciar o site; Ctrl+C encerra os dois.
+O setup instala as duas aplicações, gera o segredo do CMS e prepara `.env.local` para o modo live. A porta local é definida somente por `CMS_PORT` nesse arquivo; o endereço do painel e a leitura do conteúdo são derivados dela. Configurações antigas são migradas, preservando os demais valores. `make dev` aguarda o CMS antes de iniciar o site; Ctrl+C encerra os dois.
 
 Depois de editar/publicar no CMS, pare e execute `make dev` novamente para atualizar o conteúdo. A sincronização acontece na inicialização, não a cada visita.
 
@@ -60,6 +60,6 @@ Use `make help` para listar os atalhos. Para trabalhar em terminais separados: `
 
 Apenas uma integração editorial inicial está implementada; conteúdo acadêmico e experiências mais elaboradas continuam sob desenvolvimento do grupo. As contas de nuvem, o remoto GitHub e as credenciais de produção ainda precisam ser configurados. Nenhum serviço externo foi publicado nesta etapa.
 
-Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sem alterar os arquivos de ambiente. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
+Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sobrescrevendo a porta definida no ambiente apenas para essa execução. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
 
 Encerre servidores deste mesmo projeto antes de usar `make dev`: o Next.js permite apenas uma sessão de desenvolvimento por diretório, mesmo em portas diferentes.

@@ -72,3 +72,7 @@ O snapshot `.content/` e as capas em `public/cms-media/` são gerados e ignorado
 - [Render Free](https://render.com/docs/free) e [Supabase Free](https://supabase.com/pricing).
 - [Supabase: credenciais S3](https://supabase.com/docs/guides/storage/s3/authentication).
 - [Cloudflare: deploy hooks](https://developers.cloudflare.com/pages/configuration/deploy-hooks/).
+
+## Configuração local de porta
+
+`CMS_PORT` no `.env.local` da raiz é a fonte única da porta do CMS. O valor inicial vem de `.env.example`; não há fallback numérico nos scripts. `make dev`, `make cms`, o Payload e `make sync` derivam o endereço local dessa variável. A variável de shell pode sobrescrever o arquivo para uma execução. Em produção, configurar `CMS_URL` no site e `CMS_SERVER_URL` no CMS, pois são aplicações hospedadas separadamente.
