@@ -9,6 +9,15 @@ Duas áreas paralelas e independentes:
 - **Torres colaborativas:** site-jogo de blocos com física simplificada, cadastro, moedas globais, criação de torres, votações e governança transparente. É uma proposta documentada; o jogo ainda não está implementado. Veja [gameplay e regras](docs/torres-colaborativas.md).
 - **Blog autoral:** posts da equipe e de visitantes, sujeitos a aprovação. A prova de conceito terá dois posts por integrante, totalizando 14. A integração editorial inicial existe, mas submissão pública e aprovação obrigatória ainda não. Veja [o plano editorial e o estado do CMS](docs/blog.md).
 
+## Navegação e divisão de trabalho
+
+- `/`: página inicial do GNUverse, com entradas para jogo e blog.
+- `/jogo/`: apresentação provisória. O jogo será desenvolvido em outra conversa, a partir de `src/app/jogo/page.tsx` e de `docs/torres-colaborativas.md`.
+- `/blog/`: entrada do blog, reutilizando a base editorial existente. O desenvolvimento do blog fica reservado a outro integrante.
+- `/artigos/` e `/artigos/[slug]/`: rotas editoriais anteriores preservadas por compatibilidade.
+
+A navegação compartilhada fica em `src/components/site-header.tsx`. A estrutura das três áreas está pronta; esta etapa não implementa gameplay nem altera o fluxo do CMS.
+
 ## Arquitetura escolhida
 
 - Site público estático na raiz, preparado para Cloudflare Pages. O jogo precisará de um backend dinâmico separado, ainda a definir.

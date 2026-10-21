@@ -57,3 +57,7 @@ Testes locais anteriores cobriram permissões atuais, rascunhos, upload, migraç
 5. Configurar recuperação de senha por e-mail e revisar o uso de contas públicas antes da abertura externa.
 
 Operação local e credenciais: [guia do CMS](teste-cms.md). Arquitetura: [decisões técnicas](arquitetura-cms.md).
+
+## Divisão de trabalho atual
+
+O usuário decidiu deixar a implementação do blog para outro integrante. A entrada pública é `/blog/`, reutilizando a lista já existente; `/artigos/` e as páginas individuais foram preservadas. Nesta etapa não foram alterados modelos, permissões ou publicação do CMS. O jogo será implementado em outra conversa e tem entrada independente em `/jogo/`.
