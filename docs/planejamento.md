@@ -1,4 +1,6 @@
-# Plano inicial para 7 integrantes
+# Planejamento para 7 integrantes
+
+Escopo atualizado em 21/10/2026.
 
 ## O que vem do enunciado
 
@@ -17,27 +19,29 @@ GNUverse: software livre como forma de democratizar o acesso à tecnologia. Púb
 
 Direção visual inicial: papel claro, violeta, tipografia editorial e rede de colaboração. Movimento deve explicar conexões e escolhas, preservando leitura, teclado e preferência por movimento reduzido. A página atual é uma abertura provisória; os textos acadêmicos finais são dos integrantes.
 
-## Divisão proposta: uma experiência por integrante
+## Escopo atual
 
-Substituir os números por nomes. São propostas; as funcionalidades ainda não foram implementadas. Cada pessoa concebe, produz material, acompanha a integração e valida sua experiência. IA pode ajudar a programá-la; pesquisa, observação, interpretação e posicionamento são dos humanos.
+O projeto terá [torres colaborativas](torres-colaborativas.md) e [blog autoral](blog.md), como duas áreas separadas. A antiga proposta de cartões, mapa de barreiras e dilema deixa de ser o plano principal de interação; esses assuntos podem virar pautas do blog. Missões procedurais e salas ligadas a artigos não são requisitos atuais.
 
-| Pessoa | Funcionalidade | Entrega humana concreta | Revisão |
+O jogo permite empilhar blocos com física simplificada e consequências lúdicas. Terá registro de usuários, moedas globais limitadas, torres criadas por usuários, custos por torre, habilitação de eleitores, banimentos locais, restauração por votação ou decisão do BDFL e transparência das decisões. Valores de economia e votação e infraestrutura do multiplayer ainda serão definidos. Implementar em etapas conforme o documento do jogo.
+
+## Autoria e divisão proposta
+
+Todos os sete integrantes escrevem **dois posts autorais**, totalizando **14 posts** para a prova de conceito. Todos também participam da concepção e teste da experiência. Como proposta, um post de investigação e outro de experiência/caso por pessoa; pautas e nomes ainda precisam ser acordados.
+
+| Pessoa | Responsabilidade adicional proposta | Entrega humana concreta | Revisão dos posts |
 | --- | --- | --- | --- |
-| 1 — você | Caminho de entrada: navegar por objetivo (estudar, criar, colaborar) e integrar o site | Esboçar 3 percursos; conversar com 2 visitantes; escrever a abertura com a pessoa 4; integrar e validar as interações com os autores | Pessoa 7 |
-| 2 | Liberdade em situações reais: cartões que revelam efeitos das liberdades do software | Analisar a primeira palestra e fontes primárias; escrever 4 situações autorais e explicações; distinguir liberdade de gratuidade; fornecer referências | Pessoa 3 |
-| 3 | Mapa das barreiras: explorar custo, infraestrutura, acessibilidade, formação e suporte | Analisar uma segunda palestra; mapear 5 barreiras com evidências; mostrar onde software livre ajuda e onde outras ações são necessárias; conectar as duas palestras | Pessoa 2 |
-| 4 | Dilema de uma escola: escolhas e consequências | Escrever cenário fictício identificado como tal e 3 decisões com alternativas plausíveis; fundamentar consequências sem inventar estatísticas; construir tese e conclusão com todos | Pessoa 5 |
-| 5 | Vozes do acesso: relatos navegáveis | Fazer 2–3 conversas com consentimento para uso; transcrever, contextualizar e selecionar trechos fielmente; permitir anonimato. Alternativa: caso público documentado e identificado | Pessoa 4 |
-| 6 | Laboratório de possibilidades: comparação prática de alternativas livres | Experimentar 3 ferramentas na mesma tarefa; registrar facilidade, limitações e acessibilidade; produzir capturas próprias, créditos e textos alternativos; criar moodboard e storyboard com os autores | Pessoa 7 |
-| 7 | E agora?: primeiros passos e reflexão final | Testar com 3 pessoas do público proposto; observar barreiras; escrever guia curto a partir dos testes e pergunta final; organizar anteprojeto, diário e pitch com textos de todos | Você |
+| 1 — você | Integração e coordenação técnica | Traduzir as decisões em protótipos; discutir regras com o grupo; registrar limites e resultados dos testes | Pessoa 2 |
+| 2 | Fundamentação do software livre | Analisar uma palestra-base e fontes; conectar liberdades, acesso e limites à experiência | Pessoa 3 |
+| 3 | Governança e participação | Analisar outra palestra-base; elaborar questões críticas sobre votos, BDFL, custos e exclusão | Pessoa 4 |
+| 4 | Regras e experiência lúdica | Rascunhar ações, situações de construção/desabamento e critérios para testar economia e restaurações | Pessoa 5 |
+| 5 | Casos e perspectivas reais | Investigar casos ou relatos com consentimento e contexto para fundamentar os textos | Pessoa 6 |
+| 6 | Linguagem visual acessível | Criar referências e esboços de blocos geométricos, interface, histórico e animações; evitar depender de muitos sprites | Pessoa 7 |
+| 7 | Testes, revisão e documentação | Observar participantes; organizar devolutivas, anteprojeto, diário e apresentação com contribuições de todos | Você |
 
-Os números de entrevistas, testes e peças são metas propostas, não exigências do PDF. As pessoas 2 e 3 selecionam palestras diferentes; todos leem ambas. Cada entrega inclui roteiro/rascunho, conteúdo autoral, fontes, intenção da interação e revisão por outra pessoa. Quem não programa pode desenvolver textos, mídia e roteiros, acompanhar a integração e testar sua seção.
+Essa divisão é uma proposta de organização, não atribuição de nomes já confirmada. Ninguém fica responsável apenas por pensar ou apenas por executar. A pessoa 7 organiza o diário; cada integrante escreve sua própria reflexão. Os autores revisam como suas contribuições aparecem no site e acompanham os testes.
 
-O dilema pode revelar tensões sem atribuir nota moral ao visitante. O laboratório deve comparar uma tarefa real, e não virar lista genérica de aplicativos. Relatos não representam toda a população; explicitar esse limite. Não é necessário armazenar respostas dos visitantes.
-
-**Primeira versão recomendada:** cartões de liberdade (2), mapa das barreiras (3) e dilema (4), integrados pelo percurso (1). As pessoas 5 e 6 fornecem relatos e demonstrações para essas experiências; a pessoa 7 testa e escreve o fechamento. Só criar módulos separados para relatos e laboratório se houver tempo e ganho narrativo. Todos contribuem sem exigir sete sistemas diferentes.
-
-Cada integrante escreve sua reflexão. A pessoa 7 organiza o diário, não escreve pelos demais. Todos aprovam tese e conclusão e revisam sua contribuição no site.
+As pessoas 2 e 3 selecionam palestras diferentes; todos leem ambas. Cada post deve incluir argumento próprio, evidências, fontes e ligação com o curso. A publicação precisa passar por autorização; o código atual do CMS ainda exige mudança para aplicar essa regra obrigatoriamente.
 
 ## Como trabalhar sem terceirizar a autoria
 
@@ -54,7 +58,7 @@ Cada integrante escreve sua reflexão. A pessoa 7 organiza o diário, não escre
 | --- | --- |
 | 14–17/10/2026 | Registrar equipe/formato/tema; revisar materiais; escolher público e pergunta central. O PDF marca encontro online em 17/10, 10h30–11h30. |
 | 18–21/10 | Aprovar tese, duas palestras-base e mapa da experiência; levar dúvidas ao encontro presencial de 21/10. |
-| 22–30/10 | Fichas, primeiros textos, caso/dilema e storyboard; redigir anteprojeto com participação de todos. |
+| 22–30/10 | Definir as 14 pautas, preparar primeiros textos e esboçar o protótipo das torres; redigir anteprojeto coletivamente. |
 | 31/10–02/11 | Revisar o anteprojeto e ensaiar o pitch. |
 | 03/11 até 23h59 | Uma pessoa envia o anteprojeto em PDF pelo Moodle. |
 | 04 ou 11/11 | Pitch, conforme sorteio; registrar e incorporar feedback. |
@@ -74,8 +78,10 @@ Datas intermediárias são propostas. Data da apresentação final depende da or
 
 Escolher essas respostas antes de expandir páginas e animações.
 
-## Atualização técnica — CMS e publicação
+## Estado técnico e próximos passos
 
-A estrutura será uma publicação editorial com artigos e módulos interativos. O grupo alimenta o Payload CMS em nuvem; os artigos ficam no PostgreSQL, as imagens no storage e o site público é pré-gerado no Cloudflare Pages. Não haverá commits de conteúdo a cada edição. O painel pode suspender no plano gratuito, mas visitantes leem uma cópia estática independente. Ver `arquitetura-cms.md` e `teste-cms.md`.
+A base atual implementa o blog com Payload local, rascunhos, artigos e exportação estática. A decisão é usar Payload em nuvem, PostgreSQL/storage no Supabase e blog estático no Cloudflare Pages, sem commits de conteúdo. Configurar a nuvem e validar credenciais continua pendente conforme o estado conhecido da sessão.
 
-As pessoas responsáveis pelas experiências também podem publicar artigos associados a elas, com autoria, referências e revisão cruzada. A pessoa 1 cuida da integração; o administrador cria contas de editor para os demais. Estes papéis técnicos não substituem as responsabilidades humanas descritas acima.
+O código ainda permite publicação direta por editores. Separar autores/revisores e criar submissão pública são pendências; cadastro de jogadores e jogo ainda não existem. O jogo exige um serviço dinâmico e não deve depender do deploy editorial ou do despertar do CMS para cada ação.
+
+Consultar [arquitetura](arquitetura-cms.md), [guia de teste](teste-cms.md), [plano do blog](blog.md) e [regras das torres](torres-colaborativas.md). Próxima etapa sugerida: validar um protótipo local da física e formalizar regras de revisão editorial antes de ampliar a infraestrutura.

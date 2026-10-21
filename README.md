@@ -2,9 +2,16 @@
 
 Projeto multimodal de MATA68 (2026.2) sobre software livre como forma de democratizar o acesso à tecnologia. Stack: Next.js App Router, Tailwind e TypeScript.
 
+## Experiência proposta
+
+Duas áreas paralelas e independentes:
+
+- **Torres colaborativas:** site-jogo de blocos com física simplificada, cadastro, moedas globais, criação de torres, votações e governança transparente. É uma proposta documentada; o jogo ainda não está implementado. Veja [gameplay e regras](docs/torres-colaborativas.md).
+- **Blog autoral:** posts da equipe e de visitantes, sujeitos a aprovação. A prova de conceito terá dois posts por integrante, totalizando 14. A integração editorial inicial existe, mas submissão pública e aprovação obrigatória ainda não. Veja [o plano editorial e o estado do CMS](docs/blog.md).
+
 ## Arquitetura escolhida
 
-- Site público estático na raiz, preparado para Cloudflare Pages.
+- Site público estático na raiz, preparado para Cloudflare Pages. O jogo precisará de um backend dinâmico separado, ainda a definir.
 - Payload CMS separado em `cms/`, preparado para Render.
 - Banco PostgreSQL e mídia S3 no Supabase em produção; SQLite e disco local somente no desenvolvimento.
 - Conteúdo é salvo no banco, sem commits editoriais. Publicar solicita novo build por deploy hook.
@@ -58,7 +65,7 @@ Use `make help` para listar os atalhos. Para trabalhar em terminais separados: `
 - `docs/planejamento.md`: responsabilidades dos sete integrantes e cronograma.
 - `docs/diario-de-bordo.md`: modelo coletivo e individual.
 
-Apenas uma integração editorial inicial está implementada; conteúdo acadêmico e experiências mais elaboradas continuam sob desenvolvimento do grupo. As contas de nuvem, o remoto GitHub e as credenciais de produção ainda precisam ser configurados. Nenhum serviço externo foi publicado nesta etapa.
+O escopo implementado atualmente é a integração editorial inicial; conteúdo acadêmico e experiências mais elaboradas continuam sob desenvolvimento do grupo. As contas de nuvem, o remoto GitHub e as credenciais de produção ainda precisam ser configurados. Nenhum serviço externo foi publicado nesta etapa.
 
 Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sobrescrevendo a porta definida no ambiente apenas para essa execução. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
 

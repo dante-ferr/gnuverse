@@ -1,5 +1,9 @@
 # Testar o CMS e configurar a nuvem
 
+## Escopo deste guia
+
+Este guia testa a integração editorial já implementada. O produto agora prevê [blog com aprovação](blog.md) e [jogo de torres independente](torres-colaborativas.md). Editores ainda publicam diretamente no código atual: revisão obrigatória, cadastro/submissão públicos e jogo estão pendentes. Os passos abaixo não comprovam essas funcionalidades futuras.
+
 ## 1. Teste local sem chaves externas
 
 Requer Node.js 22+, npm e GNU Make. Na raiz:

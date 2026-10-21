@@ -35,3 +35,9 @@ Cada integrante escreve em primeira pessoa, identificando nome e data. Abordar c
 ## Registro técnico — integração editorial em 14/10/2026
 
 A pedido do usuário, o Codex registrou a decisão de separar CMS em nuvem e site público estático, implementou uma base Payload com papéis admin/editor, rascunhos e publicação, rotas de artigos, sincronização no build, cópia de capas e solicitação de deploy por hook. Incluiu conteúdo de demonstração e instruções para inserção manual pelo grupo. As credenciais e contas de produção não foram utilizadas. O grupo deve registrar sua própria avaliação e as alterações após os testes.
+
+## Registro de concepção — 21/10/2026
+
+O usuário definiu duas experiências paralelas: torres colaborativas e blog. Para o jogo, propôs moedas globais recuperadas com o tempo e com teto, registro de usuários, custos por torre, criação de torres, governança por votação ou BDFL separada para banimento/restauração, habilitação manual ou por contribuições e transparência das decisões. Após discussão, solicitou documentar a proposta e seus refinamentos. O Codex organizou regras, parâmetros em aberto e etapas, sem implementar o jogo nesta atualização.
+
+Para o blog, cada integrante fará dois posts (14 no total), e contribuições externas deverão passar por aprovação. A documentação foi corrigida para distinguir essa intenção do CMS atual, em que editores ainda publicam diretamente e não há cadastro/submissão públicos. Este registro descreve a colaboração técnica e não substitui a reflexão individual dos integrantes.
