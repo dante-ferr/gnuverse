@@ -53,6 +53,8 @@ export class TowerService {
       eligibilityMode: tower.eligibilityMode,
       minContributions: tower.minContributions,
       blockCount: tower.frame.blocks.length,
+      blockIntervalMs: tower.blockIntervalMs,
+      checkpointEveryBlocks: tower.checkpointEveryBlocks,
       windMinBlocks: tower.windMinBlocks,
       windEveryBlocks: tower.windEveryBlocks,
       placementCount: tower.placementCount,
@@ -111,6 +113,10 @@ export class TowerService {
       snapshots: [],
       events: [],
       proposals: [],
+      blockIntervalMs: integer(body.blockIntervalMs ?? this.rules.cooldownMs, 0, 86_400_000, 'Intervalo entre blocos'),
+      checkpointEveryBlocks: integer(body.checkpointEveryBlocks ?? 5, 1, 1_000_000, 'Intervalo de checkpoints'),
+      lastPlacementAt: null,
+      lastCheckpointPlacementCount: 0,
       pendingSnapshot: false,
       windMinBlocks:
         body.windMinBlocks === undefined
@@ -142,6 +148,8 @@ export class TowerService {
       restoreMode: tower.restoreMode,
       eligibilityMode: tower.eligibilityMode,
       minContributions: tower.minContributions,
+      blockIntervalMs: tower.blockIntervalMs,
+      checkpointEveryBlocks: tower.checkpointEveryBlocks,
       windMinBlocks: tower.windMinBlocks,
       windEveryBlocks: tower.windEveryBlocks,
     })
@@ -171,10 +179,16 @@ export class TowerService {
       restoreMode: tower.restoreMode,
       eligibilityMode: tower.eligibilityMode,
       minContributions: tower.minContributions,
+      blockIntervalMs: tower.blockIntervalMs,
+      checkpointEveryBlocks: tower.checkpointEveryBlocks,
       windMinBlocks: tower.windMinBlocks,
       windEveryBlocks: tower.windEveryBlocks,
     }
     const after = {
+      blockIntervalMs: body.blockIntervalMs === undefined ? tower.blockIntervalMs
+        : integer(body.blockIntervalMs, 0, 86_400_000, 'Intervalo entre blocos'),
+      checkpointEveryBlocks: body.checkpointEveryBlocks === undefined ? tower.checkpointEveryBlocks
+        : integer(body.checkpointEveryBlocks, 1, 1_000_000, 'Intervalo de checkpoints'),
       cost:
         body.cost === undefined
           ? tower.cost
@@ -209,15 +223,18 @@ export class TowerService {
           ? tower.minContributions
           : integer(body.minContributions, 1, 1000, 'Contribuições mínimas'),
     }
-    if (JSON.stringify(before) === JSON.stringify(after))
+    if (Object.entries(before).every(([key, value]) => after[key as keyof typeof after] === value))
       fail(400, 'Escolha ao menos uma alteração.')
     const frequencyChanged =
       before.windMinBlocks !== after.windMinBlocks ||
       before.windEveryBlocks !== after.windEveryBlocks
     if (frequencyChanged && tower.wind)
       fail(409, 'Aguarde a ventania terminar antes de alterar sua frequência.')
+    if (before.checkpointEveryBlocks !== after.checkpointEveryBlocks && tower.pendingSnapshot)
+      fail(409, 'Aguarde o checkpoint antes de alterar seu intervalo.')
     const previousNextWindAt = tower.nextWindAt
     Object.assign(tower, after)
+    tower.pendingSnapshot = tower.placementCount - tower.lastCheckpointPlacementCount >= tower.checkpointEveryBlocks
     if (frequencyChanged) this.wind.recalculate(tower)
     if (tower.eligibilityMode === 'automatic')
       for (const participant of Object.values(tower.members))
@@ -244,6 +261,8 @@ export class TowerService {
   ) {
     if (tower.wind)
       fail(409, 'Aguarde a ventania terminar e a torre estabilizar.')
+    if (tower.pendingSnapshot)
+      fail(409, 'Aguarde a torre estabilizar para salvar o checkpoint.')
     if (
       tower.proposals.some(
         (proposal) => proposal.executionStatus === 'deferred',
@@ -251,8 +270,8 @@ export class TowerService {
     )
       fail(409, 'Aguarde a restauração aprovada ser executada.')
     if (
-      user.lastAction !== null &&
-      this.now() - user.lastAction < this.rules.cooldownMs
+      tower.lastPlacementAt !== null &&
+      this.now() - tower.lastPlacementAt < tower.blockIntervalMs
     )
       fail(429, 'Aguarde o intervalo entre blocos.')
     this.wallet.read(user)
@@ -287,6 +306,7 @@ export class TowerService {
     }
     user.balance -= tower.cost
     user.lastAction = this.now()
+    tower.lastPlacementAt = this.now()
     participant.contributions++
     this.wind.placed(tower, user.id)
     if (
@@ -295,7 +315,7 @@ export class TowerService {
     )
       participant.eligible = true
     tower.frame = this.runtime.simulation(tower).read()
-    tower.pendingSnapshot = true
+    tower.pendingSnapshot = tower.placementCount - tower.lastCheckpointPlacementCount >= tower.checkpointEveryBlocks
     tower.lastActorId = user.id
     this.history.event(tower, 'block-placed', user.id, {
       blockId: block.id,

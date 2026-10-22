@@ -372,6 +372,7 @@ test('frozen electorate, one vote each, no BDFL veto and tie rejects after deadl
     const id = (
       await f.request('/towers', owner.token, {
         name: 'Torre voto',
+        blockIntervalMs: 0,
         minContributions: 1,
         cost: 0,
       })
@@ -1375,6 +1376,76 @@ test('tower-specific wind settings validate, audit, recalculate and persist inde
       (await f.request(`/towers/${defaultTower.id}`)).data.tower.windMinBlocks,
       6,
     )
+  } finally {
+    await f.close()
+  }
+})
+
+test('moving placements share a tower timer and only interval boundaries create checkpoints', async () => {
+  const f = await fixture()
+  try {
+    const owner = await f.register('checkpointowner')
+    const guest = await f.register('checkpointguest')
+    const created = await f.request('/towers', owner.token, {
+      name: 'Checkpoints por intervalo', cost: 0,
+      blockIntervalMs: 250, checkpointEveryBlocks: 3,
+    })
+    const id = created.data.tower.id
+    const place = (token: string, x: number) =>
+      f.request(`/towers/${id}/blocks`, token, { x, y: 100 })
+    assert.equal((await place(owner.token, 200)).status, 200)
+    assert.equal((await place(guest.token, 400)).status, 429)
+    f.advance(249)
+    assert.equal((await place(guest.token, 400)).status, 429)
+    f.advance(1)
+    assert.equal((await f.request(`/towers/${id}`)).data.frame.settled, false)
+    assert.equal((await place(guest.token, 400)).status, 200)
+    const stable = await waitForTower(f, id, (data) => data.frame.settled)
+    assert.equal(stable.snapshots.length, 1, 'intermediate stabilization does not save a checkpoint')
+    await f.restart()
+    f.advance(250)
+    assert.equal((await place(owner.token, 600)).status, 200)
+    f.advance(250)
+    assert.equal((await place(guest.token, 800)).status, 409)
+    await f.restart()
+    assert.equal((await place(guest.token, 800)).status, 409, 'checkpoint lock persists')
+    const checkpoint = await waitForTower(f, id, (data) => data.snapshots.length === 2)
+    assert.equal(checkpoint.frame.settled, true)
+    assert.equal((await place(guest.token, 800)).status, 200)
+  } finally {
+    await f.close()
+  }
+})
+
+test('host validates and audits construction timing and cannot bypass a pending checkpoint', async () => {
+  const f = await fixture()
+  try {
+    const owner = await f.register('timingowner')
+    const guest = await f.register('timingguest')
+    for (const invalid of [
+      { blockIntervalMs: -1 }, { blockIntervalMs: 0.5 },
+      { checkpointEveryBlocks: 0 }, { checkpointEveryBlocks: 1.5 },
+    ]) {
+      assert.equal((await f.request('/towers', owner.token, {
+        name: 'Invalid timing', ...invalid,
+      })).status, 400)
+    }
+    const { data } = await f.request('/towers', owner.token, {
+      name: 'Timing settings', cost: 0, blockIntervalMs: 0, checkpointEveryBlocks: 2,
+    })
+    const id = data.tower.id
+    const settings = `/towers/${id}/settings`
+    const change = { blockIntervalMs: 50, checkpointEveryBlocks: 1, reason: 'Novo ritmo' }
+    assert.equal((await f.request(settings, guest.token, change)).status, 403)
+    assert.equal((await f.request(settings, owner.token, change)).status, 200)
+    const detail = (await f.request(`/towers/${id}`)).data
+    const audit = detail.events.findLast((event) => event.type === 'settings')!
+    assert.equal(audit.detail!.before!.blockIntervalMs, 0)
+    assert.equal(audit.detail!.after!.checkpointEveryBlocks, 1)
+    assert.equal((await f.request(`/towers/${id}/blocks`, owner.token, { x: 200, y: 100 })).status, 200)
+    assert.equal((await f.request(settings, owner.token, {
+      checkpointEveryBlocks: 100, reason: 'Tentar evitar checkpoint',
+    })).status, 409)
   } finally {
     await f.close()
   }

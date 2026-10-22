@@ -53,7 +53,8 @@ export function useGameController() {
     tower &&
     !member?.banned &&
     live.frame.blocks.length < Number(rules?.maxBlocks ?? 100) &&
-    live.frame.settled &&
+    !live.frame.checkpointPending &&
+    !(live.frame.cooldownRemainingMs && live.frame.cooldownRemainingMs > 0) &&
     !live.frame.wind &&
     !feedback.busy &&
     !preview &&
@@ -77,7 +78,11 @@ export function useGameController() {
         { ...placement, angle: (placement.angle * Math.PI) / 180 },
       )
       session.setWallet(result.wallet)
-      live.setFrame((frame) => ({ ...frame, settled: false }))
+      live.setFrame((frame) => ({
+        ...frame, settled: false,
+        cooldownRemainingMs: tower?.blockIntervalMs ?? 0,
+        checkpointPending: (frame.blocksUntilCheckpoint ?? 1) <= 1,
+      }))
       feedback.setNotice('')
       await live.refresh()
     })
@@ -89,6 +94,8 @@ export function useGameController() {
         {
           name: data.get('name'),
           cost: Number(data.get('cost')),
+          blockIntervalMs: Math.round(Number(data.get('blockIntervalSeconds')) * 1000),
+          checkpointEveryBlocks: Number(data.get('checkpointEveryBlocks')),
           windMinBlocks: Number(data.get('windMinBlocks')),
           windEveryBlocks: Number(data.get('windEveryBlocks')),
           banMode: data.get('banMode'),

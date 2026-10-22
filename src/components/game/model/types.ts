@@ -17,6 +17,9 @@ export type Frame = {
   blocks: Block[]
   settled: boolean
   tick: number
+  checkpointPending?: boolean
+  cooldownRemainingMs?: number
+  blocksUntilCheckpoint?: number
   wind?: WindState | null
 }
 export type User = { id: string; nickname: string }
@@ -40,6 +43,8 @@ export type Tower = {
   nextWindAt?: number
   windMinBlocks: number
   windEveryBlocks: number
+  blockIntervalMs: number
+  checkpointEveryBlocks: number
   blockCount: number
 }
 export type Snapshot = {

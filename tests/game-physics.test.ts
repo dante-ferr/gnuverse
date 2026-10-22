@@ -32,7 +32,7 @@ test('empty world is settled; a falling block rests on the floor', () => {
     assert.equal(sim.read().settled, true)
     assert.deepEqual(sim.place(block()), { ok: true })
     assert.equal(sim.read().settled, false)
-    assert.equal(sim.place(block({ id: 'second' })).error, 'busy')
+    assert.equal(sim.place(block({ id: 'second' })).error, 'overlap')
     const frame = settle(sim)
     assert.ok(Math.abs(frame.blocks[0].y - (WORLD.groundY - 30)) < 1)
     assert.equal(frame.blocks[0].sleeping, true)
@@ -244,4 +244,18 @@ test('wind is mass-scaled, directional and consumed after one physics tick', () 
     assert.throws(() => left.applyWind(-0.1, 1), /Invalid wind/)
     assert.throws(() => left.applyWind(1.1, 1), /Invalid wind/)
   } finally { left.dispose(); right.dispose(); control.dispose() }
+})
+
+test('accepts separate blocks in flight and checks overlap against moving bodies', () => {
+  const sim = createSimulation()
+  try {
+    assert.equal(sim.place(block({ x: 200 })).ok, true)
+    sim.step()
+    assert.equal(sim.read().settled, false)
+    assert.equal(sim.place(block({ id: 'moving-second', x: 700 })).ok, true)
+    assert.equal(sim.place(block({ id: 'collision', x: 700 })).error, 'overlap')
+    assert.equal(settle(sim).blocks.length, 2)
+  } finally {
+    sim.dispose()
+  }
 })

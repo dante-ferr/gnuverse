@@ -28,7 +28,16 @@ export function createGameServer(options: ServerOptions = {}) {
     runtime.publishChange(towerId),
   )
   const wind = new WindService(rules, now, history)
-  for (const tower of Object.values(store.state.towers)) wind.initialize(tower)
+  for (const tower of Object.values(store.state.towers)) {
+    wind.initialize(tower)
+    tower.blockIntervalMs ??= rules.cooldownMs
+    tower.lastPlacementAt ??= null
+    if (tower.checkpointEveryBlocks === undefined) {
+      tower.checkpointEveryBlocks = 5
+      tower.lastCheckpointPlacementCount = tower.placementCount
+      tower.pendingSnapshot = false
+    }
+  }
   store.persist()
   const wallet = new WalletService(rules, now)
   const auth = new AuthService(store, rules, now, wallet)

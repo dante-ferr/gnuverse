@@ -81,6 +81,9 @@ export type WindState = {
   strength: number
 }
 export type PublicFrame = Frame & {
+  checkpointPending: boolean
+  cooldownRemainingMs: number
+  blocksUntilCheckpoint: number
   wind: Pick<WindState, 'phase' | 'endsAt' | 'direction'> | null
 }
 export type Tower = {
@@ -97,6 +100,10 @@ export type Tower = {
   snapshots: Snapshot[]
   events: TowerEvent[]
   proposals: Proposal[]
+  blockIntervalMs: number
+  checkpointEveryBlocks: number
+  lastPlacementAt: number | null
+  lastCheckpointPlacementCount: number
   pendingSnapshot: boolean
   windMinBlocks: number
   windEveryBlocks: number

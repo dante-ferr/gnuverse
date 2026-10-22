@@ -9,7 +9,10 @@ function rulesText(value: unknown) {
     typeof rules.windMinBlocks === 'number'
       ? `; vento inicial após ${rules.windMinBlocks} blocos e depois a cada ${rules.windEveryBlocks}`
       : ''
-  return `${rules.cost} moedas/bloco; banimentos por ${mode(rules.banMode)}; restaurações por ${mode(rules.restoreMode)}; eleitores ${rules.eligibilityMode === 'manual' ? 'habilitados manualmente' : `após ${rules.minContributions} contribuições`}${wind}`
+  const building = typeof rules.blockIntervalMs === 'number'
+    ? `; intervalo de ${rules.blockIntervalMs / 1000}s; checkpoint a cada ${rules.checkpointEveryBlocks} blocos`
+    : ''
+  return `${rules.cost} moedas/bloco; banimentos por ${mode(rules.banMode)}; restaurações por ${mode(rules.restoreMode)}; eleitores ${rules.eligibilityMode === 'manual' ? 'habilitados manualmente' : `após ${rules.minContributions} contribuições`}${wind}${building}`
 }
 
 export function EventDetail({ event }: { event: GameEvent }) {

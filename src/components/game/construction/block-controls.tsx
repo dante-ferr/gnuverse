@@ -28,7 +28,9 @@ export type BlockControlsProps = {
   tower: Tower | null
   isBanned: boolean
   preview: Snapshot | null
-  settled: boolean
+  checkpointPending?: boolean
+  cooldownRemainingMs?: number
+  blocksUntilCheckpoint?: number
   wind?: WindState | null
   onPlace: () => void
 }
@@ -49,7 +51,9 @@ export function BlockControls({
   tower,
   isBanned,
   preview,
-  settled,
+  checkpointPending,
+  cooldownRemainingMs = 0,
+  blocksUntilCheckpoint,
   wind,
   onPlace,
 }: BlockControlsProps) {
@@ -141,8 +145,17 @@ export function BlockControls({
               : isBanned
                 ? 'Participação suspensa'
                 : windLabel ||
-                  (!settled ? 'Torre em movimento…' : 'Lançar bloco ↓')}
+                  (checkpointPending ? 'Aguardando checkpoint…'
+                    : cooldownRemainingMs > 0 ? `Aguarde ${(cooldownRemainingMs / 1000).toFixed(1)}s`
+                    : 'Lançar bloco ↓')}
       </button>
+      {tower && (
+        <small role="status">
+          {checkpointPending
+            ? 'Aguardando a estabilização para salvar o checkpoint.'
+            : `Próximo checkpoint em ${blocksUntilCheckpoint ?? tower.checkpointEveryBlocks} blocos.`}
+        </small>
+      )}
       {user && tower && wallet && wallet.balance < tower.cost && (
         <small>Saldo insuficiente.</small>
       )}

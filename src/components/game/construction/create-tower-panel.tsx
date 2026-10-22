@@ -2,6 +2,7 @@
 
 import type { FormEvent } from 'react'
 import { WindFrequencyFields } from './wind-frequency-fields'
+import { BuildFrequencyFields } from './build-frequency-fields'
 import styles from '../tower-game.module.css'
 
 export type CreateTowerPanelProps = {
@@ -9,6 +10,7 @@ export type CreateTowerPanelProps = {
   maxCost: number
   defaultCost: number
   minContributions: number
+  blockIntervalMs: number
   windMinBlocks: number
   windEveryBlocks: number
   onClose: () => void
@@ -20,6 +22,7 @@ export function CreateTowerPanel({
   maxCost,
   defaultCost,
   minContributions,
+  blockIntervalMs,
   windMinBlocks,
   windEveryBlocks,
   onClose,
@@ -86,6 +89,10 @@ export function CreateTowerPanel({
             required
           />
         </label>
+        <BuildFrequencyFields
+          intervalMs={blockIntervalMs}
+          checkpointEvery={5}
+        />
         <WindFrequencyFields
           initial={windMinBlocks}
           interval={windEveryBlocks}

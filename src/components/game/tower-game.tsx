@@ -80,6 +80,7 @@ export function TowerGame() {
           busy={feedback.busy}
           maxCost={Number(game.rules?.maxCost ?? 20)}
           defaultCost={Number(game.rules?.defaultCost ?? 1)}
+          blockIntervalMs={Number(game.rules?.cooldownMs ?? 2000)}
           windMinBlocks={Number(game.rules?.windMinBlocks ?? 15)}
           windEveryBlocks={Number(game.rules?.windEveryBlocks ?? 10)}
           minContributions={Number(game.rules?.minContributions ?? 3)}
@@ -119,7 +120,9 @@ export function TowerGame() {
           tower={game.tower}
           isBanned={Boolean(game.member?.banned)}
           preview={game.preview}
-          settled={live.frame.settled}
+          checkpointPending={live.frame.checkpointPending}
+          cooldownRemainingMs={live.frame.cooldownRemainingMs}
+          blocksUntilCheckpoint={live.frame.blocksUntilCheckpoint}
           wind={live.frame.wind}
           onPlace={game.place}
         />

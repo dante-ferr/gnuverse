@@ -2,6 +2,7 @@
 
 import type { Tower } from '../model/types'
 import { WindFrequencyFields } from '../construction/wind-frequency-fields'
+import { BuildFrequencyFields } from '../construction/build-frequency-fields'
 import styles from '../tower-game.module.css'
 
 type Props = {
@@ -37,6 +38,8 @@ export function TowerSettings({
         key={JSON.stringify({
           id: tower.id,
           cost: tower.cost,
+          blockIntervalMs: tower.blockIntervalMs,
+          checkpointEveryBlocks: tower.checkpointEveryBlocks,
           banMode: tower.banMode,
           restoreMode: tower.restoreMode,
           eligibilityMode: tower.eligibilityMode,
@@ -50,6 +53,8 @@ export function TowerSettings({
           const values = new FormData(event.currentTarget)
           void onSave({
             cost: Number(values.get('cost')),
+            blockIntervalMs: Math.round(Number(values.get('blockIntervalSeconds')) * 1000),
+            checkpointEveryBlocks: Number(values.get('checkpointEveryBlocks')),
             windMinBlocks: Number(values.get('windMinBlocks')),
             windEveryBlocks: Number(values.get('windEveryBlocks')),
             banMode: String(values.get('banMode')),
@@ -103,6 +108,10 @@ export function TowerSettings({
             required
           />
         </label>
+        <BuildFrequencyFields
+          intervalMs={tower.blockIntervalMs}
+          checkpointEvery={tower.checkpointEveryBlocks}
+        />
         <WindFrequencyFields
           initial={tower.windMinBlocks}
           interval={tower.windEveryBlocks}

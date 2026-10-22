@@ -46,6 +46,7 @@ export class GovernanceService {
       this.runtime.simulation(tower).restore(structuredClone(target!.blocks))
       tower.frame = this.runtime.simulation(tower).read()
       tower.pendingSnapshot = false
+      tower.lastCheckpointPlacementCount = tower.placementCount
       this.history.event(tower, 'restore', actorId, {
         snapshotId: target!.id,
         proposalId: proposal.id,

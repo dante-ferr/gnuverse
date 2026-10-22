@@ -30,6 +30,10 @@ export class SimulationCoordinator {
   frame(tower: Tower): PublicFrame {
     return {
       ...tower.frame,
+      checkpointPending: tower.pendingSnapshot,
+      cooldownRemainingMs: tower.lastPlacementAt === null ? 0
+        : Math.max(0, tower.lastPlacementAt + tower.blockIntervalMs - this.now()),
+      blocksUntilCheckpoint: Math.max(0, tower.checkpointEveryBlocks - (tower.placementCount - tower.lastCheckpointPlacementCount)),
       wind: tower.wind
         ? {
             phase: tower.wind.phase,
@@ -57,6 +61,12 @@ export class SimulationCoordinator {
     for (const response of this.streams.get(towerId) ?? [])
       if (response.writableLength < 1024 * 1024)
         response.write('event: change\ndata: {}\n\n')
+  }
+  remove(towerId: string) {
+    for (const response of this.streams.get(towerId) ?? []) response.end()
+    this.streams.delete(towerId)
+    this.simulations.get(towerId)?.dispose()
+    this.simulations.delete(towerId)
   }
   subscribe(tower: Tower, response: ServerResponse) {
     if ((this.streams.get(tower.id)?.size ?? 0) >= 100)
@@ -95,9 +105,10 @@ export class SimulationCoordinator {
             history.snapshot(
               tower,
               tower.lastActorId ?? null,
-              'Construção estabilizada',
+              'Checkpoint: construção estabilizada',
             )
             tower.pendingSnapshot = false
+            tower.lastCheckpointPlacementCount = tower.placementCount
             needsSave = true
           }
           if (

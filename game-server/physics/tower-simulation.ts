@@ -6,6 +6,8 @@ import type { Frame, InitialBlock, Placement, PlaceResult, Simulation } from './
 const STEP_MS = 1000 / 60
 const SUBSTEPS = 8
 const QUIET_TICKS = 30
+const CONTACT_FRICTION = 0.95
+const CONTACT_STATIC_MULTIPLIER = 1.5
 
 /** Owns the authoritative world, fixed physics steps and stabilization window. */
 export class TowerSimulation implements Simulation {
@@ -20,7 +22,11 @@ export class TowerSimulation implements Simulation {
     this.engine.positionIterations = 32
     this.engine.velocityIterations = 24
     const floor = Matter.Bodies.rectangle(WORLD.width / 2, WORLD.groundY + 100, 20000, 200, {
-      isStatic: true, friction: 0.8, frictionStatic: 1, restitution: 0, slop: 0.01,
+      isStatic: true,
+      friction: CONTACT_FRICTION,
+      frictionStatic: CONTACT_STATIC_MULTIPLIER,
+      restitution: 0,
+      slop: 0.01,
     })
     Matter.Composite.add(this.engine.world, floor)
     this.restore(initialBlocks)
@@ -45,7 +51,6 @@ export class TowerSimulation implements Simulation {
   place(input: Placement): PlaceResult {
     this.assertLive()
     if (!BlockBody.validPlacement(input)) return { ok: false, error: 'invalid' }
-    if (!this.settled()) return { ok: false, error: 'busy' }
     if (this.blocks.size >= WORLD.maxBlocks) return { ok: false, error: 'limit' }
     if (this.blocks.has(input.id)) return { ok: false, error: 'duplicate' }
     const block = new BlockBody(input)
