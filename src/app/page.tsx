@@ -1,47 +1,61 @@
 import Link from 'next/link'
+import styles from './home.module.css'
+
+function CollaborationDiagram() {
+  return (
+    <div className={styles.diagram} aria-hidden="true">
+      <svg viewBox="0 0 620 480" role="presentation">
+        <path className={styles.grid} d="M30 40H590M30 120H590M30 200H590M30 280H590M30 360H590M30 440H590M70 20V460M150 20V460M230 20V460M310 20V460M390 20V460M470 20V460M550 20V460" />
+        <path className={styles.connections} d="M110 130 260 210 410 110 510 210M260 210 190 350 410 350 510 210M110 130 190 350M410 110 410 350" />
+        <path className={styles.tower} d="M250 348h120l-12-48h-96l-12 48Zm15-48 10-48h70l13 48Zm20-48 8-48h37l13 48Zm18-48 4-45h24l5 45Z" />
+        <path className={styles.towerDetail} d="M250 348h120M265 300h96M275 252h70M283 204h50M303 159h24" />
+        <circle className={styles.nodeAccent} cx="110" cy="130" r="8" />
+        <circle className={styles.nodeAccent} cx="410" cy="110" r="8" />
+        <circle className={styles.nodeCoral} cx="510" cy="210" r="8" />
+        <circle className={styles.nodeCoral} cx="190" cy="350" r="8" />
+        <circle className={styles.nodeCore} cx="310" cy="204" r="5" />
+      </svg>
+      <span className={`${styles.coord} ${styles.coordTop}`}>N 01 / 07</span>
+      <span className={`${styles.coord} ${styles.coordBottom}`}>ESTRUTURA EM COMUM</span>
+    </div>
+  )
+}
 
 export default function Home() {
   return (
-    <main className="relative isolate mx-auto flex min-h-[calc(100svh-7rem)] max-w-7xl flex-col overflow-hidden px-6 py-8 sm:px-12 lg:px-20">
-      <div aria-hidden="true" className="paper-grid pointer-events-none absolute inset-0 -z-10 opacity-40" />
-      <section className="intro grid flex-1 items-center gap-14 py-20 lg:grid-cols-[1.3fr_1fr] lg:py-28">
-        <div>
-          <p className="mb-6 text-xs uppercase tracking-[0.18em] text-violet-800">Software livre · possibilidades compartilhadas</p>
-          <h1 className="max-w-3xl text-5xl leading-[1.05] font-medium tracking-tight sm:text-7xl xl:text-8xl">
-            Tecnologia para <span className="font-serif italic text-violet-700">mais gente.</span>
-          </h1>
-          <p className="mt-8 max-w-md text-lg leading-relaxed text-stone-600">
-            Como o software livre pode democratizar o acesso à tecnologia?
-            Uma pergunta para investigar, experimentar e discutir juntos.
+    <main className={styles.home}>
+      <section className={styles.hero} aria-labelledby="home-title">
+        <div className={styles.copy}>
+          <p className={styles.kicker}>
+            <span className={styles.liveDot} />
+            GNUVERSE <span className={styles.separator}>/</span> SOFTWARE LIVRE
           </p>
-          <div className="mt-10 flex flex-wrap items-center gap-4">
-            <Link href="/jogo/" className="inline-flex items-center gap-8 rounded-full bg-violet-700 px-6 py-4 text-sm text-white transition duration-300 hover:-translate-y-1 hover:bg-violet-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-700">
-              Conhecer o jogo <span aria-hidden="true">↗</span>
+          <h1 id="home-title">
+            Tecnologia
+            <br />
+            como <span>bem comum.</span>
+          </h1>
+          <p className={styles.lede}>
+            Investigar como o software livre amplia o acesso à tecnologia —
+            com ideias, experiências e construção coletiva.
+          </p>
+          <nav className={styles.actions} aria-label="Explorar o projeto">
+            <Link className={styles.primaryLink} href="/jogo/">
+              <span>Entrar na torre</span>
+              <span aria-hidden="true">↗</span>
             </Link>
-            <Link href="/blog/" className="inline-flex items-center gap-8 rounded-full border border-stone-300 px-6 py-4 text-sm transition duration-300 hover:-translate-y-1 hover:border-violet-400 hover:text-violet-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-700">
-              Explorar o blog <span aria-hidden="true">↗</span>
+            <Link className={styles.secondaryLink} href="/blog/">
+              Ler o blog <span aria-hidden="true">↗</span>
             </Link>
-          </div>
+          </nav>
         </div>
-        <div aria-hidden="true" className="network relative mx-auto aspect-square w-full max-w-sm">
-          <svg viewBox="0 0 400 400" className="absolute inset-0 h-full w-full fill-none stroke-violet-400" strokeWidth="1.5">
-            <circle cx="200" cy="200" r="145" strokeDasharray="3 8" />
-            <path d="M200 200 85 95 M200 200 320 110 M200 200 300 315 M200 200 70 290" />
-          </svg>
-          <div className="absolute inset-[30%] flex flex-col items-center justify-center rounded-full border border-violet-300 bg-violet-100 text-center">
-            <span className="text-4xl text-violet-700">✳</span>
-            <span className="mt-2 text-xs font-semibold tracking-widest text-violet-900">EM COMUM</span>
-          </div>
-          <span className="network-node absolute left-[3%] top-[16%] -rotate-6">aprender</span>
-          <span className="network-node absolute right-0 top-[20%] rotate-6">criar</span>
-          <span className="network-node absolute bottom-[14%] right-0 -rotate-3">compartilhar</span>
-          <span className="network-node absolute bottom-[20%] left-0 rotate-3">participar</span>
-        </div>
+        <CollaborationDiagram />
       </section>
-      <footer id="ponto-de-partida" className="flex scroll-mt-8 flex-col justify-between gap-3 border-t border-stone-300 pt-6 text-sm text-stone-600 sm:flex-row">
-        <p>Em construção por 7 pessoas. Pesquisa, autoria e colaboração.</p>
-        <p className="text-xs uppercase tracking-widest">MATA68 · 2026.2</p>
+
+      <footer className={styles.footer} id="ponto-de-partida">
+        <p>Pesquisa, autoria e colaboração por 7 participantes.</p>
+        <p className={styles.course}>MATA68 <span>·</span> 2026.2</p>
       </footer>
     </main>
-  );
+  )
 }

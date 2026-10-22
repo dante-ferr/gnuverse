@@ -57,6 +57,7 @@ game-server/
 │   ├── http-application.ts          rotas, respostas e CORS
 │   └── http-helpers.ts              leitura e respostas HTTP
 ├── auth/auth-service.ts             cadastro, login e sessões
+├── wind/wind-service.ts             limiares e fases da ventania
 ├── economy/wallet-service.ts        saldo, recuperação e custo
 ├── governance/governance-service.ts propostas, votos e suspensões
 ├── towers/

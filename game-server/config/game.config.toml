@@ -23,3 +23,12 @@ session_duration_ms = 604800000
 vote_changes = false
 prototype = true
 bdfl_veto = false
+
+# Ventania: primeira após m colocações aceitas; depois, a cada n colocações.
+# O evento dura cinco segundos e espera o bloco-gatilho estabilizar.
+# Quantidade de blocos antes da primeira ventania (inteiro >= 1).
+wind_min_blocks = 15
+# Quantidade de blocos entre as ventanias seguintes (inteiro >= 1).
+wind_every_blocks = 10
+# Intensidade física do vento, independente da frequência (0 a 1).
+wind_strength = 0.3

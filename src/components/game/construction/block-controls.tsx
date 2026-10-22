@@ -1,14 +1,20 @@
 'use client'
 
-import { BLOCKS, COLORS } from '../model/block-catalog'
-import type { BlockKind, Snapshot, Tower, User, Wallet } from '../model/types'
+import { BLOCKS } from '../model/block-catalog'
+import type {
+  BlockKind,
+  Snapshot,
+  Tower,
+  User,
+  Wallet,
+  WindState,
+} from '../model/types'
 import styles from '../tower-game.module.css'
+import { BlockGlyph } from './block-shapes'
 
 export type BlockControlsProps = {
   kind: BlockKind
   onKindChange: (kind: BlockKind) => void
-  color: string
-  onColorChange: (color: string) => void
   x: number
   y: number
   angle: number
@@ -23,14 +29,13 @@ export type BlockControlsProps = {
   isBanned: boolean
   preview: Snapshot | null
   settled: boolean
+  wind?: WindState | null
   onPlace: () => void
 }
 
 export function BlockControls({
   kind,
   onKindChange,
-  color,
-  onColorChange,
   x,
   y,
   angle,
@@ -45,15 +50,23 @@ export function BlockControls({
   isBanned,
   preview,
   settled,
+  wind,
   onPlace,
 }: BlockControlsProps) {
+  const windLabel =
+    wind?.phase === 'pending'
+      ? 'Vento em breve'
+      : wind?.phase === 'active'
+        ? 'Ventania'
+        : wind?.phase === 'settling'
+          ? 'Estabilizando'
+          : null
+
   return (
     <aside className={styles.builder}>
-      <p className={styles.eyebrow}>Sua contribuição</p>
-      <h2>Encontre o equilíbrio.</h2>
-      <p>Escolha uma peça e encontre seu lugar na construção.</p>
+      <h2>Construir</h2>
       <fieldset>
-        <legend>01 / A peça</legend>
+        <legend>Peça</legend>
         <div className={styles.shapes}>
           {(Object.keys(BLOCKS) as BlockKind[]).map((value) => (
             <button
@@ -62,36 +75,23 @@ export function BlockControls({
               onClick={() => onKindChange(value)}
               aria-pressed={kind === value}
             >
-              <span
-                style={{
-                  width: BLOCKS[value].width / 2.5,
-                  height: BLOCKS[value].height / 2.5,
-                }}
-              />
+              <svg
+                aria-hidden="true"
+                width={BLOCKS[value].width / 2.5}
+                height={BLOCKS[value].height / 2.5}
+                viewBox={`${-BLOCKS[value].width / 2 - 2} ${-BLOCKS[value].height / 2 - 2} ${BLOCKS[value].width + 4} ${BLOCKS[value].height + 4}`}
+              >
+                <BlockGlyph kind={value} />
+              </svg>
               {BLOCKS[value].label}
             </button>
           ))}
         </div>
       </fieldset>
       <fieldset>
-        <legend>02 / A cor</legend>
-        <div className={styles.colors}>
-          {COLORS.map((value, index) => (
-            <button
-              key={value}
-              aria-label={['Violeta', 'Ocre', 'Verde', 'Rosa', 'Azul'][index]}
-              aria-pressed={color === value}
-              onClick={() => onColorChange(value)}
-              style={{ background: value }}
-              className={color === value ? styles.colorSelected : ''}
-            />
-          ))}
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend>03 / O ponto de partida</legend>
+        <legend>Posição</legend>
         <label className={styles.slider}>
-          Horizontal <output>{x}</output>
+          X <output>{x}</output>
           <input
             type="range"
             aria-label="Posição horizontal"
@@ -126,7 +126,7 @@ export function BlockControls({
         </label>
       </fieldset>
       <div className={styles.cost}>
-        <span>Custo desta contribuição</span>
+        <span>Custo</span>
         <strong>
           {tower?.cost ?? '—'} {tower?.cost === 1 ? 'moeda' : 'moedas'}
         </strong>
@@ -140,17 +140,12 @@ export function BlockControls({
               ? 'Volte à torre ao vivo'
               : isBanned
                 ? 'Participação suspensa'
-                : !settled
-                  ? 'Aguardando o equilíbrio…'
-                  : 'Lançar bloco ↓'}
+                : windLabel ||
+                  (!settled ? 'Torre em movimento…' : 'Lançar bloco ↓')}
       </button>
       {user && tower && wallet && wallet.balance < tower.cost && (
-        <small>Saldo insuficiente. Aguarde a próxima moeda.</small>
+        <small>Saldo insuficiente.</small>
       )}
-      <small>
-        O servidor valida cada lançamento. Quedas também fazem parte da
-        construção.
-      </small>
     </aside>
   )
 }

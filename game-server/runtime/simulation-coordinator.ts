@@ -1,10 +1,11 @@
 import type { ServerResponse } from 'node:http'
 import { createSimulation } from '../physics/index.ts'
-import type { Tower } from '../domain/types.ts'
+import type { PublicFrame, Tower } from '../domain/types.ts'
 import { fail } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import type { GovernanceService } from '../governance/governance-service.ts'
 import type { HistoryService } from '../towers/history-service.ts'
+import { WindService } from '../wind/wind-service.ts'
 
 /** Owns engines, the authoritative clock and bounded spectator streams. */
 export class SimulationCoordinator {
@@ -25,6 +26,18 @@ export class SimulationCoordinator {
         createSimulation(tower.frame?.blocks ?? []),
       )
     return this.simulations.get(tower.id)!
+  }
+  frame(tower: Tower): PublicFrame {
+    return {
+      ...tower.frame,
+      wind: tower.wind
+        ? {
+            phase: tower.wind.phase,
+            endsAt: tower.wind.endsAt,
+            direction: tower.wind.direction,
+          }
+        : null,
+    }
   }
   rollback() {
     // A rejected request must not reset the sleep counters of an unchanged engine.
@@ -54,21 +67,31 @@ export class SimulationCoordinator {
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     })
-    response.write(`event: frame\ndata: ${JSON.stringify(tower.frame)}\n\n`)
+    response.write(
+      `event: frame\ndata: ${JSON.stringify(this.frame(tower))}\n\n`,
+    )
     if (!this.streams.has(tower.id)) this.streams.set(tower.id, new Set())
     this.streams.get(tower.id)!.add(response)
     response.on('close', () => this.streams.get(tower.id)?.delete(response))
   }
-  start(history: HistoryService, governance: GovernanceService) {
+  start(
+    history: HistoryService,
+    governance: GovernanceService,
+    wind: WindService,
+  ) {
     let ticks = 0
     this.timer = setInterval(() => {
       try {
         let needsSave = false
         for (const tower of Object.values(this.store.state.towers)) {
           governance.expireBans(tower)
-          if (this.simulations.has(tower.id) || tower.pendingSnapshot)
-            tower.frame = this.simulation(tower).step()
-          if (tower.pendingSnapshot && tower.frame.settled) {
+          if (!tower.frame.settled || tower.pendingSnapshot || tower.wind) {
+            const simulation = this.simulation(tower)
+            if (wind.beforeStep(tower, simulation)) needsSave = true
+            tower.frame = simulation.step()
+            if (wind.afterStep(tower)) needsSave = true
+          }
+          if (tower.pendingSnapshot && tower.frame.settled && !tower.wind) {
             history.snapshot(
               tower,
               tower.lastActorId ?? null,
@@ -88,6 +111,16 @@ export class SimulationCoordinator {
             governance.finishVoting(tower)
             needsSave = true
           }
+          if (
+            !tower.wind &&
+            tower.frame.settled &&
+            tower.proposals.some(
+              (proposal) => proposal.executionStatus === 'deferred',
+            )
+          ) {
+            governance.flushDeferred(tower)
+            needsSave = true
+          }
           if (ticks % 6 === 0)
             for (const response of this.streams.get(tower.id) ?? []) {
               if (response.writableLength > 1024 * 1024) {
@@ -95,7 +128,7 @@ export class SimulationCoordinator {
                 continue
               }
               response.write(
-                `event: frame\ndata: ${JSON.stringify(tower.frame)}\n\n`,
+                `event: frame\ndata: ${JSON.stringify(this.frame(tower))}\n\n`,
               )
             }
         }

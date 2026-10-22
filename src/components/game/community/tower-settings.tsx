@@ -1,32 +1,57 @@
 'use client'
 
 import type { Tower } from '../model/types'
+import { WindFrequencyFields } from '../construction/wind-frequency-fields'
 import styles from '../tower-game.module.css'
 
 type Props = {
   tower: Tower
   maxCost: number
   disabled: boolean
+  windActive: boolean
+  blockedReason?: string
   onSave: (body: Record<string, string | number>) => Promise<void>
 }
 
-export function TowerSettings({ tower, maxCost, disabled, onSave }: Props) {
+export function TowerSettings({
+  tower,
+  maxCost,
+  disabled,
+  windActive,
+  blockedReason,
+  onSave,
+}: Props) {
   return (
     <details className={styles.eventLog}>
-      <summary>Administrar regras desta torre</summary>
+      <summary>Regras da torre · Editar</summary>
+      <p>Alterações exigem justificativa e ficam no histórico público.</p>
       <p>
-        Alterações ficam no registro público e só podem acontecer sem propostas
-        pendentes. Os eleitores de cada proposta permanecem os definidos na
-        abertura.
+        Suspensão do criador:{' '}
+        <strong>
+          {tower.allowCreatorBan ? 'permitida por votação' : 'indisponível'}
+        </strong>{' '}
+        · definitiva.
       </p>
+      {blockedReason && <p role="status">{blockedReason}</p>}
       <form
-        key={JSON.stringify(tower)}
+        key={JSON.stringify({
+          id: tower.id,
+          cost: tower.cost,
+          banMode: tower.banMode,
+          restoreMode: tower.restoreMode,
+          eligibilityMode: tower.eligibilityMode,
+          minContributions: tower.minContributions,
+          windMinBlocks: tower.windMinBlocks,
+          windEveryBlocks: tower.windEveryBlocks,
+        })}
         className={styles.form}
         onSubmit={(event) => {
           event.preventDefault()
           const values = new FormData(event.currentTarget)
           void onSave({
             cost: Number(values.get('cost')),
+            windMinBlocks: Number(values.get('windMinBlocks')),
+            windEveryBlocks: Number(values.get('windEveryBlocks')),
             banMode: String(values.get('banMode')),
             restoreMode: String(values.get('restoreMode')),
             eligibilityMode: String(values.get('eligibilityMode')),
@@ -78,6 +103,14 @@ export function TowerSettings({ tower, maxCost, disabled, onSave }: Props) {
             required
           />
         </label>
+        <WindFrequencyFields
+          initial={tower.windMinBlocks}
+          interval={tower.windEveryBlocks}
+          readOnly={windActive}
+        />
+        {windActive && (
+          <small>A frequência pode ser alterada após a ventania.</small>
+        )}
         <label>
           Motivo público
           <input name="reason" required minLength={3} maxLength={500} />

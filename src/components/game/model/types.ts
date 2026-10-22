@@ -8,7 +8,17 @@ export type Block = {
   color: string
   authorId: string
 }
-export type Frame = { blocks: Block[]; settled: boolean; tick: number }
+export type WindState = {
+  phase: 'pending' | 'active' | 'settling'
+  endsAt: number | null
+  direction: 1 | -1
+}
+export type Frame = {
+  blocks: Block[]
+  settled: boolean
+  tick: number
+  wind?: WindState | null
+}
 export type User = { id: string; nickname: string }
 export type Wallet = {
   balance: number
@@ -26,6 +36,10 @@ export type Tower = {
   restoreMode: 'vote' | 'bdfl'
   eligibilityMode: 'automatic' | 'manual'
   minContributions: number
+  placementCount?: number
+  nextWindAt?: number
+  windMinBlocks: number
+  windEveryBlocks: number
   blockCount: number
 }
 export type Snapshot = {
@@ -55,6 +69,7 @@ export type Proposal = {
   rules: { quorum: number; approval: number; voteChanges: boolean }
   decisionReason?: string
   decidedBy?: string | null
+  executionStatus?: string
 }
 export type GameEvent = {
   id: string

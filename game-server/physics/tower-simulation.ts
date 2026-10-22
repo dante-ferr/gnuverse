@@ -4,6 +4,7 @@ import { BlockBody } from './block-body.ts'
 import type { Frame, InitialBlock, Placement, PlaceResult, Simulation } from './types.ts'
 
 const STEP_MS = 1000 / 60
+const SUBSTEPS = 8
 const QUIET_TICKS = 30
 
 /** Owns the authoritative world, fixed physics steps and stabilization window. */
@@ -13,12 +14,13 @@ export class TowerSimulation implements Simulation {
   private tick = 0
   private quietTicks = QUIET_TICKS
   private disposed = false
+  private wind: { strength: number; direction: 1 | -1 } | null = null
 
   constructor(initialBlocks: InitialBlock[] = []) {
-    this.engine.positionIterations = 8
-    this.engine.velocityIterations = 8
+    this.engine.positionIterations = 32
+    this.engine.velocityIterations = 24
     const floor = Matter.Bodies.rectangle(WORLD.width / 2, WORLD.groundY + 100, 20000, 200, {
-      isStatic: true, friction: 0.65,
+      isStatic: true, friction: 0.8, frictionStatic: 1, restitution: 0, slop: 0.01,
     })
     Matter.Composite.add(this.engine.world, floor)
     this.restore(initialBlocks)
@@ -59,11 +61,28 @@ export class TowerSimulation implements Simulation {
 
   step(): Frame {
     this.assertLive()
-    Matter.Engine.update(this.engine, STEP_MS)
+    // Matter clears forces after every update, so reapply during each substep.
+    for (let index = 0; index < SUBSTEPS; index += 1) {
+      if (this.wind) for (const block of this.blocks.values()) {
+        block.applyWind(this.wind.strength * this.engine.gravity.scale, this.wind.direction)
+      }
+      Matter.Engine.update(this.engine, STEP_MS / SUBSTEPS)
+    }
+    this.wind = null
     this.tick += 1
     this.quietTicks = [...this.blocks.values()].every(block => block.body.isSleeping)
       ? this.quietTicks + 1 : 0
     return this.read()
+  }
+
+  applyWind(strength: number, direction: 1 | -1): void {
+    this.assertLive()
+    if (!Number.isFinite(strength) || strength < 0 || strength > 1
+      || (direction !== 1 && direction !== -1)) throw new Error('Invalid wind')
+    if (strength === 0) { this.wind = null; return }
+    this.wind = { strength, direction }
+    for (const block of this.blocks.values()) Matter.Sleeping.set(block.body, false)
+    this.quietTicks = 0
   }
 
   restore(saved: InitialBlock[]): void {
@@ -75,6 +94,7 @@ export class TowerSimulation implements Simulation {
     }
     for (const block of this.blocks.values()) Matter.Composite.remove(this.engine.world, block.body)
     this.blocks.clear()
+    this.wind = null
     Matter.Engine.clear(this.engine)
     for (const input of saved) {
       const block = BlockBody.fromSnapshot(input)

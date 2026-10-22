@@ -10,6 +10,7 @@ import { HistoryService } from './towers/history-service.ts'
 import { TowerService } from './towers/tower-service.ts'
 import { GovernanceService } from './governance/governance-service.ts'
 import { SimulationCoordinator } from './runtime/simulation-coordinator.ts'
+import { WindService } from './wind/wind-service.ts'
 import { HttpApplication } from './transport/http-application.ts'
 
 /** Composition root. Domain services own behavior; transport only maps requests. */
@@ -26,9 +27,20 @@ export function createGameServer(options: ServerOptions = {}) {
   const history = new HistoryService(now, (towerId) =>
     runtime.publishChange(towerId),
   )
+  const wind = new WindService(rules, now, history)
+  for (const tower of Object.values(store.state.towers)) wind.initialize(tower)
+  store.persist()
   const wallet = new WalletService(rules, now)
   const auth = new AuthService(store, rules, now, wallet)
-  const towers = new TowerService(store, rules, now, wallet, runtime, history)
+  const towers = new TowerService(
+    store,
+    rules,
+    now,
+    wallet,
+    runtime,
+    history,
+    wind,
+  )
   const governance = new GovernanceService(rules, now, runtime, history)
   const origins =
     options.allowedOrigins ??
@@ -53,7 +65,7 @@ export function createGameServer(options: ServerOptions = {}) {
   })
   server.requestTimeout = 15000
   server.headersTimeout = 10000
-  runtime.start(history, governance)
+  runtime.start(history, governance, wind)
   let closed = false
   return {
     server,

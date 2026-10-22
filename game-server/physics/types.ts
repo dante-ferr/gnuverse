@@ -27,6 +27,8 @@ export type PlaceResult =
     }
 export type Simulation = {
   place(input: Placement): PlaceResult
+  /** Arms a horizontal, gravity-relative acceleration for the next step only. */
+  applyWind(strength: number, direction: 1 | -1): void
   step(): Frame
   read(): Frame
   restore(blocks: InitialBlock[]): void

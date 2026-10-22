@@ -31,6 +31,15 @@ export class GovernanceService {
         reason: proposal.decisionReason ?? proposal.reason,
       })
     } else {
+      if (tower.wind) {
+        if (proposal.executionStatus !== 'deferred')
+          this.history.event(tower, 'restore-deferred', actorId, {
+            proposalId: proposal.id,
+            reason: 'Aguardar ventania e estabilização',
+          })
+        proposal.executionStatus = 'deferred'
+        return
+      }
       const target = tower.snapshots.find(
         (item) => item.id === proposal.targetId,
       )
@@ -44,6 +53,17 @@ export class GovernanceService {
       })
       this.history.snapshot(tower, actorId, `Restauração de ${target!.id}`)
     }
+    proposal.executionStatus = 'executed'
+    proposal.executedAt = this.now()
+  }
+  flushDeferred(tower: Tower) {
+    if (tower.wind || !tower.frame.settled) return
+    for (const proposal of tower.proposals)
+      if (
+        proposal.status === 'accepted' &&
+        proposal.executionStatus === 'deferred'
+      )
+        this.enact(tower, proposal, proposal.decidedBy ?? null)
   }
   expireBans(tower: Tower) {
     for (const participant of Object.values(tower.members))
@@ -97,7 +117,11 @@ export class GovernanceService {
   ) {
     if (!participant.contributions && user.id !== tower.creatorId)
       fail(403, 'Contribua antes de propor uma decisão.')
-    if (tower.proposals.some((p) => p.status === 'pending'))
+    if (
+      tower.proposals.some(
+        (p) => p.status === 'pending' || p.executionStatus === 'deferred',
+      )
+    )
       fail(409, 'Já existe uma proposta pendente.')
     const type = mode(body.type, ['ban', 'restore'])
     const targetId = text(body.targetId, 1, 100, 'Alvo')

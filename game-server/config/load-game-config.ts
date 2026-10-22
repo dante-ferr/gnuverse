@@ -21,6 +21,9 @@ export type GameRules = {
   voteChanges: boolean
   prototype: boolean
   bdflVeto: boolean
+  windEveryBlocks: number
+  windMinBlocks: number
+  windStrength: number
 }
 
 const defaults = {
@@ -41,6 +44,9 @@ const defaults = {
   vote_changes: false,
   prototype: true,
   bdfl_veto: false,
+  wind_every_blocks: 10,
+  wind_min_blocks: 15,
+  wind_strength: 0.3,
 } satisfies Record<string, number | boolean>
 
 const mappings = {
@@ -61,9 +67,14 @@ const mappings = {
   vote_changes: 'voteChanges',
   prototype: 'prototype',
   bdfl_veto: 'bdflVeto',
+  wind_every_blocks: 'windEveryBlocks',
+  wind_min_blocks: 'windMinBlocks',
+  wind_strength: 'windStrength',
 } as const
 
 const integerRules: Record<string, { min: number; max: number }> = {
+  wind_every_blocks: { min: 1, max: 1_000_000 },
+  wind_min_blocks: { min: 1, max: 1_000_000 },
   balance_cap: { min: 1, max: 1_000_000 },
   initial_balance: { min: 0, max: 1_000_000 },
   coin_interval_ms: { min: 1_000, max: 31_536_000_000 },
@@ -79,6 +90,7 @@ const integerRules: Record<string, { min: number; max: number }> = {
 }
 
 const fractionRules: Record<string, { min: number; max: number }> = {
+  wind_strength: { min: 0, max: 1 },
   quorum: { min: Number.EPSILON, max: 1 },
   approval: { min: 0.5, max: 1 - Number.EPSILON },
 }

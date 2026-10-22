@@ -4,27 +4,43 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createGameServer } from '../game-server/server.ts'
+import type { Rules, WindState } from '../game-server/domain/types.ts'
 
 type MemberData = { id: string; contributions: number }
-type ProposalData = { id: string; electorate: string[]; status: string }
-type EventData = { type: string }
+type ProposalData = {
+  id: string
+  electorate: string[]
+  status: string
+  executionStatus?: string
+}
+type EventData = {
+  type: string
+  detail?: { before?: Record<string, unknown>; after?: Record<string, unknown> }
+}
 type Data = {
   token: string
   user: { id: string; nickname: string }
   wallet: { balance: number }
-  tower: { id: string; allowCreatorBan: boolean }
+  tower: {
+    id: string
+    allowCreatorBan: boolean
+    placementCount: number
+    nextWindAt: number
+    windMinBlocks: number
+    windEveryBlocks: number
+  }
   snapshots: { id: string }[]
-  frame: { blocks: object[]; settled: boolean }
+  frame: { blocks: object[]; settled: boolean; wind: WindState | null }
   members: MemberData[]
   events: EventData[]
   proposal: ProposalData
   proposals: ProposalData[]
 }
-async function fixture() {
+async function fixture(overrides: Partial<Rules> = {}) {
   const folder = await mkdtemp(join(tmpdir(), 'gnuverse-game-'))
   let time = 100000
   const dbPath = join(folder, 'game.sqlite')
-  const game = createGameServer({
+  let game = createGameServer({
     dbPath,
     now: () => time,
     rules: {
@@ -33,9 +49,10 @@ async function fixture() {
       proposalDurationMs: 100,
       minContributions: 1,
       banDurationMs: 1000,
+      ...overrides,
     },
   })
-  const base = await game.listen()
+  let base = await game.listen()
   async function request(
     path: string,
     token?: string,
@@ -61,11 +78,29 @@ async function fixture() {
     return response.data
   }
   return {
-    game,
+    get game() {
+      return game
+    },
     base,
     dbPath,
     request,
     register,
+    restart: async () => {
+      await game.close()
+      game = createGameServer({
+        dbPath,
+        now: () => time,
+        rules: {
+          cooldownMs: 100,
+          intervalMs: 1000,
+          proposalDurationMs: 100,
+          minContributions: 1,
+          banDurationMs: 1000,
+          ...overrides,
+        },
+      })
+      base = await game.listen()
+    },
     advance: (ms: number) => {
       time += ms
     },
@@ -879,9 +914,20 @@ test('restoring blocks preserves creator-suspension choice and legacy towers def
       const value = db.prepare('SELECT value FROM game_state WHERE id=1').get()!
         .value as string
       const legacy = JSON.parse(value) as {
-        towers: Record<string, { allowCreatorBan?: boolean }>
+        towers: Record<
+          string,
+          {
+            allowCreatorBan?: boolean
+            windMinBlocks?: number
+            windEveryBlocks?: number
+            lastWindPlacementCount?: number | null
+          }
+        >
       }
       delete legacy.towers[tower.id].allowCreatorBan
+      delete legacy.towers[tower.id].windMinBlocks
+      delete legacy.towers[tower.id].windEveryBlocks
+      delete legacy.towers[tower.id].lastWindPlacementCount
       db.prepare('UPDATE game_state SET value=? WHERE id=1').run(
         JSON.stringify(legacy),
       )
@@ -892,13 +938,443 @@ test('restoring blocks preserves creator-suspension choice and legacy towers def
     try {
       const base = await restarted.listen()
       const response = await fetch(`${base}/api/towers/${tower.id}`)
-      assert.equal(
-        ((await response.json()) as Data).tower.allowCreatorBan,
-        false,
-      )
+      const migrated = (await response.json()) as Data
+      assert.equal(migrated.tower.allowCreatorBan, false)
+      assert.equal(migrated.tower.windMinBlocks, 15)
+      assert.equal(migrated.tower.windEveryBlocks, 10)
+      const persisted = new DatabaseSync(f.dbPath)
+      try {
+        const saved = JSON.parse(
+          persisted.prepare('SELECT value FROM game_state WHERE id=1').get()!
+            .value as string,
+        ) as {
+          towers: Record<
+            string,
+            {
+              windMinBlocks: number
+              windEveryBlocks: number
+              lastWindPlacementCount: number | null
+            }
+          >
+        }
+        assert.equal(saved.towers[tower.id].windMinBlocks, 15)
+        assert.equal(saved.towers[tower.id].windEveryBlocks, 10)
+        assert.equal(saved.towers[tower.id].lastWindPlacementCount, null)
+      } finally {
+        persisted.close()
+      }
     } finally {
       await restarted.close()
     }
+  } finally {
+    await f.close()
+  }
+})
+
+async function waitForTower(
+  f: Awaited<ReturnType<typeof fixture>>,
+  id: string,
+  predicate: (data: Data) => boolean,
+) {
+  for (let attempt = 0; attempt < 160; attempt++) {
+    const { data } = await f.request(`/towers/${id}`)
+    if (predicate(data)) return data
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  assert.fail('Tower did not reach the expected wind/settling state')
+}
+
+test('wind uses cumulative m+n thresholds, blocks paid/free actions and defers approved restoration', async () => {
+  const f = await fixture({
+    windMinBlocks: 2,
+    windEveryBlocks: 1,
+    windStrength: 0.3,
+  })
+  try {
+    const owner = await f.register('windbuilder')
+    const id = (
+      await f.request('/towers', owner.token, {
+        name: 'Torre de vento',
+        cost: 1,
+        restoreMode: 'bdfl',
+      })
+    ).data.tower.id
+    const initial = (await f.request(`/towers/${id}`)).data.snapshots[0].id
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 300, y: 680 }))
+        .status,
+      200,
+    )
+    const first = await waitForTower(f, id, (data) => data.frame.settled)
+    assert.equal(first.frame.wind, null)
+    assert.equal(first.tower.placementCount, 1)
+    assert.equal(first.tower.nextWindAt, 2)
+    f.advance(100)
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 700, y: 680 }))
+        .status,
+      200,
+    )
+    let detail = (await f.request(`/towers/${id}`)).data
+    assert.equal(detail.frame.wind!.phase, 'pending')
+    assert.equal(detail.tower.placementCount, 2)
+    assert.equal(detail.tower.nextWindAt, 3)
+    const controller = new AbortController()
+    const stream = await fetch(`${f.base}/api/towers/${id}/events`, {
+      signal: controller.signal,
+    })
+    const payload = new TextDecoder().decode(
+      (await stream.body!.getReader().read()).value,
+    )
+    const wireFrame = JSON.parse(
+      payload
+        .split('\n')
+        .find((line) => line.startsWith('data: '))!
+        .slice(6),
+    ) as Data['frame']
+    assert.equal(wireFrame.wind!.phase, 'pending')
+    controller.abort()
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 500, y: 100 }))
+        .status,
+      409,
+    )
+    assert.equal((await f.request('/me', owner.token)).data.wallet.balance, 18)
+    // Free towers obey the same wind lock; rejection also leaves contribution counts intact.
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, owner.token, {
+          cost: 0,
+          reason: 'Testar bloqueio gratuito',
+        })
+      ).status,
+      200,
+    )
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 500, y: 100 }))
+        .status,
+      409,
+    )
+    assert.equal((await f.request('/me', owner.token)).data.wallet.balance, 18)
+    const proposal = (
+      await f.request(`/towers/${id}/proposals`, owner.token, {
+        type: 'restore',
+        targetId: initial,
+        reason: 'Restaurar após a ventania',
+      })
+    ).data.proposal
+    const decision = await f.request(
+      `/towers/${id}/proposals/${proposal.id}/decide`,
+      owner.token,
+      { accept: true, reason: 'Aguardar execução segura' },
+    )
+    assert.equal(decision.data.proposal.executionStatus, 'deferred')
+    assert.equal((await f.request(`/towers/${id}`)).data.frame.blocks.length, 2)
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/proposals`, owner.token, {
+          type: 'restore',
+          targetId: initial,
+          reason: 'Outra proposta bloqueada',
+        })
+      ).status,
+      409,
+    )
+    detail = await waitForTower(
+      f,
+      id,
+      (data) => data.frame.wind?.phase === 'active',
+    )
+    const endsAt = detail.frame.wind!.endsAt!
+    assert.equal(endsAt, 105100)
+    f.advance(4999)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    assert.equal(
+      (await f.request(`/towers/${id}`)).data.frame.wind!.phase,
+      'active',
+    )
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 500, y: 100 }))
+        .status,
+      409,
+    )
+    f.advance(1)
+    detail = await waitForTower(f, id, (data) => data.frame.wind === null)
+    assert.equal(detail.proposals[0].executionStatus, 'executed')
+    assert.equal(detail.frame.blocks.length, 0)
+    assert.equal(detail.tower.placementCount, 2)
+    assert.equal(detail.tower.nextWindAt, 3)
+    assert.equal(detail.members[0].contributions, 2)
+    assert.equal(
+      detail.events.filter((event) => event.type === 'wind-start').length,
+      1,
+    )
+    assert.equal(
+      detail.events.filter((event) => event.type === 'wind-end').length,
+      1,
+    )
+    // After the first event, the initial minimum no longer sets the schedule.
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, owner.token, {
+          windMinBlocks: 100,
+          reason: 'Mudar somente o limiar inicial',
+        })
+      ).status,
+      200,
+    )
+    assert.equal((await f.request(`/towers/${id}`)).data.tower.nextWindAt, 3)
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, owner.token, {
+          windEveryBlocks: 4,
+          reason: 'Espaçar ventanias seguintes',
+        })
+      ).status,
+      200,
+    )
+    assert.equal((await f.request(`/towers/${id}`)).data.tower.nextWindAt, 6)
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, owner.token, {
+          cost: 1,
+          reason: 'Custo não altera contagem',
+        })
+      ).status,
+      200,
+    )
+    assert.equal((await f.request(`/towers/${id}`)).data.tower.nextWindAt, 6)
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, owner.token, {
+          windEveryBlocks: 1,
+          reason: 'Retomar intervalo anterior',
+        })
+      ).status,
+      200,
+    )
+    assert.equal((await f.request(`/towers/${id}`)).data.tower.nextWindAt, 3)
+    // Restoring to zero visible pieces cannot reset the next cumulative trigger.
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 400, y: 680 }))
+        .status,
+      200,
+    )
+    detail = (await f.request(`/towers/${id}`)).data
+    assert.equal(detail.tower.placementCount, 3)
+    assert.equal(detail.tower.nextWindAt, 4)
+    assert.equal(detail.frame.wind!.phase, 'pending')
+  } finally {
+    await f.close()
+  }
+})
+
+test('pending and active wind locks survive restart and expired wind settles before accepting blocks', async () => {
+  const f = await fixture({
+    windMinBlocks: 1,
+    windEveryBlocks: 3,
+    windStrength: 0.3,
+  })
+  try {
+    const owner = await f.register('windrestart')
+    const id = (
+      await f.request('/towers', owner.token, {
+        name: 'Vento persistente',
+        cost: 0,
+      })
+    ).data.tower.id
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 500, y: 680 }))
+        .status,
+      200,
+    )
+    await f.restart()
+    let detail = (await f.request(`/towers/${id}`)).data
+    assert.equal(detail.frame.wind!.phase, 'pending')
+    assert.equal(detail.tower.placementCount, 1)
+    assert.equal(detail.tower.nextWindAt, 4)
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 300, y: 680 }))
+        .status,
+      409,
+    )
+    detail = await waitForTower(
+      f,
+      id,
+      (data) => data.frame.wind?.phase === 'active',
+    )
+    const endsAt = detail.frame.wind!.endsAt
+    await f.restart()
+    assert.equal(
+      (await f.request(`/towers/${id}`)).data.frame.wind!.endsAt,
+      endsAt,
+    )
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 300, y: 680 }))
+        .status,
+      409,
+    )
+    // Simulate an outage longer than the remainder of the event.
+    f.advance(5001)
+    await f.restart()
+    detail = await waitForTower(f, id, (data) => data.frame.wind === null)
+    assert.equal(detail.tower.placementCount, 1)
+    assert.equal(detail.tower.nextWindAt, 4)
+    assert.equal(
+      detail.events.filter((event) => event.type === 'wind-start').length,
+      1,
+    )
+    assert.equal(
+      detail.events.filter((event) => event.type === 'wind-end').length,
+      1,
+    )
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 300, y: 680 }))
+        .status,
+      200,
+    )
+    assert.equal((await f.request(`/towers/${id}`)).data.frame.wind, null)
+  } finally {
+    await f.close()
+  }
+})
+
+test('tower-specific wind settings validate, audit, recalculate and persist independently', async () => {
+  const f = await fixture({ windMinBlocks: 6, windEveryBlocks: 8 })
+  try {
+    const owner = await f.register('windsettings')
+    const outsider = await f.register('windoutsider')
+    const defaultTower = (
+      await f.request('/towers', owner.token, { name: 'Defaults globais' })
+    ).data.tower
+    assert.equal(defaultTower.windMinBlocks, 6)
+    assert.equal(defaultTower.windEveryBlocks, 8)
+    const custom = (
+      await f.request('/towers', owner.token, {
+        name: 'Ritmo individual',
+        cost: 0,
+        windMinBlocks: 5,
+        windEveryBlocks: 4,
+      })
+    ).data.tower
+    assert.equal(custom.windMinBlocks, 5)
+    assert.equal(custom.windEveryBlocks, 4)
+    assert.equal(custom.nextWindAt, 5)
+    const id = custom.id
+    for (const body of [
+      { windMinBlocks: 0 },
+      { windEveryBlocks: 1.5 },
+      { windMinBlocks: null },
+      { windEveryBlocks: 1000001 },
+    ]) {
+      assert.equal(
+        (
+          await f.request('/towers', owner.token, {
+            name: 'Valor inválido',
+            ...body,
+          })
+        ).status,
+        400,
+      )
+      assert.equal(
+        (
+          await f.request(`/towers/${id}/settings`, owner.token, {
+            reason: 'Valor de teste inválido',
+            ...body,
+          })
+        ).status,
+        400,
+      )
+    }
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, outsider.token, {
+          windMinBlocks: 2,
+          reason: 'Tentar alterar torre alheia',
+        })
+      ).status,
+      403,
+    )
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, owner.token, {
+          windMinBlocks: 2,
+          reason: '',
+        })
+      ).status,
+      400,
+    )
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 500, y: 680 }))
+        .status,
+      200,
+    )
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, owner.token, {
+          windMinBlocks: 1,
+          reason: 'Novo limiar já alcançado',
+        })
+      ).status,
+      200,
+    )
+    let detail = (await f.request(`/towers/${id}`)).data
+    assert.equal(
+      detail.tower.nextWindAt,
+      2,
+      'an overdue new threshold triggers on the next accepted placement',
+    )
+    assert.equal(detail.tower.placementCount, 1)
+    const audit = detail.events.findLast((event) => event.type === 'settings')!
+    assert.equal(audit.detail!.before!.windMinBlocks, 5)
+    assert.equal(audit.detail!.after!.windMinBlocks, 1)
+    assert.equal(
+      (await f.request(`/towers/${defaultTower.id}`)).data.tower.nextWindAt,
+      6,
+    )
+    await waitForTower(f, id, (data) => data.frame.settled)
+    f.advance(100)
+    assert.equal(
+      (await f.request(`/towers/${id}/blocks`, owner.token, { x: 300, y: 680 }))
+        .status,
+      200,
+    )
+    detail = (await f.request(`/towers/${id}`)).data
+    assert.equal(detail.frame.wind!.phase, 'pending')
+    assert.equal(
+      detail.tower.nextWindAt,
+      6,
+      'the next interval uses this tower setting',
+    )
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, owner.token, {
+          windEveryBlocks: 2,
+          reason: 'Tentar mudar evento pendente',
+        })
+      ).status,
+      409,
+    )
+    assert.equal(
+      (
+        await f.request(`/towers/${id}/settings`, owner.token, {
+          cost: 1,
+          reason: 'Custo não altera evento pendente',
+        })
+      ).status,
+      200,
+    )
+    assert.equal((await f.request(`/towers/${id}`)).data.tower.nextWindAt, 6)
+    await f.restart()
+    detail = (await f.request(`/towers/${id}`)).data
+    assert.equal(detail.tower.windMinBlocks, 1)
+    assert.equal(detail.tower.windEveryBlocks, 4)
+    assert.equal(detail.tower.nextWindAt, 6)
+    assert.equal(detail.tower.placementCount, 2)
+    assert.equal(
+      (await f.request(`/towers/${defaultTower.id}`)).data.tower.windMinBlocks,
+      6,
+    )
   } finally {
     await f.close()
   }

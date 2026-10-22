@@ -21,7 +21,7 @@ export function MembersPanel({
   return (
     <div className={styles.members}>
       {state.members.length === 0 && (
-        <p>A primeira contribuição abre esta comunidade.</p>
+        <p>Sem participantes.</p>
       )}
       {state.members.map((person) => (
         <article key={person.id}>

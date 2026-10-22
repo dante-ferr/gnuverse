@@ -54,6 +54,7 @@ export function useGameController() {
     !member?.banned &&
     live.frame.blocks.length < Number(rules?.maxBlocks ?? 100) &&
     live.frame.settled &&
+    !live.frame.wind &&
     !feedback.busy &&
     !preview &&
     connection === 'live' &&
@@ -65,7 +66,7 @@ export function useGameController() {
     feedback.run(async () => {
       await session.authenticate(authMode, form)
       setShowAuth(false)
-      feedback.setNotice('Você já pode construir com a comunidade.')
+      feedback.setNotice('')
     })
   const logout = () => feedback.run(session.logout)
   const place = () =>
@@ -77,7 +78,7 @@ export function useGameController() {
       )
       session.setWallet(result.wallet)
       live.setFrame((frame) => ({ ...frame, settled: false }))
-      feedback.setNotice('Bloco lançado. Vamos ver onde ele encontra apoio.')
+      feedback.setNotice('')
       await live.refresh()
     })
   const createTower = (form: HTMLFormElement) =>
@@ -88,6 +89,8 @@ export function useGameController() {
         {
           name: data.get('name'),
           cost: Number(data.get('cost')),
+          windMinBlocks: Number(data.get('windMinBlocks')),
+          windEveryBlocks: Number(data.get('windEveryBlocks')),
           banMode: data.get('banMode'),
           restoreMode: data.get('restoreMode'),
           eligibilityMode: data.get('eligibilityMode'),
@@ -98,7 +101,7 @@ export function useGameController() {
       await lobby.refresh()
       lobby.setTowerId(result.tower.id)
       setShowCreate(false)
-      feedback.setNotice('Sua torre está aberta para contribuições.')
+      feedback.setNotice('Torre criada.')
     })
   const openProposal = (target: ProposalTarget, version?: Snapshot) => {
     if (version) setPreview(version)
@@ -114,7 +117,7 @@ export function useGameController() {
       setProposalTarget(null)
       setTab('decisions')
       await live.refresh()
-      feedback.setNotice('Proposta registrada no histórico público.')
+      feedback.setNotice('Proposta registrada.')
     })
   const vote = (proposal: Proposal, choice: string) =>
     feedback.run(async () => {
@@ -145,9 +148,7 @@ export function useGameController() {
       await session.api.request(`/api/towers/${lobby.towerId}/settings`, body)
       await live.refresh()
       await lobby.refresh()
-      feedback.setNotice(
-        'Regras atualizadas e registradas no histórico público.',
-      )
+      feedback.setNotice('Regras atualizadas.')
     })
   return {
     session,

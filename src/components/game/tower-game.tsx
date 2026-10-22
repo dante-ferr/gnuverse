@@ -42,9 +42,7 @@ export function TowerGame() {
       />
       {game.connection === 'offline' && (
         <div className={styles.message} role="status">
-          Não foi possível conectar ao servidor do jogo. Inicie{' '}
-          <code>npm run game:dev</code> e confira o endereço da API. A conexão
-          será tentada novamente.
+          Servidor indisponível. Reconectando…
         </div>
       )}
       {feedback.error && (
@@ -82,6 +80,8 @@ export function TowerGame() {
           busy={feedback.busy}
           maxCost={Number(game.rules?.maxCost ?? 20)}
           defaultCost={Number(game.rules?.defaultCost ?? 1)}
+          windMinBlocks={Number(game.rules?.windMinBlocks ?? 15)}
+          windEveryBlocks={Number(game.rules?.windEveryBlocks ?? 10)}
           minContributions={Number(game.rules?.minContributions ?? 3)}
           onClose={() => game.setShowCreate(false)}
           onCreateTower={game.createTower}
@@ -100,12 +100,12 @@ export function TowerGame() {
           onPreviewClose={() => game.setPreview(null)}
         />
         <BlockControls
-          {...placement}
+          kind={placement.kind}
+          x={placement.x}
+          y={placement.y}
+          angle={placement.angle}
           onKindChange={(kind) =>
             game.setPlacement((current) => ({ ...current, kind }))
-          }
-          onColorChange={(color) =>
-            game.setPlacement((current) => ({ ...current, color }))
           }
           onXChange={(x) => game.setPlacement((current) => ({ ...current, x }))}
           onYChange={(y) => game.setPlacement((current) => ({ ...current, y }))}
@@ -120,6 +120,7 @@ export function TowerGame() {
           isBanned={Boolean(game.member?.banned)}
           preview={game.preview}
           settled={live.frame.settled}
+          wind={live.frame.wind}
           onPlace={game.place}
         />
       </div>
@@ -154,14 +155,6 @@ export function TowerGame() {
           onSubmit={game.propose}
         />
       )}
-      <footer className={styles.footer}>
-        <span>Construído em comum. Registrado com transparência.</span>
-        <p>
-          Esta experiência aproxima colaboração, governança e versionamento.
-          Software livre também exige as liberdades de usar, estudar, modificar
-          e redistribuir.
-        </p>
-      </footer>
     </main>
   )
 }

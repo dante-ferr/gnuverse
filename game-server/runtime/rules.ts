@@ -21,9 +21,14 @@ export function createRules(overrides: Partial<Rules> = {}): Readonly<Rules> {
     voteChanges: configured.voteChanges,
     prototype: configured.prototype,
     bdflVeto: configured.bdflVeto,
+    windEveryBlocks: configured.windEveryBlocks,
+    windMinBlocks: configured.windMinBlocks,
+    windStrength: configured.windStrength,
     ...overrides,
   })
   for (const key of [
+    'windEveryBlocks',
+    'windMinBlocks',
     'cap',
     'initialBalance',
     'intervalMs',
@@ -40,6 +45,8 @@ export function createRules(overrides: Partial<Rules> = {}): Readonly<Rules> {
       !Number.isSafeInteger(rules[key]) ||
       rules[key] <
         ([
+          'windEveryBlocks',
+          'windMinBlocks',
           'intervalMs',
           'proposalDurationMs',
           'tokenLifetimeMs',
@@ -59,6 +66,12 @@ export function createRules(overrides: Partial<Rules> = {}): Readonly<Rules> {
     !(rules.approval >= 0.5 && rules.approval < 1)
   )
     throw new Error('Invalid economy or voting rules')
+  if (
+    !Number.isFinite(rules.windStrength) ||
+    rules.windStrength < 0 ||
+    rules.windStrength > 1
+  )
+    throw new Error('Invalid wind strength')
   if (rules.bdflVeto) throw new Error('Veto do BDFL não é suportado.')
   return rules
 }

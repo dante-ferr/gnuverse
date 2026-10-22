@@ -21,11 +21,7 @@ export function AccountBanner({
   return (
     <div className={styles.heading}>
       <div>
-        <p className={styles.eyebrow}>Um experimento de construção coletiva</p>
-        <h1>
-          Torres <em>colaborativas.</em>
-        </h1>
-        <p>Uma peça de cada vez. Uma construção de todo mundo.</p>
+        <h1>Torres colaborativas</h1>
       </div>
       <div className={styles.account}>
         {user ? (
@@ -49,9 +45,7 @@ export function AccountBanner({
             </button>
           </>
         ) : (
-          <button className={styles.primary} onClick={onOpenAuth}>
-            Entrar para construir ↗
-          </button>
+          <button className={styles.primary} onClick={onOpenAuth}>Entrar</button>
         )}
       </div>
     </div>

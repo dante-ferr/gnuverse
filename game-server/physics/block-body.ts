@@ -12,10 +12,11 @@ export class BlockBody {
     const shape = BLOCKS[input.kind]
     this.body = Matter.Bodies.rectangle(input.x, input.y, shape.width, shape.height, {
       angle: input.angle ?? 0,
-      friction: 0.65,
-      frictionStatic: 0.8,
+      friction: 0.8,
+      frictionStatic: 1,
       frictionAir: 0.012,
-      restitution: 0.04,
+      restitution: 0,
+      slop: 0.01,
       sleepThreshold: 60,
     })
     this.identity = {
@@ -56,6 +57,14 @@ export class BlockBody {
   overlaps(other: BlockBody): boolean {
     const collision = Matter.Collision.collides(this.body, other.body)
     return Boolean(collision && collision.depth > 0.05)
+  }
+
+  applyWind(acceleration: number, direction: 1 | -1): void {
+    Matter.Sleeping.set(this.body, false)
+    Matter.Body.applyForce(this.body, this.body.position, {
+      x: this.body.mass * acceleration * direction,
+      y: 0,
+    })
   }
 
   read(): BlockState {

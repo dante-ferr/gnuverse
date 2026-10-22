@@ -26,18 +26,21 @@ export function ProposalForm({ target, busy, onCancel, onSubmit }: Props) {
       <div className={styles.panelTitle}>
         <h2>
           {target.type === 'restore'
-            ? 'Propor restauração'
-            : 'Propor suspensão local'}
+            ? 'Restaurar versão'
+            : 'Suspender participante'}
         </h2>
         <button className={styles.quiet} onClick={onCancel}>
           Cancelar
         </button>
       </div>
-      <p>
-        {target.type === 'restore'
-          ? 'A versão escolhida está em visualização. A restauração não devolve moedas nem apaga o histórico.'
-          : 'A suspensão afeta apenas esta torre. A conta, as moedas e outras torres são preservadas.'}
-      </p>
+      <details className={styles.eventLog}>
+        <summary>Efeitos</summary>
+        <p>
+          {target.type === 'restore'
+            ? 'A restauração não devolve moedas nem apaga o histórico.'
+            : 'A suspensão vale só nesta torre. A conta, o saldo e as outras torres permanecem.'}
+        </p>
+      </details>
       <form
         onSubmit={(event) => {
           event.preventDefault()
@@ -55,7 +58,7 @@ export function ProposalForm({ target, busy, onCancel, onSubmit }: Props) {
           />
         </label>
         <button className={styles.primary} disabled={busy}>
-          Registrar proposta
+          Enviar
         </button>
       </form>
     </section>

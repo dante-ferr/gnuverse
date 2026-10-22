@@ -4,6 +4,7 @@ import { fail, text, integer, number, mode } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import { WalletService } from '../economy/wallet-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
+import { WindService } from '../wind/wind-service.ts'
 import { HistoryService } from './history-service.ts'
 
 export class TowerService {
@@ -13,6 +14,7 @@ export class TowerService {
   private wallet: WalletService
   private runtime: SimulationCoordinator
   private history: HistoryService
+  private wind: WindService
   constructor(
     store: GameStore,
     rules: Readonly<Rules>,
@@ -20,6 +22,7 @@ export class TowerService {
     wallet: WalletService,
     runtime: SimulationCoordinator,
     history: HistoryService,
+    wind: WindService,
   ) {
     this.store = store
     this.rules = rules
@@ -27,6 +30,7 @@ export class TowerService {
     this.wallet = wallet
     this.runtime = runtime
     this.history = history
+    this.wind = wind
   }
   member(tower: Tower, user: User): Member {
     return (tower.members[user.id] ??= {
@@ -49,12 +53,16 @@ export class TowerService {
       eligibilityMode: tower.eligibilityMode,
       minContributions: tower.minContributions,
       blockCount: tower.frame.blocks.length,
+      windMinBlocks: tower.windMinBlocks,
+      windEveryBlocks: tower.windEveryBlocks,
+      placementCount: tower.placementCount,
+      nextWindAt: tower.nextWindAt,
     }
   }
   detail(tower: Tower) {
     return {
       tower: this.publicTower(tower),
-      frame: tower.frame,
+      frame: this.runtime.frame(tower),
       snapshots: tower.snapshots,
       events: tower.events,
       members: Object.values(tower.members),
@@ -104,8 +112,26 @@ export class TowerService {
       events: [],
       proposals: [],
       pendingSnapshot: false,
+      windMinBlocks:
+        body.windMinBlocks === undefined
+          ? this.rules.windMinBlocks
+          : integer(body.windMinBlocks, 1, 1_000_000, 'Primeira ventania'),
+      windEveryBlocks:
+        body.windEveryBlocks === undefined
+          ? this.rules.windEveryBlocks
+          : integer(
+              body.windEveryBlocks,
+              1,
+              1_000_000,
+              'Intervalo de ventanias',
+            ),
+      lastWindPlacementCount: null,
+      placementCount: 0,
+      nextWindAt: this.rules.windMinBlocks,
+      wind: null,
       frame: { blocks: [], settled: true, tick: 0 },
     }
+    tower.nextWindAt = tower.windMinBlocks
     tower.frame = this.runtime.simulation(tower).read()
     this.member(tower, user)
     this.store.state.towers[tower.id] = tower
@@ -116,6 +142,8 @@ export class TowerService {
       restoreMode: tower.restoreMode,
       eligibilityMode: tower.eligibilityMode,
       minContributions: tower.minContributions,
+      windMinBlocks: tower.windMinBlocks,
+      windEveryBlocks: tower.windEveryBlocks,
     })
     this.history.snapshot(tower, user.id, 'Torre criada')
     return { tower: this.publicTower(tower) }
@@ -128,7 +156,13 @@ export class TowerService {
       )
     if (user.id !== tower.creatorId)
       fail(403, 'Apenas o criador pode alterar as regras.')
-    if (tower.proposals.some((proposal) => proposal.status === 'pending'))
+    if (
+      tower.proposals.some(
+        (proposal) =>
+          proposal.status === 'pending' ||
+          proposal.executionStatus === 'deferred',
+      )
+    )
       fail(409, 'Aguarde a proposta pendente antes de alterar regras.')
     const reason = text(body.reason, 3, 500, 'Justificativa')
     const before = {
@@ -137,6 +171,8 @@ export class TowerService {
       restoreMode: tower.restoreMode,
       eligibilityMode: tower.eligibilityMode,
       minContributions: tower.minContributions,
+      windMinBlocks: tower.windMinBlocks,
+      windEveryBlocks: tower.windEveryBlocks,
     }
     const after = {
       cost:
@@ -155,6 +191,19 @@ export class TowerService {
         body.eligibilityMode === undefined
           ? tower.eligibilityMode
           : mode(body.eligibilityMode, ['automatic', 'manual']),
+      windMinBlocks:
+        body.windMinBlocks === undefined
+          ? tower.windMinBlocks
+          : integer(body.windMinBlocks, 1, 1_000_000, 'Primeira ventania'),
+      windEveryBlocks:
+        body.windEveryBlocks === undefined
+          ? tower.windEveryBlocks
+          : integer(
+              body.windEveryBlocks,
+              1,
+              1_000_000,
+              'Intervalo de ventanias',
+            ),
       minContributions:
         body.minContributions === undefined
           ? tower.minContributions
@@ -162,7 +211,14 @@ export class TowerService {
     }
     if (JSON.stringify(before) === JSON.stringify(after))
       fail(400, 'Escolha ao menos uma alteração.')
+    const frequencyChanged =
+      before.windMinBlocks !== after.windMinBlocks ||
+      before.windEveryBlocks !== after.windEveryBlocks
+    if (frequencyChanged && tower.wind)
+      fail(409, 'Aguarde a ventania terminar antes de alterar sua frequência.')
+    const previousNextWindAt = tower.nextWindAt
     Object.assign(tower, after)
+    if (frequencyChanged) this.wind.recalculate(tower)
     if (tower.eligibilityMode === 'automatic')
       for (const participant of Object.values(tower.members))
         participant.eligible =
@@ -172,6 +228,7 @@ export class TowerService {
       before,
       after,
       reason,
+      windSchedule: { before: previousNextWindAt, after: tower.nextWindAt },
       eligibilityPolicy:
         tower.eligibilityMode === 'automatic'
           ? 'recomputed-from-contributions'
@@ -185,6 +242,14 @@ export class TowerService {
     participant: Member,
     body: Record<string, unknown>,
   ) {
+    if (tower.wind)
+      fail(409, 'Aguarde a ventania terminar e a torre estabilizar.')
+    if (
+      tower.proposals.some(
+        (proposal) => proposal.executionStatus === 'deferred',
+      )
+    )
+      fail(409, 'Aguarde a restauração aprovada ser executada.')
     if (
       user.lastAction !== null &&
       this.now() - user.lastAction < this.rules.cooldownMs
@@ -223,6 +288,7 @@ export class TowerService {
     user.balance -= tower.cost
     user.lastAction = this.now()
     participant.contributions++
+    this.wind.placed(tower, user.id)
     if (
       tower.eligibilityMode === 'automatic' &&
       participant.contributions >= tower.minContributions

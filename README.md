@@ -39,7 +39,7 @@ Na primeira vez:
 make setup
 ```
 
-Depois, para iniciar CMS e site juntos:
+Depois, para iniciar CMS, jogo e site juntos:
 
 ```bash
 make dev
@@ -47,11 +47,11 @@ make dev
 
 Abra a URL do painel impressa no terminal, crie seu administrador e insira o artigo de teste descrito em `docs/teste-cms.md`. O site fica no endereço impresso no terminal, normalmente http://localhost:3000/artigos/.
 
-O setup instala as duas aplicações, gera o segredo do CMS e prepara `.env.local` para o modo live. A porta local é definida somente por `CMS_PORT` nesse arquivo; o endereço do painel e a leitura do conteúdo são derivados dela. Configurações antigas são migradas, preservando os demais valores. `make dev` aguarda o CMS antes de iniciar o site; Ctrl+C encerra os dois.
+O setup instala as duas aplicações, gera o segredo do CMS e prepara `.env.local` para o modo live. A porta local é definida somente por `CMS_PORT` nesse arquivo; o endereço do painel e a leitura do conteúdo são derivados dela. Configurações antigas são migradas, preservando os demais valores. `make dev` inicia o CMS e o backend do jogo, aguarda as duas APIs e só então inicia o site; Ctrl+C encerra os três.
 
 Depois de editar/publicar no CMS, pare e execute `make dev` novamente para atualizar o conteúdo. A sincronização acontece na inicialização, não a cada visita.
 
-Para testar o jogo, inicie o backend em outro terminal com `npm run game:dev`. Com o site iniciado, abra `http://localhost:3000/jogo/`; o backend local usa a porta `3002` e o CMS continua na `3001`. Se o CMS estiver desligado, use `CMS_CONTENT_MODE=demo` em `.env.local`. O jogo pode ser testado em duas sessões de navegador. Veja [o guia de teste local](docs/jogo-local.md) para contas, variáveis de ambiente e limitações do protótipo.
+O backend do jogo já é iniciado por `make dev`. Para iniciar apenas o backend separadamente, use `npm run game:dev`. Com o site iniciado, abra `http://localhost:3000/jogo/`; o backend local usa a porta `3002` e o CMS continua na `3001`. Se o CMS estiver desligado, use `CMS_CONTENT_MODE=demo` em `.env.local`. O jogo pode ser testado em duas sessões de navegador. Veja [o guia de teste local](docs/jogo-local.md) para contas, variáveis de ambiente e limitações do protótipo.
 
 Sem configuração, o site usa um artigo claramente identificado como demonstração. Em modo live, falhas do CMS abortam a sincronização; nunca substituem o conteúdo real pelo exemplo.
 
@@ -83,6 +83,6 @@ Use `make help` para listar os atalhos. Para trabalhar em terminais separados: `
 
 O escopo implementado inclui a integração editorial inicial e o multiplayer local do jogo. Conteúdo acadêmico, hospedagem do backend, contas de nuvem, remoto GitHub e credenciais de produção ainda precisam ser configurados. Nenhum serviço externo foi publicado nesta etapa.
 
-Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sobrescrevendo a porta definida no ambiente apenas para essa execução. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
+Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 GAME_PORT=3012 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sobrescrevendo a porta definida no ambiente apenas para essa execução. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
 
 Encerre servidores deste mesmo projeto antes de usar `make dev`: o Next.js permite apenas uma sessão de desenvolvimento por diretório, mesmo em portas diferentes.

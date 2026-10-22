@@ -161,4 +161,87 @@ test('body limit and disposal have explicit behavior', () => {
   sim.dispose()
   sim.dispose()
   assert.throws(() => sim.step(), /disposed/)
+  assert.throws(() => sim.applyWind(0.3, 1), /disposed/)
+})
+
+test('stone stack absorbs a falling load without sustained bouncing or compression', () => {
+  const sim = createSimulation(Array.from({ length: 8 }, (_, index) => block({
+    id: `stone-${index}`, y: 710 - index * 60,
+  })))
+  try {
+    const initial = settle(sim)
+    const top = initial.blocks.at(-1)!
+    assert.equal(sim.place(block({ id: 'load', y: 100 })).ok, true)
+    let contact = false
+    let deepest = 0
+    let rebound = 0
+    for (let index = 0; index < 600; index += 1) {
+      const load = sim.step().blocks.at(-1)!
+      if (load.y >= top.y - 60 - 0.5) contact = true
+      if (contact) {
+        deepest = Math.max(deepest, load.y)
+        rebound = Math.max(rebound, deepest - load.y)
+      }
+    }
+    assert.equal(contact, true)
+    assert.ok(rebound < 3, `numerical rebound must remain below 3 world pixels, got ${rebound}`)
+    const resting = sim.read()
+    assert.equal(resting.settled, true)
+    for (const [index, stone] of resting.blocks.entries()) {
+      assert.ok(Math.abs(stone.y - (710 - index * 60)) < 0.5, 'load must not compress the stack')
+      assert.equal(stone.vy, 0)
+      assert.equal(stone.angularVelocity, 0)
+    }
+    for (let index = 0; index < 180; index += 1) sim.step()
+    assert.deepEqual(sim.read().blocks, resting.blocks, 'resting stone must not jitter')
+  } finally { sim.dispose() }
+})
+
+test('five seconds of wind topples a narrow tower while a broad stone stays supported', () => {
+  const broad = createSimulation([block({ kind: 'wide', y: 722 })])
+  const narrow = createSimulation(Array.from({ length: 3 }, (_, index) => block({
+    id: `column-${index}`, kind: 'tall', y: 690 - index * 100,
+  })))
+  try {
+    settle(broad)
+    settle(narrow)
+    broad.applyWind(0.3, 1)
+    assert.equal(broad.read().settled, false)
+    assert.equal(broad.read().blocks[0].sleeping, false)
+    for (let index = 0; index < 300; index += 1) {
+      broad.applyWind(0.3, 1)
+      narrow.applyWind(0.3, 1)
+      broad.step()
+      narrow.step()
+    }
+    const broadFrame = settle(broad)
+    const narrowFrame = settle(narrow)
+    const stone = broadFrame.blocks[0]
+    assert.ok(Math.abs(stone.angle) < 0.01)
+    assert.ok(Math.abs(stone.y - 722) < 0.1)
+    const maxShift = Math.max(...narrowFrame.blocks.map(piece => Math.abs(piece.x - 500)))
+    assert.ok(maxShift > Math.abs(stone.x - 500) + 100)
+    assert.ok(narrowFrame.blocks.every(piece => Math.abs(piece.angle) > 1), 'columns must actually topple')
+  } finally { broad.dispose(); narrow.dispose() }
+})
+
+test('wind is mass-scaled, directional and consumed after one physics tick', () => {
+  const left = createSimulation([block({ y: 200, sleeping: true })])
+  const right = createSimulation([block({ kind: 'wide', y: 200, sleeping: true })])
+  const control = createSimulation([block({ y: 200, sleeping: true })])
+  try {
+    left.applyWind(0.3, -1)
+    right.applyWind(0.3, 1)
+    control.applyWind(0, 1)
+    const firstLeft = left.step().blocks[0]
+    const firstRight = right.step().blocks[0]
+    assert.ok(firstLeft.vx < 0 && firstRight.vx > 0)
+    assert.ok(Math.abs(firstLeft.vx + firstRight.vx) < 1e-8, 'equal acceleration despite different masses')
+    const next = left.step().blocks[0]
+    assert.ok(Math.abs(next.vx) < Math.abs(firstLeft.vx), 'wind stops without another call')
+    assert.equal(control.step().blocks[0].x, 500)
+    assert.throws(() => left.applyWind(Infinity, 1), /Invalid wind/)
+    assert.throws(() => left.applyWind(-0.1, 1), /Invalid wind/)
+    assert.throws(() => left.applyWind(1.1, 1), /Invalid wind/)
+  } finally { left.dispose(); right.dispose(); control.dispose() }
 })

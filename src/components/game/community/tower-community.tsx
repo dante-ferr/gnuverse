@@ -48,39 +48,61 @@ export function TowerCommunity({
     <section className={styles.collective}>
       <div className={styles.collectiveHeading}>
         <div>
-          <p className={styles.eyebrow}>Mais que empilhar</p>
-          <h2>Uma torre, muitas decisões.</h2>
+          <h2>Comunidade</h2>
         </div>
-        <p>
-          Restauração:{' '}
-          <strong>{governanceLabel(state.tower.restoreMode)}</strong>
-          <br />
-          Banimento: <strong>{governanceLabel(state.tower.banMode)}</strong>
-          <br />
-          Eleitores:{' '}
-          <strong>
-            {state.tower.eligibilityMode === 'manual'
-              ? 'habilitados pelo BDFL'
-              : `a partir de ${state.tower.minContributions} contribuições`}
-          </strong>
-          <br />
-          Suspensão do criador:{' '}
-          <strong>
-            {state.tower.allowCreatorBan
-              ? 'permitida por votação'
-              : 'não permitida'}
-          </strong>{' '}
-          · escolha definitiva
-        </p>
       </div>
+      {user?.id !== state.tower.creatorId && (
+        <details className={styles.eventLog}>
+          <summary>Regras da torre</summary>
+          <ul className={styles.rules}>
+            <li>Custo por bloco: {state.tower.cost} moedas.</li>
+            <li>Restauração: {governanceLabel(state.tower.restoreMode)}.</li>
+            <li>Suspensão: {governanceLabel(state.tower.banMode)}.</li>
+            <li>
+              Vento: primeira aos {state.tower.windMinBlocks} blocos; depois a
+              cada {state.tower.windEveryBlocks}.
+            </li>
+            <li>
+              Eleitores:{' '}
+              {state.tower.eligibilityMode === 'manual'
+                ? 'habilitados pelo BDFL'
+                : `após ${state.tower.minContributions} contribuições`}
+              .
+            </li>
+            <li>
+              Suspensão do criador:{' '}
+              {state.tower.allowCreatorBan
+                ? 'permitida por votação'
+                : 'indisponível'}{' '}
+              (definitivo).
+            </li>
+          </ul>
+        </details>
+      )}
       {user?.id === state.tower.creatorId && (
         <TowerSettings
           tower={state.tower}
           maxCost={Number(state.rules.maxCost)}
+          windActive={Boolean(state.frame.wind)}
           disabled={
             busy ||
             isBanned ||
-            state.proposals.some((proposal) => proposal.status === 'pending')
+            state.proposals.some(
+              (proposal) =>
+                proposal.status === 'pending' ||
+                proposal.executionStatus === 'deferred',
+            )
+          }
+          blockedReason={
+            isBanned
+              ? 'Sua participação nesta torre está suspensa.'
+              : state.proposals.some(
+                    (proposal) =>
+                      proposal.status === 'pending' ||
+                      proposal.executionStatus === 'deferred',
+                  )
+                ? 'Aguarde a conclusão da proposta em andamento.'
+                : undefined
           }
           onSave={onSettingsSave}
         />

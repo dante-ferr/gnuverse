@@ -18,6 +18,9 @@ export type Rules = {
   voteChanges: boolean
   bdflVeto: boolean
   prototype: boolean
+  windEveryBlocks: number
+  windMinBlocks: number
+  windStrength: number
 }
 export type User = {
   id: string
@@ -67,6 +70,18 @@ export type Proposal = {
   decisionReason?: string
   decidedAt?: number
   decidedBy?: string | null
+  executionStatus?: 'deferred' | 'executed'
+  executedAt?: number
+}
+export type WindState = {
+  phase: 'pending' | 'active' | 'settling'
+  endsAt: number | null
+  direction: 1 | -1
+  triggerCount: number
+  strength: number
+}
+export type PublicFrame = Frame & {
+  wind: Pick<WindState, 'phase' | 'endsAt' | 'direction'> | null
 }
 export type Tower = {
   id: string
@@ -83,6 +98,12 @@ export type Tower = {
   events: TowerEvent[]
   proposals: Proposal[]
   pendingSnapshot: boolean
+  windMinBlocks: number
+  windEveryBlocks: number
+  lastWindPlacementCount: number | null
+  placementCount: number
+  nextWindAt: number
+  wind: WindState | null
   frame: Frame
   lastActorId?: string
 }

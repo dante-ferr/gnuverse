@@ -26,46 +26,36 @@ export function ProposalsPanel({
 }) {
   return (
     <>
-      <p className={styles.hint}>
-        Uma pessoa habilitada, um voto. O eleitorado é fixado ao abrir a
-        proposta. O resultado e a justificativa ficam públicos.
-      </p>
       <details className={styles.eventLog}>
-        <summary>Regras em vigor para esta torre</summary>
+        <summary>Regras de decisão</summary>
         <ul className={styles.rules}>
           <li>
-            Carteira: até {Number(state.rules.cap)} moedas; uma moeda a cada{' '}
+            Saldo: até {Number(state.rules.cap)} moedas; +1 a cada{' '}
             {Number(state.rules.intervalMs) / 1000}s.
           </li>
           <li>
-            Intervalo entre lançamentos: {Number(state.rules.cooldownMs) / 1000}
-            s, inclusive em torres gratuitas.
+            Intervalo entre ações: {Number(state.rules.cooldownMs) / 1000}s.
           </li>
           <li>
-            Votações: {Number(state.rules.proposalDurationMs) / 1000}s de prazo;
-            participação mínima de {Number(state.rules.quorum) * 100}% do
-            eleitorado; mais de {Number(state.rules.approval) * 100}% dos votos
-            a favor entre os votos a favor e contra. Abstenções contam para o
-            quórum. Empates rejeitam a proposta.
+            Uma pessoa, um voto; eleitorado fixado ao abrir a proposta. Prazo:{' '}
+            {Number(state.rules.proposalDurationMs) / 1000}s; quórum:{' '}
+            {Number(state.rules.quorum) * 100}%; aprovação acima de{' '}
+            {Number(state.rules.approval) * 100}%. Abstenções contam para o
+            quórum; empate rejeita.
           </li>
           <li>
-            Trocar voto:{' '}
-            {state.rules.voteChanges ? 'permitido' : 'não permitido'}. Sem veto
-            do BDFL em votações.
+            Troca de voto: {state.rules.voteChanges ? 'sim' : 'não'}. Sem veto do
+            BDFL.
           </li>
           <li>
-            Suspensão local: {Number(state.rules.banDurationMs) / 60000}{' '}
-            minutos. A pessoa pode observar a torre, mas não construir, propor
-            ou votar nela até o fim da suspensão.
+            Suspensão local: {Number(state.rules.banDurationMs) / 60000} min;
+            sem construir, propor ou votar durante o prazo.
           </li>
         </ul>
       </details>
       <div className={styles.proposals}>
         {state.proposals.length === 0 && (
-          <p>
-            Nenhuma proposta por aqui. Escolha uma versão ou participante para
-            iniciar uma decisão.
-          </p>
+          <p>Nenhuma proposta.</p>
         )}
         {[...state.proposals].reverse().map((proposal) => (
           <article key={proposal.id}>
@@ -77,6 +67,9 @@ export function ProposalsPanel({
               </h3>
               <span>{statusLabels[proposal.status] || proposal.status}</span>
             </div>
+            {proposal.executionStatus === 'deferred' && (
+              <small>Aguarda fim da ventania</small>
+            )}
             <p>{proposal.reason}</p>
             {proposal.decisionReason && (
               <p>
@@ -85,7 +78,7 @@ export function ProposalsPanel({
               </p>
             )}
             <small>
-              Proposta por{' '}
+              Por{' '}
               {state.members.find((person) => person.id === proposal.actorId)
                 ?.nickname || 'Participante'}
               {proposal.decidedBy
@@ -112,7 +105,7 @@ export function ProposalsPanel({
                   )
                 }
               >
-                Visualizar versão proposta
+                Ver versão
               </button>
             )}
             {proposal.mode === 'vote' && (
@@ -137,22 +130,23 @@ export function ProposalsPanel({
                   }{' '}
                   abstenções
                 </p>
-                <small>
-                  Regra na abertura: quórum de {proposal.rules.quorum * 100}%,
-                  aprovação acima de {proposal.rules.approval * 100}%,{' '}
-                  {proposal.rules.voteChanges
-                    ? 'permite trocar voto'
-                    : 'voto definitivo'}
-                  .
-                </small>
-                <small>
-                  {proposal.electorate.length} eleitores na abertura ·{' '}
-                  {proposal.closesAt
-                    ? `prazo ${date(proposal.closesAt)}`
-                    : 'aguardando decisão do BDFL'}
-                </small>
                 <details className={styles.eventLog}>
-                  <summary>Eleitorado e votos</summary>
+                  <summary>
+                    Regras e eleitorado · {proposal.electorate.length} pessoas
+                  </summary>
+                  <p>
+                    Eleitorado fixado na abertura. Quórum:{' '}
+                    {proposal.rules.quorum * 100}%; aprovação acima de{' '}
+                    {proposal.rules.approval * 100}%;{' '}
+                    {proposal.rules.voteChanges
+                      ? 'voto pode ser alterado'
+                      : 'voto definitivo'}
+                    . Prazo:{' '}
+                    {proposal.closesAt
+                      ? date(proposal.closesAt)
+                      : 'decisão do BDFL'}
+                    .
+                  </p>
                   <ul className={styles.rules}>
                     {proposal.electorate.map((id) => (
                       <li key={id}>
@@ -174,7 +168,7 @@ export function ProposalsPanel({
             )}
             {proposal.mode === 'bdfl' && (
               <small>
-                A decisão cabe ao BDFL desta torre, com justificativa pública.
+                Decisão do BDFL com justificativa pública.
               </small>
             )}
             {['active', 'open', 'pending'].includes(proposal.status) && (

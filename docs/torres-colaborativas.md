@@ -11,7 +11,7 @@ Tema do trabalho: software livre como forma de democratizar o acesso à tecnolog
 ## Forma visual e gameplay
 
 - Vista lateral, inspirada em platformer, sem precisar de personagem controlável ou de uma implementação completa de plataforma.
-- Torre formada por blocos geométricos com variações de tamanho e cor. CSS/SVG/canvas podem produzir a apresentação; React cuida da interface. Não depender de salas detalhadas, pixel art ou muitos sprites.
+- Torre formada por blocos geométricos com variações de tamanho. A apresentação atual é monocromática em SVG; skins poderão ser adicionadas futuramente. CSS/SVG/canvas podem produzir a apresentação; React cuida da interface. Não depender de salas detalhadas, pixel art ou muitos sprites.
 - Física simplificada de corpos rígidos: queda, colisão, atrito, rotação e empilhamento. Não simular engenharia estrutural real.
 - Participantes registrados escolhem uma torre e posicionam blocos. Intervenções podem desequilibrar a construção e provocar tombos ou desabamentos, que fazem parte da brincadeira.
 - Ações de retirar ou empurrar blocos são possibilidades a validar. Caso existam, também devem ter custo ou limitação; não deixar destruição ilimitada enquanto apenas construir consome recursos.

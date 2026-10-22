@@ -1,34 +1,34 @@
 'use client'
 
 import { BLOCKS } from '../model/block-catalog'
-import type { Block } from '../model/types'
+import type { Block, BlockKind } from '../model/types'
+
+export function BlockGlyph({ kind }: { kind: BlockKind }) {
+  const { width, height } = BLOCKS[kind]
+  return (
+    <rect
+      x={-width / 2}
+      y={-height / 2}
+      width={width}
+      height={height}
+      rx="8"
+      ry="8"
+      fill="var(--block-face)"
+      stroke="var(--scene)"
+      strokeWidth="4"
+    />
+  )
+}
 
 export function Blocks({ blocks }: { blocks: Block[] }) {
-  return blocks.map((block) => {
-    const shape = BLOCKS[block.kind]
-    if (!shape) return null
-    return (
+  return blocks.map((block) =>
+    BLOCKS[block.kind] ? (
       <g
         key={block.id}
         transform={`translate(${block.x} ${block.y}) rotate(${(block.angle * 180) / Math.PI})`}
       >
-        <rect
-          x={-shape.width / 2}
-          y={-shape.height / 2}
-          width={shape.width}
-          height={shape.height}
-          rx="5"
-          fill={block.color}
-          stroke="#302c3a"
-          strokeWidth="1.5"
-        />
-        <path
-          d={`M${-shape.width / 2 + 7} ${-shape.height / 2 + 7}h${shape.width - 14}`}
-          stroke="white"
-          strokeOpacity=".45"
-          strokeWidth="3"
-        />
+        <BlockGlyph kind={block.kind} />
       </g>
-    )
-  })
+    ) : null,
+  )
 }

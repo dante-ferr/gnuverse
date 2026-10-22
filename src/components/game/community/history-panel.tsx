@@ -21,10 +21,13 @@ export function HistoryPanel({
 }) {
   return (
     <>
-      <p className={styles.hint}>
-        As versões são registradas após o repouso. Consultar não altera a torre;
-        restaurar exige uma decisão e preserva gastos e contribuições.
-      </p>
+      <details className={styles.eventLog}>
+        <summary>Sobre as versões</summary>
+        <p>
+          São registradas após o repouso. Restaurar exige decisão e não apaga
+          gastos ou contribuições.
+        </p>
+      </details>
       <div className={styles.snapshots}>
         {[...state.snapshots].reverse().map((snapshot, index) => (
           <article key={snapshot.id} className={styles.snapshot}>
@@ -33,8 +36,8 @@ export function HistoryPanel({
               onClick={() => onPreview(snapshot)}
             >
               <svg viewBox="0 0 1000 800" aria-hidden="true">
-                <rect width="1000" height="800" fill="#eeece5" />
-                <path d="M0 740h1000" stroke="#b8b0a4" strokeWidth="8" />
+                <rect width="1000" height="800" fill="var(--scene)" />
+                <path d="M0 740h1000" stroke="var(--scene-line)" strokeWidth="8" />
                 <Blocks blocks={snapshot.blocks} />
               </svg>
             </button>
@@ -47,7 +50,7 @@ export function HistoryPanel({
               disabled={!user || busy}
               onClick={() => onPropose(snapshot)}
             >
-              Propor restauração ↗
+              Propor restauração
             </button>
           </article>
         ))}

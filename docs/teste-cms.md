@@ -13,7 +13,7 @@ make setup
 make dev
 ```
 
-Abra a URL do painel impressa no terminal. `make dev` inicia CMS e site juntos e Ctrl+C encerra ambos. O setup gera `cms/.env` com segredo local aleatório e cria o diretório do SQLite. O segredo não é mostrado e não entra no Git. Essa base de desenvolvimento não será transferida automaticamente ao Supabase.
+Abra a URL do painel impressa no terminal. `make dev` inicia CMS, jogo e site juntos e Ctrl+C encerra os três. O setup gera `cms/.env` com segredo local aleatório e cria o diretório do SQLite. O segredo não é mostrado e não entra no Git. Essa base de desenvolvimento não será transferida automaticamente ao Supabase.
 
 No primeiro acesso, crie seu usuário com nome, e-mail e senha. Ele será administrador. Depois, em **Integrantes**, você poderá criar contas com papel **Editor**. Não é necessário pagar por esses papéis nem obter uma chave de API do Payload.
 

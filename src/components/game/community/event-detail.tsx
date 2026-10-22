@@ -5,7 +5,11 @@ const mode = (value: unknown) => (value === 'vote' ? 'votação' : 'BDFL')
 function rulesText(value: unknown) {
   if (!value || typeof value !== 'object') return ''
   const rules = value as Record<string, unknown>
-  return `${rules.cost} moedas/bloco; banimentos por ${mode(rules.banMode)}; restaurações por ${mode(rules.restoreMode)}; eleitores ${rules.eligibilityMode === 'manual' ? 'habilitados manualmente' : `após ${rules.minContributions} contribuições`}`
+  const wind =
+    typeof rules.windMinBlocks === 'number'
+      ? `; vento inicial após ${rules.windMinBlocks} blocos e depois a cada ${rules.windEveryBlocks}`
+      : ''
+  return `${rules.cost} moedas/bloco; banimentos por ${mode(rules.banMode)}; restaurações por ${mode(rules.restoreMode)}; eleitores ${rules.eligibilityMode === 'manual' ? 'habilitados manualmente' : `após ${rules.minContributions} contribuições`}${wind}`
 }
 
 export function EventDetail({ event }: { event: GameEvent }) {
@@ -14,14 +18,14 @@ export function EventDetail({ event }: { event: GameEvent }) {
   if (event.type === 'settings')
     return (
       <span>
-        Antes: {rulesText(detail.before)}. Depois: {rulesText(detail.after)}.
-        Motivo: {String(detail.reason || '')}
+        Regras: {rulesText(detail.before)} → {rulesText(detail.after)}. Motivo:{' '}
+        {String(detail.reason || '')}
       </span>
     )
   if (event.type === 'vote-result')
     return (
       <span>
-        {detail.accepted ? 'Aprovada' : 'Rejeitada'}: {Number(detail.for)} a
+        {detail.accepted ? 'Aprovada' : 'Rejeitada'} · {Number(detail.for)} a
         favor, {Number(detail.against)} contra, {Number(detail.abstain)}{' '}
         abstenções.
       </span>

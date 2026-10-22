@@ -29,15 +29,12 @@ export function AuthPanel({
     <section className={styles.panel} aria-label="Acesso ao jogo">
       <div className={styles.panelTitle}>
         <h2>
-          {mode === 'register'
-            ? 'Entre na construção.'
-            : 'Bom ter você de volta.'}
+          {mode === 'register' ? 'Criar conta' : 'Entrar'}
         </h2>
         <button className={styles.quiet} onClick={onClose}>
           Fechar
         </button>
       </div>
-      <p>Seu apelido aparece nas contribuições. Seu e-mail fica privado.</p>
       <form className={styles.form} onSubmit={handleSubmit}>
         {mode === 'register' && (
           <label>
@@ -83,6 +80,10 @@ export function AuthPanel({
       <button className={styles.quiet} onClick={onToggleMode}>
         {mode === 'register' ? 'Já tenho uma conta' : 'Quero criar uma conta'}
       </button>
+      <details className={styles.eventLog}>
+        <summary>Privacidade</summary>
+        <p>O apelido é público. O e-mail fica privado.</p>
+      </details>
     </section>
   )
 }

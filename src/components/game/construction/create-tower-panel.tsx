@@ -1,6 +1,7 @@
 'use client'
 
 import type { FormEvent } from 'react'
+import { WindFrequencyFields } from './wind-frequency-fields'
 import styles from '../tower-game.module.css'
 
 export type CreateTowerPanelProps = {
@@ -8,6 +9,8 @@ export type CreateTowerPanelProps = {
   maxCost: number
   defaultCost: number
   minContributions: number
+  windMinBlocks: number
+  windEveryBlocks: number
   onClose: () => void
   onCreateTower: (form: HTMLFormElement) => void
 }
@@ -17,6 +20,8 @@ export function CreateTowerPanel({
   maxCost,
   defaultCost,
   minContributions,
+  windMinBlocks,
+  windEveryBlocks,
   onClose,
   onCreateTower,
 }: CreateTowerPanelProps) {
@@ -28,15 +33,11 @@ export function CreateTowerPanel({
   return (
     <section className={styles.panel}>
       <div className={styles.panelTitle}>
-        <h2>Um novo começo.</h2>
+        <h2>Criar torre</h2>
         <button className={styles.quiet} onClick={onClose}>
           Fechar
         </button>
       </div>
-      <p>
-        Como criador, você será o BDFL desta torre. Escolha como a comunidade
-        toma decisões.
-      </p>
       <form className={styles.form} onSubmit={handleSubmit}>
         <label>
           Nome da torre
@@ -85,16 +86,21 @@ export function CreateTowerPanel({
             required
           />
         </label>
-        <label className={styles.checkOption}>
-          <input name="allowCreatorBan" type="checkbox" />
-          <span>
-            Permitir que o criador/BDFL seja suspenso por votação.
-            <small>
-              Esta escolha é definitiva. Durante a suspensão, o criador também
-              perde temporariamente as ações de administração nesta torre.
-            </small>
-          </span>
-        </label>
+        <WindFrequencyFields
+          initial={windMinBlocks}
+          interval={windEveryBlocks}
+        />
+        <details className={styles.eventLog}>
+          <summary>Suspensão do criador</summary>
+          <label className={styles.checkOption}>
+            <input name="allowCreatorBan" type="checkbox" />
+            <span>Permitir suspensão por votação</span>
+          </label>
+          <small>
+            Escolha definitiva. Suspenso, o criador perde a administração desta
+            torre até o fim da suspensão.
+          </small>
+        </details>
         <button className={styles.primary} disabled={busy}>
           Abrir torre ↗
         </button>

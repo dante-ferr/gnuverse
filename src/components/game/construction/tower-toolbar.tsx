@@ -20,14 +20,14 @@ export function TowerToolbar({
   return (
     <div className={styles.toolbar}>
       <div className={styles.towerPicker}>
-        <label htmlFor="tower">Construção atual</label>
+        <label htmlFor="tower">Torre</label>
         <select
           id="tower"
           value={towerId}
           onChange={(event) => onSelect(event.target.value)}
         >
           <option value="" disabled>
-            {towers.length ? 'Escolha uma torre' : 'Nenhuma torre ainda'}
+            {towers.length ? 'Escolher' : 'Sem torres'}
           </option>
           {towers.map((tower) => (
             <option key={tower.id} value={tower.id}>
@@ -41,13 +41,13 @@ export function TowerToolbar({
       >
         <i />
         {connection === 'live'
-          ? 'Ao vivo · servidor conectado'
+          ? 'Ao vivo'
           : connection === 'connecting'
-            ? 'Conectando…'
-            : 'Servidor desconectado'}
+            ? 'Conectando'
+            : 'Offline'}
       </span>
       <button className={styles.secondary} onClick={onCreate}>
-        + Criar torre
+        Criar torre
       </button>
     </div>
   )
