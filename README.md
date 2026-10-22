@@ -6,31 +6,32 @@ Projeto multimodal de MATA68 (2026.2) sobre software livre como forma de democra
 
 Duas áreas paralelas e independentes:
 
-- **Torres colaborativas:** site-jogo de blocos com física simplificada, cadastro, moedas globais, criação de torres, votações e governança transparente. É uma proposta documentada; o jogo ainda não está implementado. Veja [gameplay e regras](docs/torres-colaborativas.md).
+- **Torres colaborativas:** jogo multiplayer local com física simplificada, cadastro, moedas globais, criação de torres, histórico, votações e governança transparente. O backend Node e a persistência SQLite funcionam localmente; a hospedagem ainda será escolhida. Veja [gameplay e regras](docs/torres-colaborativas.md) e o [guia de teste local](docs/jogo-local.md).
 - **Blog autoral:** posts da equipe e de visitantes, sujeitos a aprovação. A prova de conceito terá dois posts por integrante, totalizando 14. A integração editorial inicial existe, mas submissão pública e aprovação obrigatória ainda não. Veja [o plano editorial e o estado do CMS](docs/blog.md).
 
 ## Navegação e divisão de trabalho
 
 - `/`: página inicial do GNUverse, com entradas para jogo e blog.
-- `/jogo/`: apresentação provisória. O jogo será desenvolvido em outra conversa, a partir de `src/app/jogo/page.tsx` e de `docs/torres-colaborativas.md`.
+- `/jogo/`: interface interativa do jogo, conectada ao backend Node configurado em `NEXT_PUBLIC_GAME_API_URL`.
 - `/blog/`: entrada do blog, reutilizando a base editorial existente. O desenvolvimento do blog fica reservado a outro integrante.
 - `/artigos/` e `/artigos/[slug]/`: rotas editoriais anteriores preservadas por compatibilidade.
 
-A navegação compartilhada fica em `src/components/site-header.tsx`. A estrutura das três áreas está pronta; esta etapa não implementa gameplay nem altera o fluxo do CMS.
+A navegação compartilhada fica em `src/components/site-header.tsx`. O jogo e o blog usam serviços e dados separados; implementar o jogo não altera o fluxo editorial do CMS.
 
 ## Arquitetura escolhida
 
-- Site público estático na raiz, preparado para Cloudflare Pages. O jogo precisará de um backend dinâmico separado, ainda a definir.
+- Site público estático na raiz, preparado para Cloudflare Pages. O jogo consulta um backend dinâmico Node separado; ele funciona localmente e sua hospedagem ainda será definida.
 - Payload CMS separado em `cms/`, preparado para Render.
 - Banco PostgreSQL e mídia S3 no Supabase em produção; SQLite e disco local somente no desenvolvimento.
 - Conteúdo é salvo no banco, sem commits editoriais. Publicar solicita novo build por deploy hook.
 - Artigos e capas são copiados durante o build: o visitante não precisa esperar o CMS acordar.
 
-Leia [as decisões](docs/arquitetura-cms.md) e [o guia de teste e credenciais](docs/teste-cms.md).
+Leia [as decisões do CMS](docs/arquitetura-cms.md), [o guia de teste e credenciais do CMS](docs/teste-cms.md), [a arquitetura do jogo](docs/arquitetura-jogo.md) e [o guia de teste local](docs/jogo-local.md).
+Para a organização técnica do jogo, veja [a arquitetura do jogo](docs/arquitetura-jogo.md) e o [guia de teste local](docs/jogo-local.md).
 
 ## Teste local
 
-Requer Node.js 22+, npm e GNU Make. Versões fixadas nos dois arquivos `package-lock.json`.
+Requer Node.js 22.18+, npm e GNU Make. Versões fixadas nos dois arquivos `package-lock.json`.
 
 Na primeira vez:
 
@@ -49,6 +50,8 @@ Abra a URL do painel impressa no terminal, crie seu administrador e insira o art
 O setup instala as duas aplicações, gera o segredo do CMS e prepara `.env.local` para o modo live. A porta local é definida somente por `CMS_PORT` nesse arquivo; o endereço do painel e a leitura do conteúdo são derivados dela. Configurações antigas são migradas, preservando os demais valores. `make dev` aguarda o CMS antes de iniciar o site; Ctrl+C encerra os dois.
 
 Depois de editar/publicar no CMS, pare e execute `make dev` novamente para atualizar o conteúdo. A sincronização acontece na inicialização, não a cada visita.
+
+Para testar o jogo, inicie o backend em outro terminal com `npm run game:dev`. Com o site iniciado, abra `http://localhost:3000/jogo/`; o backend local usa a porta `3002` e o CMS continua na `3001`. Se o CMS estiver desligado, use `CMS_CONTENT_MODE=demo` em `.env.local`. O jogo pode ser testado em duas sessões de navegador. Veja [o guia de teste local](docs/jogo-local.md) para contas, variáveis de ambiente e limitações do protótipo.
 
 Sem configuração, o site usa um artigo claramente identificado como demonstração. Em modo live, falhas do CMS abortam a sincronização; nunca substituem o conteúdo real pelo exemplo.
 
@@ -71,10 +74,14 @@ Use `make help` para listar os atalhos. Para trabalhar em terminais separados: `
 - `scripts/`: leitura da API, validação e cópia das capas.
 - `content/demo-article.json`: exemplo técnico, não publicado automaticamente no banco.
 - `cms/`: painel, usuários, artigos, uploads, testes e migrações PostgreSQL.
+- `game-server/`: backend Node, simulação autoritativa, autenticação e persistência SQLite do jogo.
+- `game-server/config/game.config.toml`: regras ajustáveis de moedas, custos, votações e limites do jogo.
+- `src/components/game/`: interface interativa da experiência em `/jogo/`.
+- `docs/jogo-local.md`: inicialização, contas, configuração e limites do backend local.
 - `docs/planejamento.md`: responsabilidades dos sete integrantes e cronograma.
 - `docs/diario-de-bordo.md`: modelo coletivo e individual.
 
-O escopo implementado atualmente é a integração editorial inicial; conteúdo acadêmico e experiências mais elaboradas continuam sob desenvolvimento do grupo. As contas de nuvem, o remoto GitHub e as credenciais de produção ainda precisam ser configurados. Nenhum serviço externo foi publicado nesta etapa.
+O escopo implementado inclui a integração editorial inicial e o multiplayer local do jogo. Conteúdo acadêmico, hospedagem do backend, contas de nuvem, remoto GitHub e credenciais de produção ainda precisam ser configurados. Nenhum serviço externo foi publicado nesta etapa.
 
 Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sobrescrevendo a porta definida no ambiente apenas para essa execução. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
 

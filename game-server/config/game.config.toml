@@ -1,0 +1,25 @@
+# Regras ajustáveis do protótipo local do GNUverse.
+# Durações usam milissegundos, exceto quando o nome explicita outra unidade.
+
+# Carteira e ritmo
+balance_cap = 20
+initial_balance = 20
+coin_interval_ms = 30000
+action_cooldown_ms = 2000
+default_cost = 1
+max_cost = 20
+
+# Propostas e participação
+proposal_duration_ms = 120000
+quorum = 0.5
+approval = 0.5
+min_contributions = 3
+ban_duration_ms = 600000
+
+# Limites do protótipo
+max_blocks = 100
+max_towers = 200
+session_duration_ms = 604800000
+vote_changes = false
+prototype = true
+bdfl_veto = false

@@ -1,6 +1,6 @@
 # Torres colaborativas — proposta do site-jogo
 
-Atualizado em 21/10/2026. Documento de concepção aprovado para orientar o projeto; as funcionalidades do jogo ainda não estão implementadas.
+Atualizado em 21/10/2026. Documento de concepção aprovado para orientar o projeto. A implementação multiplayer local está descrita em [Jogo local](jogo-local.md); os parâmetros de teste ficam em [`game.config.toml`](../game-server/config/game.config.toml). Este documento preserva a proposta e as decisões de concepção.
 
 ## Papel no GNUverse
 

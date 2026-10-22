@@ -4,7 +4,7 @@ Escopo atualizado em 21/10/2026.
 
 ## O que vem do enunciado
 
-Fonte: `DESCRIÇÃO-TRABALHO MULTIMODAL 2026.2.pdf`, especialmente item 5.2 e instruções do anteprojeto/projeto final.
+Fonte: [descrição do trabalho multimodal](<DESCRIÇÃO-TRABALHO MULTIMODAL 2026.2.pdf>), especialmente item 5.2 e instruções do anteprojeto/projeto final.
 
 - O site deve combinar textos autorais, imagens, vídeos e links navegáveis com análise crítica, posicionamento e conexões entre os temas.
 - Definir público-alvo e fundamentar o projeto em pelo menos duas palestras da disciplina. Consultar os materiais do AVA.
