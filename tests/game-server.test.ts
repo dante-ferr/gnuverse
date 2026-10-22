@@ -1450,3 +1450,38 @@ test('host validates and audits construction timing and cannot bypass a pending 
     await f.close()
   }
 })
+
+test('paginated tower cards include fresh cover geometry on every response', async () => {
+  const f = await fixture()
+  try {
+    const owner = await f.register('coverbuilder')
+    const first = (await f.request('/towers', owner.token, { name: 'Cover tower', cost: 0 })).data.tower
+    const second = (await f.request('/towers', owner.token, { name: 'Other tower', cost: 0 })).data.tower
+    const readPage = async (page: number) => {
+      const response = await fetch(`${f.base}/api/towers?page=${page}&limit=1`)
+      assert.equal(response.status, 200)
+      assert.match(response.headers.get('cache-control') ?? '', /no-store/)
+      return response.json() as Promise<{
+        total: number; pageCount: number;
+        towers: { id: string; blockCount: number; coverBlocks: { kind: string }[] }[];
+      }>
+    }
+    const initial = await readPage(1)
+    assert.equal(initial.total, 2)
+    assert.equal(initial.pageCount, 2)
+    assert.deepEqual(initial.towers.map((tower) => tower.id), [first.id])
+    assert.deepEqual(initial.towers[0].coverBlocks, [])
+    assert.equal((await f.request(`/towers/${first.id}/blocks`, owner.token, {
+      kind: 'wide', x: 500, y: 150,
+    })).status, 200)
+    const updated = await readPage(1)
+    assert.equal(updated.towers[0].blockCount, 1)
+    assert.equal(updated.towers[0].coverBlocks.length, 1)
+    assert.equal(updated.towers[0].coverBlocks[0].kind, 'wide')
+    const next = await readPage(2)
+    assert.deepEqual(next.towers.map((tower) => tower.id), [second.id])
+    assert.deepEqual(next.towers[0].coverBlocks, [])
+  } finally {
+    await f.close()
+  }
+})

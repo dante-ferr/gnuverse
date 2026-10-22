@@ -46,6 +46,7 @@ export type Tower = {
   blockIntervalMs: number
   checkpointEveryBlocks: number
   blockCount: number
+  coverBlocks?: Block[]
 }
 export type Snapshot = {
   id: string

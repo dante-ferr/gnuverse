@@ -47,7 +47,8 @@ export class HttpApplication {
         res.end()
         return
       }
-      const path = new URL(req.url ?? '/', 'http://localhost').pathname
+      const requestUrl = new URL(req.url ?? '/', 'http://localhost')
+      const path = requestUrl.pathname
         .split('/')
         .filter(Boolean)
       if (path[0] !== 'api') fail(404, 'Não encontrado.')
@@ -79,12 +80,26 @@ export class HttpApplication {
         return json(res, 200, { ok: true })
       }
       if (path[1] !== 'towers') fail(404, 'Não encontrado.')
-      if (req.method === 'GET' && path.length === 2)
+      if (req.method === 'GET' && path.length === 2) {
+        const pageSize = Math.min(
+          50,
+          Math.max(1, Number(requestUrl.searchParams.get('limit')) || 12),
+        )
+        const page = Math.max(1, Number(requestUrl.searchParams.get('page')) || 1)
+        const available = Object.values(store.state.towers)
+        const total = available.length
+        const start = (page - 1) * pageSize
         return json(res, 200, {
-          towers: Object.values(store.state.towers).map((tower) =>
-            towers.publicTower(tower),
-          ),
+          towers: available.slice(start, start + pageSize).map((tower) => ({
+            ...towers.publicTower(tower),
+            coverBlocks: tower.frame.blocks,
+          })),
+          page,
+          pageSize,
+          total,
+          pageCount: Math.ceil(total / pageSize),
         })
+      }
       if (req.method === 'POST' && path.length === 2)
         return json(
           res,

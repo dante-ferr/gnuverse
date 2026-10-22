@@ -1,4 +1,4 @@
-import { TowerGame } from '@/components/game/tower-game'
+import { TowerDashboard } from '@/components/game/tower-dashboard'
 
 export const metadata = {
   title: 'Torres colaborativas — GNUverse',
@@ -7,5 +7,5 @@ export const metadata = {
 }
 
 export default function GamePage() {
-  return <TowerGame />
+  return <TowerDashboard />
 }

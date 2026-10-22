@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { AccountBanner } from './account/account-banner'
 import { AuthPanel } from './account/auth-panel'
 import { BlockControls } from './construction/block-controls'
@@ -16,6 +17,10 @@ export function TowerGame() {
   const game = useGameController()
   const { session, lobby, live, feedback, placement } = game
   const notice = feedback.notice || session.notice
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('novo'))
+      game.setShowCreate(true)
+  }, [game.setShowCreate])
   return (
     <main className={styles.game}>
       <AccountBanner
@@ -27,13 +32,7 @@ export function TowerGame() {
         onOpenAuth={() => game.setShowAuth(true)}
       />
       <TowerToolbar
-        towers={lobby.towers}
-        towerId={lobby.towerId}
         connection={game.connection}
-        onSelect={(id) => {
-          lobby.setTowerId(id)
-          feedback.setError('')
-        }}
         onCreate={() =>
           session.user
             ? game.setShowCreate(!game.showCreate)

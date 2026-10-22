@@ -1,68 +1,27 @@
 'use client'
-import { type Tower } from '../model/types'
 import { type Connection } from '../hooks/use-tower-lobby'
 import styles from '../tower-game.module.css'
 
 type Props = {
-  towers: Tower[]
-  towerId: string
   connection: Connection
-  onSelect: (id: string) => void
   onCreate: () => void
   canDelete: boolean
   onDelete: () => void
 }
-export function TowerToolbar({
-  towers,
-  towerId,
-  connection,
-  onSelect,
-  onCreate,
-  canDelete,
-  onDelete,
-}: Props) {
+
+export function TowerToolbar({ connection, onCreate, canDelete, onDelete }: Props) {
   return (
-    <div className={styles.toolbar}>
-      <div className={styles.towerPicker}>
-        <label htmlFor="tower">Torre</label>
-        <select
-          id="tower"
-          value={towerId}
-          onChange={(event) => onSelect(event.target.value)}
-        >
-          <option value="" disabled>
-            {towers.length ? 'Escolher' : 'Sem torres'}
-          </option>
-          {towers.map((tower) => (
-            <option key={tower.id} value={tower.id}>
-              {tower.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <span
-        className={`${styles.connection} ${connection === 'live' ? styles.live : ''}`}
-      >
+    <div className={styles.detailToolbar}>
+      <a className={styles.backLink} href="/jogo/">← Todas as torres</a>
+      <span className={`${styles.connection} ${connection === 'live' ? styles.live : ''}`}>
         <i />
-        {connection === 'live'
-          ? 'Ao vivo'
-          : connection === 'connecting'
-            ? 'Conectando'
-            : 'Offline'}
+        {connection === 'live' ? 'Ao vivo' : connection === 'connecting' ? 'Conectando' : 'Offline'}
       </span>
-      <button className={styles.secondary} onClick={onCreate}>
-        Criar torre
-      </button>
+      <button className={styles.secondary} onClick={onCreate}>Criar torre</button>
       {canDelete && (
-        <button
-          className={styles.secondary}
-          onClick={() => {
-            if (window.confirm('Excluir esta torre e todo o histórico?'))
-              onDelete()
-          }}
-        >
-          Excluir torre
-        </button>
+        <button className={styles.secondary} onClick={() => {
+          if (window.confirm('Excluir esta torre e todo o histórico?')) onDelete()
+        }}>Excluir torre</button>
       )}
     </div>
   )
