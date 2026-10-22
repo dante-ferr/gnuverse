@@ -7,6 +7,14 @@ export class WalletService {
     this.now = now
   }
   read(user: User) {
+    if (this.rules.infiniteCoins) {
+      return {
+        balance: Number.MAX_SAFE_INTEGER,
+        cap: Number.MAX_SAFE_INTEGER,
+        nextCoinAt: null,
+        intervalMs: this.rules.intervalMs,
+      }
+    }
     user.balance = Math.min(user.balance, this.rules.cap)
     const elapsed = Math.max(0, this.now() - user.coinAt)
     const earned = Math.floor(elapsed / this.rules.intervalMs)

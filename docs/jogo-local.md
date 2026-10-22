@@ -26,6 +26,8 @@ Abra `http://localhost:3000/jogo/`. A API local usa `http://localhost:3002`; o C
 
 Crie uma conta com e-mail, senha e apelido público. O apelido aparece nas contribuições; e-mail e senha não são públicos. O e-mail não é verificado nesta entrega e não há envio de mensagens nem recuperação de senha por e-mail. Use credenciais de teste.
 
+Quem criou uma torre pode excluí-la pelo botão “Excluir torre”. A exclusão remove a torre e seu histórico para todos os participantes e não pode ser desfeita.
+
 Para observar a mesma torre a partir de duas sessões, abra uma janela privada ou outro navegador, crie uma segunda conta e faça contribuições nas duas sessões. A sessão fica no armazenamento da aba; duas abas abertas de forma independente podem entrar com contas diferentes. Uma aba duplicada pode herdar a sessão inicial; saia dela antes de entrar com a segunda conta.
 
 ## Configuração
@@ -35,6 +37,7 @@ As regras de protótipo ficam em [`game.config.toml`](../game-server/config/game
 Variáveis da raiz, documentadas também em [`.env.example`](../.env.example):
 
 - `GAME_CONFIG_PATH`: caminho opcional do arquivo TOML; relativo à raiz do projeto ou absoluto. O padrão é `game-server/config/game.config.toml`.
+- `GAME_INFINITE_COINS=true`: ativa saldo ilimitado para teste local no backend (a interface mostra o saldo no limite numérico seguro do JavaScript). Só funciona fora de `NODE_ENV=production`; desative ou remova a variável ao encerrar os testes.
 - `GAME_PORT`: porta HTTP do backend; padrão local `3002`.
 - `GAME_HOST`: endereço em que o backend escuta; padrão `127.0.0.1`. Para aceitar conexões de outros dispositivos na rede local, use `0.0.0.0` e configure o endereço alcançável na URL da API.
 - `GAME_DB_PATH`: arquivo SQLite persistente local do jogo.

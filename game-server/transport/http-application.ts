@@ -41,7 +41,7 @@ export class HttpApplication {
       if (req.method === 'OPTIONS') {
         res.writeHead(204, {
           'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
           'Access-Control-Max-Age': '600',
         })
         res.end()
@@ -95,6 +95,16 @@ export class HttpApplication {
         )
       const tower = store.state.towers[path[2]]
       if (!tower) fail(404, 'Torre não encontrada.')
+      if (req.method === 'DELETE' && path.length === 3) {
+        store.atomic(() => {
+          const user = auth.authenticate(req.headers.authorization)
+          if (tower.creatorId !== user.id)
+            fail(403, 'Somente quem criou a torre pode excluí-la.')
+          runtime.remove(tower.id)
+          delete store.state.towers[tower.id]
+        })
+        return json(res, 200, { ok: true })
+      }
       if (req.method === 'GET' && path.length === 3) {
         store.atomic(() => governance.finishVoting(tower))
         return json(res, 200, towers.detail(tower))

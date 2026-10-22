@@ -39,6 +39,10 @@ export function TowerGame() {
             ? game.setShowCreate(!game.showCreate)
             : game.setShowAuth(true)
         }
+        canDelete={Boolean(
+          game.tower && game.session.user?.id === game.tower.creatorId,
+        )}
+        onDelete={game.deleteTower}
       />
       {game.connection === 'offline' && (
         <div className={styles.message} role="status">
@@ -75,15 +79,21 @@ export function TowerGame() {
           }}
         />
       )}
-      {game.showCreate && (
+      {game.showCreate && !game.rules && (
+        <p className={styles.message} role="status">
+          Carregando as regras da torre…
+        </p>
+      )}
+      {game.showCreate && game.rules && (
         <CreateTowerPanel
+          key={`${game.rules.windMinBlocks}:${game.rules.windEveryBlocks}`}
           busy={feedback.busy}
-          maxCost={Number(game.rules?.maxCost ?? 20)}
-          defaultCost={Number(game.rules?.defaultCost ?? 1)}
-          blockIntervalMs={Number(game.rules?.cooldownMs ?? 2000)}
-          windMinBlocks={Number(game.rules?.windMinBlocks ?? 15)}
-          windEveryBlocks={Number(game.rules?.windEveryBlocks ?? 10)}
-          minContributions={Number(game.rules?.minContributions ?? 3)}
+          maxCost={Number(game.rules.maxCost)}
+          defaultCost={Number(game.rules.defaultCost)}
+          blockIntervalMs={Number(game.rules.cooldownMs)}
+          windMinBlocks={Number(game.rules.windMinBlocks)}
+          windEveryBlocks={Number(game.rules.windEveryBlocks)}
+          minContributions={Number(game.rules.minContributions)}
           onClose={() => game.setShowCreate(false)}
           onCreateTower={game.createTower}
         />

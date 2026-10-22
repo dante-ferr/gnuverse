@@ -110,6 +110,17 @@ export function useGameController() {
       setShowCreate(false)
       feedback.setNotice('Torre criada.')
     })
+  const deleteTower = () =>
+    feedback.run(async () => {
+      if (!tower || tower.creatorId !== session.user?.id) return
+      await session.api.request(
+        `/api/towers/${lobby.towerId}`,
+        undefined,
+        'DELETE',
+      )
+      await lobby.refresh()
+      feedback.setNotice('Torre excluída.')
+    })
   const openProposal = (target: ProposalTarget, version?: Snapshot) => {
     if (version) setPreview(version)
     setProposalTarget(target)
@@ -185,6 +196,7 @@ export function useGameController() {
     logout,
     place,
     createTower,
+    deleteTower,
     openProposal,
     propose,
     vote,

@@ -18,6 +18,7 @@ export type Rules = {
   voteChanges: boolean
   bdflVeto: boolean
   prototype: boolean
+  infiniteCoins: boolean
   windEveryBlocks: number
   windMinBlocks: number
   windStrength: number

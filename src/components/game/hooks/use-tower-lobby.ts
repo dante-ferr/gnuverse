@@ -17,7 +17,11 @@ export function useTowerLobby(api: GameApi) {
     ])
     setRules(config.rules)
     setTowers(data.towers)
-    setTowerId((current) => current || data.towers[0]?.id || '')
+    setTowerId((current) =>
+      data.towers.some((tower) => tower.id === current)
+        ? current
+        : data.towers[0]?.id || '',
+    )
   }, [api])
   useEffect(() => {
     let active = true

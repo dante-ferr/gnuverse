@@ -20,6 +20,9 @@ export function createRules(overrides: Partial<Rules> = {}): Readonly<Rules> {
     banDurationMs: configured.banDurationMs,
     voteChanges: configured.voteChanges,
     prototype: configured.prototype,
+    infiniteCoins:
+      process.env.NODE_ENV !== 'production' &&
+      process.env.GAME_INFINITE_COINS === 'true',
     bdflVeto: configured.bdflVeto,
     windEveryBlocks: configured.windEveryBlocks,
     windMinBlocks: configured.windMinBlocks,

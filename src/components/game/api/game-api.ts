@@ -9,9 +9,13 @@ export class GameApi {
     private readonly onExpired: () => void,
   ) {}
 
-  async request<T>(path: string, body?: unknown): Promise<T> {
+  async request<T>(
+    path: string,
+    body?: unknown,
+    method: 'GET' | 'POST' | 'DELETE' = body === undefined ? 'GET' : 'POST',
+  ): Promise<T> {
     const response = await fetch(`${GAME_API_URL}${path}`, {
-      method: body === undefined ? 'GET' : 'POST',
+      method,
       headers: {
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),

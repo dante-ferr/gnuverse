@@ -9,6 +9,8 @@ type Props = {
   connection: Connection
   onSelect: (id: string) => void
   onCreate: () => void
+  canDelete: boolean
+  onDelete: () => void
 }
 export function TowerToolbar({
   towers,
@@ -16,6 +18,8 @@ export function TowerToolbar({
   connection,
   onSelect,
   onCreate,
+  canDelete,
+  onDelete,
 }: Props) {
   return (
     <div className={styles.toolbar}>
@@ -49,6 +53,17 @@ export function TowerToolbar({
       <button className={styles.secondary} onClick={onCreate}>
         Criar torre
       </button>
+      {canDelete && (
+        <button
+          className={styles.secondary}
+          onClick={() => {
+            if (window.confirm('Excluir esta torre e todo o histórico?'))
+              onDelete()
+          }}
+        >
+          Excluir torre
+        </button>
+      )}
     </div>
   )
 }

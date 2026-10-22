@@ -304,7 +304,7 @@ export class TowerService {
       }
       fail(409, messages[placement.error])
     }
-    user.balance -= tower.cost
+    if (!this.rules.infiniteCoins) user.balance -= tower.cost
     user.lastAction = this.now()
     tower.lastPlacementAt = this.now()
     participant.contributions++
