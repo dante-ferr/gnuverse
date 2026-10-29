@@ -29,8 +29,6 @@ export function useGameController() {
     angle: 0,
   })
   const [preview, setPreview] = useState<Snapshot | null>(null)
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('register')
-  const [showAuth, setShowAuth] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(
     null,
@@ -63,12 +61,6 @@ export function useGameController() {
     session.wallet.balance >= tower.cost,
   )
 
-  const authenticate = (form: HTMLFormElement) =>
-    feedback.run(async () => {
-      await session.authenticate(authMode, form)
-      setShowAuth(false)
-      feedback.setNotice('')
-    })
   const logout = () => feedback.run(session.logout)
   const place = () =>
     feedback.run(async () => {
@@ -177,10 +169,6 @@ export function useGameController() {
     setPlacement,
     preview,
     setPreview,
-    authMode,
-    setAuthMode,
-    showAuth,
-    setShowAuth,
     showCreate,
     setShowCreate,
     proposalTarget,
@@ -192,7 +180,6 @@ export function useGameController() {
     rules,
     connection,
     canPlace,
-    authenticate,
     logout,
     place,
     createTower,

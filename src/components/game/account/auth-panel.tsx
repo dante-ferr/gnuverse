@@ -1,24 +1,26 @@
 'use client'
 
 import type { FormEvent } from 'react'
+import Link from 'next/link'
 import styles from '../tower-game.module.css'
+import authStyles from './auth-page.module.css'
 
 export type AuthMode = 'login' | 'register'
 
 export type AuthPanelProps = {
   mode: AuthMode
   busy: boolean
-  onClose: () => void
+  returnTo: string
+  error: string
   onSubmit: (form: HTMLFormElement) => void
-  onToggleMode: () => void
 }
 
 export function AuthPanel({
   mode,
   busy,
-  onClose,
+  returnTo,
+  error,
   onSubmit,
-  onToggleMode,
 }: AuthPanelProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -26,16 +28,15 @@ export function AuthPanel({
   }
 
   return (
-    <section className={styles.panel} aria-label="Acesso ao jogo">
+    <section className={`${styles.panel} ${authStyles.card}`} aria-labelledby="auth-title">
       <div className={styles.panelTitle}>
-        <h2>
+        <h1 id="auth-title">
           {mode === 'register' ? 'Criar conta' : 'Entrar'}
-        </h2>
-        <button className={styles.quiet} onClick={onClose}>
-          Fechar
-        </button>
+        </h1>
       </div>
-      <form className={styles.form} onSubmit={handleSubmit}>
+      <p>{mode === 'register' ? 'Crie sua conta para construir com a comunidade.' : 'Entre na sua conta para continuar construindo.'}</p>
+      {error && <p className={styles.error} role="alert">{error}</p>}
+      <form className={`${styles.form} ${authStyles.form}`} onSubmit={handleSubmit} aria-busy={busy}>
         {mode === 'register' && (
           <label>
             Apelido público
@@ -77,13 +78,14 @@ export function AuthPanel({
           {busy ? 'Aguarde…' : mode === 'register' ? 'Criar conta' : 'Entrar'}
         </button>
       </form>
-      <button className={styles.quiet} onClick={onToggleMode}>
+      <Link className={styles.quiet} href={`${mode === 'register' ? '/login/' : '/cadastro/'}?next=${encodeURIComponent(returnTo)}`}>
         {mode === 'register' ? 'Já tenho uma conta' : 'Quero criar uma conta'}
-      </button>
+      </Link>
       <details className={styles.eventLog}>
         <summary>Privacidade</summary>
         <p>O apelido é público. O e-mail fica privado.</p>
       </details>
+      <Link className={styles.quiet} href={returnTo}>Voltar ao jogo</Link>
     </section>
   )
 }

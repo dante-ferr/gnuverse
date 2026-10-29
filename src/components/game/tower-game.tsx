@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { AccountBanner } from './account/account-banner'
-import { AuthPanel } from './account/auth-panel'
 import { BlockControls } from './construction/block-controls'
 import { CreateTowerPanel } from './construction/create-tower-panel'
 import { TowerScene } from './construction/tower-scene'
@@ -15,6 +15,12 @@ import styles from './tower-game.module.css'
 /** Page composition only. State, transport, scenes, forms and governance have their own modules. */
 export function TowerGame() {
   const game = useGameController()
+  const router = useRouter()
+  const openLogin = (create = false) => {
+    const destination = new URL(window.location.href)
+    if (create) destination.searchParams.set('novo', '1')
+    router.push(`/login/?next=${encodeURIComponent(destination.pathname + destination.search)}`)
+  }
   const { session, lobby, live, feedback, placement } = game
   const notice = feedback.notice || session.notice
   useEffect(() => {
@@ -29,14 +35,14 @@ export function TowerGame() {
         secondsToCoin={session.secondsToCoin}
         busy={feedback.busy}
         onLogout={game.logout}
-        onOpenAuth={() => game.setShowAuth(true)}
+        onOpenAuth={() => openLogin()}
       />
       <TowerToolbar
         connection={game.connection}
         onCreate={() =>
           session.user
             ? game.setShowCreate(!game.showCreate)
-            : game.setShowAuth(true)
+            : openLogin(true)
         }
         canDelete={Boolean(
           game.tower && game.session.user?.id === game.tower.creatorId,
@@ -63,20 +69,6 @@ export function TowerGame() {
         <p className={styles.message} role="status">
           {notice}
         </p>
-      )}
-      {game.showAuth && (
-        <AuthPanel
-          mode={game.authMode}
-          busy={feedback.busy}
-          onClose={() => game.setShowAuth(false)}
-          onSubmit={game.authenticate}
-          onToggleMode={() => {
-            game.setAuthMode(
-              game.authMode === 'register' ? 'login' : 'register',
-            )
-            feedback.setError('')
-          }}
-        />
       )}
       {game.showCreate && !game.rules && (
         <p className={styles.message} role="status">
