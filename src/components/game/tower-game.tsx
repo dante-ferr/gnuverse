@@ -16,9 +16,8 @@ import styles from './tower-game.module.css'
 export function TowerGame() {
   const game = useGameController()
   const router = useRouter()
-  const openLogin = (create = false) => {
+  const openLogin = () => {
     const destination = new URL(window.location.href)
-    if (create) destination.searchParams.set('novo', '1')
     router.push(`/login/?next=${encodeURIComponent(destination.pathname + destination.search)}`)
   }
   const { session, lobby, live, feedback, placement } = game
@@ -39,11 +38,7 @@ export function TowerGame() {
       />
       <TowerToolbar
         connection={game.connection}
-        onCreate={() =>
-          session.user
-            ? game.setShowCreate(!game.showCreate)
-            : openLogin(true)
-        }
+        onCreate={() => game.setShowCreate(true)}
         canDelete={Boolean(
           game.tower && game.session.user?.id === game.tower.creatorId,
         )}
@@ -54,7 +49,7 @@ export function TowerGame() {
           Servidor indisponível. Reconectando…
         </div>
       )}
-      {feedback.error && (
+      {feedback.error && !game.showCreate && (
         <div className={styles.error} role="alert">
           {feedback.error}
           <button
@@ -70,21 +65,19 @@ export function TowerGame() {
           {notice}
         </p>
       )}
-      {game.showCreate && !game.rules && (
-        <p className={styles.message} role="status">
-          Carregando as regras da torre…
-        </p>
-      )}
-      {game.showCreate && game.rules && (
+      {game.showCreate && (
         <CreateTowerPanel
-          key={`${game.rules.windMinBlocks}:${game.rules.windEveryBlocks}`}
+          key={game.rules ? 'ready' : 'loading'}
           busy={feedback.busy}
-          maxCost={Number(game.rules.maxCost)}
-          defaultCost={Number(game.rules.defaultCost)}
-          blockIntervalMs={Number(game.rules.cooldownMs)}
-          windMinBlocks={Number(game.rules.windMinBlocks)}
-          windEveryBlocks={Number(game.rules.windEveryBlocks)}
-          minContributions={Number(game.rules.minContributions)}
+          error={feedback.error || (game.connection === 'offline' ? 'Servidor indisponível. Reconectando…' : '')}
+          loading={!game.rules}
+          loginHref={session.user ? undefined : `/login/?next=${encodeURIComponent(window.location.pathname + window.location.search + (window.location.search ? '&' : '?') + 'novo=1')}`}
+          maxCost={Number(game.rules?.maxCost ?? 0)}
+          defaultCost={Number(game.rules?.defaultCost ?? 0)}
+          blockIntervalMs={Number(game.rules?.cooldownMs ?? 0)}
+          windMinBlocks={Number(game.rules?.windMinBlocks ?? 1)}
+          windEveryBlocks={Number(game.rules?.windEveryBlocks ?? 1)}
+          minContributions={Number(game.rules?.minContributions ?? 1)}
           onClose={() => game.setShowCreate(false)}
           onCreateTower={game.createTower}
         />

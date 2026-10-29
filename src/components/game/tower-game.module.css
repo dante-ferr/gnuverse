@@ -583,6 +583,33 @@
   margin: 20px 0;
   scroll-margin-top: 20px;
 }
+.createTowerOverlay {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: clamp(20px, 4vw, 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 30%);
+}
+.createTowerOverlay::backdrop {
+  background: rgb(0 0 0 / 60%);
+  backdrop-filter: blur(4px);
+}
+.createTowerOverlay > .form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  align-items: start;
+}
+.createTowerOverlay > .form > fieldset,
+.createTowerOverlay > .form > details,
+.createTowerOverlay > .form > button {
+  grid-column: 1 / -1;
+}
 .panelTitle {
   display: flex;
   justify-content: space-between;

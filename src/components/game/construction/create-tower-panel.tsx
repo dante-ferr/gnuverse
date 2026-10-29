@@ -1,12 +1,15 @@
 'use client'
 
-import type { FormEvent } from 'react'
+import { useEffect, useId, useRef, type FormEvent } from 'react'
 import { WindFrequencyFields } from './wind-frequency-fields'
 import { BuildFrequencyFields } from './build-frequency-fields'
 import styles from '../tower-game.module.css'
 
 export type CreateTowerPanelProps = {
   busy: boolean
+  error: string
+  loading?: boolean
+  loginHref?: string
   maxCost: number
   defaultCost: number
   minContributions: number
@@ -19,6 +22,9 @@ export type CreateTowerPanelProps = {
 
 export function CreateTowerPanel({
   busy,
+  error,
+  loading = false,
+  loginHref,
   maxCost,
   defaultCost,
   minContributions,
@@ -28,23 +34,63 @@ export function CreateTowerPanel({
   onClose,
   onCreateTower,
 }: CreateTowerPanelProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+
+    const previousOverflow = document.body.style.overflow
+    dialog.showModal()
+    document.body.style.overflow = 'hidden'
+    return () => {
+      dialog.close()
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (loading || loginHref) return
     onCreateTower(event.currentTarget)
   }
 
   return (
-    <section className={styles.panel}>
+    <dialog
+      ref={dialogRef}
+      className={styles.createTowerOverlay}
+      aria-labelledby={titleId}
+      onCancel={(event) => {
+        event.preventDefault()
+        onClose()
+      }}
+      onClick={(event) => {
+        if (event.target !== event.currentTarget) return
+        const bounds = event.currentTarget.getBoundingClientRect()
+        if (
+          event.clientX < bounds.left || event.clientX > bounds.right ||
+          event.clientY < bounds.top || event.clientY > bounds.bottom
+        ) onClose()
+      }}
+    >
       <div className={styles.panelTitle}>
-        <h2>Criar torre</h2>
-        <button className={styles.quiet} onClick={onClose}>
+        <h2 id={titleId}>Criar torre</h2>
+        <button type="button" className={styles.quiet} onClick={onClose}>
           Fechar
         </button>
       </div>
+      {error && <p className={styles.error} role="alert">{error}</p>}
+      {loginHref && (
+        <p className={styles.message}>
+          <a href={loginHref}>Entre na sua conta</a> para criar uma torre.
+        </p>
+      )}
+      {loading ? <p role="status">Carregando as regras da torre…</p> : (
       <form className={styles.form} onSubmit={handleSubmit}>
         <label>
           Nome da torre
-          <input name="name" required minLength={3} maxLength={60} />
+          <input name="name" required minLength={3} maxLength={60} autoFocus />
         </label>
         <label>
           Custo por bloco
@@ -108,10 +154,11 @@ export function CreateTowerPanel({
             torre até o fim da suspensão.
           </small>
         </details>
-        <button className={styles.primary} disabled={busy}>
+        <button className={styles.primary} disabled={busy || Boolean(loginHref)}>
           Abrir torre ↗
         </button>
       </form>
-    </section>
+      )}
+    </dialog>
   )
 }

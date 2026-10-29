@@ -1,5 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { CreateTowerPanel } from './construction/create-tower-panel'
+import { createTowerFromForm } from './api/create-tower'
+import { useActionFeedback } from './hooks/use-action-feedback'
 import { useTowerLobby } from './hooks/use-tower-lobby'
 import { useGameSession } from './hooks/use-game-session'
 import { TowerCover } from './construction/tower-cover'
@@ -8,6 +12,19 @@ import styles from './tower-game.module.css'
 export function TowerDashboard() {
   const session = useGameSession()
   const lobby = useTowerLobby(session.api)
+  const feedback = useActionFeedback()
+  const [showCreate, setShowCreate] = useState(false)
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('novo')) setShowCreate(true)
+  }, [])
+
+  const createTower = (form: HTMLFormElement) => feedback.run(async () => {
+    await createTowerFromForm(session.api, form)
+    await lobby.refresh(1)
+    setShowCreate(false)
+    feedback.setNotice('Torre criada.')
+  })
 
   return (
     <main className={styles.game}>
@@ -17,8 +34,30 @@ export function TowerDashboard() {
           <h1>Torres colaborativas</h1>
           <p>Escolha uma torre para acompanhar e construir com a comunidade.</p>
         </div>
-        <a className={styles.primary} href="/jogo/torre/?novo=1">Criar torre</a>
+        <button type="button" className={styles.primary} onClick={() => {
+          feedback.setError('')
+          setShowCreate(true)
+        }}>Criar torre</button>
       </header>
+
+      {feedback.notice && <p className={styles.message} role="status">{feedback.notice}</p>}
+      {showCreate && (
+        <CreateTowerPanel
+          key={lobby.rules ? 'ready' : 'loading'}
+          busy={feedback.busy}
+          error={feedback.error || (lobby.connection === 'offline' ? 'Servidor indisponível. Reconectando…' : '')}
+          loading={!lobby.rules}
+          loginHref={session.user ? undefined : '/login/?next=%2Fjogo%2F%3Fnovo%3D1'}
+          maxCost={Number(lobby.rules?.maxCost ?? 0)}
+          defaultCost={Number(lobby.rules?.defaultCost ?? 0)}
+          blockIntervalMs={Number(lobby.rules?.cooldownMs ?? 0)}
+          windMinBlocks={Number(lobby.rules?.windMinBlocks ?? 1)}
+          windEveryBlocks={Number(lobby.rules?.windEveryBlocks ?? 1)}
+          minContributions={Number(lobby.rules?.minContributions ?? 1)}
+          onClose={() => setShowCreate(false)}
+          onCreateTower={createTower}
+        />
+      )}
 
       <section className={styles.towerDashboard} aria-labelledby="tower-dashboard-title">
         <div className={styles.dashboardHeading}>
