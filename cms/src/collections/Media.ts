@@ -1,11 +1,11 @@
 import path from 'node:path'
 import type { CollectionConfig } from 'payload'
-import { isAdmin, isEditor } from '../access'
+import { deleteMedia, manageMedia } from '../access'
 
 export const Media: CollectionConfig = {
   slug: 'media',
   labels: { singular: 'Imagem', plural: 'Imagens' },
-  access: { read: () => true, create: isEditor, update: isEditor, delete: isAdmin },
+  access: { read: () => true, create: manageMedia, update: manageMedia, delete: deleteMedia },
   upload: {
     staticDir: path.resolve('media'),
     mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { canManageTower } from '../../../../core/authz/policy'
 import { COLORS } from '../model/block-catalog'
 import { createTowerFromForm } from '../api/create-tower'
 import {
@@ -88,12 +89,13 @@ export function useGameController() {
     })
   const deleteTower = () =>
     feedback.run(async () => {
-      if (!tower || tower.creatorId !== session.user?.id) return
+      if (!tower || !canManageTower(session.user ? { ...session.user, roles: session.user.roles ?? [] } : null, 'delete', tower.creatorId)) return
       await session.api.request(
         `/api/towers/${lobby.towerId}`,
         undefined,
         'DELETE',
       )
+      lobby.setTowerId('')
       await lobby.refresh()
       feedback.setNotice('Torre excluída.')
     })
@@ -137,7 +139,13 @@ export function useGameController() {
       )
       await live.refresh()
     })
-  const saveSettings = (body: Record<string, string | number>) =>
+  const adminRestore = (snapshotId: string | null, reason: string) => feedback.run(async () => {
+    await session.api.request(`/api/towers/${lobby.towerId}/restore`, { snapshotId, reason })
+    await live.refresh()
+    setPreview(null)
+    feedback.setNotice('Intervenção administrativa concluída.')
+  })
+  const saveSettings = (body: Record<string, string | number | boolean>) =>
     feedback.run(async () => {
       await session.api.request(`/api/towers/${lobby.towerId}/settings`, body)
       await live.refresh()
@@ -174,6 +182,7 @@ export function useGameController() {
     decide,
     setEligibility,
     saveSettings,
+    adminRestore,
   }
 }
 export type GameController = ReturnType<typeof useGameController>

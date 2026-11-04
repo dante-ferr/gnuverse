@@ -11,7 +11,8 @@ type Props = {
   disabled: boolean
   windActive: boolean
   blockedReason?: string
-  onSave: (body: Record<string, string | number>) => Promise<void>
+  administrator?: boolean
+  onSave: (body: Record<string, string | number | boolean>) => Promise<void>
 }
 
 export function TowerSettings({
@@ -20,6 +21,7 @@ export function TowerSettings({
   disabled,
   windActive,
   blockedReason,
+  administrator = false,
   onSave,
 }: Props) {
   return (
@@ -31,12 +33,14 @@ export function TowerSettings({
         <strong>
           {tower.allowCreatorBan ? 'permitida por votação' : 'indisponível'}
         </strong>{' '}
-        · definitiva.
+        {administrator ? '· editável pela administração.' : '· definitiva.'}
       </p>
       {blockedReason && <p role="status">{blockedReason}</p>}
       <form
         key={JSON.stringify({
           id: tower.id,
+          name: tower.name,
+          allowCreatorBan: tower.allowCreatorBan,
           cost: tower.cost,
           blockIntervalMs: tower.blockIntervalMs,
           checkpointEveryBlocks: tower.checkpointEveryBlocks,
@@ -52,6 +56,7 @@ export function TowerSettings({
           event.preventDefault()
           const values = new FormData(event.currentTarget)
           void onSave({
+            ...(administrator ? { name: String(values.get('name')), allowCreatorBan: values.get('allowCreatorBan') === 'on' } : {}),
             cost: Number(values.get('cost')),
             blockIntervalMs: Math.round(Number(values.get('blockIntervalSeconds')) * 1000),
             checkpointEveryBlocks: Number(values.get('checkpointEveryBlocks')),
@@ -65,6 +70,10 @@ export function TowerSettings({
           })
         }}
       >
+        {administrator && <>
+          <label>Nome da torre<input name="name" defaultValue={tower.name} minLength={3} maxLength={60} required /></label>
+          <label><input name="allowCreatorBan" type="checkbox" defaultChecked={tower.allowCreatorBan} /> Permitir suspensão do criador por votação</label>
+        </>}
         <label>
           Custo por bloco
           <input

@@ -14,7 +14,7 @@
     "cms:dev": "npm --prefix cms run dev",
     "cms:typecheck": "npm --prefix cms run typecheck",
     "test": "node --test tests/*.test.mjs tests/*.test.ts",
-    "game:dev": "node --env-file-if-exists=.env.local game-server/index.ts"
+    "game:dev": "node --watch --env-file-if-exists=.env.local game-server/index.ts"
   },
   "engines": {
     "node": ">=22.18.0"

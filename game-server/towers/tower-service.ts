@@ -6,6 +6,7 @@ import { WalletService } from '../economy/wallet-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { WindService } from '../wind/wind-service.ts'
 import { HistoryService } from './history-service.ts'
+import { can, canManageTower } from '../../core/authz/policy.ts'
 
 export class TowerService {
   private store: GameStore
@@ -157,14 +158,17 @@ export class TowerService {
     return { tower: this.publicTower(tower) }
   }
   settings(tower: Tower, user: User, body: Record<string, unknown>) {
-    if (Object.hasOwn(body, 'allowCreatorBan'))
+    const actor = { id: user.id, roles: user.roles ?? [] }
+    const administrator = can(actor, 'tower:update:any')
+    if (Object.hasOwn(body, 'allowCreatorBan') && !administrator)
       fail(
         400,
         'A opção de suspensão do criador é imutável após criar a torre.',
       )
-    if (user.id !== tower.creatorId)
+    if (!canManageTower(actor, 'update', tower.creatorId))
       fail(403, 'Apenas o criador pode alterar as regras.')
     if (
+      !administrator &&
       tower.proposals.some(
         (proposal) =>
           proposal.status === 'pending' ||
@@ -173,7 +177,13 @@ export class TowerService {
     )
       fail(409, 'Aguarde a proposta pendente antes de alterar regras.')
     const reason = text(body.reason, 3, 500, 'Justificativa')
+    if (Object.hasOwn(body, 'name') && !administrator)
+      fail(403, 'Apenas a administração pode renomear a torre.')
+    if (Object.hasOwn(body, 'allowCreatorBan') && typeof body.allowCreatorBan !== 'boolean')
+      fail(400, 'A opção de suspensão do criador deve ser booleana.')
     const before = {
+      name: tower.name,
+      allowCreatorBan: tower.allowCreatorBan,
       cost: tower.cost,
       banMode: tower.banMode,
       restoreMode: tower.restoreMode,
@@ -185,6 +195,8 @@ export class TowerService {
       windEveryBlocks: tower.windEveryBlocks,
     }
     const after = {
+      name: body.name === undefined ? tower.name : text(body.name, 3, 60, 'Nome'),
+      allowCreatorBan: body.allowCreatorBan === undefined ? tower.allowCreatorBan : body.allowCreatorBan as boolean,
       blockIntervalMs: body.blockIntervalMs === undefined ? tower.blockIntervalMs
         : integer(body.blockIntervalMs, 0, 86_400_000, 'Intervalo entre blocos'),
       checkpointEveryBlocks: body.checkpointEveryBlocks === undefined ? tower.checkpointEveryBlocks
@@ -252,6 +264,36 @@ export class TowerService {
           : 'preserve-current-until-manual-change',
     })
     return { tower: this.publicTower(tower) }
+  }
+  adminRestore(tower: Tower, user: User, body: Record<string, unknown>) {
+    if (!can({ id: user.id, roles: user.roles ?? [] }, 'tower:restore:any'))
+      fail(403, 'Apenas a administração pode restaurar diretamente a torre.')
+    this.member(tower, user)
+    const reason = text(body.reason, 3, 500, 'Justificativa')
+    const snapshot = body.snapshotId === null ? null
+      : tower.snapshots.find((item) => item.id === body.snapshotId)
+    if (snapshot === undefined) fail(404, 'Versão não encontrada.')
+    // Preserve the current construction before an administrative reset or restoration.
+    this.history.snapshot(tower, user.id, `Antes da intervenção: ${reason}`)
+    this.runtime.simulation(tower).restore(structuredClone(snapshot?.blocks ?? []))
+    tower.frame = this.runtime.simulation(tower).read()
+    tower.wind = null
+    tower.pendingSnapshot = false
+    tower.lastCheckpointPlacementCount = tower.placementCount
+    this.wind.recalculate(tower)
+    const cancelled: string[] = []
+    for (const proposal of tower.proposals) {
+      if (proposal.status !== 'pending' && proposal.executionStatus !== 'deferred') continue
+      cancelled.push(proposal.id)
+      proposal.status = 'rejected'
+      proposal.executionStatus = undefined
+      proposal.decidedBy = user.id
+      proposal.decidedAt = this.now()
+      proposal.decisionReason = `Intervenção administrativa: ${reason}`
+    }
+    this.history.event(tower, 'admin-restore', user.id, { snapshotId: snapshot?.id ?? null, reason, cancelled })
+    this.history.snapshot(tower, user.id, reason)
+    return this.detail(tower)
   }
   place(
     tower: Tower,

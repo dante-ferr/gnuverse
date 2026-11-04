@@ -6,6 +6,7 @@ export const formatGameDate = (value: number) =>
 export const governanceLabel = (mode: string) =>
   mode === 'vote' ? 'Votação' : 'BDFL'
 export const eventLabels: Record<string, string> = {
+  'admin-restore': 'Intervenção administrativa',
   created: 'Torre criada',
   snapshot: 'Versão registrada',
   'block-placed': 'Bloco lançado',

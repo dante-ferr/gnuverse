@@ -9,10 +9,13 @@ import type { Rules, User } from '../domain/types.ts'
 import { fail, text } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import { WalletService } from '../economy/wallet-service.ts'
+import { environmentActorRoles } from '../../core/authz/file-role-store.ts'
+import { resolveActor, type RoleStore } from '../../core/authz/identity.ts'
 const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 export const publicUser = (user: User) => ({
   id: user.id,
   nickname: user.nickname,
+  roles: user.roles ?? ['member'],
 })
 
 export class AuthService {
@@ -21,23 +24,36 @@ export class AuthService {
   private now: () => number
   private wallet: WalletService
   private attempts = new Map<string, number[]>()
+  private roleStore?: RoleStore
   constructor(
     store: GameStore,
     rules: Readonly<Rules>,
     now: () => number,
     wallet: WalletService,
+    roleStore?: RoleStore,
   ) {
     this.store = store
     this.rules = rules
     this.now = now
     this.wallet = wallet
+    this.roleStore = roleStore
   }
   authenticate(authorization: string | undefined): User {
     const token = /^Bearer ([a-f0-9]{64})$/.exec(authorization ?? '')?.[1]
     const session = token ? this.store.state.sessions[hash(token)] : undefined
     if (!session || session.expiresAt <= this.now())
       fail(401, 'Entre na sua conta.')
-    return this.store.state.users[session.userId]
+    const user = this.store.state.users[session.userId]
+    if (!user) fail(401, 'Entre na sua conta.')
+    this.assignRoles(user)
+    return user
+  }
+  private assignRoles(user: User) {
+    // Never trust roles in registration bodies or old persisted user records.
+    const identity = { provider: 'game', id: user.id }
+    const roles = this.roleStore ? resolveActor(identity, this.roleStore, ['member']).roles
+      : environmentActorRoles(identity, ['member'])
+    user.roles = [...new Set(['member' as const, ...roles])]
   }
   rateLimit(key: string) {
     const recent = (this.attempts.get(key) ?? []).filter(
@@ -104,6 +120,7 @@ export class AuthService {
         if (!user || !timingSafeEqual(check, Buffer.from(user.password, 'hex')))
           fail(401, 'E-mail ou senha incorretos.')
       }
+      this.assignRoles(user)
       for (const [key, session] of Object.entries(this.store.state.sessions))
         if (session.expiresAt <= this.now())
           delete this.store.state.sessions[key]

@@ -2,6 +2,11 @@ import Matter from 'matter-js'
 import { BLOCKS, WORLD } from './catalog.ts'
 import type { BlockState, InitialBlock, Placement } from './types.ts'
 
+// Effective static friction (friction × frictionStatic) exceeds the force
+// ratio of maximum wind at a 7° incline: (sin 7° + cos 7°) / (cos 7° - sin 7°).
+const CONTACT_FRICTION = 0.95
+const CONTACT_STATIC_MULTIPLIER = 1.5
+
 /** A block's rigid body, geometry checks and serializable public identity. */
 export class BlockBody {
   readonly body: Matter.Body
@@ -12,8 +17,8 @@ export class BlockBody {
     const shape = BLOCKS[input.kind]
     this.body = Matter.Bodies.rectangle(input.x, input.y, shape.width, shape.height, {
       angle: input.angle ?? 0,
-      friction: 0.8,
-      frictionStatic: 1,
+      friction: CONTACT_FRICTION,
+      frictionStatic: CONTACT_STATIC_MULTIPLIER,
       frictionAir: 0.012,
       restitution: 0,
       slop: 0.01,

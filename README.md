@@ -18,6 +18,8 @@ Duas áreas paralelas e independentes:
 
 A navegação compartilhada fica em `src/components/site-header.tsx`. O jogo e o blog usam serviços e dados separados; implementar o jogo não altera o fluxo editorial do CMS.
 
+As políticas de acesso ficam em `core/authz/`, independentes do CMS. Consulte [papéis compartilhados e administração de torres](docs/autorizacao.md) para configurar o registro central opcional.
+
 ## Arquitetura escolhida
 
 - Site público estático na raiz, preparado para Cloudflare Pages. O jogo consulta um backend dinâmico Node separado; ele funciona localmente e sua hospedagem ainda será definida.

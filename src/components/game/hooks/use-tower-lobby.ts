@@ -1,14 +1,25 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { type GameApi } from '../api/game-api'
 import { type Tower } from '../model/types'
+import { DEFAULT_TOWER_FILTERS, listTowers, type TowerFilters } from '../api/list-towers'
+export { DEFAULT_TOWER_FILTERS, type TowerFilters } from '../api/list-towers'
 export type Connection = 'connecting' | 'live' | 'offline'
 
-export function useTowerLobby(api: GameApi) {
+export function useTowerLobby(api: GameApi, userId?: string) {
   const [towers, setTowers] = useState<Tower[]>([])
   const [towerId, setTowerId] = useState('')
-  const [page, setPage] = useState(1)
+  const [{ page, filters }, setQuery] = useState({ page: 1, filters: DEFAULT_TOWER_FILTERS })
+  const requestId = useRef(0)
+  const setFilters = useCallback((changes: Partial<TowerFilters>) => {
+    requestId.current++
+    setTowers([])
+    setTotal(0)
+    setPageCount(1)
+    setConnection('connecting')
+    setQuery((current) => ({ page: 1, filters: { ...current.filters, ...changes } }))
+  }, [])
   const [pageCount, setPageCount] = useState(1)
   const [total, setTotal] = useState(0)
   const [rules, setRules] = useState<Record<string, unknown> | null>(null)
@@ -23,25 +34,25 @@ export function useTowerLobby(api: GameApi) {
     window.history.replaceState(null, '', url)
   }, [])
   const refresh = useCallback(async (requestedPage = page) => {
+    const id = ++requestId.current
     const [data, config] = await Promise.all([
-      api.request<{ towers: Tower[]; page: number; pageCount: number; total: number }>(
-        `/api/towers?page=${requestedPage}&limit=12`,
-      ),
+      listTowers(api, filters, requestedPage, userId),
       api.request<{ rules: Record<string, unknown> }>('/api/rules'),
     ])
+    if (id !== requestId.current) return
     setRules(config.rules)
     setTowers(data.towers)
-    setPage(data.page)
+    setQuery((current) => current.page === data.page ? current : { ...current, page: data.page })
     setPageCount(data.pageCount)
     setTotal(data.total)
-    const params = new URLSearchParams(window.location.search)
-    const requestedTower = params.get('torre') || params.get('id')
+    const locationParams = new URLSearchParams(window.location.search)
+    const requestedTower = locationParams.get('torre') || locationParams.get('id')
     setTowerId((current) => requestedTower || (
       data.towers.some((tower) => tower.id === current)
         ? current
         : data.towers[0]?.id || ''
     ))
-  }, [api, page])
+  }, [api, page, filters, userId])
   useEffect(() => {
     let active = true
     const update = () =>
@@ -56,12 +67,18 @@ export function useTowerLobby(api: GameApi) {
     const interval = setInterval(update, 10000)
     return () => {
       active = false
+      requestId.current++
       clearInterval(interval)
     }
   }, [refresh])
   return {
     towers, towerId, setTowerId: selectTower, rules, connection, refresh,
     page, pageCount, total,
-    goToPage: (nextPage: number) => refresh(nextPage),
+    filters, setFilters,
+    goToPage: (nextPage: number) => {
+      requestId.current++
+      setConnection('connecting')
+      setQuery((current) => ({ ...current, page: nextPage }))
+    },
   }
 }

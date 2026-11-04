@@ -10,12 +10,15 @@ import sharp from 'sharp'
 import { Users } from './collections/Users'
 import { Articles } from './collections/Articles'
 import { Media } from './collections/Media'
+import { accessManagementEndpoints } from './access-management/endpoints'
 import { getLocalCMSURL, loadLocalEnvironment } from '../scripts/local-config.mjs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const postgres = process.env.DATABASE_ADAPTER === 'postgres'
 const s3 = process.env.STORAGE_ADAPTER === 's3'
 if (process.env.NODE_ENV !== 'production') loadLocalEnvironment()
+// Both local services use the repository's private data directory by default.
+process.env.GNUVERSE_DATA_DIR ||= path.resolve(dirname, '../../.content')
 const serverURL = process.env.NODE_ENV === 'production'
   ? required('CMS_SERVER_URL')
   : getLocalCMSURL()
@@ -34,7 +37,8 @@ function required(name: string): string {
 export default buildConfig({
   secret: process.env.PAYLOAD_SECRET,
   serverURL,
-  admin: { user: 'users', importMap: { baseDir: dirname } },
+  admin: { user: 'users', importMap: { baseDir: dirname }, components: { afterNavLinks: ['/access-management/AccessLink#AccessLink'] } },
+  endpoints: accessManagementEndpoints,
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },
   collections: [Users, Articles, Media],
   editor: lexicalEditor({ features: ({ defaultFeatures }) => [

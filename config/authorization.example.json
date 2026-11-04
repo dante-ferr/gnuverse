@@ -1,0 +1,17 @@
+[
+  {
+    "id": "site-owner",
+    "roles": ["admin"],
+    "identities": [
+      { "provider": "cms", "id": "REPLACE_WITH_CMS_USER_ID" },
+      { "provider": "game", "id": "REPLACE_WITH_GAME_USER_ID" }
+    ]
+  },
+  {
+    "id": "content-editor",
+    "roles": ["blog-editor", "quiz-editor"],
+    "identities": [
+      { "provider": "cms", "id": "REPLACE_WITH_EDITOR_CMS_ID" }
+    ]
+  }
+]

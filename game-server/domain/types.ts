@@ -1,4 +1,6 @@
 import type { Frame } from '../physics/index.ts'
+import type { Role } from '../../core/authz/policy.ts'
+import type { RoleStore } from '../../core/authz/identity.ts'
 
 export type Rules = {
   cap: number
@@ -24,6 +26,8 @@ export type Rules = {
   windStrength: number
 }
 export type User = {
+  /** Refreshed from the authorization adapter on every authenticated request. */
+  roles?: readonly Role[]
   id: string
   nickname: string
   email: string
@@ -121,6 +125,7 @@ export type State = {
   towers: Record<string, Tower>
 }
 export type ServerOptions = {
+  roleStore?: RoleStore
   dbPath?: string
   now?: () => number
   allowedOrigins?: string[]

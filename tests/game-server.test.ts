@@ -140,7 +140,7 @@ test('email authentication, private data, persisted sessions, logout and CORS', 
     })
     assert.equal(login.status, 200)
     const me = await f.request('/me', login.data.token)
-    assert.deepEqual(Object.keys(me.data.user).sort(), ['id', 'nickname'])
+    assert.deepEqual(Object.keys(me.data.user).sort(), ['id', 'nickname', 'roles'])
     assert.equal((await f.request('/me')).status, 401)
     assert.equal(
       (
@@ -1481,6 +1481,61 @@ test('paginated tower cards include fresh cover geometry on every response', asy
     const next = await readPage(2)
     assert.deepEqual(next.towers.map((tower) => tower.id), [second.id])
     assert.deepEqual(next.towers[0].coverBlocks, [])
+  } finally {
+    await f.close()
+  }
+})
+
+test('tower search, cost, ownership and sorting apply before pagination', async () => {
+  const f = await fixture()
+  try {
+    const owner = await f.register('filterowner')
+    const other = await f.register('filterother')
+    const create = async (token: string, name: string, cost: number) => {
+      const result = await f.request('/towers', token, { name, cost })
+      assert.equal(result.status, 201)
+      return result.data.tower.id
+    }
+    const first = await create(owner.token, 'Árvore livre', 0)
+    const second = await create(other.token, 'Bosque livre', 2)
+    const third = await create(owner.token, 'Casa livre', 1)
+    type List = { towers: { id: string }[]; total: number; page: number; pageCount: number; filtersApplied: boolean }
+    const list = async (query: string, token?: string) => {
+      const response = await fetch(`${f.base}/api/towers?${query}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      assert.equal(response.status, 200)
+      const result = await response.json() as List
+      assert.equal(result.filtersApplied, true)
+      return result
+    }
+    const ids = (data: List) => data.towers.map((tower) => tower.id)
+    assert.deepEqual(ids(await list('search=ARVORE')), [first])
+    assert.deepEqual(ids(await list('cost=free')), [first])
+    assert.deepEqual(ids(await list('cost=paid&sort=cost-asc')), [third, second])
+    assert.deepEqual(ids(await list('sort=cost-desc')), [second, third, first])
+    assert.deepEqual(ids(await list('sort=name')), [first, second, third])
+    assert.deepEqual(ids(await list('mine=true', owner.token)), [first, third])
+    assert.deepEqual(ids(await list('mine=true', other.token)), [second])
+    const combined = await list('mine=true&search=livre&cost=paid&sort=cost-desc&limit=1&page=2', owner.token)
+    assert.deepEqual(ids(combined), [third])
+    assert.equal(combined.total, 1)
+    assert.equal(combined.page, 1)
+    assert.equal(combined.pageCount, 1)
+    const page = await list('search=livre&sort=cost-desc&limit=1&page=2')
+    assert.deepEqual(ids(page), [third])
+    assert.equal(page.total, 3)
+    assert.equal(page.pageCount, 3)
+    const empty = await list('search=inexistente&page=3')
+    assert.deepEqual(ids(empty), [])
+    assert.equal(empty.page, 1)
+    assert.equal(empty.total, 0)
+    assert.equal((await f.request('/towers?mine=true')).status, 401)
+    assert.equal((await f.request('/towers?mine=true', 'invalid')).status, 401)
+    assert.equal((await f.request('/towers?sort=invalid')).status, 400)
+    assert.equal((await f.request('/towers?cost=invalid')).status, 400)
+    assert.equal((await f.request(`/towers/${third}/blocks`, owner.token, { x: 500, y: 150 })).status, 200)
+    assert.equal(ids(await list('sort=blocks-desc'))[0], third)
   } finally {
     await f.close()
   }

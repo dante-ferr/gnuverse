@@ -40,7 +40,7 @@ export function createGameServer(options: ServerOptions = {}) {
   }
   store.persist()
   const wallet = new WalletService(rules, now)
-  const auth = new AuthService(store, rules, now, wallet)
+  const auth = new AuthService(store, rules, now, wallet, options.roleStore)
   const towers = new TowerService(
     store,
     rules,

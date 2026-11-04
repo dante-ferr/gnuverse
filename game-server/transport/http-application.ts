@@ -8,6 +8,8 @@ import { TowerService } from '../towers/tower-service.ts'
 import { GovernanceService } from '../governance/governance-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { json, readBody } from './http-helpers.ts'
+import { can, canManageTower } from '../../core/authz/policy.ts'
+import { verifyCMSAdministrator } from '../auth/cms-administrator.ts'
 
 type Dependencies = {
   store: GameStore
@@ -56,6 +58,12 @@ export class HttpApplication {
         return json(res, 200, { ok: true })
       if (req.method === 'GET' && path[1] === 'rules' && path.length === 2)
         return json(res, 200, { rules })
+      if (req.method === 'GET' && path[1] === 'admin' && path[2] === 'accounts' && path.length === 3) {
+        await verifyCMSAdministrator({ cookie: req.headers.cookie, authorization: req.headers.authorization })
+        return json(res, 200, { accounts: Object.values(store.state.users).map((user) => ({
+          provider: 'game', id: user.id, name: user.nickname, email: user.email,
+        })) })
+      }
       const body = req.method === 'POST' ? await readBody(req) : {}
       if (
         req.method === 'POST' &&
@@ -83,13 +91,38 @@ export class HttpApplication {
       if (req.method === 'GET' && path.length === 2) {
         const pageSize = Math.min(
           50,
-          Math.max(1, Number(requestUrl.searchParams.get('limit')) || 12),
+          Math.max(1, Math.floor(Number(requestUrl.searchParams.get('limit')) || 12)),
         )
-        const page = Math.max(1, Number(requestUrl.searchParams.get('page')) || 1)
-        const available = Object.values(store.state.towers)
+        const params = requestUrl.searchParams
+        const normalize = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR')
+        const search = normalize((params.get('search') ?? '').trim())
+        const cost = params.get('cost') ?? 'all'
+        const sort = params.get('sort') ?? 'oldest'
+        if (!['all', 'free', 'paid'].includes(cost)) fail(400, 'Filtro de custo inválido.')
+        if (!['oldest', 'name', 'cost-asc', 'cost-desc', 'blocks-desc'].includes(sort))
+          fail(400, 'Ordenação inválida.')
+        const creatorId = params.get('mine') === 'true'
+          ? auth.authenticate(req.headers.authorization).id : null
+        const available = Object.values(store.state.towers).filter((tower) =>
+          (!search || normalize(tower.name).includes(search)) &&
+          (cost === 'all' || (cost === 'free' ? tower.cost === 0 : tower.cost > 0)) &&
+          (!creatorId || tower.creatorId === creatorId),
+        )
+        available.sort((a, b) => {
+          if (sort === 'name') return a.name.localeCompare(b.name, 'pt-BR')
+          if (sort === 'cost-asc') return a.cost - b.cost
+          if (sort === 'cost-desc') return b.cost - a.cost
+          if (sort === 'blocks-desc') return b.frame.blocks.length - a.frame.blocks.length
+          return 0
+        })
         const total = available.length
+        const page = Math.min(
+          Math.max(1, Math.ceil(total / pageSize)),
+          Math.max(1, Math.floor(Number(params.get('page')) || 1)),
+        )
         const start = (page - 1) * pageSize
         return json(res, 200, {
+          filtersApplied: true,
           towers: available.slice(start, start + pageSize).map((tower) => ({
             ...towers.publicTower(tower),
             coverBlocks: tower.frame.blocks,
@@ -113,7 +146,7 @@ export class HttpApplication {
       if (req.method === 'DELETE' && path.length === 3) {
         store.atomic(() => {
           const user = auth.authenticate(req.headers.authorization)
-          if (tower.creatorId !== user.id)
+          if (!canManageTower({ id: user.id, roles: user.roles ?? [] }, 'delete', tower.creatorId))
             fail(403, 'Somente quem criou a torre pode excluí-la.')
           runtime.remove(tower.id)
           delete store.state.towers[tower.id]
@@ -132,6 +165,14 @@ export class HttpApplication {
       const result = store.atomic(() => {
         const user = auth.authenticate(req.headers.authorization)
         governance.finishVoting(tower)
+        const actor = { id: user.id, roles: user.roles ?? [] }
+        // Administrative actions do not depend on tower membership or local governance.
+        if (path[3] === 'settings' && path.length === 4 && can(actor, 'tower:update:any')) {
+          towers.member(tower, user)
+          return towers.settings(tower, user, body)
+        }
+        if (path[3] === 'restore' && path.length === 4)
+          return towers.adminRestore(tower, user, body)
         const participant = towers.member(tower, user)
         if (participant.banned) fail(403, 'Você foi banido desta torre.')
         if (path[3] === 'settings' && path.length === 4)

@@ -22,7 +22,7 @@ export type Frame = {
   blocksUntilCheckpoint?: number
   wind?: WindState | null
 }
-export type User = { id: string; nickname: string }
+export type User = { id: string; nickname: string; roles?: readonly import('../../../../core/authz/policy').Role[] }
 export type Wallet = {
   balance: number
   cap: number

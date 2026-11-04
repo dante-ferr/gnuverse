@@ -126,6 +126,9 @@ export interface UserAuthOperations {
 export interface User {
   id: number;
   name: string;
+  /**
+   * Papel inicial do blog. Com a gestão compartilhada ativa, use Pessoas e acessos para definir os papéis válidos em todo o site.
+   */
   role: 'admin' | 'editor';
   updatedAt: string;
   createdAt: string;

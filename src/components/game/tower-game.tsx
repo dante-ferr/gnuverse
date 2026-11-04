@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { canManageTower } from '../../../core/authz/policy'
 import { useRouter } from 'next/navigation'
 import { AccountBanner } from './account/account-banner'
 import { BlockControls } from './construction/block-controls'
@@ -40,7 +41,7 @@ export function TowerGame() {
         connection={game.connection}
         onCreate={() => game.setShowCreate(true)}
         canDelete={Boolean(
-          game.tower && game.session.user?.id === game.tower.creatorId,
+          game.tower && canManageTower(session.user ? { ...session.user, roles: session.user.roles ?? [] } : null, 'delete', game.tower.creatorId),
         )}
         onDelete={game.deleteTower}
       />
@@ -141,6 +142,7 @@ export function TowerGame() {
           onDecide={game.decide}
           onEligibility={game.setEligibility}
           onSettingsSave={game.saveSettings}
+          onAdminRestore={game.adminRestore}
         />
       )}
       {game.proposalTarget && (
