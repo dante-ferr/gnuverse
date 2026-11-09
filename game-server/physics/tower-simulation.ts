@@ -1,6 +1,7 @@
 import Matter from 'matter-js'
 import { WORLD } from './catalog.ts'
 import { BlockBody } from './block-body.ts'
+import { holdRestingContacts } from './slide-hold.ts'
 import type { Frame, InitialBlock, Placement, PlaceResult, Simulation } from './types.ts'
 
 const STEP_MS = 1000 / 60
@@ -68,10 +69,20 @@ export class TowerSimulation implements Simulation {
     this.assertLive()
     // Matter clears forces after every update, so reapply during each substep.
     for (let index = 0; index < SUBSTEPS; index += 1) {
-      if (this.wind) for (const block of this.blocks.values()) {
-        block.applyWind(this.wind.strength * this.engine.gravity.scale, this.wind.direction)
+      const wind = this.wind
+      if (wind) for (const block of this.blocks.values()) {
+        block.applyWind(wind.strength * this.engine.gravity.scale, wind.direction)
       }
+      const poses = new Map([...this.blocks.values()].map(block => [
+        block.body.id,
+        { x: block.body.position.x, y: block.body.position.y, angle: block.body.angle },
+      ]))
       Matter.Engine.update(this.engine, STEP_MS / SUBSTEPS)
+      const gravity = this.engine.gravity.scale
+      holdRestingContacts(this.engine.pairs.list, poses, {
+        x: (wind?.strength ?? 0) * gravity * (wind?.direction ?? 1),
+        y: this.engine.gravity.y * gravity,
+      })
     }
     this.wind = null
     this.tick += 1

@@ -2,8 +2,7 @@ import Matter from 'matter-js'
 import { BLOCKS, WORLD } from './catalog.ts'
 import type { BlockState, InitialBlock, Placement } from './types.ts'
 
-// Effective static friction (friction × frictionStatic) exceeds the force
-// ratio of maximum wind at a 7° incline: (sin 7° + cos 7°) / (cos 7° - sin 7°).
+// Kinetic contact friction. Static hold against wind is enforced in slide-hold.ts.
 const CONTACT_FRICTION = 0.95
 const CONTACT_STATIC_MULTIPLIER = 1.5
 

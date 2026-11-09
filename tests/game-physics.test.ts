@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import Matter from 'matter-js'
 import { BLOCKS, WORLD, createSimulation } from '../game-server/physics/index.ts'
+import { HOLD_FRICTION, HOLD_INCLINATION_RADIANS, holdRestingContacts, requiredFriction } from '../game-server/physics/slide-hold.ts'
 import type { BlockState, Simulation } from '../game-server/physics/index.ts'
 
 const block = (overrides: Partial<BlockState> = {}): BlockState => ({
@@ -223,6 +225,76 @@ test('five seconds of wind topples a narrow tower while a broad stone stays supp
     assert.ok(maxShift > Math.abs(stone.x - 500) + 100)
     assert.ok(narrowFrame.blocks.every(piece => Math.abs(piece.angle) > 1), 'columns must actually topple')
   } finally { broad.dispose(); narrow.dispose() }
+})
+
+test('7° maximum-wind friction holds every shallower incline', () => {
+  const limit = requiredFriction(HOLD_INCLINATION_RADIANS, 1)
+  assert.ok(Math.abs(limit - HOLD_FRICTION) < 1e-12)
+  for (const degrees of [0, 1, 3, 6, 6.9]) {
+    for (const windRatio of [-1, -0.3, 0, 0.3, 1]) {
+      const needed = requiredFriction(degrees * Math.PI / 180, Math.abs(windRatio))
+      assert.ok(needed <= HOLD_FRICTION, `${degrees}° at wind ${windRatio} needs ${needed}`)
+    }
+  }
+  assert.ok(requiredFriction(8 * Math.PI / 180, 1) > HOLD_FRICTION)
+})
+
+function rampDrift(degrees: number, strength: number) {
+  const step = (1000 / 60) / 8
+  const gravity = 0.001
+  const angle = degrees * Math.PI / 180
+  const engine = Matter.Engine.create({ enableSleeping: false })
+  engine.positionIterations = 32
+  engine.velocityIterations = 24
+  const floor = Matter.Bodies.rectangle(500, 840, 20000, 200, {
+    isStatic: true, angle, friction: 0.95, frictionStatic: 1.5, restitution: 0, slop: 0.01,
+  })
+  const body = Matter.Bodies.rectangle(500, 680, 110, 36, {
+    angle, friction: 0.95, frictionStatic: 1.5, frictionAir: 0.012, restitution: 0, slop: 0.01,
+  })
+  Matter.Composite.add(engine.world, [floor, body])
+  const acceleration = { x: 0, y: gravity }
+  for (let index = 0; index < 800; index += 1) {
+    const pose = new Map([[body.id, { x: body.position.x, y: body.position.y, angle: body.angle }]])
+    Matter.Engine.update(engine, step)
+    holdRestingContacts(engine.pairs.list, pose, acceleration)
+  }
+  const originX = body.position.x
+  const originY = body.position.y
+  acceleration.x = strength * gravity
+  for (let index = 0; index < 2400; index += 1) {
+    const pose = new Map([[body.id, { x: body.position.x, y: body.position.y, angle: body.angle }]])
+    Matter.Body.applyForce(body, body.position, { x: body.mass * acceleration.x, y: 0 })
+    Matter.Engine.update(engine, step)
+    holdRestingContacts(engine.pairs.list, pose, acceleration)
+  }
+  Matter.Composite.clear(engine.world, false)
+  Matter.Engine.clear(engine)
+  const along = (body.position.x - originX) * Math.cos(angle) + (body.position.y - originY) * Math.sin(angle)
+  return along
+}
+
+test('maximum wind does not slide blocks on ground shallower than 7°', () => {
+  const rested = createSimulation([block({ kind: 'wide', y: 722, sleeping: true })])
+  try {
+    const start = settle(rested).blocks[0]
+    for (let index = 0; index < 300; index += 1) {
+      rested.applyWind(1, 1)
+      rested.step()
+    }
+    const stone = rested.read().blocks[0]
+    assert.ok(Math.abs(stone.x - start.x) < 0.05, `stone slid ${stone.x - start.x}px`)
+    assert.ok(Math.abs(stone.angle - start.angle) < 0.01)
+    assert.ok(Math.abs(stone.y - start.y) < 0.1)
+    for (const degrees of [0, 3, 6.9]) {
+      const drift = rampDrift(degrees, 1)
+      assert.ok(Math.abs(drift) < 0.05, `${degrees}° ramp slid ${drift}px under maximum wind`)
+    }
+    const steep = rampDrift(10, 1)
+    assert.ok(Math.abs(steep) > 1, `10° ramp must still be able to slide, drifted ${steep}px`)
+  } finally {
+    rested.dispose()
+  }
 })
 
 test('wind is mass-scaled, directional and consumed after one physics tick', () => {
