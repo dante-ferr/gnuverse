@@ -41,12 +41,19 @@ export function SiteHeader() {
       {pathname !== '/' && (
         <div className="site-account">
           {session.user ? (
-            <Link className="site-avatar" href="/jogo/" aria-label={`Perfil de ${session.user.nickname}`} title={session.user.nickname}>
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <circle cx="12" cy="8" r="3.5" />
-                <path d="M5 20c.6-4 3-6 7-6s6.4 2 7 6" />
-              </svg>
-            </Link>
+            <>
+              {session.wallet && (
+                <span className="site-credits" title={`${session.wallet.balance} de ${session.wallet.cap} moedas`} aria-label={`${session.wallet.balance} de ${session.wallet.cap} moedas`}>
+                  {session.wallet.balance}
+                </span>
+              )}
+              <Link className="site-avatar" href="/jogo/" aria-label={`Perfil de ${session.user.nickname}`} title={session.user.nickname}>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <circle cx="12" cy="8" r="3.5" />
+                  <path d="M5 20c.6-4 3-6 7-6s6.4 2 7 6" />
+                </svg>
+              </Link>
+            </>
           ) : (
             <div className="site-auth-links">
               <Link href="/login/">Entrar</Link>
