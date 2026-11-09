@@ -34,7 +34,7 @@ export function AuthPanel({
           {mode === 'register' ? 'Criar conta' : 'Entrar'}
         </h1>
       </div>
-      <p>{mode === 'register' ? 'Crie sua conta para construir com a comunidade.' : 'Entre na sua conta para continuar construindo.'}</p>
+      <p>{mode === 'register' ? 'Crie sua conta do GNUverse. Se você já tem uma conta no painel, use Entrar.' : 'Use sua conta do GNUverse. Se você já criou uma conta no painel, entre com o mesmo e-mail e senha.'}</p>
       {error && <p className={styles.error} role="alert">{error}</p>}
       <form className={`${styles.form} ${authStyles.form}`} onSubmit={handleSubmit} aria-busy={busy}>
         {mode === 'register' && (
@@ -67,7 +67,7 @@ export function AuthPanel({
             name="password"
             type="password"
             required
-            minLength={8}
+            minLength={1}
             maxLength={128}
             autoComplete={
               mode === 'register' ? 'new-password' : 'current-password'

@@ -62,6 +62,7 @@ export class HttpApplication {
         await verifyCMSAdministrator({ cookie: req.headers.cookie, authorization: req.headers.authorization })
         return json(res, 200, { accounts: Object.values(store.state.users).map((user) => ({
           provider: 'game', id: user.id, name: user.nickname, email: user.email,
+          cmsUserId: user.identity?.provider === 'cms' ? user.identity.id : undefined,
         })) })
       }
       const body = req.method === 'POST' ? await readBody(req) : {}
@@ -71,20 +72,21 @@ export class HttpApplication {
         path.length === 2
       ) {
         auth.rateLimit(req.socket.remoteAddress ?? 'unknown')
-        const result = auth.login(body, path[1] === 'register')
+        const result = await auth.login(body, path[1] === 'register')
         return json(res, path[1] === 'register' ? 201 : 200, result)
       }
-      if (req.method === 'GET' && path[1] === 'me' && path.length === 2)
+      if (req.method === 'GET' && path[1] === 'me' && path.length === 2) {
+        const user = await auth.authenticate(req.headers.authorization)
         return json(
           res,
           200,
           store.atomic(() => {
-            const user = auth.authenticate(req.headers.authorization)
             return { user: publicUser(user), wallet: wallet.read(user) }
           }),
         )
+      }
       if (req.method === 'POST' && path[1] === 'logout' && path.length === 2) {
-        auth.logout(req.headers.authorization)
+        await auth.logout(req.headers.authorization)
         return json(res, 200, { ok: true })
       }
       if (path[1] !== 'towers') fail(404, 'Não encontrado.')
@@ -102,7 +104,7 @@ export class HttpApplication {
         if (!['oldest', 'name', 'cost-asc', 'cost-desc', 'blocks-desc'].includes(sort))
           fail(400, 'Ordenação inválida.')
         const creatorId = params.get('mine') === 'true'
-          ? auth.authenticate(req.headers.authorization).id : null
+          ? (await auth.authenticate(req.headers.authorization)).id : null
         const available = Object.values(store.state.towers).filter((tower) =>
           (!search || normalize(tower.name).includes(search)) &&
           (cost === 'all' || (cost === 'free' ? tower.cost === 0 : tower.cost > 0)) &&
@@ -133,19 +135,23 @@ export class HttpApplication {
           pageCount: Math.ceil(total / pageSize),
         })
       }
-      if (req.method === 'POST' && path.length === 2)
+      if (req.method === 'POST' && path.length === 2) {
+        const user = await auth.authenticate(req.headers.authorization)
         return json(
           res,
           201,
           store.atomic(() =>
-            towers.create(auth.authenticate(req.headers.authorization), body),
+            towers.create(user, body),
           ),
         )
+      }
       const tower = store.state.towers[path[2]]
       if (!tower) fail(404, 'Torre não encontrada.')
       if (req.method === 'DELETE' && path.length === 3) {
+        const user = await auth.authenticate(req.headers.authorization)
         store.atomic(() => {
-          const user = auth.authenticate(req.headers.authorization)
+          const tower = store.state.towers[path[2]]
+          if (!tower) fail(404, 'Torre não encontrada.')
           if (!canManageTower({ id: user.id, roles: user.roles ?? [] }, 'delete', tower.creatorId))
             fail(403, 'Somente quem criou a torre pode excluí-la.')
           runtime.remove(tower.id)
@@ -162,8 +168,10 @@ export class HttpApplication {
         return
       }
       if (req.method !== 'POST') fail(404, 'Não encontrado.')
+      const user = await auth.authenticate(req.headers.authorization)
       const result = store.atomic(() => {
-        const user = auth.authenticate(req.headers.authorization)
+        const tower = store.state.towers[path[2]]
+        if (!tower) fail(404, 'Torre não encontrada.')
         governance.finishVoting(tower)
         const actor = { id: user.id, roles: user.roles ?? [] }
         // Administrative actions do not depend on tower membership or local governance.

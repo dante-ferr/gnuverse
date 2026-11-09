@@ -1,6 +1,6 @@
 # Testar o jogo localmente
 
-O jogo roda em duas aplicações: o site Next.js, que apresenta a interface, e um backend Node separado, que valida contas e ações compartilhadas. O backend usa SQLite local; ele não depende do CMS do blog. A hospedagem do backend será decidida depois.
+O jogo roda em duas aplicações: o site Next.js, que apresenta a interface, e um backend Node separado, que valida contas e ações compartilhadas. O backend usa SQLite local para o estado do jogo e consulta o provedor de identidade do CMS para autenticar contas e sessões. A hospedagem do backend será decidida depois.
 
 ## Iniciar
 
@@ -20,11 +20,11 @@ Em outro terminal, inicie o site:
 npm run dev
 ```
 
-Abra `http://localhost:3000/jogo/`. A API local usa `http://localhost:3002`; o CMS permanece em `http://localhost:3001`. Se o CMS estiver indisponível, configure `CMS_CONTENT_MODE=demo` no `.env.local` da raiz para que a sincronização editorial use o artigo de demonstração; isso não altera os dados do jogo.
+Abra `http://localhost:3000/jogo/`. A API local usa `http://localhost:3002`; o CMS permanece em `http://localhost:3001`. Se o CMS estiver indisponível, configure `CMS_CONTENT_MODE=demo` no `.env.local` da raiz para que a sincronização editorial use o artigo de demonstração; isso não altera os dados do jogo. O modo demo só substitui o conteúdo editorial: o CMS precisa estar ligado para cadastro, login e ações autenticadas.
 
 ## Contas e teste compartilhado
 
-Crie uma conta com e-mail, senha e apelido público. O apelido aparece nas contribuições; e-mail e senha não são públicos. O e-mail não é verificado nesta entrega e não há envio de mensagens nem recuperação de senha por e-mail. Use credenciais de teste.
+Use a mesma conta criada no painel ou cadastre-se no site com e-mail, senha e apelido público. O cadastro cria um participante no provedor central. O apelido aparece nas contribuições; e-mail e senha não são públicos. O e-mail não é verificado nesta entrega e não há envio de mensagens nem recuperação de senha por e-mail. Use credenciais de teste.
 
 Quem criou uma torre pode excluí-la pelo botão “Excluir torre”. A exclusão remove a torre e seu histórico para todos os participantes e não pode ser desfeita.
 
@@ -48,9 +48,9 @@ Inclua a origem do frontend na lista de origens permitidas do backend. Para aces
 
 ## Escopo e limitações
 
-Esta entrega suporta torres compartilhadas, cadastro por e-mail e senha com apelido público, saldo e intervenções validados pelo servidor, e estado persistido em SQLite. Contas e dados do jogo são separados dos usuários administrativos do Payload CMS.
+Esta entrega suporta torres compartilhadas, cadastro por e-mail e senha com apelido público, saldo e intervenções validados pelo servidor, e estado persistido em SQLite. As credenciais pertencem à conta única do Payload; o SQLite do jogo guarda apenas o perfil e o estado das partidas.
 
-As contas podem compartilhar papéis pelo [registro de autorização independente do CMS](autorizacao.md). Ele habilita administradores globais e moderadores com acesso a qualquer torre, mantendo os logins locais.
+O [registro de autorização independente do CMS](autorizacao.md) habilita administradores globais e moderadores com acesso a qualquer torre. O administrador inicial do painel já recebe seus papéis ao entrar no site, sem outro cadastro.
 
 Ao criar uma torre, o criador pode marcar `allowCreatorBan` para permitir que a própria conta seja alvo de uma proposta de suspensão. Essa escolha é definitiva: não aparece na edição das regras depois. A suspensão do criador só pode ocorrer por votação quando os banimentos daquela torre usam votação; BDFL não pode suspender a própria conta. Durante a suspensão, ele perde temporariamente as ações de administração daquela torre.
 

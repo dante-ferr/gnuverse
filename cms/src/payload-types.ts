@@ -126,10 +126,11 @@ export interface UserAuthOperations {
 export interface User {
   id: number;
   name: string;
+  nickname?: string | null;
   /**
    * Papel inicial do blog. Com a gestão compartilhada ativa, use Pessoas e acessos para definir os papéis válidos em todo o site.
    */
-  role: 'admin' | 'editor';
+  role: 'admin' | 'editor' | 'member';
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -305,6 +306,7 @@ export interface PayloadMigration {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  nickname?: T;
   role?: T;
   updatedAt?: T;
   createdAt?: T;

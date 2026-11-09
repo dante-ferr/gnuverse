@@ -35,6 +35,8 @@ export class GameStore {
     this.db = db
     const saved = db.prepare('SELECT value FROM game_state WHERE id=1').get()
     this.state = saved ? JSON.parse(saved.value as string) : freshState()
+    // Sessions now belong to the identity issuer; old local hashes confer no access.
+    this.state.sessions = {}
     for (const tower of Object.values(this.state.towers))
       tower.allowCreatorBan = tower.allowCreatorBan === true
     this.save = db.prepare(

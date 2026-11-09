@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { SiteHeader } from '@/components/site-header';
+import { GameSessionProvider } from '@/components/game/hooks/use-game-session';
 
 export const metadata: Metadata = {
   title: "GNUverse — Tecnologia para mais gente",
@@ -11,8 +12,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="pt-BR">
       <body>
-        <SiteHeader />
-        {children}
+        <GameSessionProvider>
+          <SiteHeader />
+          {children}
+        </GameSessionProvider>
       </body>
     </html>
   );

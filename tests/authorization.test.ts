@@ -8,6 +8,7 @@ import { resolveActor } from '../core/authz/identity.ts'
 import { FileRoleStore } from '../core/authz/file-role-store.ts'
 import { cmsActor } from '../cms/src/access.ts'
 import { createGameServer } from '../game-server/server.ts'
+import { createTestIdentityProvider } from './helpers/identity-provider.ts'
 
 test('policies isolate domains, check ownership and reject unknown grants', () => {
   const actor = (roles: string[]) => ({ id: 'owner', roles: roles as ['member'] })
@@ -60,7 +61,8 @@ test('game enforces administrative mutation and live revocation with the same se
   const folder = mkdtempSync(join(tmpdir(), 'gnuverse-admin-'))
   const path = join(folder, 'roles.json')
   writeFileSync(path, '[]')
-  const game = createGameServer({ dbPath: ':memory:', roleStore: new FileRoleStore(path) })
+  const identityProvider = createTestIdentityProvider({ roles: (id) => new FileRoleStore(path).find({ provider: 'game', id })?.roles ?? ['member'] })
+  const game = createGameServer({ dbPath: ':memory:', identityProvider })
   const base = await game.listen()
   async function request(path: string, token?: string, body?: unknown, method = body === undefined ? 'GET' : 'POST') {
     const response = await fetch(`${base}/api${path}`, {

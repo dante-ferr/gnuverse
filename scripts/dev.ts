@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { createServer, type Server } from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -61,6 +62,43 @@ function start(
   })
 }
 
+async function checkPorts() {
+  const reservations: Server[] = []
+  try {
+    for (const [label, port] of [
+      ['CMS', new URL(cmsURL).port],
+      ['Jogo', config.gamePort],
+      ['Site', config.sitePort],
+    ]) {
+      const server = createServer()
+      try {
+        await new Promise<void>((resolve, reject) => {
+          server.once('error', reject)
+          // Bind on all interfaces, including IPv4 when IPv6 is available.
+          server.listen({ port: Number(port), exclusive: true }, () => {
+            server.removeListener('error', reject)
+            resolve()
+          })
+        })
+        reservations.push(server)
+      } catch (cause) {
+        if ((cause as NodeJS.ErrnoException).code === 'EADDRINUSE') {
+          throw new Error(
+            `${label}: a porta ${port} já está em uso. Encerre a instância anterior (Ctrl+C no terminal onde executou make dev) ou configure outra porta no .env.local. Nenhum servidor foi iniciado.`,
+          )
+        }
+        throw cause
+      }
+    }
+  } finally {
+    await Promise.all(
+      reservations.map(
+        (server) => new Promise<void>((resolve) => server.close(() => resolve())),
+      ),
+    )
+  }
+}
+
 async function waitForAPI(
   url: string,
   label: string,
@@ -99,15 +137,17 @@ async function waitForAPI(
 process.on('SIGINT', () => stop())
 process.on('SIGTERM', () => stop())
 
-console.log(
-  `Iniciando CMS em ${cmsURL}/admin e jogo em ${config.gameURL}. Aguardando as APIs…`,
-)
-start(['run', 'cms:dev'], 'CMS')
-start(['run', 'game:dev'], 'Jogo', {
-  GAME_PORT: config.gamePort,
-  GAME_ALLOWED_ORIGINS: config.allowedOrigins,
-})
 try {
+  await checkPorts()
+  if (stopping) process.exit()
+  console.log(
+    `Iniciando CMS em ${cmsURL}/admin e jogo em ${config.gameURL}. Aguardando as APIs…`,
+  )
+  start(['run', 'cms:dev'], 'CMS')
+  start(['run', 'game:dev'], 'Jogo', {
+    GAME_PORT: config.gamePort,
+    GAME_ALLOWED_ORIGINS: config.allowedOrigins,
+  })
   await Promise.all([
     waitForAPI(`${cmsURL}/api/articles?limit=1`, 'CMS', (body) =>
       Array.isArray(body.docs),

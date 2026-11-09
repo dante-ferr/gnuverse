@@ -6,6 +6,7 @@ import { createRules } from './runtime/rules.ts'
 import { GameStore } from './persistence/game-store.ts'
 import { WalletService } from './economy/wallet-service.ts'
 import { AuthService } from './auth/auth-service.ts'
+import { CMSIdentityProvider } from './auth/cms-identity-provider.ts'
 import { HistoryService } from './towers/history-service.ts'
 import { TowerService } from './towers/tower-service.ts'
 import { GovernanceService } from './governance/governance-service.ts'
@@ -40,7 +41,7 @@ export function createGameServer(options: ServerOptions = {}) {
   }
   store.persist()
   const wallet = new WalletService(rules, now)
-  const auth = new AuthService(store, rules, now, wallet, options.roleStore)
+  const auth = new AuthService(store, rules, now, wallet, options.identityProvider ?? new CMSIdentityProvider())
   const towers = new TowerService(
     store,
     rules,

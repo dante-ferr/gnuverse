@@ -13,9 +13,13 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const feedback = useActionFeedback()
   const router = useRouter()
   const [returnTo, setReturnTo] = useState('/jogo/')
+  const [notice, setNotice] = useState('')
 
   useEffect(() => {
     const next = new URLSearchParams(window.location.search).get('next')
+    if (new URLSearchParams(window.location.search).get('notice') === 'login-required') {
+      setNotice('Entre na sua conta para criar uma torre. Depois do login, você voltará para a criação.')
+    }
     if (!next) return
     try {
       const destination = new URL(next, window.location.origin)
@@ -45,6 +49,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         returnTo={returnTo}
         onSubmit={authenticate}
       />
+      {notice && <p className={styles.message} role="status">{notice}</p>}
     </main>
   )
 }

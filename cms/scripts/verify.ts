@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createLocalReq, getPayload, handleEndpoints } from 'payload'
 import sharp from 'sharp'
+import { verifySharedIdentity } from './verify-identity'
 
 const directory = await mkdtemp(path.join(os.tmpdir(), 'gnuverse-cms-check-'))
 // Prevent the verification process from attaching to a running Next.js HMR server.
@@ -20,7 +21,7 @@ const { default: config } = await import('../src/payload.config')
 const payload = await getPayload({ config })
 
 try {
-  const adminPassword = randomBytes(24).toString('hex')
+  const adminPassword = 'abc' // Fixture: existing Payload passwords must not be rejected by a second policy.
   const admin = await payload.create({ collection: 'users', data: {
     name: 'Admin de teste', email: 'admin@example.test', password: adminPassword, role: 'editor',
   } })
@@ -111,8 +112,10 @@ try {
   const removed = await access(admin, { action: 'delete', id: editorEntry.id, revision: changed.data.revision })
   assert.equal(removed.status, 200)
   assert.ok(await payload.findByID({ collection: 'users', id: editor.id }), 'Remover vínculo não exclui a conta')
+  await verifySharedIdentity(payload, directory, admin.email, adminPassword)
   console.log('CMS verificado: bootstrap admin, editor, bloqueio de escalada, upload de capa, rascunho privado, publicação e exclusão.')
   console.log('Interface de acessos verificada: ativação, preservação de papéis, autorização, edição, revogação, último administrador e conflitos de edição.')
+  console.log('Identidade única verificada: admin entra no site, cadastro compartilhado, bloqueio de escalada e revogação de sessão pelo provedor.')
 } finally {
   await payload.destroy()
   await rm(directory, { recursive: true, force: true })

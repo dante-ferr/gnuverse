@@ -6,7 +6,7 @@ import type { RoleEntry } from '../../../core/authz/file-role-store.ts'
 import { readRoleRegistry, RoleManagementError, updateRoleRegistry } from '../../../core/authz/manage-role-store.ts'
 import { cmsActor } from '../access'
 
-export type AccountOption = { provider: 'cms' | 'game'; id: string; name: string; email: string }
+export type AccountOption = { provider: 'cms' | 'game'; id: string; name: string; email: string; cmsUserId?: string }
 function requireAdministrator(req: PayloadRequest) {
   if (!req.user) throw new RoleManagementError(401, 'Entre no painel administrativo.')
   if (!can(cmsActor(req.user), 'roles:manage')) throw new RoleManagementError(403, 'Apenas administradores podem gerenciar os acessos.')
@@ -89,7 +89,7 @@ export const accessManagementEndpoints: Endpoint[] = [
       return saveRegistry(req, body.revision, (_, enabled) => {
         if (enabled) throw new RoleManagementError(409, 'A gestão compartilhada já está ativa.')
         return users.map((user) => ({ id: randomUUID(), name: user.name,
-          roles: user.role === 'admin' ? ['admin'] : ['blog-editor'],
+          roles: user.role === 'admin' ? ['admin'] : user.role === 'editor' ? ['blog-editor'] : ['member'],
           identities: [{ provider: 'cms', id: String(user.id) }],
         }))
       })
@@ -116,7 +116,10 @@ export const accessManagementEndpoints: Endpoint[] = [
         throw new RoleManagementError(400, 'A conta selecionada não existe no painel.')
       if (identity.provider === 'game') {
         games ??= await gameAccounts(req)
-        if (!games.some((game) => game.id === identity.id)) throw new RoleManagementError(400, 'A conta selecionada não existe no jogo.')
+        const profile = games.find((game) => game.id === identity.id)
+        if (!profile) throw new RoleManagementError(400, 'A conta selecionada não existe no jogo.')
+        if (profile.cmsUserId && !input.identities.some((item) => item.provider === 'cms' && item.id === profile.cmsUserId))
+          throw new RoleManagementError(400, 'Este perfil usa uma conta única. Selecione também a conta correspondente do blog/painel.')
       }
     }
     const entry = { id: existing?.id ?? randomUUID(), name: input.name.trim(), roles: input.roles, identities: input.identities } as RoleEntry

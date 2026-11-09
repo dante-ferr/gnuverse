@@ -20,6 +20,8 @@ A navegação compartilhada fica em `src/components/site-header.tsx`. O jogo e o
 
 As políticas de acesso ficam em `core/authz/`, independentes do CMS. Consulte [papéis compartilhados e administração de torres](docs/autorizacao.md) para configurar o registro central opcional.
 
+A conta é única: o site autentica no Payload pelo contrato independente em `core/authn/`. O jogo guarda apenas perfis e estado das partidas; a conta do primeiro administrador também entra no site e herda seus papéis automaticamente.
+
 ## Arquitetura escolhida
 
 - Site público estático na raiz, preparado para Cloudflare Pages. O jogo consulta um backend dinâmico Node separado; ele funciona localmente e sua hospedagem ainda será definida.

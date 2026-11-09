@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { CreateTowerPanel } from './construction/create-tower-panel'
 import { createTowerFromForm } from './api/create-tower'
 import { useActionFeedback } from './hooks/use-action-feedback'
@@ -11,6 +12,7 @@ import styles from './tower-game.module.css'
 
 export function TowerDashboard() {
   const session = useGameSession()
+  const router = useRouter()
   const lobby = useTowerLobby(session.api, session.user?.id)
   const feedback = useActionFeedback()
   const [showCreate, setShowCreate] = useState(false)
@@ -43,6 +45,10 @@ export function TowerDashboard() {
         </div>
         <button type="button" className={styles.primary} onClick={() => {
           feedback.setError('')
+          if (!session.user) {
+            router.push('/login/?next=%2Fjogo%2F%3Fnovo%3D1&notice=login-required')
+            return
+          }
           setShowCreate(true)
         }}>Criar torre</button>
       </header>

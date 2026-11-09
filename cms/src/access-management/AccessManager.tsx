@@ -69,7 +69,15 @@ export function AccessManager() {
     } catch (reason) { setError((reason as Error).message) }
     finally { setBusy(false) }
   }
-  const entries = registry?.entries ?? []
+  // Game profiles inherit the canonical account's roles; show that relationship
+  // immediately, without requiring a second account-linking operation.
+  const entries = (registry?.entries ?? []).map((person) => ({ ...person, identities: [
+    ...person.identities,
+    ...directory.accounts.filter((account) => account.provider === 'game' && account.cmsUserId &&
+      person.identities.some((identity) => identity.provider === 'cms' && identity.id === account.cmsUserId) &&
+      !person.identities.some((identity) => identity.provider === 'game' && identity.id === account.id))
+      .map((account) => ({ provider: 'game', id: account.id })),
+  ] }))
   const administratorCount = entries.filter((person) => person.roles.includes('admin') && person.identities.some((identity) => identity.provider === 'cms')).length
   const searchText = search.toLocaleLowerCase('pt-BR').trim()
   const visibleEntries = entries.filter((person) => `${person.name || person.id} ${person.roles.map((role) => roleDetails[role].name).join(' ')} ${person.identities.map((identity) => {
@@ -131,7 +139,7 @@ export function AccessManager() {
                 <input type="checkbox" checked={entry.roles.includes(role)} disabled={role === 'admin' && lastAdministrator(entry)} onChange={(event) => updateEntry({ roles: event.target.checked ? [...entry.roles, role] : entry.roles.filter((value) => value !== role) })} />
                 <span><strong>{roleDetails[role].name}</strong><small>{roleDetails[role].description}</small></span>
               </label>)}</fieldset>
-              <fieldset className={styles.accounts}><legend>Contas vinculadas</legend><p>Vincule somente contas da mesma pessoa. Os papéis acima valem para todas elas.</p>
+              <fieldset className={styles.accounts}><legend>Conta e perfis</legend><p>O perfil do jogo usa a mesma conta e herda seus papéis automaticamente. Vínculos manuais servem para migrar perfis antigos.</p>
                 <label>Buscar conta<input type="search" value={accountSearch} placeholder="Nome ou e-mail" onChange={(event) => setAccountSearch(event.target.value)} /></label>
                 {(['cms', 'game'] as const).map((provider) => {
                   const options = directory.accounts.filter((account) => account.provider === provider)

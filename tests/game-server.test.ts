@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createGameServer } from '../game-server/server.ts'
 import type { Rules, WindState } from '../game-server/domain/types.ts'
+import { createTestIdentityProvider } from './helpers/identity-provider.ts'
 
 type MemberData = { id: string; contributions: number }
 type ProposalData = {
@@ -39,8 +40,10 @@ type Data = {
 async function fixture(overrides: Partial<Rules> = {}) {
   const folder = await mkdtemp(join(tmpdir(), 'gnuverse-game-'))
   let time = 100000
+  const identityProvider = createTestIdentityProvider({ now: () => time })
   const dbPath = join(folder, 'game.sqlite')
   let game = createGameServer({
+    identityProvider,
     dbPath,
     now: () => time,
     rules: {
@@ -83,11 +86,13 @@ async function fixture(overrides: Partial<Rules> = {}) {
     },
     base,
     dbPath,
+    identityProvider,
     request,
     register,
     restart: async () => {
       await game.close()
       game = createGameServer({
+        identityProvider,
         dbPath,
         now: () => time,
         rules: {
@@ -151,7 +156,7 @@ test('email authentication, private data, persisted sessions, logout and CORS', 
       403,
     )
     await f.game.close()
-    const restarted = createGameServer({ dbPath: f.dbPath, now: () => 100000 })
+    const restarted = createGameServer({ dbPath: f.dbPath, now: () => 100000, identityProvider: f.identityProvider })
     try {
       const base = await restarted.listen()
       const response = await fetch(`${base}/api/me`, {
@@ -694,6 +699,7 @@ test('restart clamps lowered wallet cap and keeps vote-change rules frozen', asy
     await f.game.close()
     const game = createGameServer({
       dbPath: f.dbPath,
+      identityProvider: f.identityProvider,
       now: () => 100000,
       rules: { cap: 10, initialBalance: 10, voteChanges: true },
     })
@@ -840,7 +846,7 @@ test('creator suspension is opt-in at creation, immutable, limited to voting and
       )
     }
     await f.game.close()
-    const restarted = createGameServer({ dbPath: f.dbPath, now: () => 100101 })
+    const restarted = createGameServer({ dbPath: f.dbPath, identityProvider: f.identityProvider, now: () => 100101 })
     try {
       const base = await restarted.listen()
       const response = await fetch(`${base}/api/towers/${tower.id}`)
@@ -935,7 +941,7 @@ test('restoring blocks preserves creator-suspension choice and legacy towers def
     } finally {
       db.close()
     }
-    const restarted = createGameServer({ dbPath: f.dbPath, now: () => 100000 })
+    const restarted = createGameServer({ dbPath: f.dbPath, identityProvider: f.identityProvider, now: () => 100000 })
     try {
       const base = await restarted.listen()
       const response = await fetch(`${base}/api/towers/${tower.id}`)

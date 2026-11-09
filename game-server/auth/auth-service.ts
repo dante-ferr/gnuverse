@@ -1,59 +1,62 @@
-import {
-  randomUUID,
-  randomBytes,
-  scryptSync,
-  timingSafeEqual,
-  createHash,
-} from 'node:crypto'
+import { randomUUID, scryptSync, timingSafeEqual } from 'node:crypto'
 import type { Rules, User } from '../domain/types.ts'
+import type { IdentityAccount, IdentityProvider } from '../../core/authn/identity-provider.ts'
 import { fail, text } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import { WalletService } from '../economy/wallet-service.ts'
-import { environmentActorRoles } from '../../core/authz/file-role-store.ts'
-import { resolveActor, type RoleStore } from '../../core/authz/identity.ts'
-const hash = (value: string) => createHash('sha256').update(value).digest('hex')
-export const publicUser = (user: User) => ({
-  id: user.id,
-  nickname: user.nickname,
-  roles: user.roles ?? ['member'],
-})
 
+export const publicUser = (user: User) => ({ id: user.id, nickname: user.nickname, roles: user.roles ?? ['member'] })
+
+/** Stores game profiles only. The identity provider validates all credentials and sessions. */
 export class AuthService {
   private store: GameStore
   private rules: Readonly<Rules>
   private now: () => number
   private wallet: WalletService
+  private identityProvider: IdentityProvider
   private attempts = new Map<string, number[]>()
-  private roleStore?: RoleStore
-  constructor(
-    store: GameStore,
-    rules: Readonly<Rules>,
-    now: () => number,
-    wallet: WalletService,
-    roleStore?: RoleStore,
-  ) {
-    this.store = store
-    this.rules = rules
-    this.now = now
-    this.wallet = wallet
-    this.roleStore = roleStore
+  constructor(store: GameStore, rules: Readonly<Rules>, now: () => number, wallet: WalletService, identityProvider: IdentityProvider) {
+    this.store = store; this.rules = rules; this.now = now; this.wallet = wallet; this.identityProvider = identityProvider
   }
-  authenticate(authorization: string | undefined): User {
-    const token = /^Bearer ([a-f0-9]{64})$/.exec(authorization ?? '')?.[1]
-    const session = token ? this.store.state.sessions[hash(token)] : undefined
-    if (!session || session.expiresAt <= this.now())
-      fail(401, 'Entre na sua conta.')
-    const user = this.store.state.users[session.userId]
-    if (!user) fail(401, 'Entre na sua conta.')
-    this.assignRoles(user)
+  private token(authorization: string | undefined) {
+    const token = /^Bearer (\S{1,8192})$/.exec(authorization ?? '')?.[1]
+    if (!token) fail(401, 'Entre na sua conta.')
+    return token
+  }
+  async authenticate(authorization: string | undefined): Promise<User> {
+    const account = await this.identityProvider.authenticate(this.token(authorization))
+    return this.store.atomic(() => this.profile(account))
+  }
+  private profile(account: IdentityAccount, password?: string): User {
+    const matches = (user: User) => user.identity?.provider === account.identity.provider && user.identity.id === account.identity.id
+    let user = Object.values(this.store.state.users).find(matches)
+    if (!user) {
+      // Existing accounts migrate only with an explicit administrative link or proof
+      // of both passwords. Matching an unverified email alone is never ownership proof.
+      const linked = account.linkedIdentities?.find((identity) => identity.provider === 'game' && this.store.state.users[identity.id])
+      const candidate = linked ? this.store.state.users[linked.id]
+        : Object.values(this.store.state.users).find((item) => item.email.toLowerCase() === account.email.toLowerCase())
+      if (candidate) {
+        const ownsLegacy = !candidate.identity && Boolean(linked || (password && candidate.salt && candidate.password?.length === 128 &&
+          timingSafeEqual(scryptSync(password, candidate.salt, 64), Buffer.from(candidate.password, 'hex'))))
+        if (!ownsLegacy) fail(409, 'Já existe um perfil antigo do jogo com este e-mail. Entre com a senha que era usada nos dois serviços ou peça ao administrador para vincular as contas em Pessoas e acessos.')
+        user = candidate
+      } else {
+        const base = (account.nickname || account.name).replace(/[^\p{L}\p{N}_-]/gu, '').slice(0, 24) || 'jogador'
+        let nickname = base.padEnd(3, '_')
+        while (Object.values(this.store.state.users).some((item) => item.nickname.toLowerCase() === nickname.toLowerCase()))
+          nickname = `${base.slice(0, 23)}_${randomUUID().slice(0, 8)}`
+        user = { id: `${account.identity.provider}:${account.identity.id}`, nickname, email: account.email,
+          balance: this.rules.initialBalance, coinAt: this.now(), lastAction: null }
+        this.store.state.users[user.id] = user
+      }
+    }
+    user.identity = account.identity
+    user.email = account.email
+    user.roles = [...new Set(['member' as const, ...account.roles])]
+    delete user.salt
+    delete user.password
     return user
-  }
-  private assignRoles(user: User) {
-    // Never trust roles in registration bodies or old persisted user records.
-    const identity = { provider: 'game', id: user.id }
-    const roles = this.roleStore ? resolveActor(identity, this.roleStore, ['member']).roles
-      : environmentActorRoles(identity, ['member'])
-    user.roles = [...new Set(['member' as const, ...roles])]
   }
   rateLimit(key: string) {
     const recent = (this.attempts.get(key) ?? []).filter(
@@ -67,75 +70,25 @@ export class AuthService {
     recent.push(this.now())
     this.attempts.set(key, recent)
   }
-  login(body: Record<string, unknown>, register: boolean) {
+  async login(body: Record<string, unknown>, register: boolean) {
     const email = text(body.email, 3, 254, 'E-mail').toLowerCase()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'E-mail inválido.')
     const password = body.password
-    if (
-      typeof password !== 'string' ||
-      password.length < 8 ||
-      password.length > 128
-    )
-      fail(400, 'A senha deve ter de 8 a 128 caracteres.')
+    if (typeof password !== 'string' || password.length < 1 || password.length > 128)
+      fail(400, 'Informe uma senha de até 128 caracteres.')
+    let nickname = ''
+    if (register) {
+      nickname = text(body.nickname, 3, 32, 'Apelido')
+      if (!/^[\p{L}\p{N}_-]+$/u.test(nickname)) fail(400, 'Use letras, números, _ ou - no apelido.')
+    }
+    const session = register ? await this.identityProvider.register(email, password, nickname)
+      : await this.identityProvider.login(email, password)
     return this.store.atomic(() => {
-      let user = Object.values(this.store.state.users).find(
-        (item) => item.email === email,
-      )
-      if (register) {
-        if (user) fail(409, 'E-mail já utilizado.')
-        const nickname = text(body.nickname, 3, 32, 'Apelido')
-        if (!/^[\p{L}\p{N}_-]+$/u.test(nickname))
-          fail(400, 'Use letras, números, _ ou - no apelido.')
-        if (
-          Object.values(this.store.state.users).some(
-            (item) => item.nickname.toLowerCase() === nickname.toLowerCase(),
-          )
-        )
-          fail(409, 'Apelido já utilizado.')
-        if (
-          body.email !== undefined &&
-          (typeof body.email !== 'string' ||
-            body.email.length > 254 ||
-            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email))
-        )
-          fail(400, 'E-mail inválido.')
-        const salt = randomBytes(16).toString('hex')
-        user = {
-          id: randomUUID(),
-          nickname,
-          email,
-          salt,
-          password: scryptSync(password, salt, 64).toString('hex'),
-          balance: this.rules.initialBalance,
-          coinAt: this.now(),
-          lastAction: null,
-        }
-        this.store.state.users[user.id] = user
-      } else {
-        const check = scryptSync(
-          password,
-          user?.salt ?? 'dummy-salt-for-unknown-user',
-          64,
-        )
-        if (!user || !timingSafeEqual(check, Buffer.from(user.password, 'hex')))
-          fail(401, 'E-mail ou senha incorretos.')
-      }
-      this.assignRoles(user)
-      for (const [key, session] of Object.entries(this.store.state.sessions))
-        if (session.expiresAt <= this.now())
-          delete this.store.state.sessions[key]
-      const token = randomBytes(32).toString('hex')
-      this.store.state.sessions[hash(token)] = {
-        userId: user.id,
-        expiresAt: this.now() + this.rules.tokenLifetimeMs,
-      }
-      return { token, user: publicUser(user), wallet: this.wallet.read(user) }
+      const user = this.profile(session.account, password)
+      return { token: session.token, user: publicUser(user), wallet: this.wallet.read(user) }
     })
   }
-  logout(authorization: string | undefined) {
-    this.authenticate(authorization)
-    this.store.atomic(
-      () => delete this.store.state.sessions[hash(authorization!.slice(7))],
-    )
+  async logout(authorization: string | undefined) {
+    await this.identityProvider.logout(this.token(authorization))
   }
 }

@@ -94,6 +94,14 @@ summary {
   color: var(--accent);
   font-size: 24px;
 }
+.site-header-centered {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+.site-header-centered .site-account {
+  justify-self: end;
+  margin-left: 0;
+}
 .site-nav {
   display: flex;
   gap: 24px;
@@ -111,6 +119,29 @@ summary {
   color: var(--accent);
   border-color: var(--accent);
 }
+.site-account { margin-left: auto; }
+.site-avatar {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.site-avatar svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.site-auth-links { display: flex; align-items: center; gap: 14px; font-size: 12px; }
+.site-auth-links a:first-child { color: var(--muted); }
+.site-auth-links a:last-child { padding: 9px 12px; border: 1px solid var(--accent); border-radius: 4px; color: var(--accent); }
 .article-body {
   font-size: 1.125rem;
   line-height: 1.85;
@@ -160,7 +191,12 @@ summary {
   }
   .site-header {
     padding-top: 20px;
+    gap: 14px;
   }
+  .site-header-centered { grid-template-columns: auto 1fr auto; gap: 10px; }
+  .site-nav { gap: 12px; }
+  .site-auth-links { gap: 8px; }
+  .site-auth-links a:last-child { padding: 8px; }
   .site-brand {
     font-size: 16px;
   }

@@ -11,6 +11,7 @@ import { Users } from './collections/Users'
 import { Articles } from './collections/Articles'
 import { Media } from './collections/Media'
 import { accessManagementEndpoints } from './access-management/endpoints'
+import { identityEndpoints } from './identity/endpoints'
 import { getLocalCMSURL, loadLocalEnvironment } from '../scripts/local-config.mjs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -38,7 +39,7 @@ export default buildConfig({
   secret: process.env.PAYLOAD_SECRET,
   serverURL,
   admin: { user: 'users', importMap: { baseDir: dirname }, components: { afterNavLinks: ['/access-management/AccessLink#AccessLink'] } },
-  endpoints: accessManagementEndpoints,
+  endpoints: [...accessManagementEndpoints, ...identityEndpoints],
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },
   collections: [Users, Articles, Media],
   editor: lexicalEditor({ features: ({ defaultFeatures }) => [

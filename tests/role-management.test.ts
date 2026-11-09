@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { readRoleRegistry, updateRoleRegistry } from '../core/authz/manage-role-store.ts'
 import { createGameServer } from '../game-server/server.ts'
+import { createTestIdentityProvider } from './helpers/identity-provider.ts'
 
 test('registry publishes atomic revisions, rejects duplicate identities and prevents lost updates', () => {
   const directory = mkdtempSync(join(tmpdir(), 'gnuverse-roles-ui-'))
@@ -36,7 +37,7 @@ test('game account directory verifies CMS admin sessions and never exposes crede
     res.writeHead(allowed ? 200 : 403, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ allowed }))
   })
-  const game = createGameServer({ dbPath: ':memory:' })
+  const game = createGameServer({ dbPath: ':memory:', identityProvider: createTestIdentityProvider() })
   try {
     await new Promise<void>((resolve) => cms.listen(0, '127.0.0.1', resolve))
     process.env.CMS_URL = `http://127.0.0.1:${(cms.address() as AddressInfo).port}`

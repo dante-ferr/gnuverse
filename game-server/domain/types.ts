@@ -1,6 +1,7 @@
 import type { Frame } from '../physics/index.ts'
 import type { Role } from '../../core/authz/policy.ts'
-import type { RoleStore } from '../../core/authz/identity.ts'
+import type { Identity } from '../../core/authz/identity.ts'
+import type { IdentityProvider } from '../../core/authn/identity-provider.ts'
 
 export type Rules = {
   cap: number
@@ -31,8 +32,10 @@ export type User = {
   id: string
   nickname: string
   email: string
-  salt: string
-  password: string
+  identity?: Identity
+  /** Legacy credentials, removed when the owner migrates to the shared identity. */
+  salt?: string
+  password?: string
   balance: number
   coinAt: number
   lastAction: number | null
@@ -125,7 +128,7 @@ export type State = {
   towers: Record<string, Tower>
 }
 export type ServerOptions = {
-  roleStore?: RoleStore
+  identityProvider?: IdentityProvider
   dbPath?: string
   now?: () => number
   allowedOrigins?: string[]
