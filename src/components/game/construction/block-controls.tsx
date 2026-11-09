@@ -1,6 +1,6 @@
 'use client'
 
-import { BLOCKS } from '../model/block-catalog'
+import { applyPiece, BLOCKS, PIECES, selectedPiece } from '../model/block-catalog'
 import type {
   BlockKind,
   Snapshot,
@@ -72,24 +72,37 @@ export function BlockControls({
       <fieldset>
         <legend>Peça</legend>
         <div className={styles.shapes}>
-          {(Object.keys(BLOCKS) as BlockKind[]).map((value) => (
-            <button
-              key={value}
-              className={kind === value ? styles.selected : ''}
-              onClick={() => onKindChange(value)}
-              aria-pressed={kind === value}
-            >
-              <svg
-                aria-hidden="true"
-                width={BLOCKS[value].width / 2.5}
-                height={BLOCKS[value].height / 2.5}
-                viewBox={`${-BLOCKS[value].width / 2 - 2} ${-BLOCKS[value].height / 2 - 2} ${BLOCKS[value].width + 4} ${BLOCKS[value].height + 4}`}
+          {PIECES.map((piece) => {
+            const shape = BLOCKS[piece.kind]
+            const upright = 'angle' in piece
+            const width = upright ? shape.height : shape.width
+            const height = upright ? shape.width : shape.height
+            const selected = selectedPiece(kind, angle) === piece.id
+            return (
+              <button
+                key={piece.id}
+                className={selected ? styles.selected : ''}
+                onClick={() => {
+                  const next = applyPiece(piece.id, { kind, angle })
+                  onKindChange(next.kind)
+                  if (next.angle !== angle) onAngleChange(next.angle)
+                }}
+                aria-pressed={selected}
               >
-                <BlockGlyph kind={value} />
-              </svg>
-              {BLOCKS[value].label}
-            </button>
-          ))}
+                <svg
+                  aria-hidden="true"
+                  width={width / 2.5}
+                  height={height / 2.5}
+                  viewBox={`${-width / 2 - 2} ${-height / 2 - 2} ${width + 4} ${height + 4}`}
+                >
+                  <g transform={upright ? 'rotate(90)' : undefined}>
+                    <BlockGlyph kind={piece.kind} />
+                  </g>
+                </svg>
+                {piece.label}
+              </button>
+            )
+          })}
         </div>
       </fieldset>
       <fieldset>
