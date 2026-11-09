@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { canManageTower } from '../../../core/authz/policy'
 import { useRouter } from 'next/navigation'
 import { AccountBanner } from './account/account-banner'
@@ -22,13 +22,14 @@ export function TowerGame() {
     router.push(`/login/?next=${encodeURIComponent(destination.pathname + destination.search)}`)
   }
   const { session, lobby, live, feedback, placement } = game
+  const [spaceExpanded, setSpaceExpanded] = useState(false)
   const notice = feedback.notice || session.notice
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has('novo'))
       game.setShowCreate(true)
   }, [game.setShowCreate])
   return (
-    <main className={styles.game}>
+    <main className={spaceExpanded ? `${styles.game} ${styles.gameExpanded}` : styles.game}>
       <AccountBanner
         user={session.user}
         wallet={session.wallet}
@@ -83,13 +84,15 @@ export function TowerGame() {
           onCreateTower={game.createTower}
         />
       )}
-      <div className={styles.playLayout}>
+      <div className={spaceExpanded ? `${styles.playLayout} ${styles.playExpanded}` : styles.playLayout}>
         <TowerScene
           frame={live.frame}
           preview={game.preview}
           tower={game.tower}
           {...placement}
           maxBlocks={Number(game.rules?.maxBlocks ?? 100)}
+          expanded={spaceExpanded}
+          onToggleExpanded={() => setSpaceExpanded((current) => !current)}
           onPositionChange={(x, y) =>
             game.setPlacement((current) => ({ ...current, x, y }))
           }

@@ -253,12 +253,79 @@
   font-size: 13px;
   color: var(--muted);
 }
+.stageStatus {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px 14px;
+}
 .stage {
   width: 100%;
   display: block;
   max-height: 640px;
-  touch-action: pan-y;
-  cursor: crosshair;
+  touch-action: none;
+  cursor: grab;
+}
+.stage:active {
+  cursor: grabbing;
+}
+.stage:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -3px;
+}
+.sceneNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 14px;
+}
+.sceneNav button {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0;
+}
+.gameExpanded {
+  max-width: none;
+}
+.playExpanded {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 0;
+  align-items: stretch;
+  min-height: calc(100dvh - 180px);
+}
+.playExpanded .stagePanel {
+  display: flex;
+  flex-direction: column;
+  border-right: 0;
+  border-radius: 3px 0 0 3px;
+  min-height: calc(100dvh - 180px);
+}
+.playExpanded .stage {
+  flex: 1;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+}
+.playExpanded .builder {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100dvh;
+  overflow: auto;
+  margin: 0;
+  padding: 20px 18px 28px;
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--surface);
 }
 .stageFooter {
   background: var(--surface);
@@ -1067,4 +1134,34 @@
   color: var(--secondary);
   font: 10px var(--display-font);
   white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .playExpanded {
+    grid-template-columns: minmax(0, 1fr) 260px;
+  }
+}
+@media (max-width: 640px) {
+  .playExpanded {
+    display: block;
+    min-height: 0;
+  }
+  .playExpanded .stagePanel {
+    width: 100%;
+    min-height: calc(100dvh - 150px);
+    border-right: 1px solid var(--line);
+    border-radius: 3px;
+  }
+  .playExpanded .builder {
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(320px, 88vw);
+    max-height: none;
+    display: block;
+    border-left: 1px solid var(--line);
+    border-radius: 0;
+    box-shadow: -16px 0 40px rgb(0 0 0 / 35%);
+  }
 }

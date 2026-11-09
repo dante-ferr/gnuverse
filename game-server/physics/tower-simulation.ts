@@ -2,18 +2,29 @@ import Matter from 'matter-js'
 import { WORLD } from './catalog.ts'
 import { BlockBody } from './block-body.ts'
 import { holdRestingContacts } from './slide-hold.ts'
-import type { Frame, InitialBlock, Placement, PlaceResult, Simulation } from './types.ts'
+import type { Frame, InitialBlock, Placement, PlaceResult, ShardState, Simulation } from './types.ts'
 
 const STEP_MS = 1000 / 60
 const SUBSTEPS = 8
 const QUIET_TICKS = 30
 const CONTACT_FRICTION = 0.95
 const CONTACT_STATIC_MULTIPLIER = 1.5
+const SHARD_LIFE = 75
+const SHARD_MARGIN = 180
+
+type Shard = {
+  id: string
+  body: Matter.Body
+  born: number
+  width: number
+  height: number
+}
 
 /** Owns the authoritative world, fixed physics steps and stabilization window. */
 export class TowerSimulation implements Simulation {
   private readonly engine = Matter.Engine.create({ enableSleeping: true })
   private readonly blocks = new Map<string, BlockBody>()
+  private readonly shards = new Map<string, Shard>()
   private tick = 0
   private quietTicks = QUIET_TICKS
   private disposed = false
@@ -45,7 +56,58 @@ export class TowerSimulation implements Simulation {
     this.assertLive()
     return {
       blocks: [...this.blocks.values()].map(block => block.read()),
+      shards: [...this.shards.values()].map(shard => this.readShard(shard)),
       settled: this.settled(), tick: this.tick,
+    }
+  }
+
+  private readShard(shard: Shard): ShardState {
+    return {
+      id: shard.id,
+      x: shard.body.position.x,
+      y: shard.body.position.y,
+      angle: shard.body.angle,
+      width: shard.width,
+      height: shard.height,
+    }
+  }
+
+  /** Replaces a block that left the allowed horizontal span with short-lived debris. */
+  private shatterEscaped(): void {
+    for (const block of [...this.blocks.values()]) {
+      if (!block.outsideHorizontal()) continue
+      const state = block.read()
+      const pieces = block.fragments()
+      this.blocks.delete(state.id)
+      Matter.Composite.remove(this.engine.world, block.body)
+      pieces.forEach((piece, index) => {
+        const id = `${state.id}:${this.tick}:${index}`
+        const body = Matter.Bodies.rectangle(piece.x, piece.y, piece.width, piece.height, {
+          angle: piece.angle,
+          friction: 0.4,
+          frictionAir: 0.03,
+          restitution: 0.45,
+          density: 0.00015,
+          collisionFilter: { group: -1 },
+          sleepThreshold: 40,
+        })
+        Matter.Body.setVelocity(body, { x: piece.vx, y: piece.vy })
+        Matter.Body.setAngularVelocity(body, piece.angularVelocity)
+        const shard: Shard = {
+          id, body, born: this.tick, width: piece.width, height: piece.height,
+        }
+        this.shards.set(id, shard)
+        Matter.Composite.add(this.engine.world, body)
+      })
+    }
+    for (const [id, shard] of this.shards) {
+      const { x, y } = shard.body.position
+      const agedOut = this.tick - shard.born > SHARD_LIFE
+      const left =
+        x < -SHARD_MARGIN || x > WORLD.width + SHARD_MARGIN || y < -SHARD_MARGIN || y > WORLD.height + 40
+      if (!agedOut && !left) continue
+      Matter.Composite.remove(this.engine.world, shard.body)
+      this.shards.delete(id)
     }
   }
 
@@ -85,6 +147,7 @@ export class TowerSimulation implements Simulation {
       })
     }
     this.wind = null
+    this.shatterEscaped()
     this.tick += 1
     this.quietTicks = [...this.blocks.values()].every(block => block.body.isSleeping)
       ? this.quietTicks + 1 : 0
@@ -109,7 +172,9 @@ export class TowerSimulation implements Simulation {
       throw new Error('Invalid block snapshot')
     }
     for (const block of this.blocks.values()) Matter.Composite.remove(this.engine.world, block.body)
+    for (const shard of this.shards.values()) Matter.Composite.remove(this.engine.world, shard.body)
     this.blocks.clear()
+    this.shards.clear()
     this.wind = null
     Matter.Engine.clear(this.engine)
     for (const input of saved) {
@@ -126,6 +191,7 @@ export class TowerSimulation implements Simulation {
     Matter.Composite.clear(this.engine.world, false)
     Matter.Engine.clear(this.engine)
     this.blocks.clear()
+    this.shards.clear()
     this.disposed = true
   }
 }

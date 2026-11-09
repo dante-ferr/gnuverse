@@ -318,6 +318,27 @@ test('wind is mass-scaled, directional and consumed after one physics tick', () 
   } finally { left.dispose(); right.dispose(); control.dispose() }
 })
 
+test('a block that leaves the horizontal span shatters and the debris disappears', () => {
+  const inside = createSimulation([block({ x: 80, y: 400 })])
+  const outside = createSimulation([block({ x: 20, y: 400 })])
+  try {
+    const stayed = inside.step()
+    assert.equal(stayed.blocks.length, 1)
+    assert.equal(stayed.shards.length, 0)
+    const broken = outside.step()
+    assert.equal(broken.blocks.length, 0)
+    assert.equal(broken.shards.length, 4)
+    assert.ok(broken.shards.some(shard => shard.x < 20))
+    assert.ok(broken.shards.some(shard => shard.x > 20))
+    for (let index = 0; index < 90; index += 1) outside.step()
+    assert.equal(outside.read().shards.length, 0)
+    assert.equal(outside.read().blocks.length, 0)
+  } finally {
+    inside.dispose()
+    outside.dispose()
+  }
+})
+
 test('accepts separate blocks in flight and checks overlap against moving bodies', () => {
   const sim = createSimulation()
   try {

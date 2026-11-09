@@ -16,7 +16,20 @@ export type BlockState = Placement & {
   angularVelocity: number
   sleeping: boolean
 }
-export type Frame = { blocks: BlockState[]; settled: boolean; tick: number }
+export type ShardState = {
+  id: string
+  x: number
+  y: number
+  angle: number
+  width: number
+  height: number
+}
+export type Frame = {
+  blocks: BlockState[]
+  shards: ShardState[]
+  settled: boolean
+  tick: number
+}
 export type InitialBlock = Placement &
   Partial<Pick<BlockState, 'vx' | 'vy' | 'angularVelocity' | 'sleeping'>>
 export type PlaceResult =

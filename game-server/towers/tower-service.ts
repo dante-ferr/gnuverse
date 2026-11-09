@@ -136,7 +136,7 @@ export class TowerService {
       placementCount: 0,
       nextWindAt: this.rules.windMinBlocks,
       wind: null,
-      frame: { blocks: [], settled: true, tick: 0 },
+      frame: { blocks: [], shards: [], settled: true, tick: 0 },
     }
     tower.nextWindAt = tower.windMinBlocks
     tower.frame = this.runtime.simulation(tower).read()

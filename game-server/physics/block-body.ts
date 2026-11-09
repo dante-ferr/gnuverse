@@ -2,6 +2,17 @@ import Matter from 'matter-js'
 import { BLOCKS, WORLD } from './catalog.ts'
 import type { BlockState, InitialBlock, Placement } from './types.ts'
 
+export type ShardFragment = {
+  x: number
+  y: number
+  width: number
+  height: number
+  angle: number
+  vx: number
+  vy: number
+  angularVelocity: number
+}
+
 // Kinetic contact friction. Static hold against wind is enforced in slide-hold.ts.
 const CONTACT_FRICTION = 0.95
 const CONTACT_STATIC_MULTIPLIER = 1.5
@@ -56,6 +67,45 @@ export class BlockBody {
   fitsWorld(): boolean {
     return this.body.vertices.every(({ x, y }) =>
       x >= 0 && x <= WORLD.width && y >= 0 && y <= WORLD.groundY)
+  }
+
+  /** True once any corner leaves the horizontal span the piece was allowed to occupy. */
+  outsideHorizontal(): boolean {
+    return this.body.vertices.some(({ x }) => x < 0 || x > WORLD.width)
+  }
+
+  /**
+   * Splits the rectangle into smaller pieces that inherit the body's motion
+   * and fly apart from its center.
+   */
+  fragments(): ShardFragment[] {
+    const shape = BLOCKS[this.identity.kind]
+    const columns = shape.width >= 90 ? 3 : 2
+    const rows = shape.height >= 90 ? 3 : 2
+    const { x: centerX, y: centerY } = this.body.position
+    const angle = this.body.angle
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    const span = Math.max(shape.width, shape.height) / 2
+    const pieces: ShardFragment[] = []
+    for (let row = 0; row < rows; row += 1) {
+      for (let column = 0; column < columns; column += 1) {
+        const localX = ((column + 0.5) / columns - 0.5) * shape.width
+        const localY = ((row + 0.5) / rows - 0.5) * shape.height
+        pieces.push({
+          x: centerX + localX * cos - localY * sin,
+          y: centerY + localX * sin + localY * cos,
+          width: (shape.width / columns) * 0.72,
+          height: (shape.height / rows) * 0.72,
+          angle,
+          vx: this.body.velocity.x + (localX / span) * 0.14,
+          vy: this.body.velocity.y + (localY / span) * 0.14 - 0.05,
+          angularVelocity:
+            this.body.angularVelocity + (column - (columns - 1) / 2) * 0.006,
+        })
+      }
+    }
+    return pieces
   }
 
   overlaps(other: BlockBody): boolean {

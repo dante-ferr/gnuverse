@@ -8,6 +8,14 @@ export type Block = {
   color: string
   authorId: string
 }
+export type Shard = {
+  id: string
+  x: number
+  y: number
+  angle: number
+  width: number
+  height: number
+}
 export type WindState = {
   phase: 'pending' | 'active' | 'settling'
   endsAt: number | null
@@ -15,6 +23,7 @@ export type WindState = {
 }
 export type Frame = {
   blocks: Block[]
+  shards?: Shard[]
   settled: boolean
   tick: number
   checkpointPending?: boolean
