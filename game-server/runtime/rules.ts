@@ -2,7 +2,8 @@ import { loadGameConfig } from '../config/load-game-config.ts'
 import type { Rules } from '../domain/types.ts'
 
 export function createRules(overrides: Partial<Rules> = {}): Readonly<Rules> {
-  const configured = loadGameConfig().rules
+  const loaded = loadGameConfig()
+  const configured = loaded.rules
   const rules: Readonly<Rules> = Object.freeze({
     cap: configured.balanceCap,
     initialBalance: configured.initialBalance,
@@ -20,6 +21,7 @@ export function createRules(overrides: Partial<Rules> = {}): Readonly<Rules> {
       process.env.NODE_ENV !== 'production' &&
       process.env.GAME_INFINITE_COINS === 'true',
     bdflVeto: configured.bdflVeto,
+    tree: loaded.tree,
     ...overrides,
   })
   for (const key of [

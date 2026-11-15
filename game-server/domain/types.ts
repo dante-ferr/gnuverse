@@ -1,4 +1,5 @@
 import type { TreeFrame } from '../physics/tree-types.ts'
+import type { TreeRules } from '../config/load-game-config.ts'
 import type { Role } from '../../core/authz/policy.ts'
 import type { Identity } from '../../core/authz/identity.ts'
 import type { IdentityProvider } from '../../core/authn/identity-provider.ts'
@@ -18,6 +19,7 @@ export type Rules = {
   bdflVeto: boolean
   prototype: boolean
   infiniteCoins: boolean
+  tree: TreeRules
 }
 export type User = {
   roles?: readonly Role[]
