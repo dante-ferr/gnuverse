@@ -1,3 +1,34 @@
+function isSafeBodyHref(value) {
+  if (typeof value !== 'string') return false
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  if ((trimmed.startsWith('/') && !trimmed.startsWith('//')) || trimmed.startsWith('#')) {
+    return true
+  }
+  try {
+    const parsed = new URL(trimmed)
+    return ['https:', 'http:', 'mailto:'].includes(parsed.protocol)
+  } catch {
+    return false
+  }
+}
+
+function validateLexicalNodes(node) {
+  if (!node || typeof node !== 'object') return
+  if (node.type === 'upload' || node.type === 'relationship') {
+    throw new Error('Bloco de mídia ou relação não permitido no corpo do artigo.')
+  }
+  if (node.type === 'link' || node.type === 'autolink') {
+    const rawUrl = node.fields?.url ?? node.url
+    if (!isSafeBodyHref(rawUrl)) {
+      throw new Error('Link inválido no corpo do artigo.')
+    }
+  }
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) validateLexicalNodes(child)
+  }
+}
+
 export function validateArticle(doc) {
   if (doc._status !== 'published') throw new Error('A API retornou um artigo não publicado.')
   for (const field of ['title', 'slug', 'summary', 'author', 'category']) {
@@ -5,6 +36,7 @@ export function validateArticle(doc) {
   }
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(doc.slug)) throw new Error('Slug inválido no CMS.')
   if (!doc.body?.root || !Array.isArray(doc.body.root.children)) throw new Error(`Texto inválido: ${doc.slug}`)
+  validateLexicalNodes(doc.body.root)
   const references = (doc.references ?? []).map((reference) => {
     const url = new URL(reference.url)
     if (!['https:', 'http:'].includes(url.protocol) || typeof reference.label !== 'string') {

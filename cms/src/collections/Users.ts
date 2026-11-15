@@ -8,7 +8,8 @@ export const Users: CollectionConfig = {
   admin: { useAsTitle: 'name' },
   access: {
     admin: ({ req }) => Boolean(req.user),
-    create: isAdmin,
+    create: ({ data, req }) =>
+      isAdmin({ req }) || (!req.user && (!data?.role || data.role === 'author')),
     read: ({ req }) => isAdmin({ req }) ? true : req.user ? { id: { equals: req.user.id } } : false,
     update: ({ req }) => isAdmin({ req }) ? true : req.user ? { id: { equals: req.user.id } } : false,
     delete: isAdmin,
@@ -17,7 +18,7 @@ export const Users: CollectionConfig = {
     beforeChange: [async ({ data, operation, req }) => {
       if (operation === 'create' && !req.user) {
         const existing = await req.payload.count({ collection: 'users', overrideAccess: true, req })
-        if (existing.totalDocs === 0) data.role = 'admin'
+        data.role = existing.totalDocs === 0 ? 'admin' : 'author'
       }
       return data
     }],
@@ -25,8 +26,13 @@ export const Users: CollectionConfig = {
   fields: [
     { name: 'name', label: 'Nome', type: 'text', required: true },
     {
-      name: 'role', label: 'Papel', type: 'select', required: true, defaultValue: 'editor',
-      options: [{ label: 'Administrador', value: 'admin' }, { label: 'Editor', value: 'editor' }],
+      name: 'role', label: 'Papel', type: 'select', required: true, defaultValue: 'author',
+      options: [
+        { label: 'Administrador', value: 'admin' },
+        { label: 'Revisor', value: 'reviewer' },
+        { label: 'Editor', value: 'editor' },
+        { label: 'Autor', value: 'author' },
+      ],
       access: { create: adminField, update: adminField },
     },
   ],

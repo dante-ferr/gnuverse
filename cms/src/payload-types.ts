@@ -126,7 +126,7 @@ export interface UserAuthOperations {
 export interface User {
   id: number;
   name: string;
-  role: 'admin' | 'editor';
+  role: 'admin' | 'reviewer' | 'editor' | 'author';
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -160,6 +160,12 @@ export interface Article {
   slug: string;
   summary: string;
   author: string;
+  owner?: (number | null) | User;
+  reviewStatus: 'draft' | 'in_review' | 'changes_requested' | 'approved';
+  /**
+   * Critérios, ajustes necessários ou observações da revisão editorial.
+   */
+  reviewNotes?: string | null;
   category: 'reflexoes' | 'educacao' | 'acesso' | 'experiencias';
   cover?: (number | null) | Media;
   body: {
@@ -330,6 +336,9 @@ export interface ArticlesSelect<T extends boolean = true> {
   slug?: T;
   summary?: T;
   author?: T;
+  owner?: T;
+  reviewStatus?: T;
+  reviewNotes?: T;
   category?: T;
   cover?: T;
   body?: T;

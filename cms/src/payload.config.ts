@@ -20,6 +20,16 @@ const serverURL = process.env.NODE_ENV === 'production'
   ? required('CMS_SERVER_URL')
   : getLocalCMSURL()
 
+const allowedOrigins = Array.from(
+  new Set(
+    [
+      serverURL,
+      ...(process.env.CMS_ALLOWED_ORIGINS?.split(',').map((origin) => origin.trim()) ?? []),
+      ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:3000', 'http://127.0.0.1:3000'] : []),
+    ].filter(Boolean),
+  ),
+)
+
 if (!process.env.PAYLOAD_SECRET) throw new Error('Configure PAYLOAD_SECRET no ambiente do CMS.')
 if (process.env.NODE_ENV === 'production' && (!postgres || !s3)) {
   throw new Error('Produção exige DATABASE_ADAPTER=postgres e STORAGE_ADAPTER=s3 para preservar dados e uploads.')
@@ -34,6 +44,8 @@ function required(name: string): string {
 export default buildConfig({
   secret: process.env.PAYLOAD_SECRET,
   serverURL,
+  cors: allowedOrigins,
+  csrf: allowedOrigins,
   admin: { user: 'users', importMap: { baseDir: dirname } },
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },
   collections: [Users, Articles, Media],

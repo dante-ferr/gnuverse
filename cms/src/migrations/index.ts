@@ -1,5 +1,6 @@
 import * as migration_20261014_224435 from './20261014_224435';
 import * as migration_20261014_224856_storage from './20261014_224856_storage';
+import * as migration_20261115_155653_editorial_workflow from './20261115_155653_editorial_workflow';
 
 export const migrations = [
   {
@@ -10,6 +11,11 @@ export const migrations = [
   {
     up: migration_20261014_224856_storage.up,
     down: migration_20261014_224856_storage.down,
-    name: '20261014_224856_storage'
+    name: '20261014_224856_storage',
+  },
+  {
+    up: migration_20261115_155653_editorial_workflow.up,
+    down: migration_20261115_155653_editorial_workflow.down,
+    name: '20261115_155653_editorial_workflow'
   },
 ];
