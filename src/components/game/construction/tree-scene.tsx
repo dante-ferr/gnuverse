@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { hitTestRoot, hitTestSegments } from '../../../../core/tree/segment-geometry.ts'
-import { terrainPolyline } from '../../../../core/tree/terrain.ts'
+import { terrainPolyline, terrainSurfaceY } from '../../../../core/tree/terrain.ts'
 import type { TreeRules } from '../../../../game-server/config/load-game-config.ts'
 import type { TreeFrame, TreeNode, Tower } from '../model/types'
 import styles from '../tower-game.module.css'
@@ -83,6 +83,51 @@ export function TreeScene({
 
   const clampZoom = (zoom: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom))
 
+  const clampCamera = useCallback(
+    (x: number, y: number, zoom: number): GameCamera => {
+      const scale =
+        Math.min(
+          size.width / treeRules.worldWidth,
+          size.height / treeRules.worldHeight,
+        ) * zoom
+      const ox = (size.width - treeRules.worldWidth * scale) / 2
+      const oy = (size.height - treeRules.worldHeight * scale) / 2
+      const viewW = size.width / scale
+      const viewH = size.height / scale
+      const edgeX = ox / scale
+      let cx = x
+      let cy = y
+      if (viewW >= treeRules.worldWidth) {
+        cx = treeRules.worldWidth / 2 - (size.width / 2 - ox) / scale
+      } else {
+        const minX = edgeX
+        const maxX = treeRules.worldWidth - viewW + edgeX
+        cx = Math.min(maxX, Math.max(minX, x))
+      }
+      if (viewH >= treeRules.worldHeight) {
+        cy = treeRules.worldHeight / 2 - (size.height / 2 - oy) / scale
+      } else {
+        const minY = oy / scale
+        const maxY = treeRules.worldHeight - viewH + oy / scale
+        cy = Math.min(maxY, Math.max(minY, y))
+      }
+      return { x: cx, y: cy, zoom }
+    },
+    [size.height, size.width, treeRules.worldHeight, treeRules.worldWidth],
+  )
+
+  const updateCamera = useCallback(
+    (patch: Partial<GameCamera>) => {
+      const next = {
+        x: patch.x ?? camera.x,
+        y: patch.y ?? camera.y,
+        zoom: patch.zoom ?? camera.zoom,
+      }
+      onCameraChange(clampCamera(next.x, next.y, next.zoom))
+    },
+    [camera.x, camera.y, camera.zoom, clampCamera, onCameraChange],
+  )
+
   const terrainCfg = {
     worldWidth: treeRules.worldWidth,
     terrainSamples: treeRules.terrainSamples,
@@ -128,14 +173,14 @@ export function TreeScene({
         ) *
           nextZoom)
       const { ox, oy } = viewOrigin(scale)
-      onCameraChange({
+      updateCamera({
         zoom: nextZoom,
         x: world.x - (sx - ox) / scale,
         y: world.y - (sy - oy) / scale,
       })
     },
     [
-      onCameraChange,
+      updateCamera,
       screenToWorld,
       size.height,
       size.width,
@@ -144,6 +189,25 @@ export function TreeScene({
       viewOrigin,
     ],
   )
+
+  useEffect(() => {
+    const clamped = clampCamera(camera.x, camera.y, camera.zoom)
+    if (
+      clamped.x !== camera.x ||
+      clamped.y !== camera.y ||
+      clamped.zoom !== camera.zoom
+    ) {
+      onCameraChange(clamped)
+    }
+  }, [
+    camera.x,
+    camera.y,
+    camera.zoom,
+    clampCamera,
+    onCameraChange,
+    size.height,
+    size.width,
+  ])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -165,11 +229,11 @@ export function TreeScene({
       if (keysRef.current.has('s') || keysRef.current.has('arrowdown')) dy += speed
       if (keysRef.current.has('a') || keysRef.current.has('arrowleft')) dx -= speed
       if (keysRef.current.has('d') || keysRef.current.has('arrowright')) dx += speed
-      if (dx || dy) onCameraChange({ x: camera.x + dx, y: camera.y + dy })
+      if (dx || dy) updateCamera({ x: camera.x + dx, y: camera.y + dy })
     }
     const id = window.setInterval(step, 1000 / 60)
     return () => clearInterval(id)
-  }, [camera.x, camera.y, onCameraChange, treeRules.cameraPanSpeed])
+  }, [camera.x, camera.y, updateCamera, treeRules.cameraPanSpeed])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -247,8 +311,19 @@ export function TreeScene({
 
     const nodes = frame.nodes.filter((n) => !n.broken)
     const byId = new Map(nodes.map((n) => [n.id, n]))
+    const root = nodes.find((n) => n.parentId === null)
     ctx.strokeStyle = treeRules.colorForeground
     ctx.lineCap = 'round'
+    if (root) {
+      const groundY = terrainSurfaceY(root.x, seed, terrainCfg)
+      const foot = worldToScreen(root.x, groundY)
+      const top = worldToScreen(root.x, root.y)
+      ctx.lineWidth = Math.max(3, 5 * foot.scale)
+      ctx.beginPath()
+      ctx.moveTo(foot.x, foot.y)
+      ctx.lineTo(top.x, top.y)
+      ctx.stroke()
+    }
     for (const node of nodes) {
       if (!node.parentId) continue
       const parent = byId.get(node.parentId)
@@ -424,7 +499,7 @@ export function TreeScene({
             const dx = (event.clientX - pan.lastX) / scale
             const dy = (event.clientY - pan.lastY) / scale
             dragRef.current = { ...pan, lastX: event.clientX, lastY: event.clientY }
-            onCameraChange({ x: camera.x - dx, y: camera.y - dy })
+            updateCamera({ x: camera.x - dx, y: camera.y - dy })
             return
           }
           if (growAnchor) {

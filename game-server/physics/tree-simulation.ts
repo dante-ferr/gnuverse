@@ -1,12 +1,12 @@
 import Matter from 'matter-js'
 import { randomUUID } from 'node:crypto'
+import { loadGameConfig, type TreeRules } from '../config/load-game-config.ts'
 import {
-  L_MAX,
-  MIN_GROUND_CLEARANCE,
-  MIN_UPWARD_DELTA,
-  MAX_SECONDARY_ROOTS,
-  TREE_WORLD,
-} from './tree-constants.ts'
+  groundLimitAt,
+  terrainForFrame,
+  verifyAnchorOnSegment,
+} from './map-gen.ts'
+import { actionCosts, terrainConfig, treeRules } from './tree-constants.ts'
 import type {
   GrowInput,
   TreeActionResult,
@@ -15,34 +15,26 @@ import type {
 } from './tree-types.ts'
 import { createInitialTreeFrame } from './map-gen.ts'
 
-const STEP_MS = 1000 / 60
-const SUBSTEPS = 4
-const SEGMENT_WIDTH = 8
-
-type SegmentBody = {
-  nodeId: string
-  parentId: string
-  body: Matter.Body
-  constraint: Matter.Constraint
-}
-
 /** Authoritative tree: logical graph plus Matter bodies during physics phases. */
 export class TreeSimulation {
   private frame: TreeFrame
+  private tree: TreeRules
   private engine = Matter.Engine.create({ enableSleeping: true })
-  private bodies = new Map<string, SegmentBody>()
+  private bodies = new Map<
+    string,
+    {
+      nodeId: string
+      parentId: string
+      body: Matter.Body
+      constraint: Matter.Constraint
+    }
+  >()
   private disposed = false
 
-  constructor(initial?: TreeFrame) {
-    this.frame = structuredClone(initial ?? createInitialTreeFrame(0))
-    const floor = Matter.Bodies.rectangle(
-      TREE_WORLD.width / 2,
-      TREE_WORLD.groundY + 50,
-      TREE_WORLD.width + 400,
-      120,
-      { isStatic: true, friction: 0.9, restitution: 0 },
-    )
-    Matter.Composite.add(this.engine.world, floor)
+  constructor(initial?: TreeFrame, tree: TreeRules = treeRules()) {
+    this.tree = tree
+    this.frame = structuredClone(initial ?? createInitialTreeFrame(0, 'local'))
+    this.syncTerrainBodies()
     this.syncBodies()
   }
 
@@ -61,24 +53,12 @@ export class TreeSimulation {
     if (this.disposed) throw new Error('Tree simulation disposed')
   }
 
-  private groundLimitY() {
-    return TREE_WORLD.groundY - MIN_GROUND_CLEARANCE
-  }
-
   private node(id: string) {
     return this.frame.nodes.find((n) => n.id === id && !n.broken)
   }
 
   private children(id: string) {
     return this.frame.nodes.filter((n) => n.parentId === id && !n.broken)
-  }
-
-  private descendants(id: string): string[] {
-    const out: string[] = []
-    for (const child of this.children(id)) {
-      out.push(child.id, ...this.descendants(child.id))
-    }
-    return out
   }
 
   private rootNode() {
@@ -89,35 +69,60 @@ export class TreeSimulation {
     return Math.hypot(ax - bx, ay - by)
   }
 
-  private validateGrow(parentId: string, x: number, y: number): TreeActionResult {
-    const parent = this.node(parentId)
-    if (!parent) return { ok: false, error: 'Nó pai inválido.' }
-    if (y >= this.groundLimitY()) return { ok: false, error: 'Falta distância do chão.' }
-    if (parent.y - y < MIN_UPWARD_DELTA)
+  private validateGrow(input: GrowInput): TreeActionResult {
+    const anchorCheck = verifyAnchorOnSegment(
+      this.frame,
+      input.segmentId,
+      input.anchorX,
+      input.anchorY,
+      this.tree,
+    )
+    if (!anchorCheck.ok) return anchorCheck
+    const parent = this.node(input.segmentId)
+    if (!parent) return { ok: false, error: 'Segmento inválido.' }
+  const groundY = groundLimitAt(input.x, this.frame, this.tree)
+    if (input.y >= groundY)
+      return { ok: false, error: 'Falta distância do chão.' }
+    if (input.anchorY - input.y < this.tree.minUpwardDelta)
       return { ok: false, error: 'O galho deve crescer para cima.' }
-    const len = this.distance(parent.x, parent.y, x, y)
-    if (len > L_MAX) return { ok: false, error: 'Segmento longo demais.' }
-    if (len < 20) return { ok: false, error: 'Segmento curto demais.' }
-    if (x < 40 || x > TREE_WORLD.width - 40 || y < 40)
+    const len = this.distance(
+      input.anchorX,
+      input.anchorY,
+      input.x,
+      input.y,
+    )
+    if (len > this.tree.lMax) return { ok: false, error: 'Segmento longo demais.' }
+    if (len < this.tree.minSegmentLength)
+      return { ok: false, error: 'Segmento curto demais.' }
+    const m = this.tree.worldMargin
+    if (
+      input.x < m ||
+      input.x > this.tree.worldWidth - m ||
+      input.y < m
+    )
       return { ok: false, error: 'Fora da caverna.' }
-    if (this.frame.nodes.filter((n) => !n.broken).length >= TREE_WORLD.maxSegments)
+    if (
+      this.frame.nodes.filter((n) => !n.broken).length >=
+      loadGameConfig().rules.maxSegments
+    )
       return { ok: false, error: 'Limite de galhos.' }
     return { ok: true }
   }
 
   grow(input: GrowInput): TreeActionResult {
-    const check = this.validateGrow(input.parentId, input.x, input.y)
+    const check = this.validateGrow(input)
     if (!check.ok) return check
     const node: TreeNode = {
       id: randomUUID(),
       x: input.x,
       y: input.y,
-      parentId: input.parentId,
+      parentId: input.segmentId,
       authorId: input.authorId,
       authorName: input.authorName,
       leaf: false,
       fortified: false,
       secondaryRoot: false,
+      attach: { x: input.anchorX, y: input.anchorY },
     }
     this.frame.nodes.push(node)
     return { ok: true, nodeId: node.id }
@@ -153,14 +158,15 @@ export class TreeSimulation {
   secondaryRoot(parentId: string, x: number, y: number): TreeActionResult {
     const parent = this.node(parentId)
     if (!parent) return { ok: false, error: 'Nó inválido.' }
-    if (y <= parent.y + MIN_UPWARD_DELTA)
+    if (y <= parent.y + this.tree.minUpwardDelta)
       return { ok: false, error: 'Raiz secundária só para baixo.' }
-    if (y >= this.groundLimitY()) return { ok: false, error: 'Deve alcançar o chão.' }
+    if (y >= groundLimitAt(x, this.frame, this.tree))
+      return { ok: false, error: 'Deve alcançar o chão.' }
     const count = this.frame.nodes.filter((n) => n.secondaryRoot && !n.broken).length
-    if (count >= MAX_SECONDARY_ROOTS)
+    if (count >= this.tree.maxSecondaryRoots)
       return { ok: false, error: 'Limite de raízes secundárias.' }
     const len = this.distance(parent.x, parent.y, x, y)
-    if (len > L_MAX) return { ok: false, error: 'Segmento longo demais.' }
+    if (len > this.tree.lMax) return { ok: false, error: 'Segmento longo demais.' }
     const node: TreeNode = {
       id: randomUUID(),
       x,
@@ -178,6 +184,7 @@ export class TreeSimulation {
 
   setFrame(frame: TreeFrame) {
     this.frame = structuredClone(frame)
+    this.syncTerrainBodies()
     this.syncBodies()
   }
 
@@ -190,6 +197,46 @@ export class TreeSimulation {
 
   patchFrame(patch: Partial<TreeFrame>) {
     Object.assign(this.frame, patch)
+  }
+
+  private syncTerrainBodies() {
+    const existing = this.engine.world.bodies.filter((b) =>
+      (b as Matter.Body & { label?: string }).label?.startsWith('terrain-'),
+    )
+    for (const body of existing) Matter.Composite.remove(this.engine.world, body)
+    const line = terrainForFrame(this.frame, this.tree)
+    const seed = this.frame.treeSeed ?? 'default'
+    const bottom = this.tree.worldHeight
+    for (let i = 0; i < line.length - 1; i++) {
+      const a = line[i]!
+      const b = line[i + 1]!
+      const verts = [
+        { x: a.x, y: a.y },
+        { x: b.x, y: b.y },
+        { x: b.x, y: bottom },
+        { x: a.x, y: bottom },
+      ]
+      const cx = (a.x + b.x) / 2
+      const cy = (a.y + bottom) / 2
+      const chunk = Matter.Bodies.fromVertices(
+        cx,
+        cy,
+        [verts],
+        {
+          isStatic: true,
+          friction: 0.9,
+          restitution: 0,
+          label: `terrain-${i}`,
+        },
+        true,
+      )
+      Matter.Composite.add(this.engine.world, chunk)
+    }
+    void seed
+  }
+
+  private segmentStart(parent: TreeNode, child: TreeNode) {
+    return child.attach ?? { x: parent.x, y: parent.y }
   }
 
   private syncBodies() {
@@ -213,17 +260,19 @@ export class TreeSimulation {
       return body
     }
     pin(root, true)
+    const w = this.tree.segmentBodyWidth
     for (const node of this.frame.nodes) {
       if (node.broken || node.parentId === null) continue
       const parent = this.node(node.parentId)
       if (!parent) continue
+      const attach = this.segmentStart(parent, node)
       let parentBody = staticRoots.get(parent.id)
       if (!parentBody) parentBody = pin(parent, parent.secondaryRoot)
-      const midX = (parent.x + node.x) / 2
-      const midY = (parent.y + node.y) / 2
-      const angle = Math.atan2(node.y - parent.y, node.x - parent.x)
-      const length = this.distance(parent.x, parent.y, node.x, node.y)
-      const body = Matter.Bodies.rectangle(midX, midY, length, SEGMENT_WIDTH, {
+      const midX = (attach.x + node.x) / 2
+      const midY = (attach.y + node.y) / 2
+      const angle = Math.atan2(node.y - attach.y, node.x - attach.x)
+      const length = this.distance(attach.x, attach.y, node.x, node.y)
+      const body = Matter.Bodies.rectangle(midX, midY, length, w, {
         angle,
         friction: 0.6,
         frictionAir: 0.02,
@@ -256,14 +305,20 @@ export class TreeSimulation {
 
   step(): TreeFrame {
     this.assertLive()
-    for (let i = 0; i < SUBSTEPS; i++) Matter.Engine.update(this.engine, STEP_MS / SUBSTEPS)
+    const stepMs = 1000 / this.tree.physicsFps
+    for (let i = 0; i < this.tree.physicsSubsteps; i++) {
+      Matter.Engine.update(this.engine, stepMs / this.tree.physicsSubsteps)
+    }
     for (const [nodeId, segment] of this.bodies) {
       const node = this.frame.nodes.find((n) => n.id === nodeId)
       if (!node) continue
       const stress =
         Math.abs(segment.body.angularVelocity) * 10 +
         Math.hypot(segment.body.velocity.x, segment.body.velocity.y)
-      if (stress > (node.fortified ? 55 : 32)) {
+      const limit = node.fortified
+        ? this.tree.stressThresholdFortified
+        : this.tree.stressThresholdNormal
+      if (stress > limit) {
         node.broken = true
         Matter.Composite.remove(this.engine.world, segment.body)
         Matter.Composite.remove(this.engine.world, segment.constraint)
@@ -284,6 +339,8 @@ export class TreeSimulation {
 
   restore(frame: TreeFrame) {
     this.frame = structuredClone(frame)
+    if (!this.frame.treeSeed) this.frame.treeSeed = 'legacy'
+    this.syncTerrainBodies()
     this.syncBodies()
   }
 
@@ -322,5 +379,9 @@ export class TreeSimulation {
       node.y >= e.y &&
       node.y <= e.y + e.height
     )
+  }
+
+  costs() {
+    return actionCosts(this.tree)
   }
 }

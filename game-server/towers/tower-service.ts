@@ -5,7 +5,7 @@ import { GameStore } from '../persistence/game-store.ts'
 import { WalletService } from '../economy/wallet-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { HistoryService } from './history-service.ts'
-import { ACTION_COSTS } from '../physics/tree-constants.ts'
+import { actionCosts, treeRules } from '../physics/tree-constants.ts'
 import { createInitialTreeFrame } from '../physics/map-gen.ts'
 import { canManageTower } from '../../core/authz/policy.ts'
 
@@ -106,8 +106,9 @@ export class TowerService {
       typeof body.allowCreatorBan !== 'boolean'
     )
       fail(400, 'A opção de suspensão do criador deve ser booleana.')
+    const towerId = randomUUID()
     const tower: Tower = {
-      id: randomUUID(),
+      id: towerId,
       name: text(body.name, 3, 60, 'Nome'),
       creatorId: user.id,
       allowCreatorBan: body.allowCreatorBan === true,
@@ -134,7 +135,7 @@ export class TowerService {
       proposals: [],
       segmentCount: 0,
       actionCount: 0,
-      frame: createInitialTreeFrame(this.now()),
+      frame: createInitialTreeFrame(this.now(), towerId),
     }
     this.member(tower, user)
     this.runtime.simulation(tower).restore(tower.frame)
@@ -226,12 +227,34 @@ export class TowerService {
   }
   grow(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
     this.ensurePlayable(tower)
-    const parentId = text(body.parentId, 1, 100, 'Nó pai')
-    const x = number(body.x, 0, 800, 'X')
-    const y = number(body.y, 0, 1200, 'Y')
+    const world = treeRules()
+    const costs = actionCosts(world)
+    const segmentId = text(
+      (body.segmentId ?? body.parentId) as string,
+      1,
+      100,
+      'Segmento',
+    )
+    let anchorX: number
+    let anchorY: number
+    if (body.anchorX !== undefined && body.anchorY !== undefined) {
+      anchorX = number(body.anchorX, 0, world.worldWidth, 'Âncora X')
+      anchorY = number(body.anchorY, 0, world.worldHeight, 'Âncora Y')
+    } else {
+      const anchorNode = tower.frame.nodes.find(
+        (n) => n.id === segmentId && !n.broken,
+      )
+      if (!anchorNode) fail(400, 'Segmento inválido.')
+      anchorX = anchorNode.x
+      anchorY = anchorNode.y
+    }
+    const x = number(body.x, 0, world.worldWidth, 'X')
+    const y = number(body.y, 0, world.worldHeight, 'Y')
     const sim = this.runtime.simulation(tower)
     const result = sim.grow({
-      parentId,
+      segmentId,
+      anchorX,
+      anchorY,
       x,
       y,
       authorId: user.id,
@@ -239,10 +262,10 @@ export class TowerService {
     })
     if (!result.ok) fail(409, result.error)
     tower.frame = sim.read()
-    return this.spendAndRecord(tower, user, participant, ACTION_COSTS.grow, 'grow', {
+    return this.spendAndRecord(tower, user, participant, costs.grow, 'grow', {
       nodeId: result.nodeId,
-      parentId,
-      cost: ACTION_COSTS.grow,
+      segmentId,
+      cost: costs.grow,
     })
   }
   leaf(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
@@ -252,9 +275,10 @@ export class TowerService {
     const result = sim.placeLeaf(nodeId)
     if (!result.ok) fail(409, result.error)
     tower.frame = sim.read()
-    return this.spendAndRecord(tower, user, participant, ACTION_COSTS.leaf, 'leaf', {
+    const costs = actionCosts()
+    return this.spendAndRecord(tower, user, participant, costs.leaf, 'leaf', {
       nodeId,
-      cost: ACTION_COSTS.leaf,
+      cost: costs.leaf,
     })
   }
   fortify(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
@@ -264,9 +288,10 @@ export class TowerService {
     const result = sim.fortify(nodeId)
     if (!result.ok) fail(409, result.error)
     tower.frame = sim.read()
-    return this.spendAndRecord(tower, user, participant, ACTION_COSTS.fortify, 'fortify', {
+    const costs = actionCosts()
+    return this.spendAndRecord(tower, user, participant, costs.fortify, 'fortify', {
       nodeId,
-      cost: ACTION_COSTS.fortify,
+      cost: costs.fortify,
     })
   }
   prune(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
@@ -276,9 +301,10 @@ export class TowerService {
     const result = sim.prune(nodeId)
     if (!result.ok) fail(409, result.error)
     tower.frame = sim.read()
-    return this.spendAndRecord(tower, user, participant, ACTION_COSTS.prune, 'prune', {
+    const costs = actionCosts()
+    return this.spendAndRecord(tower, user, participant, costs.prune, 'prune', {
       nodeId,
-      cost: ACTION_COSTS.prune,
+      cost: costs.prune,
     })
   }
   secondaryRoot(
@@ -288,9 +314,11 @@ export class TowerService {
     body: Record<string, unknown>,
   ) {
     this.ensurePlayable(tower)
+    const world = treeRules()
+    const costs = actionCosts(world)
     const parentId = text(body.parentId, 1, 100, 'Nó pai')
-    const x = number(body.x, 0, 800, 'X')
-    const y = number(body.y, 0, 1200, 'Y')
+    const x = number(body.x, 0, world.worldWidth, 'X')
+    const y = number(body.y, 0, world.worldHeight, 'Y')
     const sim = this.runtime.simulation(tower)
     const result = sim.secondaryRoot(parentId, x, y)
     if (!result.ok) fail(409, result.error)
@@ -300,10 +328,10 @@ export class TowerService {
       created.authorId = user.id
       created.authorName = user.nickname
     }
-    return this.spendAndRecord(tower, user, participant, ACTION_COSTS.root, 'secondary-root', {
+    return this.spendAndRecord(tower, user, participant, costs.root, 'secondary-root', {
       nodeId: result.nodeId,
       parentId,
-      cost: ACTION_COSTS.root,
+      cost: costs.root,
     })
   }
   eligibility(

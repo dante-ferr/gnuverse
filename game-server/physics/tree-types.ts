@@ -9,6 +9,8 @@ export type TreeNode = {
   fortified: boolean
   secondaryRoot: boolean
   broken?: boolean
+  /** Ponto de ligação ao longo do segmento pai (crescimento a partir da haste). */
+  attach?: { x: number; y: number }
 }
 
 export type FireflyState = {
@@ -42,10 +44,14 @@ export type TreeFrame = {
   exit: { x: number; y: number; width: number; height: number }
   tick: number
   simulating: boolean
+  /** Semente estável do terreno (id da árvore/sala). */
+  treeSeed?: string
 }
 
 export type GrowInput = {
-  parentId: string
+  segmentId: string
+  anchorX: number
+  anchorY: number
   x: number
   y: number
   authorId: string

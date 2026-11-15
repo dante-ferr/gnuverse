@@ -36,9 +36,12 @@ const { values, positionals } = parseArgs({
     email: { type: 'string' },
     password: { type: 'string' },
     parent: { type: 'string' },
+    segment: { type: 'string' },
     node: { type: 'string' },
     x: { type: 'string' },
     y: { type: 'string' },
+    'anchor-x': { type: 'string' },
+    'anchor-y': { type: 'string' },
     name: { type: 'string' },
     timeout: { type: 'string' },
     token: { type: 'string' },
@@ -46,7 +49,6 @@ const { values, positionals } = parseArgs({
 })
 
 const command = positionals[0] ?? 'help'
-const tokenFile = process.env.GAME_CLI_TOKEN_FILE
 let token = values.token ?? process.env.GAME_CLI_TOKEN
 
 async function main() {
@@ -93,18 +95,22 @@ async function main() {
       return
     }
     case 'grow': {
-      if (!values.id || !values.parent || !values.x || !values.y) {
-        console.error('--id --parent --x --y obrigatórios')
+      const segment = values.segment ?? values.parent
+      if (!values.id || !segment || !values.x || !values.y) {
+        console.error('--id --segment (ou --parent) --x --y obrigatórios')
         process.exit(1)
       }
+      const body: Json = {
+        segmentId: segment,
+        x: Number(values.x),
+        y: Number(values.y),
+      }
+      if (values['anchor-x'] !== undefined) body.anchorX = Number(values['anchor-x'])
+      if (values['anchor-y'] !== undefined) body.anchorY = Number(values['anchor-y'])
       print(
         await request(`/towers/${values.id}/grow`, {
           token: token!,
-          body: {
-            parentId: values.parent,
-            x: Number(values.x),
-            y: Number(values.y),
-          },
+          body,
         }),
       )
       return
@@ -120,23 +126,6 @@ async function main() {
         await request(`/towers/${values.id}/${command}`, {
           token: token!,
           body: { nodeId: values.node },
-        }),
-      )
-      return
-    }
-    case 'root': {
-      if (!values.id || !values.parent || !values.x || !values.y) {
-        console.error('--id --parent --x --y obrigatórios')
-        process.exit(1)
-      }
-      print(
-        await request(`/towers/${values.id}/root`, {
-          token: token!,
-          body: {
-            parentId: values.parent,
-            x: Number(values.x),
-            y: Number(values.y),
-          },
         }),
       )
       return
@@ -167,7 +156,9 @@ async function main() {
       process.exit(1)
     }
     default:
-      console.error(`Comandos: login, list, create, status, grow, leaf, fortify, prune, root, wait`)
+      console.error(
+        `Comandos: login, list, create, status, grow, leaf, fortify, prune, wait`,
+      )
       process.exit(command === 'help' ? 0 : 1)
   }
 }

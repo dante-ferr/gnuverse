@@ -4,7 +4,7 @@ import { TowerSimulation } from './tower-simulation.ts'
 import type { InitialBlock, Simulation } from './types.ts'
 
 export { WORLD, BLOCKS } from './catalog.ts'
-export { TREE_WORLD, L_MAX, ACTION_COSTS } from './tree-constants.ts'
+export { actionCosts, treeRules, terrainConfig } from './tree-constants.ts'
 export { BlockBody } from './block-body.ts'
 export { TowerSimulation } from './tower-simulation.ts'
 export { TreeSimulation } from './tree-simulation.ts'

@@ -48,7 +48,7 @@ test('tree action opens action window and returns to idle after physics', async 
     })
     assert.equal(grow.status, 200)
     const afterGrow = (await grow.json()) as {
-      frame: { turn: { phase: string } }
+      frame: { turn: { phase: string }; nodes: unknown[] }
     }
     assert.equal(afterGrow.frame.turn.phase, 'actionWindow')
     assert.ok(afterGrow.frame.nodes.length >= 2)

@@ -36,7 +36,7 @@ export function MembersPanel({
             <small>
               {person.contributions} contribuições ·{' '}
               {person.banned
-                ? 'suspenso nesta torre'
+                ? 'suspenso nesta árvore'
                 : person.eligible
                   ? 'habilitado para propor'
                   : 'contribuidor'}

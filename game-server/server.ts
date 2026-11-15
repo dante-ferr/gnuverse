@@ -34,6 +34,7 @@ export function createGameServer(options: ServerOptions = {}) {
     }
     tower.segmentCount ??= 0
     tower.actionCount ??= 0
+    if (tower.frame && !tower.frame.treeSeed) tower.frame.treeSeed = tower.id
     delete (tower as { restoreMode?: unknown }).restoreMode
     delete (tower as { wind?: unknown }).wind
     delete (tower as { placementCount?: unknown }).placementCount

@@ -1,26 +1,32 @@
-import {
-  ENERGY_CAPACITY,
-  ENERGY_DRAIN_PER_SEGMENT,
-  ENERGY_PER_LEAF,
-  FIREFLY_MAX_PHASES,
-  FIREFLY_RADIUS,
-  PHYSICS_PHASE_MS,
-  ACTION_WINDOW_MS,
-  WIN_ENERGY_PHASES,
-} from '../physics/tree-constants.ts'
+import { treeRules } from '../physics/tree-constants.ts'
+import type { TreeRules } from '../config/load-game-config.ts'
 import type { TreeFrame } from '../physics/tree-types.ts'
 import type { TreeSimulation } from '../physics/tree-simulation.ts'
 
-export function openActionWindow(frame: TreeFrame, now: number): TreeFrame {
+function cfg(tree: TreeRules = treeRules()): TreeRules {
+  return tree
+}
+
+export function openActionWindow(
+  frame: TreeFrame,
+  now: number,
+  tree: TreeRules = treeRules(),
+): TreeFrame {
+  const t = cfg(tree)
   frame.turn.phase = 'actionWindow'
-  frame.turn.phaseEndsAt = now + ACTION_WINDOW_MS
+  frame.turn.phaseEndsAt = now + t.actionWindowMs
   frame.simulating = false
   return frame
 }
 
-export function startPhysicsPhase(frame: TreeFrame, now: number): TreeFrame {
+export function startPhysicsPhase(
+  frame: TreeFrame,
+  now: number,
+  tree: TreeRules = treeRules(),
+): TreeFrame {
+  const t = cfg(tree)
   frame.turn.phase = 'physics'
-  frame.turn.phaseEndsAt = now + PHYSICS_PHASE_MS
+  frame.turn.phaseEndsAt = now + t.physicsPhaseMs
   frame.simulating = true
   return frame
 }
@@ -32,26 +38,33 @@ export function returnToIdle(frame: TreeFrame): TreeFrame {
   return frame
 }
 
-export function harvestEnergy(frame: TreeFrame, sim: TreeSimulation): void {
+export function harvestEnergy(
+  frame: TreeFrame,
+  sim: TreeSimulation,
+  tree: TreeRules = treeRules(),
+): void {
+  const t = cfg(tree)
   const fly = frame.firefly
   if (!fly.active || fly.index >= fly.path.length) return
   const { x: fx, y: fy } = fly.path[fly.index]!
   let gain = 0
   for (const leaf of sim.functionalLeaves()) {
-    if (Math.hypot(leaf.x - fx, leaf.y - fy) <= FIREFLY_RADIUS) gain += ENERGY_PER_LEAF
+    if (Math.hypot(leaf.x - fx, leaf.y - fy) <= t.fireflyRadius) gain += t.energyPerLeaf
   }
-  frame.energy = Math.min(ENERGY_CAPACITY, frame.energy + gain)
+  frame.energy = Math.min(t.energyCapacity, frame.energy + gain)
 }
 
-export function drainEnergy(frame: TreeFrame): void {
+export function drainEnergy(frame: TreeFrame, tree: TreeRules = treeRules()): void {
+  const t = cfg(tree)
   const segments = frame.nodes.filter((n) => n.parentId !== null && !n.broken).length
-  frame.energy = Math.max(0, frame.energy - segments * ENERGY_DRAIN_PER_SEGMENT)
+  frame.energy = Math.max(0, frame.energy - segments * t.energyDrainPerSegment)
 }
 
-export function advanceFirefly(frame: TreeFrame): void {
+export function advanceFirefly(frame: TreeFrame, tree: TreeRules = treeRules()): void {
+  const t = cfg(tree)
   if (!frame.firefly.active) return
   frame.firefly.phasesSeen++
-  if (frame.firefly.phasesSeen >= FIREFLY_MAX_PHASES) {
+  if (frame.firefly.phasesSeen >= t.fireflyMaxPhases) {
     frame.firefly.active = false
     return
   }
@@ -83,11 +96,12 @@ export function evaluateStarvation(frame: TreeFrame, sim: TreeSimulation): void 
     frame.outcome = 'lost'
 }
 
-export function evaluateWin(frame: TreeFrame): void {
+export function evaluateWin(frame: TreeFrame, tree: TreeRules = treeRules()): void {
+  const t = cfg(tree)
   if (frame.outcome !== 'playing' || !frame.flower.bloomed) return
   if (frame.energy > 0) frame.flower.energyPhasesAboveZero++
   else frame.flower.energyPhasesAboveZero = 0
-  if (frame.flower.energyPhasesAboveZero >= WIN_ENERGY_PHASES) frame.outcome = 'won'
+  if (frame.flower.energyPhasesAboveZero >= t.winEnergyPhases) frame.outcome = 'won'
 }
 
 export function evaluateTrunkLoss(frame: TreeFrame, sim: TreeSimulation): void {
@@ -100,11 +114,9 @@ export function publicTreeFrame(frame: TreeFrame, now: number) {
     frame.turn.phaseEndsAt === null
       ? 0
       : Math.max(0, frame.turn.phaseEndsAt - now)
-  return {
-    ...frame,
-    phaseRemainingMs,
-    fireflyPosition: frame.firefly.active
-      ? frame.firefly.path[frame.firefly.index] ?? null
-      : null,
-  }
+  const fireflyPosition =
+    frame.firefly.active && frame.firefly.path[frame.firefly.index]
+      ? frame.firefly.path[frame.firefly.index]
+      : null
+  return { ...frame, phaseRemainingMs, fireflyPosition }
 }

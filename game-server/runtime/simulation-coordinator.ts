@@ -171,7 +171,7 @@ export class SimulationCoordinator {
   }
   migrateTowerFrame(tower: Tower) {
     if (!tower.frame || !('nodes' in tower.frame)) {
-      tower.frame = createInitialTreeFrame(this.now())
+      tower.frame = createInitialTreeFrame(this.now(), tower.id)
       tower.segmentCount = 0
       tower.actionCount = tower.actionCount ?? 0
     }
