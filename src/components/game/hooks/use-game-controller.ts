@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { canManageTower } from '../../../../core/authz/policy'
 import { createTowerFromForm } from '../api/create-tower'
 import { type Proposal, type Wallet, type TreeNode } from '../model/types'
@@ -12,6 +13,7 @@ export type ProposalTarget = { type: 'ban'; targetId: string }
 
 /** Composes application actions; domain transport and stream lifecycles stay separate. */
 export function useGameController() {
+  const router = useRouter()
   const session = useGameSession()
   const lobby = useTowerLobby(session.api)
   const live = useTowerStream(session.api, lobby.towerId)
@@ -21,7 +23,7 @@ export function useGameController() {
   const [growPreview, setGrowPreview] = useState<{ x: number; y: number } | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null)
-  const [tab, setTab] = useState<'community' | 'decisions'>('community')
+  const [tab, setTab] = useState<'history' | 'community' | 'decisions'>('history')
   useEffect(() => {
     setProposalTarget(null)
     setSelected(null)
@@ -71,9 +73,7 @@ export function useGameController() {
     feedback.run(async () => {
       if (!tower || !canManageTower(session.user ? { ...session.user, roles: session.user.roles ?? [] } : null, 'delete', tower.creatorId)) return
       await session.api.request(`/api/towers/${lobby.towerId}`, undefined, 'DELETE')
-      lobby.setTowerId('')
-      await lobby.refresh()
-      feedback.setNotice('Sala excluída.')
+      router.push('/jogo/')
     })
   const openProposal = (target: ProposalTarget) => setProposalTarget(target)
   const propose = (reason: string) =>

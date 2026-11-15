@@ -29,10 +29,9 @@ export function TowerDashboard() {
   }, [])
 
   const createTower = (form: HTMLFormElement) => feedback.run(async () => {
-    await createTowerFromForm(session.api, form)
-    await lobby.refresh(1)
+    const result = await createTowerFromForm(session.api, form)
     setShowCreate(false)
-    feedback.setNotice('Caverna criada.')
+    router.push(`/jogo/torre/?id=${encodeURIComponent(result.tower.id)}`)
   })
 
   return (
