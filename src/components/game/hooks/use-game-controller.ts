@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { canManageTower } from '../../../../core/authz/policy'
 import { createTowerFromForm } from '../api/create-tower'
 import { type Proposal, type Wallet, type TreeNode } from '../model/types'
+import { parseTreeRules } from '../model/tree-rules'
+import type { GrowAnchor, GameCamera } from '../construction/tree-scene'
 import { useGameSession } from './use-game-session'
 import { useTowerLobby } from './use-tower-lobby'
 import { useTowerStream } from './use-tower-stream'
@@ -19,19 +21,25 @@ export function useGameController() {
   const live = useTowerStream(session.api, lobby.towerId)
   const feedback = useActionFeedback()
   const [selected, setSelected] = useState<TreeNode | null>(null)
-  const [growFrom, setGrowFrom] = useState<string | null>(null)
+  const [growAnchor, setGrowAnchor] = useState<GrowAnchor | null>(null)
   const [growPreview, setGrowPreview] = useState<{ x: number; y: number } | null>(null)
+  const [camera, setCameraState] = useState<GameCamera>({ x: 0, y: 0, zoom: 1 })
+  const setCamera = (patch: Partial<GameCamera>) =>
+    setCameraState((prev) => ({ ...prev, ...patch }))
   const [showCreate, setShowCreate] = useState(false)
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null)
-  const [tab, setTab] = useState<'history' | 'community' | 'decisions'>('history')
+  const [tab, setTab] = useState<'community' | 'decisions'>('community')
   useEffect(() => {
     setProposalTarget(null)
     setSelected(null)
-    setGrowFrom(null)
+    setGrowAnchor(null)
+    setGrowPreview(null)
+    setCameraState({ x: 0, y: 0, zoom: 1 })
   }, [lobby.towerId])
   const tower = live.state?.tower || null
   const member = live.state?.members.find((person) => person.id === session.user?.id)
   const rules = live.state?.rules || lobby.rules
+  const treeRules = parseTreeRules(rules)
   const connection = lobby.towerId ? live.connection : lobby.connection
   const canAct = Boolean(
     session.user &&
@@ -56,9 +64,15 @@ export function useGameController() {
       await live.refresh()
     })
   const growCommit = (point: { x: number; y: number }) => {
-    if (!growFrom) return
-    void perform('grow', { parentId: growFrom, x: point.x, y: point.y })
-    setGrowFrom(null)
+    if (!growAnchor) return
+    void perform('grow', {
+      segmentId: growAnchor.segmentId,
+      anchorX: growAnchor.x,
+      anchorY: growAnchor.y,
+      x: point.x,
+      y: point.y,
+    })
+    setGrowAnchor(null)
     setGrowPreview(null)
   }
   const createTower = (form: HTMLFormElement) =>
@@ -118,10 +132,12 @@ export function useGameController() {
     feedback,
     selected,
     setSelected,
-    growFrom,
-    setGrowFrom,
+    growAnchor,
+    setGrowAnchor,
     growPreview,
     setGrowPreview,
+    camera,
+    setCamera,
     showCreate,
     setShowCreate,
     proposalTarget,
@@ -131,6 +147,7 @@ export function useGameController() {
     tower,
     member,
     rules,
+    treeRules,
     connection,
     canAct,
     logout,

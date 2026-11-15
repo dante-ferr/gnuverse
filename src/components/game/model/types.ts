@@ -9,6 +9,7 @@ export type TreeNode = {
   fortified: boolean
   secondaryRoot?: boolean
   broken?: boolean
+  attach?: { x: number; y: number }
 }
 export type TreeFrame = {
   nodes: TreeNode[]
@@ -27,6 +28,7 @@ export type TreeFrame = {
   simulating?: boolean
   phaseRemainingMs?: number
   fireflyPosition?: { x: number; y: number } | null
+  treeSeed?: string
 }
 export type User = { id: string; nickname: string; roles?: readonly import('../../../../core/authz/policy').Role[] }
 export type Wallet = {

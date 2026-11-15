@@ -27,24 +27,28 @@ export function TowerGame() {
     if (new URLSearchParams(window.location.search).has('novo'))
       game.setShowCreate(true)
   }, [game.setShowCreate])
+  const treeRules = game.treeRules
   return (
-    <main className={styles.game}>
-      <AccountBanner
-        user={session.user}
-        wallet={session.wallet}
-        secondsToCoin={session.secondsToCoin}
-        busy={feedback.busy}
-        onLogout={game.logout}
-        onOpenAuth={() => openLogin()}
-      />
-      <TowerToolbar
-        connection={game.connection}
-        onCreate={() => game.setShowCreate(true)}
-        canDelete={Boolean(
-          game.tower && canManageTower(session.user ? { ...session.user, roles: session.user.roles ?? [] } : null, 'delete', game.tower.creatorId),
-        )}
-        onDelete={game.deleteTower}
-      />
+    <main className={styles.gameShell}>
+      <header className={styles.gameTopBar}>
+        <AccountBanner
+          user={session.user}
+          wallet={session.wallet}
+          secondsToCoin={session.secondsToCoin}
+          busy={feedback.busy}
+          onLogout={game.logout}
+          onOpenAuth={() => openLogin()}
+        />
+        <TowerToolbar
+          connection={game.connection}
+          towerName={game.tower?.name}
+          onCreate={() => game.setShowCreate(true)}
+          canDelete={Boolean(
+            game.tower && canManageTower(session.user ? { ...session.user, roles: session.user.roles ?? [] } : null, 'delete', game.tower.creatorId),
+          )}
+          onDelete={game.deleteTower}
+        />
+      </header>
       {game.connection === 'offline' && (
         <div className={styles.message} role="status">
           Servidor indisponível. Reconectando…
@@ -77,50 +81,55 @@ export function TowerGame() {
           onCreateTower={game.createTower}
         />
       )}
-      <div className={styles.playLayout}>
-        <TreeScene
-          frame={live.frame}
-          tower={game.tower}
-          expanded={false}
-          growFrom={game.growFrom}
-          growPreview={game.growPreview}
-          onToggleExpanded={() => undefined}
-          onSelectNode={(node) => game.setSelected(node)}
-          onGrowPreview={(point) => game.setGrowPreview(point)}
-          onGrowCommit={game.growCommit}
-        />
-        <TreeControls
-          user={session.user}
-          wallet={session.wallet}
-          tower={game.tower}
-          frame={live.frame}
-          selected={game.selected}
-          growFrom={game.growFrom}
-          busy={feedback.busy}
-          isBanned={Boolean(game.member?.banned)}
-          onStartGrow={() => game.selected && game.setGrowFrom(game.selected.id)}
-          onCancelGrow={() => {
-            game.setGrowFrom(null)
-            game.setGrowPreview(null)
-          }}
-          onLeaf={() => game.selected && game.perform('leaf', { nodeId: game.selected.id })}
-          onFortify={() => game.selected && game.perform('fortify', { nodeId: game.selected.id })}
-          onPrune={() => game.selected && game.perform('prune', { nodeId: game.selected.id })}
-        />
-      </div>
-      {live.state && (
-        <TowerCommunity
-          state={live.state}
-          user={session.user}
-          busy={feedback.busy}
-          isBanned={Boolean(game.member?.banned)}
-          tab={game.tab}
-          onTabChange={game.setTab}
-          onBan={(id) => game.openProposal({ type: 'ban', targetId: id })}
-          onDecide={game.decide}
-          onEligibility={game.setEligibility}
-          onSettingsSave={game.saveSettings}
-        />
+      {treeRules ? (
+        <div className={styles.treePlayLayout}>
+          <TreeScene
+            frame={live.frame}
+            tower={game.tower}
+            treeRules={treeRules}
+            growAnchor={game.growAnchor}
+            growPreview={game.growPreview}
+            camera={game.camera}
+            onCameraChange={game.setCamera}
+            onSelectNode={(node) => game.setSelected(node)}
+            onGrowAnchor={game.setGrowAnchor}
+            onGrowPreview={(point) => game.setGrowPreview(point)}
+            onGrowCommit={game.growCommit}
+          />
+          <aside className={styles.gameSidebar}>
+            <TreeControls
+              user={session.user}
+              wallet={session.wallet}
+              tower={game.tower}
+              frame={live.frame}
+              selected={game.selected}
+              treeRules={treeRules}
+              busy={feedback.busy}
+              isBanned={Boolean(game.member?.banned)}
+              onLeaf={() => game.selected && game.perform('leaf', { nodeId: game.selected.id })}
+              onFortify={() => game.selected && game.perform('fortify', { nodeId: game.selected.id })}
+              onPrune={() => game.selected && game.perform('prune', { nodeId: game.selected.id })}
+            />
+            {live.state && (
+              <TowerCommunity
+                state={live.state}
+                user={session.user}
+                busy={feedback.busy}
+                isBanned={Boolean(game.member?.banned)}
+                tab={game.tab}
+                onTabChange={game.setTab}
+                onBan={(id) => game.openProposal({ type: 'ban', targetId: id })}
+                onDecide={game.decide}
+                onEligibility={game.setEligibility}
+                onSettingsSave={game.saveSettings}
+              />
+            )}
+          </aside>
+        </div>
+      ) : (
+        <p className={styles.message} role="status">
+          Carregando regras da árvore…
+        </p>
       )}
       {game.proposalTarget && (
         <ProposalForm

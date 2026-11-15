@@ -1,54 +1,150 @@
 'use client'
 
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
+import { hitTestRoot, hitTestSegments } from '../../../../core/tree/segment-geometry.ts'
+import { terrainPolyline } from '../../../../core/tree/terrain.ts'
+import type { TreeRules } from '../../../../game-server/config/load-game-config.ts'
 import type { TreeFrame, TreeNode, Tower } from '../model/types'
 import styles from '../tower-game.module.css'
 
-const WORLD_WIDTH = 800
-const WORLD_HEIGHT = 1200
-const HIT_RADIUS = 24
+export type GrowAnchor = {
+  segmentId: string
+  x: number
+  y: number
+  t: number
+}
+
+export type GameCamera = { x: number; y: number; zoom: number }
+
+const ZOOM_MIN = 0.5
+const ZOOM_MAX = 4
+const ZOOM_STEP = 1.12
 
 export type TreeSceneProps = {
   frame: TreeFrame
   tower: Tower | null
-  expanded: boolean
-  growFrom: string | null
+  treeRules: TreeRules
+  growAnchor: GrowAnchor | null
   growPreview: { x: number; y: number } | null
-  onToggleExpanded: () => void
+  camera: GameCamera
+  onCameraChange: (patch: Partial<GameCamera>) => void
   onSelectNode: (node: TreeNode) => void
+  onGrowAnchor: (anchor: GrowAnchor | null) => void
   onGrowPreview: (point: { x: number; y: number } | null) => void
   onGrowCommit: (point: { x: number; y: number }) => void
 }
 
-function toCanvas(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  point: { x: number; y: number },
-) {
-  const scale = Math.min(width / WORLD_WIDTH, height / WORLD_HEIGHT)
-  const offsetX = (width - WORLD_WIDTH * scale) / 2
-  const offsetY = (height - WORLD_HEIGHT * scale) / 2
-  return {
-    x: offsetX + point.x * scale,
-    y: offsetY + point.y * scale,
-    scale,
-  }
-}
+type DragState =
+  | { kind: 'pending'; x: number; y: number; button: number }
+  | { kind: 'pan'; lastX: number; lastY: number; button: number }
+  | null
 
 export function TreeScene({
   frame,
   tower,
-  expanded,
-  growFrom,
+  treeRules,
+  growAnchor,
   growPreview,
-  onToggleExpanded,
+  camera,
+  onCameraChange,
   onSelectNode,
+  onGrowAnchor,
   onGrowPreview,
   onGrowCommit,
 }: TreeSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [size, setSize] = useState({ width: 360, height: 540 })
+  const dragRef = useRef<DragState>(null)
+  const keysRef = useRef(new Set<string>())
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>())
+  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null)
+  const [size, setSize] = useState({ width: 800, height: 600 })
+
+  const viewScale = useCallback(() => {
+    const base = Math.min(
+      size.width / treeRules.worldWidth,
+      size.height / treeRules.worldHeight,
+    )
+    return base * camera.zoom
+  }, [camera.zoom, size.height, size.width, treeRules.worldHeight, treeRules.worldWidth])
+
+  const viewOrigin = useCallback(
+    (scale: number) => ({
+      ox: (size.width - treeRules.worldWidth * scale) / 2,
+      oy: (size.height - treeRules.worldHeight * scale) / 2,
+    }),
+    [size.height, size.width, treeRules.worldHeight, treeRules.worldWidth],
+  )
+
+  const clampZoom = (zoom: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom))
+
+  const terrainCfg = {
+    worldWidth: treeRules.worldWidth,
+    terrainSamples: treeRules.terrainSamples,
+    terrainAmplitude: treeRules.terrainAmplitude,
+    terrainMaxSlope: treeRules.terrainMaxSlope,
+    terrainBaseY: treeRules.terrainBaseY,
+  }
+
+  const worldToScreen = useCallback(
+    (wx: number, wy: number) => {
+      const scale = viewScale()
+      const { ox, oy } = viewOrigin(scale)
+      return {
+        x: ox + (wx - camera.x) * scale,
+        y: oy + (wy - camera.y) * scale,
+        scale,
+        ox,
+        oy,
+      }
+    },
+    [camera.x, camera.y, viewOrigin, viewScale],
+  )
+
+  const screenToWorld = useCallback(
+    (sx: number, sy: number) => {
+      const scale = viewScale()
+      const { ox, oy } = viewOrigin(scale)
+      return {
+        x: (sx - ox) / scale + camera.x,
+        y: (sy - oy) / scale + camera.y,
+      }
+    },
+    [camera.x, camera.y, viewOrigin, viewScale],
+  )
+
+  const zoomAtScreen = useCallback(
+    (sx: number, sy: number, nextZoom: number) => {
+      const world = screenToWorld(sx, sy)
+      const scale =
+        (Math.min(
+          size.width / treeRules.worldWidth,
+          size.height / treeRules.worldHeight,
+        ) *
+          nextZoom)
+      const { ox, oy } = viewOrigin(scale)
+      onCameraChange({
+        zoom: nextZoom,
+        x: world.x - (sx - ox) / scale,
+        y: world.y - (sy - oy) / scale,
+      })
+    },
+    [
+      onCameraChange,
+      screenToWorld,
+      size.height,
+      size.width,
+      treeRules.worldHeight,
+      treeRules.worldWidth,
+      viewOrigin,
+    ],
+  )
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -59,6 +155,67 @@ export function TreeScene({
     observer.observe(canvas)
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    const step = () => {
+      let dx = 0
+      let dy = 0
+      const speed = treeRules.cameraPanSpeed
+      if (keysRef.current.has('w') || keysRef.current.has('arrowup')) dy -= speed
+      if (keysRef.current.has('s') || keysRef.current.has('arrowdown')) dy += speed
+      if (keysRef.current.has('a') || keysRef.current.has('arrowleft')) dx -= speed
+      if (keysRef.current.has('d') || keysRef.current.has('arrowright')) dx += speed
+      if (dx || dy) onCameraChange({ x: camera.x + dx, y: camera.y + dy })
+    }
+    const id = window.setInterval(step, 1000 / 60)
+    return () => clearInterval(id)
+  }, [camera.x, camera.y, onCameraChange, treeRules.cameraPanSpeed])
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, button, [contenteditable]')) return
+      const key = event.key.toLowerCase()
+      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+        keysRef.current[event.type === 'keydown' ? 'add' : 'delete'](key)
+        event.preventDefault()
+      }
+      if (event.type === 'keydown' && (key === '+' || key === '=' || key === '-')) {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const rect = canvas.getBoundingClientRect()
+        const factor = key === '-' ? 1 / ZOOM_STEP : ZOOM_STEP
+        zoomAtScreen(
+          rect.width / 2,
+          rect.height / 2,
+          clampZoom(camera.zoom * factor),
+        )
+        event.preventDefault()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('keyup', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keyup', onKey)
+    }
+  }, [camera.zoom, zoomAtScreen])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const rect = canvas.getBoundingClientRect()
+      const sx = event.clientX - rect.left
+      const sy = event.clientY - rect.top
+      const factor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
+      zoomAtScreen(sx, sy, clampZoom(camera.zoom * factor))
+    }
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', onWheel)
+  }, [camera.zoom, zoomAtScreen])
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -68,85 +225,107 @@ export function TreeScene({
     canvas.width = size.width * dpr
     canvas.height = size.height * dpr
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.fillStyle = '#0b0f14'
+    ctx.fillStyle = treeRules.colorBackground
     ctx.fillRect(0, 0, size.width, size.height)
+
+    const seed = frame.treeSeed ?? tower?.id ?? 'default'
+    const terrain = terrainPolyline(seed, terrainCfg)
+    ctx.fillStyle = treeRules.colorForeground
+    ctx.beginPath()
+    const first = worldToScreen(terrain[0]!.x, terrain[0]!.y)
+    ctx.moveTo(first.x, first.y)
+    for (let i = 1; i < terrain.length; i++) {
+      const p = worldToScreen(terrain[i]!.x, terrain[i]!.y)
+      ctx.lineTo(p.x, p.y)
+    }
+    const br = worldToScreen(treeRules.worldWidth, treeRules.worldHeight)
+    const bl = worldToScreen(0, treeRules.worldHeight)
+    ctx.lineTo(br.x, br.y)
+    ctx.lineTo(bl.x, bl.y)
+    ctx.closePath()
+    ctx.fill()
+
     const nodes = frame.nodes.filter((n) => !n.broken)
     const byId = new Map(nodes.map((n) => [n.id, n]))
-  for (const node of nodes) {
+    ctx.strokeStyle = treeRules.colorForeground
+    ctx.lineCap = 'round'
+    for (const node of nodes) {
       if (!node.parentId) continue
       const parent = byId.get(node.parentId)
       if (!parent) continue
-      const a = toCanvas(ctx, size.width, size.height, parent)
-      const b = toCanvas(ctx, size.width, size.height, node)
-      ctx.strokeStyle = node.fortified ? '#8fd4ff' : '#57c79e'
+      const start = node.attach ?? parent
+      const a = worldToScreen(start.x, start.y)
+      const b = worldToScreen(node.x, node.y)
       ctx.lineWidth = Math.max(3, 5 * a.scale)
       ctx.beginPath()
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
       ctx.stroke()
     }
+
     const exit = frame.exit
-    const ex = toCanvas(ctx, size.width, size.height, { x: exit.x, y: exit.y })
-    ctx.strokeStyle = '#f5d76e'
+    const ex = worldToScreen(exit.x, exit.y)
+    ctx.strokeStyle = treeRules.colorExitStroke
+    ctx.lineWidth = 2
     ctx.strokeRect(ex.x, ex.y, exit.width * ex.scale, exit.height * ex.scale)
+
     if (frame.fireflyPosition) {
-      const fly = toCanvas(ctx, size.width, size.height, frame.fireflyPosition)
-      const gradient = ctx.createRadialGradient(fly.x, fly.y, 0, fly.x, fly.y, 120 * fly.scale)
-      gradient.addColorStop(0, 'rgba(255,240,120,0.35)')
-      gradient.addColorStop(1, 'rgba(255,240,120,0)')
-      ctx.fillStyle = gradient
-      ctx.beginPath()
-      ctx.arc(fly.x, fly.y, 120 * fly.scale, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = '#fff6a8'
+      const fly = worldToScreen(frame.fireflyPosition.x, frame.fireflyPosition.y)
+      ctx.fillStyle = treeRules.colorFireflyGlow
       ctx.beginPath()
       ctx.arc(fly.x, fly.y, 5 * fly.scale, 0, Math.PI * 2)
       ctx.fill()
     }
+
     for (const node of nodes) {
-      const p = toCanvas(ctx, size.width, size.height, node)
-      ctx.fillStyle = node.leaf ? '#9ef7c3' : node.parentId === null ? '#c4a46b' : '#dfe6ee'
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, Math.max(HIT_RADIUS / 2, 8) * p.scale, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    if (growFrom && growPreview) {
-      const parent = byId.get(growFrom)
-      if (parent) {
-        const a = toCanvas(ctx, size.width, size.height, parent)
-        const b = toCanvas(ctx, size.width, size.height, growPreview)
-        ctx.setLineDash([6, 6])
-        ctx.strokeStyle = '#64d9ff'
+      const p = worldToScreen(node.x, node.y)
+      if (node.leaf) {
+        ctx.fillStyle = treeRules.colorForeground
         ctx.beginPath()
-        ctx.moveTo(a.x, a.y)
-        ctx.lineTo(b.x, b.y)
-        ctx.stroke()
-        ctx.setLineDash([])
+        ctx.arc(p.x, p.y - 6 * p.scale, 8 * p.scale, 0, Math.PI * 2)
+        ctx.fill()
+      } else if (node.parentId !== null) {
+        ctx.fillStyle = treeRules.colorForeground
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 4 * p.scale, 0, Math.PI * 2)
+        ctx.fill()
       }
     }
-    ctx.fillStyle = '#c8d2dc'
-    ctx.font = '12px system-ui'
-    ctx.fillText(`Energia: ${frame.energy}`, 12, 20)
-    ctx.fillText(`Fase: ${frame.turn.phase}`, 12, 36)
-    if (tower?.outcome && tower.outcome !== 'playing') {
-      ctx.fillText(tower.outcome === 'won' ? 'Vitória' : 'Derrota', 12, 52)
+
+    if (growAnchor && growPreview) {
+      const a = worldToScreen(growAnchor.x, growAnchor.y)
+      const b = worldToScreen(growPreview.x, growPreview.y)
+      ctx.setLineDash([6, 6])
+      ctx.strokeStyle = treeRules.colorForeground
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(a.x, a.y)
+      ctx.lineTo(b.x, b.y)
+      ctx.stroke()
+      ctx.setLineDash([])
     }
-  }, [frame, growFrom, growPreview, size, tower?.outcome])
-  const pointerToWorld = (event: PointerEvent<HTMLCanvasElement>) => {
+
+  }, [
+    camera,
+    frame,
+    growAnchor,
+    growPreview,
+    size,
+    terrainCfg,
+    treeRules,
+    worldToScreen,
+  ])
+
+  const pointerToWorld = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (!canvas) return null
     const rect = canvas.getBoundingClientRect()
-    const scale = Math.min(rect.width / WORLD_WIDTH, rect.height / WORLD_HEIGHT)
-    const offsetX = (rect.width - WORLD_WIDTH * scale) / 2
-    const offsetY = (rect.height - WORLD_HEIGHT * scale) / 2
-    return {
-      x: (event.clientX - rect.left - offsetX) / scale,
-      y: (event.clientY - rect.top - offsetY) / scale,
-    }
+    return screenToWorld(event.clientX - rect.left, event.clientY - rect.top)
   }
+
   const hitNode = (point: { x: number; y: number }) => {
     let best: TreeNode | null = null
-    let bestDist = HIT_RADIUS
+    let bestDist = treeRules.nodeHitRadius
     for (const node of frame.nodes.filter((n) => !n.broken)) {
       const dist = Math.hypot(node.x - point.x, node.y - point.y)
       if (dist < bestDist) {
@@ -156,28 +335,126 @@ export function TreeScene({
     }
     return best
   }
+
+  const tryGrowPick = (world: { x: number; y: number }) => {
+    const nodes = frame.nodes.filter((n) => !n.broken)
+    const segment =
+      hitTestSegments(nodes, world.x, world.y, treeRules.segmentHitPadding) ??
+      hitTestRoot(nodes, world.x, world.y, treeRules.nodeHitRadius)
+    if (!segment) return false
+    onGrowAnchor({
+      segmentId: segment.segmentId,
+      x: segment.x,
+      y: segment.y,
+      t: segment.t,
+    })
+    onGrowPreview(null)
+    return true
+  }
+
   return (
-    <section className={expanded ? `${styles.scene} ${styles.sceneExpanded}` : styles.scene}>
-      <div className={styles.sceneHeader}>
-        <h2>Árvore na caverna</h2>
-        <button type="button" onClick={onToggleExpanded}>
-          {expanded ? 'Recolher' : 'Expandir'}
-        </button>
-      </div>
+    <section
+      className={styles.sceneViewport}
+      aria-label="Cena da árvore"
+      style={{ background: treeRules.colorBackground }}
+    >
+      <p className={styles.sceneHud}>
+        <span>Energia {frame.energy}</span>
+        <span>Fase {frame.turn.phase}</span>
+        <span>Zoom {Math.round(camera.zoom * 100)}%</span>
+        {tower?.outcome && tower.outcome !== 'playing' && (
+          <span>{tower.outcome === 'won' ? 'Vitória' : 'Derrota'}</span>
+        )}
+      </p>
       <canvas
         ref={canvasRef}
         className={styles.treeCanvas}
-        style={{ touchAction: 'none', width: '100%', aspectRatio: `${WORLD_WIDTH} / ${WORLD_HEIGHT}` }}
+        style={{ touchAction: 'none' }}
         onPointerDown={(event) => {
-          const world = pointerToWorld(event)
-          if (!world) return
-          const node = hitNode(world)
-          if (growFrom) onGrowCommit(world)
-          else if (node) onSelectNode(node)
+          pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+          if (pointersRef.current.size === 2) {
+            const pts = [...pointersRef.current.values()]
+            const distance = Math.hypot(pts[0]!.x - pts[1]!.x, pts[0]!.y - pts[1]!.y)
+            pinchRef.current = { distance, zoom: camera.zoom }
+            dragRef.current = null
+            return
+          }
+          if (event.button === 0 || event.button === 1) {
+            dragRef.current = {
+              kind: 'pending',
+              x: event.clientX,
+              y: event.clientY,
+              button: event.button,
+            }
+          }
         }}
         onPointerMove={(event) => {
-          if (!growFrom) return
-          onGrowPreview(pointerToWorld(event))
+          pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+          if (pointersRef.current.size === 2 && pinchRef.current) {
+            const canvas = canvasRef.current
+            if (!canvas) return
+            const rect = canvas.getBoundingClientRect()
+            const pts = [...pointersRef.current.values()]
+            const distance = Math.hypot(pts[0]!.x - pts[1]!.x, pts[0]!.y - pts[1]!.y)
+            const midX = (pts[0]!.x + pts[1]!.x) / 2 - rect.left
+            const midY = (pts[0]!.y + pts[1]!.y) / 2 - rect.top
+            const nextZoom = clampZoom((pinchRef.current.zoom * distance) / pinchRef.current.distance)
+            zoomAtScreen(midX, midY, nextZoom)
+            return
+          }
+          const drag = dragRef.current
+          if (drag?.kind === 'pending') {
+            const dist = Math.hypot(event.clientX - drag.x, event.clientY - drag.y)
+            if (
+              dist > treeRules.clickDragThresholdPx &&
+              (drag.button === 0 || drag.button === 1)
+            ) {
+              dragRef.current = {
+                kind: 'pan',
+                lastX: event.clientX,
+                lastY: event.clientY,
+                button: drag.button,
+              }
+              canvasRef.current?.setPointerCapture(event.pointerId)
+            }
+          }
+          if (dragRef.current?.kind === 'pan') {
+            const scale = viewScale()
+            const pan = dragRef.current
+            const dx = (event.clientX - pan.lastX) / scale
+            const dy = (event.clientY - pan.lastY) / scale
+            dragRef.current = { ...pan, lastX: event.clientX, lastY: event.clientY }
+            onCameraChange({ x: camera.x - dx, y: camera.y - dy })
+            return
+          }
+          if (growAnchor) {
+            onGrowPreview(pointerToWorld(event))
+          }
+        }}
+        onPointerUp={(event) => {
+          pointersRef.current.delete(event.pointerId)
+          if (pointersRef.current.size < 2) pinchRef.current = null
+          const drag = dragRef.current
+          dragRef.current = null
+          if (drag?.kind === 'pan') {
+            canvasRef.current?.releasePointerCapture(event.pointerId)
+            return
+          }
+          if (drag?.kind !== 'pending' || drag.button !== 0) return
+          const world = pointerToWorld(event)
+          if (!world) return
+          if (growAnchor) {
+            onGrowCommit(world)
+            return
+          }
+          const node = hitNode(world)
+          if (node) onSelectNode(node)
+          else tryGrowPick(world)
+        }}
+        onPointerCancel={(event) => {
+          pointersRef.current.delete(event.pointerId)
+          if (pointersRef.current.size < 2) pinchRef.current = null
+          dragRef.current = null
         }}
       />
     </section>
