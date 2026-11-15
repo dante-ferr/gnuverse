@@ -29,10 +29,10 @@ export default async function ArticlePage({ params }: Props) {
   return (
     <main className="mx-auto min-h-svh max-w-3xl px-6 py-10 sm:px-12">
       <Link
-        href="/artigos/"
+        href="/blog/"
         className="text-sm text-[var(--accent)] underline underline-offset-4"
       >
-        ← Todos os artigos
+        ← Voltar ao blog
       </Link>
       <article className="mt-16">
         <p className="text-xs uppercase tracking-widest text-[var(--accent)]">

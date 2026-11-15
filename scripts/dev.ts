@@ -102,7 +102,9 @@ process.on('SIGTERM', () => stop())
 console.log(
   `Iniciando CMS em ${cmsURL}/admin e jogo em ${config.gameURL}. Aguardando as APIs…`,
 )
-start(['run', 'cms:dev'], 'CMS')
+start(['run', 'cms:dev'], 'CMS', {
+  CMS_ALLOWED_ORIGINS: config.allowedOrigins,
+})
 start(['run', 'game:dev'], 'Jogo', {
   GAME_PORT: config.gamePort,
   GAME_ALLOWED_ORIGINS: config.allowedOrigins,
@@ -128,6 +130,7 @@ try {
       {
         CMS_CONTENT_MODE: 'live',
         CMS_URL: cmsURL,
+        NEXT_PUBLIC_CMS_URL: cmsURL,
         NEXT_PUBLIC_GAME_API_URL: config.gameURL,
       },
     )
