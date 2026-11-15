@@ -1,7 +1,7 @@
 import { treeRules } from '../physics/tree-constants.ts'
 import type { TreeRules } from '../config/load-game-config.ts'
 import type { TreeFrame } from '../physics/tree-types.ts'
-import type { TreeSimulation } from '../physics/tree-simulation.ts'
+import type { TreeSimulation } from '../physics/tree/tree-simulation.ts'
 
 function cfg(tree: TreeRules = treeRules()): TreeRules {
   return tree

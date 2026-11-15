@@ -38,13 +38,13 @@ test('tree action opens action window and returns to idle after physics', async 
       headers: { Authorization: `Bearer ${token}` },
     })
     const state = (await detail.json()) as {
-      frame: { nodes: { id: string }[]; turn: { phase: string } }
+      frame: { nodes: { id: string; x: number; y: number }[]; turn: { phase: string } }
     }
-    const rootId = state.frame.nodes[0]!.id
+    const root = state.frame.nodes[0]!
     const grow = await fetch(`${base}/api/towers/${tower.id}/grow`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parentId: rootId, x: 420, y: 1020 }),
+      body: JSON.stringify({ parentId: root.id, x: root.x, y: root.y - 40 }),
     })
     assert.equal(grow.status, 200)
     const afterGrow = (await grow.json()) as {

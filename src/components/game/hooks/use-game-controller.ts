@@ -6,7 +6,7 @@ import { canManageTower } from '../../../../core/authz/policy'
 import { createTowerFromForm } from '../api/create-tower'
 import { type Proposal, type Wallet, type TreeNode } from '../model/types'
 import { parseTreeRules } from '../model/tree-rules'
-import type { GrowAnchor, GameCamera } from '../construction/tree-scene'
+import type { GrowAnchor, GameCamera } from '../construction/tree-scene/index.ts'
 import { useGameSession } from './use-game-session'
 import { useTowerLobby } from './use-tower-lobby'
 import { useTowerStream } from './use-tower-stream'
@@ -65,15 +65,23 @@ export function useGameController() {
     })
   const growCommit = (point: { x: number; y: number }) => {
     if (!growAnchor) return
-    void perform('grow', {
-      segmentId: growAnchor.segmentId,
-      anchorX: growAnchor.x,
-      anchorY: growAnchor.y,
-      x: point.x,
-      y: point.y,
+    const anchor = growAnchor
+    void feedback.run(async () => {
+      const result = await session.api.request<{ wallet: Wallet }>(
+        `/api/towers/${lobby.towerId}/grow`,
+        {
+          segmentId: anchor.segmentId,
+          anchorX: anchor.x,
+          anchorY: anchor.y,
+          x: point.x,
+          y: point.y,
+        },
+      )
+      session.setWallet(result.wallet)
+      await live.refresh()
+      setGrowAnchor(null)
+      setGrowPreview(null)
     })
-    setGrowAnchor(null)
-    setGrowPreview(null)
   }
   const createTower = (form: HTMLFormElement) =>
     feedback.run(async () => {

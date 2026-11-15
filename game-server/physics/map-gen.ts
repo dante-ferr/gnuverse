@@ -113,8 +113,13 @@ export function verifyAnchorOnSegment(
   const nodes = frame.nodes.filter((n) => !n.broken)
   const root = nodes.find((n) => n.parentId === null)
   if (root && segmentId === root.id) {
-    const dist = Math.hypot(anchorX - root.x, anchorY - root.y)
-    if (dist > tree.growAnchorTolerance) {
+    const groundY = terrainSurfaceY(
+      root.x,
+      frame.treeSeed ?? 'default',
+      terrainConfig(tree),
+    )
+    const hit = projectOnSegment(root.x, groundY, root.x, root.y, anchorX, anchorY)
+    if (hit.dist > tree.growAnchorTolerance) {
       return { ok: false, error: 'Âncora longe da raiz.' }
     }
     return { ok: true }

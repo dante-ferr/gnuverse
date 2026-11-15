@@ -1,5 +1,6 @@
 import type { ServerResponse } from 'node:http'
 import { createTreeSimulation } from '../physics/index.ts'
+import { treeRules } from '../physics/tree-constants.ts'
 import type { Tower } from '../domain/types.ts'
 import { fail } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
@@ -19,7 +20,7 @@ import {
   startPhysicsPhase,
 } from '../tree/tree-phase-service.ts'
 import { createInitialTreeFrame } from '../physics/map-gen.ts'
-import type { TreeSimulation } from '../physics/tree-simulation.ts'
+import type { TreeSimulation } from '../physics/tree/tree-simulation.ts'
 
 /** Owns tree engines, turn phases and spectator streams. */
 export class SimulationCoordinator {
@@ -130,7 +131,11 @@ export class SimulationCoordinator {
     for (const tower of Object.values(this.store.state.towers)) {
       if (tower.frame.turn.phase !== 'physics' || tower.frame.outcome !== 'playing')
         continue
-      const sim = this.simulation(tower)
+      let sim = this.simulations.get(tower.id)
+      if (!sim) {
+        sim = createTreeSimulation(tower.frame)
+        this.simulations.set(tower.id, sim)
+      }
       tower.frame = sim.step()
       needsSave = true
     }
@@ -144,23 +149,19 @@ export class SimulationCoordinator {
         if (this.stepPhysics()) needsSave = true
         for (const tower of Object.values(this.store.state.towers))
           governance.expireBans(tower)
-        if (ticks % 6 === 0)
-          for (const tower of Object.values(this.store.state.towers))
-            for (const response of this.streams.get(tower.id) ?? []) {
-              if (response.writableLength > 1024 * 1024) {
-                response.end()
-                continue
-              }
-              response.write(
-                `event: frame\ndata: ${JSON.stringify(this.publicFrame(tower))}\n\n`,
-              )
-            }
+        for (const tower of Object.values(this.store.state.towers))
+          for (const response of this.streams.get(tower.id) ?? []) {
+            if (response.writableLength > 256 * 1024) continue
+            response.write(
+              `event: frame\ndata: ${JSON.stringify(this.publicFrame(tower))}\n\n`,
+            )
+          }
         if (needsSave || ticks % 60 === 0) this.store.persist()
         ticks++
       } catch (error) {
         console.error('Game simulation failed:', error)
       }
-    }, 1000 / 60)
+    }, 1000 / treeRules().physicsFps)
     this.timer.unref()
   }
   close() {

@@ -62,6 +62,7 @@ export type TreeRules = {
   costRoot: number
   physicsFps: number
   physicsSubsteps: number
+  gravityScale: number
   segmentBodyWidth: number
   stressThresholdNormal: number
   stressThresholdFortified: number
@@ -140,6 +141,7 @@ const treeDefaults = {
   cost_root: 2,
   physics_fps: 60,
   physics_substeps: 4,
+  gravity_scale: 2,
   segment_body_width: 8,
   stress_threshold_normal: 32,
   stress_threshold_fortified: 55,
@@ -213,6 +215,7 @@ const treeMappings = {
   cost_root: 'costRoot',
   physics_fps: 'physicsFps',
   physics_substeps: 'physicsSubsteps',
+  gravity_scale: 'gravityScale',
   segment_body_width: 'segmentBodyWidth',
   stress_threshold_normal: 'stressThresholdNormal',
   stress_threshold_fortified: 'stressThresholdFortified',
@@ -292,7 +295,7 @@ const treeIntegerKeys = new Set([
   'grow_anchor_tolerance',
 ])
 
-const treeFloatKeys = new Set(['terrain_max_slope', 'camera_pan_speed'])
+const treeFloatKeys = new Set(['terrain_max_slope', 'camera_pan_speed', 'gravity_scale'])
 const treeColorKeys = new Set([
   'color_background',
   'color_foreground',

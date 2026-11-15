@@ -1187,6 +1187,30 @@
   border-radius: 0;
   line-height: 1.4;
 }
+.playToast {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 8px 14px;
+  max-width: min(260px, 80vw);
+  border-radius: 4px;
+  background: var(--secondary-soft);
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  pointer-events: none;
+  animation: playToastFade 1.4s ease forwards;
+}
+@keyframes playToastFade {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  62% { opacity: 1; }
+  100% { opacity: 0; }
+}
 .sceneHud {
   position: absolute;
   z-index: 2;

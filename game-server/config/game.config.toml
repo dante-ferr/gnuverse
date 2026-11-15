@@ -75,9 +75,11 @@ cost_fortify = 2
 cost_prune = 1
 cost_root = 2
 
-# Simulação Matter
+# Simulação em tempo real: 1 segundo simulado = 1 segundo de relógio.
+# gravity_scale é a aceleração nas juntas, em unidades de mundo por segundo ao quadrado.
 physics_fps = 60
 physics_substeps = 4
+gravity_scale = 2
 segment_body_width = 8
 stress_threshold_normal = 32
 stress_threshold_fortified = 55

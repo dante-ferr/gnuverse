@@ -16,7 +16,8 @@ export function segmentEndpoints(
   if (!child || child.parentId === null) return null
   const parent = nodes.find((n) => n.id === child.parentId && !n.broken)
   if (!parent) return null
-  return { ax: parent.x, ay: parent.y, bx: child.x, by: child.y }
+  const origin = child.attach ?? parent
+  return { ax: origin.x, ay: origin.y, bx: child.x, by: child.y }
 }
 
 export function projectOnSegment(
@@ -66,6 +67,53 @@ export function hitTestSegments(
     }
   }
   return best
+}
+
+/** Haste do broto: da superfície do terreno até a raiz. O id do segmento é o da raiz. */
+export function hitTestSprout(
+  root: TreeNodeLite,
+  groundY: number,
+  px: number,
+  py: number,
+  padding: number,
+): SegmentHit | null {
+  if (root.broken || root.parentId !== null) return null
+  const hit = projectOnSegment(root.x, groundY, root.x, root.y, px, py)
+  if (hit.dist > padding) return null
+  return {
+    segmentId: root.id,
+    parentId: root.id,
+    t: hit.t,
+    x: hit.x,
+    y: hit.y,
+  }
+}
+
+/** Move a âncora para a ponta quando o clique cai dentro do raio dela. */
+export function snapAnchorToTip(
+  hit: SegmentHit,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  baseSegmentId: string | null,
+  radius: number,
+): SegmentHit {
+  const tipDist = Math.hypot(hit.x - bx, hit.y - by)
+  const baseDist = Math.hypot(hit.x - ax, hit.y - ay)
+  if (tipDist <= radius && (baseSegmentId === null || tipDist <= baseDist)) {
+    return { ...hit, x: bx, y: by, t: 1 }
+  }
+  if (baseSegmentId !== null && baseDist <= radius) {
+    return {
+      segmentId: baseSegmentId,
+      parentId: baseSegmentId,
+      t: 1,
+      x: ax,
+      y: ay,
+    }
+  }
+  return hit
 }
 
 export function hitTestRoot(

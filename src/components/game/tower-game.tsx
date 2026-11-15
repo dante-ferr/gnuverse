@@ -5,7 +5,7 @@ import { canManageTower } from '../../../core/authz/policy'
 import { useRouter } from 'next/navigation'
 import { AccountBanner } from './account/account-banner'
 import { CreateTowerPanel } from './construction/create-tower-panel'
-import { TreeScene } from './construction/tree-scene'
+import { TreeScene } from './construction/tree-scene/index.ts'
 import { TreeControls } from './construction/tree-controls'
 import { TowerToolbar } from './construction/tower-toolbar'
 import { TowerCommunity } from './community/tower-community'
@@ -27,6 +27,11 @@ export function TowerGame() {
     if (new URLSearchParams(window.location.search).has('novo'))
       game.setShowCreate(true)
   }, [game.setShowCreate])
+  useEffect(() => {
+    if (!feedback.error || game.showCreate) return
+    const id = window.setTimeout(() => feedback.setError(''), 1400)
+    return () => window.clearTimeout(id)
+  }, [feedback.error, feedback.setError, game.showCreate])
   const treeRules = game.treeRules
   return (
     <main className={styles.gameShell}>
@@ -55,11 +60,8 @@ export function TowerGame() {
         </div>
       )}
       {feedback.error && !game.showCreate && (
-        <div className={styles.error} role="alert">
+        <div className={styles.playToast} role="alert" key={feedback.error}>
           {feedback.error}
-          <button aria-label="Fechar erro" onClick={() => feedback.setError('')}>
-            ×
-          </button>
         </div>
       )}
       {notice && (
