@@ -14,6 +14,9 @@ export function createTestIdentityProvider(options: { now?: () => number; roles?
       accounts.set(email, { account: { identity: { provider: 'test', id: randomUUID() }, email, name: nickname, nickname, roles: ['member'] }, password })
       return provider.login(email, password)
     },
+    async forgotPassword() {},
+    async resetPassword() {},
+    async verifyEmail() {},
     async login(email, password) {
       const stored = accounts.get(email)
       if (!stored || stored.password !== password) fail(401, 'E-mail ou senha incorretos.')

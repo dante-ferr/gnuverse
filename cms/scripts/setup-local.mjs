@@ -11,6 +11,10 @@ try {
     'DATABASE_ADAPTER=sqlite',
     'DATABASE_URL=file:./data/gnuverse.db',
     'STORAGE_ADAPTER=local',
+    'SMTP_HOST=127.0.0.1',
+    'SMTP_PORT=1025',
+    'SMTP_FROM_ADDRESS=gnuverse@localhost',
+    'SMTP_FROM_NAME=GNUverse',
     '',
   ].join('\n'), { flag: 'wx', mode: 0o600 })
   console.log('cms/.env criado com segredo local. Nenhuma chave foi exibida.')

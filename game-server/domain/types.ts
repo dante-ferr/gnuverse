@@ -1,4 +1,4 @@
-import type { Frame } from '../physics/index.ts'
+import type { TreeFrame } from '../physics/tree-types.ts'
 import type { Role } from '../../core/authz/policy.ts'
 import type { Identity } from '../../core/authz/identity.ts'
 import type { IdentityProvider } from '../../core/authn/identity-provider.ts'
@@ -9,31 +9,22 @@ export type Rules = {
   intervalMs: number
   cooldownMs: number
   defaultCost: number
-  proposalDurationMs: number
-  quorum: number
-  approval: number
   maxCost: number
   minContributions: number
-  maxBlocks: number
+  maxSegments: number
   maxTowers: number
   tokenLifetimeMs: number
   banDurationMs: number
-  voteChanges: boolean
   bdflVeto: boolean
   prototype: boolean
   infiniteCoins: boolean
-  windEveryBlocks: number
-  windMinBlocks: number
-  windStrength: number
 }
 export type User = {
-  /** Refreshed from the authorization adapter on every authenticated request. */
   roles?: readonly Role[]
   id: string
   nickname: string
   email: string
   identity?: Identity
-  /** Legacy credentials, removed when the owner migrates to the shared identity. */
   salt?: string
   password?: string
   balance: number
@@ -58,69 +49,41 @@ export type TowerEvent = {
 export type Snapshot = {
   id: string
   createdAt: number
-  blocks: Frame['blocks']
+  tree: TreeFrame
   actorId: string | null
   reason: string
 }
 export type Proposal = {
   id: string
-  type: 'ban' | 'restore'
+  type: 'ban'
   targetId: string
   reason: string
   actorId: string
   status: 'pending' | 'accepted' | 'rejected'
-  mode: 'vote' | 'bdfl'
   createdAt: number
-  closesAt: number | null
-  electorate: string[]
-  votes: Record<string, 'for' | 'against' | 'abstain'>
-  rules: { quorum: number; approval: number; voteChanges: boolean }
   decisionReason?: string
   decidedAt?: number
   decidedBy?: string | null
-  executionStatus?: 'deferred' | 'executed'
+  executionStatus?: 'executed'
   executedAt?: number
 }
-export type WindState = {
-  phase: 'pending' | 'active' | 'settling'
-  endsAt: number | null
-  direction: 1 | -1
-  triggerCount: number
-  strength: number
-}
-export type PublicFrame = Frame & {
-  checkpointPending: boolean
-  cooldownRemainingMs: number
-  blocksUntilCheckpoint: number
-  wind: Pick<WindState, 'phase' | 'endsAt' | 'direction'> | null
-}
+export type PublicTreeFrame = TreeFrame & { phaseRemainingMs: number; fireflyPosition: { x: number; y: number } | null }
 export type Tower = {
   id: string
   name: string
   creatorId: string
   allowCreatorBan: boolean
   cost: number
-  banMode: 'vote' | 'bdfl'
-  restoreMode: 'vote' | 'bdfl'
   eligibilityMode: 'automatic' | 'manual'
   minContributions: number
   members: Record<string, Member>
   snapshots: Snapshot[]
   events: TowerEvent[]
   proposals: Proposal[]
-  blockIntervalMs: number
-  checkpointEveryBlocks: number
-  lastPlacementAt: number | null
-  lastCheckpointPlacementCount: number
-  pendingSnapshot: boolean
-  windMinBlocks: number
-  windEveryBlocks: number
-  lastWindPlacementCount: number | null
-  placementCount: number
-  nextWindAt: number
-  wind: WindState | null
-  frame: Frame
+  segmentCount: number
+  frame: TreeFrame
   lastActorId?: string
+  actionCount: number
 }
 export type State = {
   users: Record<string, User>

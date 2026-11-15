@@ -1,35 +1,32 @@
-export type BlockKind = 'square' | 'wide' | 'tall'
-export type Block = {
+export type TreeNode = {
   id: string
-  kind: BlockKind
   x: number
   y: number
-  angle: number
-  color: string
+  parentId: string | null
   authorId: string
+  authorName: string
+  leaf: boolean
+  fortified: boolean
+  secondaryRoot?: boolean
+  broken?: boolean
 }
-export type Shard = {
-  id: string
-  x: number
-  y: number
-  angle: number
-  width: number
-  height: number
-}
-export type WindState = {
-  phase: 'pending' | 'active' | 'settling'
-  endsAt: number | null
-  direction: 1 | -1
-}
-export type Frame = {
-  blocks: Block[]
-  shards?: Shard[]
-  settled: boolean
+export type TreeFrame = {
+  nodes: TreeNode[]
+  energy: number
+  turn: { phase: 'idle' | 'actionWindow' | 'physics'; phaseEndsAt: number | null }
+  firefly: {
+    path: { x: number; y: number }[]
+    index: number
+    active: boolean
+    phasesSeen: number
+  }
+  flower: { bloomed: boolean; nodeId: string | null; energyPhasesAboveZero: number }
+  outcome: 'playing' | 'won' | 'lost'
+  exit: { x: number; y: number; width: number; height: number }
   tick: number
-  checkpointPending?: boolean
-  cooldownRemainingMs?: number
-  blocksUntilCheckpoint?: number
-  wind?: WindState | null
+  simulating?: boolean
+  phaseRemainingMs?: number
+  fireflyPosition?: { x: number; y: number } | null
 }
 export type User = { id: string; nickname: string; roles?: readonly import('../../../../core/authz/policy').Role[] }
 export type Wallet = {
@@ -44,23 +41,17 @@ export type Tower = {
   creatorId: string
   allowCreatorBan: boolean
   cost: number
-  banMode: 'vote' | 'bdfl'
-  restoreMode: 'vote' | 'bdfl'
   eligibilityMode: 'automatic' | 'manual'
   minContributions: number
-  placementCount?: number
-  nextWindAt?: number
-  windMinBlocks: number
-  windEveryBlocks: number
-  blockIntervalMs: number
-  checkpointEveryBlocks: number
-  blockCount: number
-  coverBlocks?: Block[]
+  segmentCount: number
+  actionCount?: number
+  outcome?: 'playing' | 'won' | 'lost'
+  coverNodes?: TreeNode[]
 }
 export type Snapshot = {
   id: string
   createdAt: number
-  blocks: Block[]
+  tree: TreeFrame
   actorId: string | null
   reason: string
 }
@@ -72,16 +63,11 @@ export type Member = User & {
 export type Proposal = {
   id: string
   actorId: string
-  type: 'restore' | 'ban'
+  type: 'ban'
   targetId: string
   reason: string
   status: string
-  electorate: string[]
-  votes: Record<string, string>
   createdAt: number
-  closesAt: number | null
-  mode: 'vote' | 'bdfl'
-  rules: { quorum: number; approval: number; voteChanges: boolean }
   decisionReason?: string
   decidedBy?: string | null
   executionStatus?: string
@@ -95,7 +81,7 @@ export type GameEvent = {
 }
 export type TowerState = {
   tower: Tower
-  frame: Frame
+  frame: TreeFrame
   snapshots: Snapshot[]
   events: GameEvent[]
   members: Member[]

@@ -1,18 +1,9 @@
 import type { GameEvent } from '../model/types'
 
-const mode = (value: unknown) => (value === 'vote' ? 'votação' : 'BDFL')
-
 function rulesText(value: unknown) {
   if (!value || typeof value !== 'object') return ''
   const rules = value as Record<string, unknown>
-  const wind =
-    typeof rules.windMinBlocks === 'number'
-      ? `; vento inicial após ${rules.windMinBlocks} blocos e depois a cada ${rules.windEveryBlocks}`
-      : ''
-  const building = typeof rules.blockIntervalMs === 'number'
-    ? `; intervalo de ${rules.blockIntervalMs / 1000}s; checkpoint a cada ${rules.checkpointEveryBlocks} blocos`
-    : ''
-  return `${rules.cost} moedas/bloco; banimentos por ${mode(rules.banMode)}; restaurações por ${mode(rules.restoreMode)}; eleitores ${rules.eligibilityMode === 'manual' ? 'habilitados manualmente' : `após ${rules.minContributions} contribuições`}${wind}${building}`
+  return `${rules.cost} moedas (referência); suspensões pelo BDFL; eleitores ${rules.eligibilityMode === 'manual' ? 'habilitados manualmente' : `após ${rules.minContributions} contribuições`}`
 }
 
 export function EventDetail({ event }: { event: GameEvent }) {

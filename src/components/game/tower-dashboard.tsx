@@ -32,7 +32,7 @@ export function TowerDashboard() {
     await createTowerFromForm(session.api, form)
     await lobby.refresh(1)
     setShowCreate(false)
-    feedback.setNotice('Torre criada.')
+    feedback.setNotice('Caverna criada.')
   })
 
   return (
@@ -40,8 +40,8 @@ export function TowerDashboard() {
       <header className={styles.dashboardPageHeading}>
         <div>
           <p className={styles.eyebrow}>GNUverse · Comunidade</p>
-          <h1>Torres colaborativas</h1>
-          <p>Escolha uma torre para acompanhar e construir com a comunidade.</p>
+          <h1>Árvores na caverna</h1>
+          <p>Escolha uma sala para cultivar galhos com a comunidade.</p>
         </div>
         <button type="button" className={styles.primary} onClick={() => {
           feedback.setError('')
@@ -50,7 +50,7 @@ export function TowerDashboard() {
             return
           }
           setShowCreate(true)
-        }}>Criar torre</button>
+        }}>Nova caverna</button>
       </header>
 
       {feedback.notice && <p className={styles.message} role="status">{feedback.notice}</p>}
@@ -63,9 +63,6 @@ export function TowerDashboard() {
           loginHref={session.user ? undefined : '/login/?next=%2Fjogo%2F%3Fnovo%3D1'}
           maxCost={Number(lobby.rules?.maxCost ?? 0)}
           defaultCost={Number(lobby.rules?.defaultCost ?? 0)}
-          blockIntervalMs={Number(lobby.rules?.cooldownMs ?? 0)}
-          windMinBlocks={Number(lobby.rules?.windMinBlocks ?? 1)}
-          windEveryBlocks={Number(lobby.rules?.windEveryBlocks ?? 1)}
           minContributions={Number(lobby.rules?.minContributions ?? 1)}
           onClose={() => setShowCreate(false)}
           onCreateTower={createTower}
@@ -75,28 +72,28 @@ export function TowerDashboard() {
       <section className={styles.towerDashboard} aria-labelledby="tower-dashboard-title">
         <div className={styles.dashboardHeading}>
           <div>
-            <h2 id="tower-dashboard-title">Torres disponíveis</h2>
-            <p role="status">{lobby.connection === 'connecting' ? 'Buscando torres…' : `${lobby.total} ${lobby.total === 1 ? 'torre encontrada' : 'torres encontradas'}`}</p>
+            <h2 id="tower-dashboard-title">Cavernas disponíveis</h2>
+            <p role="status">{lobby.connection === 'connecting' ? 'Buscando salas…' : `${lobby.total} ${lobby.total === 1 ? 'sala encontrada' : 'salas encontradas'}`}</p>
           </div>
           <span className={`${styles.connection} ${lobby.connection === 'live' ? styles.live : ''}`}>
             <i />
             {lobby.connection === 'live' ? 'Atualizado ao vivo' : lobby.connection === 'connecting' ? 'Carregando' : 'Offline'}
           </span>
         </div>
-        <form className={styles.towerFilters} role="search" aria-label="Pesquisar e filtrar torres" onSubmit={(event) => {
+        <form className={styles.towerFilters} role="search" aria-label="Pesquisar e filtrar salas" onSubmit={(event) => {
           event.preventDefault()
           setFilters({ search: search.trim() })
         }}>
           <div className={styles.towerSearch}>
-            <label htmlFor="tower-search">Pesquisar torres</label>
+            <label htmlFor="tower-search">Pesquisar salas</label>
             <div className={styles.towerSearchInput}>
-              <input id="tower-search" type="search" placeholder="Nome da torre" maxLength={60} value={search}
+              <input id="tower-search" type="search" placeholder="Nome da caverna" maxLength={60} value={search}
                 onChange={(event) => setSearch(event.target.value)} />
               <button type="submit" className={styles.secondary}>Pesquisar</button>
             </div>
           </div>
           <label>
-            Custo por bloco
+            Custo de referência
             <select value={filters.cost} onChange={(event) => setFilters({ cost: event.target.value as TowerFilters['cost'] })}>
               <option value="all">Todos os custos</option>
               <option value="free">Gratuitas</option>
@@ -110,14 +107,14 @@ export function TowerDashboard() {
               <option value="name">Nome (A–Z)</option>
               <option value="cost-asc">Menor custo</option>
               <option value="cost-desc">Maior custo</option>
-              <option value="blocks-desc">Mais blocos</option>
+              <option value="segments-desc">Mais galhos</option>
             </select>
           </label>
           <div className={styles.towerFilterActions}>
             <label className={styles.mineFilter}>
               <input type="checkbox" checked={filters.mine} disabled={!session.user}
                 onChange={(event) => setFilters({ mine: event.target.checked })} />
-              Minhas torres
+              Minhas salas
             </label>
             <button type="button" className={styles.clearTowerFilters}
               disabled={!hasFilters && !search && filters.sort === 'oldest'} onClick={() => {
@@ -132,13 +129,13 @@ export function TowerDashboard() {
             <div className={styles.towerGrid}>
               {lobby.towers.map((tower) => (
                 <a className={styles.towerCard} key={tower.id} href={`/jogo/torre/?id=${encodeURIComponent(tower.id)}`}>
-                  <TowerCover tower={tower} api={session.api} />
+                  <TowerCover tower={tower} />
                   <span className={styles.towerCardInfo}>
                     <span className={styles.towerCardTop}>
-                      <span>{tower.blockCount} blocos</span><span aria-hidden="true">↗</span>
+                      <span>{tower.segmentCount} galhos</span><span aria-hidden="true">↗</span>
                     </span>
                     <strong>{tower.name}</strong>
-                    <span className={styles.towerCardMeta}>Custo por bloco: {tower.cost} moedas</span>
+                    <span className={styles.towerCardMeta}>Custo ref.: {tower.cost} moedas</span>
                   </span>
                 </a>
               ))}

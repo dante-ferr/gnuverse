@@ -1,13 +1,7 @@
 'use client'
 
-import { can, canManageTower } from '../../../../core/authz/policy'
-import {
-  type Proposal,
-  type Snapshot,
-  type TowerState,
-  type User,
-} from '../model/types'
-import { governanceLabel } from '../model/presentation'
+import { canManageTower } from '../../../../core/authz/policy'
+import { type Proposal, type TowerState, type User } from '../model/types'
 import { HistoryPanel } from './history-panel'
 import { MembersPanel } from './members-panel'
 import { ProposalsPanel } from './proposals-panel'
@@ -22,14 +16,10 @@ type Props = {
   isBanned: boolean
   tab: Tab
   onTabChange: (tab: Tab) => void
-  onPreview: (version: Snapshot | null) => void
-  onRestore: (version: Snapshot) => void
   onBan: (id: string) => void
-  onVote: (proposal: Proposal, choice: string) => void
   onDecide: (proposal: Proposal, accept: boolean, reason: string) => void
   onEligibility: (id: string, eligible: boolean) => void
   onSettingsSave: (body: Record<string, string | number | boolean>) => Promise<void>
-  onAdminRestore: (snapshotId: string | null, reason: string) => Promise<void>
 }
 export function TowerCommunity({
   state,
@@ -38,17 +28,12 @@ export function TowerCommunity({
   isBanned,
   tab,
   onTabChange,
-  onPreview,
-  onRestore,
   onBan,
-  onVote,
   onDecide,
   onEligibility,
   onSettingsSave,
-  onAdminRestore,
 }: Props) {
   const actor = user ? { ...user, roles: user.roles ?? [] } : null
-  const administrator = can(actor, 'tower:update:any')
   const canEdit = canManageTower(actor, 'update', state.tower.creatorId)
   return (
     <section className={styles.collective}>
@@ -59,17 +44,12 @@ export function TowerCommunity({
       </div>
       {!canEdit && (
         <details className={styles.eventLog}>
-          <summary>Regras da torre</summary>
+          <summary>Regras da árvore</summary>
           <ul className={styles.rules}>
-            <li>Custo por bloco: {state.tower.cost} moedas.</li>
-            <li>Restauração: {governanceLabel(state.tower.restoreMode)}.</li>
-            <li>Suspensão: {governanceLabel(state.tower.banMode)}.</li>
+            <li>Custo de referência: {state.tower.cost} moedas (ações usam tabela fixa).</li>
+            <li>Suspensão: decidida pelo BDFL.</li>
             <li>
-              Vento: primeira aos {state.tower.windMinBlocks} blocos; depois a
-              cada {state.tower.windEveryBlocks}.
-            </li>
-            <li>
-              Eleitores:{' '}
+              Quem pode propor:{' '}
               {state.tower.eligibilityMode === 'manual'
                 ? 'habilitados pelo BDFL'
                 : `após ${state.tower.minContributions} contribuições`}
@@ -78,7 +58,7 @@ export function TowerCommunity({
             <li>
               Suspensão do criador:{' '}
               {state.tower.allowCreatorBan
-                ? 'permitida por votação'
+                ? 'permitida mediante proposta'
                 : 'indisponível'}{' '}
               (definitivo).
             </li>
@@ -87,61 +67,30 @@ export function TowerCommunity({
       )}
       {canEdit && (
         <TowerSettings
-          administrator={administrator}
+          administrator={false}
           tower={state.tower}
           maxCost={Number(state.rules.maxCost)}
-          windActive={Boolean(state.frame.wind)}
+          windActive={false}
           disabled={
             busy ||
-            (!administrator && (isBanned ||
-            state.proposals.some(
-              (proposal) =>
-                proposal.status === 'pending' ||
-                proposal.executionStatus === 'deferred',
-            )))
+            (isBanned ||
+              state.proposals.some((proposal) => proposal.status === 'pending'))
           }
           blockedReason={
-            administrator ? undefined : isBanned
-              ? 'Sua participação nesta torre está suspensa.'
-              : state.proposals.some(
-                    (proposal) =>
-                      proposal.status === 'pending' ||
-                      proposal.executionStatus === 'deferred',
-                  )
+            isBanned
+              ? 'Sua participação nesta árvore está suspensa.'
+              : state.proposals.some((proposal) => proposal.status === 'pending')
                 ? 'Aguarde a conclusão da proposta em andamento.'
                 : undefined
           }
           onSave={onSettingsSave}
         />
       )}
-      {can(actor, 'tower:restore:any') && (
-        <details className={styles.eventLog}>
-          <summary>Intervenção administrativa</summary>
-          <p>Restaure uma versão ou remova todos os blocos sem votação. Propostas pendentes serão encerradas. A construção atual será salva no histórico.</p>
-          <form className={styles.form} onSubmit={(event) => {
-            event.preventDefault()
-            const data = new FormData(event.currentTarget)
-            if (window.confirm('Aplicar esta intervenção administrativa?'))
-              void onAdminRestore(String(data.get('snapshotId')) || null, String(data.get('reason')))
-          }}>
-            <label>Construção<select name="snapshotId" defaultValue="">
-              <option value="">Remover todos os blocos</option>
-              {state.snapshots.map((snapshot) => <option key={snapshot.id} value={snapshot.id}>{snapshot.reason} · {new Date(snapshot.createdAt).toLocaleString('pt-BR')}</option>)}
-            </select></label>
-            <label>Motivo público<input name="reason" required minLength={3} maxLength={500} /></label>
-            <button className={styles.primary} disabled={busy}>Aplicar intervenção</button>
-          </form>
-        </details>
-      )}
-      <div
-        className={styles.tabs}
-        role="tablist"
-        aria-label="Comunidade da torre"
-      >
+      <div className={styles.tabs} role="tablist" aria-label="Comunidade da árvore">
         {(
           [
             ['history', 'Versões & histórico'],
-            ['community', 'Quem constrói'],
+            ['community', 'Quem cultiva'],
             ['decisions', 'Decisões públicas'],
           ] as const
         ).map(([value, label]) => (
@@ -158,15 +107,7 @@ export function TowerCommunity({
         ))}
       </div>
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === 'history' && (
-          <HistoryPanel
-            state={state}
-            user={user}
-            busy={busy}
-            onPreview={onPreview}
-            onPropose={onRestore}
-          />
-        )}
+        {tab === 'history' && <HistoryPanel state={state} />}
         {tab === 'community' && (
           <MembersPanel
             state={state}
@@ -182,8 +123,6 @@ export function TowerCommunity({
             state={state}
             user={user}
             busy={busy || isBanned}
-            onPreview={onPreview}
-            onVote={onVote}
             onDecide={onDecide}
           />
         )}

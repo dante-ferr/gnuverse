@@ -6,8 +6,14 @@ export class WalletService {
     this.rules = rules
     this.now = now
   }
+  unlimited(user: User) {
+    return (
+      this.rules.infiniteCoins ||
+      (user.roles ?? []).includes('admin')
+    )
+  }
   read(user: User) {
-    if (this.rules.infiniteCoins) {
+    if (this.unlimited(user)) {
       return {
         balance: Number.MAX_SAFE_INTEGER,
         cap: Number.MAX_SAFE_INTEGER,

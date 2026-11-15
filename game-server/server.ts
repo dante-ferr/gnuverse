@@ -11,8 +11,8 @@ import { HistoryService } from './towers/history-service.ts'
 import { TowerService } from './towers/tower-service.ts'
 import { GovernanceService } from './governance/governance-service.ts'
 import { SimulationCoordinator } from './runtime/simulation-coordinator.ts'
-import { WindService } from './wind/wind-service.ts'
 import { HttpApplication } from './transport/http-application.ts'
+import { isLegacyBlockFrame } from './physics/map-gen.ts'
 
 /** Composition root. Domain services own behavior; transport only maps requests. */
 export function createGameServer(options: ServerOptions = {}) {
@@ -28,20 +28,25 @@ export function createGameServer(options: ServerOptions = {}) {
   const history = new HistoryService(now, (towerId) =>
     runtime.publishChange(towerId),
   )
-  const wind = new WindService(rules, now, history)
   for (const tower of Object.values(store.state.towers)) {
-    wind.initialize(tower)
-    tower.blockIntervalMs ??= rules.cooldownMs
-    tower.lastPlacementAt ??= null
-    if (tower.checkpointEveryBlocks === undefined) {
-      tower.checkpointEveryBlocks = 5
-      tower.lastCheckpointPlacementCount = tower.placementCount
-      tower.pendingSnapshot = false
+    if (isLegacyBlockFrame(tower.frame) || !tower.frame?.nodes) {
+      runtime.migrateTowerFrame(tower)
     }
+    tower.segmentCount ??= 0
+    tower.actionCount ??= 0
+    delete (tower as { restoreMode?: unknown }).restoreMode
+    delete (tower as { wind?: unknown }).wind
+    delete (tower as { placementCount?: unknown }).placementCount
   }
   store.persist()
   const wallet = new WalletService(rules, now)
-  const auth = new AuthService(store, rules, now, wallet, options.identityProvider ?? new CMSIdentityProvider())
+  const auth = new AuthService(
+    store,
+    rules,
+    now,
+    wallet,
+    options.identityProvider ?? new CMSIdentityProvider(),
+  )
   const towers = new TowerService(
     store,
     rules,
@@ -49,7 +54,6 @@ export function createGameServer(options: ServerOptions = {}) {
     wallet,
     runtime,
     history,
-    wind,
   )
   const governance = new GovernanceService(rules, now, runtime, history)
   const origins =
@@ -75,7 +79,7 @@ export function createGameServer(options: ServerOptions = {}) {
   })
   server.requestTimeout = 15000
   server.headersTimeout = 10000
-  runtime.start(history, governance, wind)
+  runtime.start(history, governance)
   let closed = false
   return {
     server,

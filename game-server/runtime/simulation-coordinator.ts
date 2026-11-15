@@ -1,17 +1,31 @@
 import type { ServerResponse } from 'node:http'
-import { createSimulation } from '../physics/index.ts'
-import type { PublicFrame, Tower } from '../domain/types.ts'
+import { createTreeSimulation } from '../physics/index.ts'
+import type { Tower } from '../domain/types.ts'
 import { fail } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import type { GovernanceService } from '../governance/governance-service.ts'
 import type { HistoryService } from '../towers/history-service.ts'
-import { WindService } from '../wind/wind-service.ts'
+import {
+  advanceFirefly,
+  checkExitBloom,
+  drainEnergy,
+  evaluateStarvation,
+  evaluateTrunkLoss,
+  evaluateWin,
+  harvestEnergy,
+  openActionWindow,
+  publicTreeFrame,
+  returnToIdle,
+  startPhysicsPhase,
+} from '../tree/tree-phase-service.ts'
+import { createInitialTreeFrame } from '../physics/map-gen.ts'
+import type { TreeSimulation } from '../physics/tree-simulation.ts'
 
-/** Owns engines, the authoritative clock and bounded spectator streams. */
+/** Owns tree engines, turn phases and spectator streams. */
 export class SimulationCoordinator {
   private store: GameStore
   private now: () => number
-  private simulations = new Map<string, ReturnType<typeof createSimulation>>()
+  private simulations = new Map<string, TreeSimulation>()
   private streams = new Map<string, Set<ServerResponse>>()
   private timer?: ReturnType<typeof setInterval>
   constructor(store: GameStore, now: () => number) {
@@ -19,43 +33,36 @@ export class SimulationCoordinator {
     this.now = now
   }
 
-  simulation(tower: Tower) {
-    if (!this.simulations.has(tower.id))
-      this.simulations.set(
-        tower.id,
-        createSimulation(tower.frame?.blocks ?? []),
-      )
-    return this.simulations.get(tower.id)!
-  }
-  frame(tower: Tower): PublicFrame {
-    return {
-      ...tower.frame,
-      checkpointPending: tower.pendingSnapshot,
-      cooldownRemainingMs: tower.lastPlacementAt === null ? 0
-        : Math.max(0, tower.lastPlacementAt + tower.blockIntervalMs - this.now()),
-      blocksUntilCheckpoint: Math.max(0, tower.checkpointEveryBlocks - (tower.placementCount - tower.lastCheckpointPlacementCount)),
-      wind: tower.wind
-        ? {
-            phase: tower.wind.phase,
-            endsAt: tower.wind.endsAt,
-            direction: tower.wind.direction,
-          }
-        : null,
+  simulation(tower: Tower): TreeSimulation {
+    if (!this.simulations.has(tower.id)) {
+      const sim = createTreeSimulation(tower.frame)
+      this.simulations.set(tower.id, sim)
     }
+    const sim = this.simulations.get(tower.id)!
+    sim.restore(tower.frame)
+    return sim
+  }
+  publicFrame(tower: Tower) {
+    return publicTreeFrame(tower.frame, this.now())
   }
   rollback() {
-    // A rejected request must not reset the sleep counters of an unchanged engine.
     for (const [id, simulation] of this.simulations) {
       const restored = this.store.state.towers[id]
-      if (
-        !restored ||
-        JSON.stringify(simulation.read().blocks) !==
-          JSON.stringify(restored.frame.blocks)
-      ) {
+      if (!restored) {
         simulation.dispose()
         this.simulations.delete(id)
+        continue
       }
+      simulation.restore(restored.frame)
     }
+  }
+  afterAction(tower: Tower) {
+    const now = this.now()
+    if (tower.frame.turn.phase === 'idle') {
+      tower.frame = openActionWindow(tower.frame, now)
+      this.simulation(tower).setFrame(tower.frame)
+    }
+    this.publishChange(tower.id)
   }
   publishChange(towerId: string) {
     for (const response of this.streams.get(towerId) ?? [])
@@ -78,71 +85,76 @@ export class SimulationCoordinator {
       'X-Accel-Buffering': 'no',
     })
     response.write(
-      `event: frame\ndata: ${JSON.stringify(this.frame(tower))}\n\n`,
+      `event: frame\ndata: ${JSON.stringify(this.publicFrame(tower))}\n\n`,
     )
     if (!this.streams.has(tower.id)) this.streams.set(tower.id, new Set())
     this.streams.get(tower.id)!.add(response)
     response.on('close', () => this.streams.get(tower.id)?.delete(response))
   }
-  start(
-    history: HistoryService,
-    governance: GovernanceService,
-    wind: WindService,
-  ) {
+  private tickTurnPhases() {
+    let needsSave = false
+    const now = this.now()
+    for (const tower of Object.values(this.store.state.towers)) {
+      if (tower.frame.outcome !== 'playing') continue
+      const frame = tower.frame
+      if (
+        frame.turn.phase === 'actionWindow' &&
+        frame.turn.phaseEndsAt !== null &&
+        now >= frame.turn.phaseEndsAt
+      ) {
+        tower.frame = startPhysicsPhase(frame, now)
+        this.simulation(tower).setPhase('physics', tower.frame.turn.phaseEndsAt, true)
+        needsSave = true
+      } else if (
+        frame.turn.phase === 'physics' &&
+        frame.turn.phaseEndsAt !== null &&
+        now >= frame.turn.phaseEndsAt
+      ) {
+        const sim = this.simulation(tower)
+        harvestEnergy(tower.frame, sim)
+        drainEnergy(tower.frame)
+        checkExitBloom(tower.frame, sim)
+        evaluateTrunkLoss(tower.frame, sim)
+        evaluateStarvation(tower.frame, sim)
+        evaluateWin(tower.frame)
+        advanceFirefly(tower.frame)
+        tower.frame = returnToIdle(tower.frame)
+        sim.setFrame(tower.frame)
+        needsSave = true
+      }
+    }
+    return needsSave
+  }
+  private stepPhysics() {
+    let needsSave = false
+    for (const tower of Object.values(this.store.state.towers)) {
+      if (tower.frame.turn.phase !== 'physics' || tower.frame.outcome !== 'playing')
+        continue
+      const sim = this.simulation(tower)
+      tower.frame = sim.step()
+      needsSave = true
+    }
+    return needsSave
+  }
+  start(history: HistoryService, governance: GovernanceService) {
     let ticks = 0
     this.timer = setInterval(() => {
       try {
-        let needsSave = false
-        for (const tower of Object.values(this.store.state.towers)) {
+        let needsSave = this.tickTurnPhases()
+        if (this.stepPhysics()) needsSave = true
+        for (const tower of Object.values(this.store.state.towers))
           governance.expireBans(tower)
-          if (!tower.frame.settled || tower.pendingSnapshot || tower.wind) {
-            const simulation = this.simulation(tower)
-            if (wind.beforeStep(tower, simulation)) needsSave = true
-            tower.frame = simulation.step()
-            if (wind.afterStep(tower)) needsSave = true
-          }
-          if (tower.pendingSnapshot && tower.frame.settled && !tower.wind) {
-            history.snapshot(
-              tower,
-              tower.lastActorId ?? null,
-              'Checkpoint: construção estabilizada',
-            )
-            tower.pendingSnapshot = false
-            tower.lastCheckpointPlacementCount = tower.placementCount
-            needsSave = true
-          }
-          if (
-            tower.proposals.some(
-              (p) =>
-                p.status === 'pending' &&
-                p.mode === 'vote' &&
-                this.now() >= p.closesAt!,
-            )
-          ) {
-            governance.finishVoting(tower)
-            needsSave = true
-          }
-          if (
-            !tower.wind &&
-            tower.frame.settled &&
-            tower.proposals.some(
-              (proposal) => proposal.executionStatus === 'deferred',
-            )
-          ) {
-            governance.flushDeferred(tower)
-            needsSave = true
-          }
-          if (ticks % 6 === 0)
+        if (ticks % 6 === 0)
+          for (const tower of Object.values(this.store.state.towers))
             for (const response of this.streams.get(tower.id) ?? []) {
               if (response.writableLength > 1024 * 1024) {
                 response.end()
                 continue
               }
               response.write(
-                `event: frame\ndata: ${JSON.stringify(this.frame(tower))}\n\n`,
+                `event: frame\ndata: ${JSON.stringify(this.publicFrame(tower))}\n\n`,
               )
             }
-        }
         if (needsSave || ticks % 60 === 0) this.store.persist()
         ticks++
       } catch (error) {
@@ -156,5 +168,12 @@ export class SimulationCoordinator {
     for (const clients of this.streams.values())
       for (const response of clients) response.end()
     for (const simulation of this.simulations.values()) simulation.dispose()
+  }
+  migrateTowerFrame(tower: Tower) {
+    if (!tower.frame || !('nodes' in tower.frame)) {
+      tower.frame = createInitialTreeFrame(this.now())
+      tower.segmentCount = 0
+      tower.actionCount = tower.actionCount ?? 0
+    }
   }
 }

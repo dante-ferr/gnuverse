@@ -21,7 +21,7 @@ export class HistoryService {
     tower.snapshots.push({
       id: randomUUID(),
       createdAt: this.now(),
-      blocks: structuredClone(tower.frame.blocks),
+      tree: structuredClone(tower.frame),
       actorId,
       reason,
     })

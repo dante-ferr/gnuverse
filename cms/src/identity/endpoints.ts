@@ -3,6 +3,7 @@ import type { IdentityAccount } from '../../../core/authn/identity-provider.ts'
 import { authorizationFilePath, FileRoleStore } from '../../../core/authz/file-role-store.ts'
 import { existsSync } from 'node:fs'
 import { cmsActor } from '../access'
+import { emailVerificationEnabled } from '../email/adapter'
 
 export function identityAccount(req: PayloadRequest): IdentityAccount {
   if (!req.user) throw new Error('Authentication required')
@@ -44,6 +45,12 @@ export const identityEndpoints: Endpoint[] = [
     await req.payload.create({ collection: 'users', overrideAccess: true, req, context: { publicRegistration: true }, data: {
       name: body.nickname, nickname, email, password: body.password, role: 'member',
     } })
+    if (emailVerificationEnabled) {
+      return Response.json({
+        verificationRequired: true,
+        message: 'Enviamos um e-mail de confirmação. Abra o link antes de entrar.',
+      }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
+    }
     const result = await req.payload.login({ collection: 'users', req, data: { email, password: body.password } })
     return Response.json({ token: result.token }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
   } },

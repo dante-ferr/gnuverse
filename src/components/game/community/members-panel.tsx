@@ -38,7 +38,7 @@ export function MembersPanel({
               {person.banned
                 ? 'suspenso nesta torre'
                 : person.eligible
-                  ? 'habilitado para votar'
+                  ? 'habilitado para propor'
                   : 'contribuidor'}
             </small>
           </div>
@@ -49,14 +49,13 @@ export function MembersPanel({
                 disabled={busy || Boolean(isBanned)}
                 onClick={() => onEligibility(person.id, !person.eligible)}
               >
-                {person.eligible ? 'Desabilitar voto' : 'Habilitar voto'}
+                {person.eligible ? 'Desabilitar propostas' : 'Habilitar propostas'}
               </button>
             )}
           {user &&
             person.id !== user.id &&
             (person.id !== state.tower.creatorId ||
-              (state.tower.allowCreatorBan &&
-                state.tower.banMode === 'vote')) &&
+              state.tower.allowCreatorBan) &&
             !person.banned && (
               <button className={styles.quiet} onClick={() => onBan(person.id)}>
                 Propor suspensão

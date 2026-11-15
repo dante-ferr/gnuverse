@@ -3,8 +3,6 @@ export const formatGameDate = (value: number) =>
     dateStyle: 'short',
     timeStyle: 'short',
   })
-export const governanceLabel = (mode: string) =>
-  mode === 'vote' ? 'Votação' : 'BDFL'
 export const eventLabels: Record<string, string> = {
   'admin-restore': 'Intervenção administrativa',
   created: 'Torre criada',

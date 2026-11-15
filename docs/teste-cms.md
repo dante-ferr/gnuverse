@@ -17,6 +17,8 @@ Abra a URL do painel impressa no terminal. `make dev` inicia CMS, jogo e site ju
 
 No primeiro acesso, crie seu usuário com nome, e-mail e senha. Ele será administrador. Depois, em **Integrantes**, você poderá criar contas com papel **Editor**. Não é necessário pagar por esses papéis nem obter uma chave de API do Payload.
 
+Para testar confirmação de e-mail e recuperação de senha localmente, execute `make mailpit` e abra [http://127.0.0.1:8025](http://127.0.0.1:8025). O CMS envia mensagens para `127.0.0.1:1025`. Se esquecer a senha do primeiro administrador, execute `make cms-reset`, reinicie o CMS e crie o usuário novamente em `/admin`.
+
 ## 2. Inserir este conteúdo pelo painel
 
 Em **Artigos**, clique em criar e preencha:
@@ -99,7 +101,7 @@ Não precisamos de `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` ou chave de 
 
 Use um projeto Supabase dedicado ao GNUverse. A migração cria tabelas de artigos, versões, usuários e mídia no banco. Para futuras alterações de modelo, gerar/revisar uma nova migração de PostgreSQL e versioná-la antes do deploy. Não usar comandos de reset/fresh no banco de produção.
 
-Sem SMTP configurado, o fluxo de esqueci minha senha não envia e-mail real. Guarde o acesso administrativo para o piloto; configurar um serviço de e-mail será necessário se quiser recuperação de senha por e-mail.
+Em produção, configure `SMTP_*` (ou o provedor escolhido) no serviço do CMS. O site público oferece **Esqueci minha senha** em `/recuperar-senha/` e confirmação em `/verificar-email/`.
 
 ## 6. Publicar o site no Cloudflare Pages
 

@@ -81,6 +81,11 @@ export function AuthPanel({
       <Link className={styles.quiet} href={`${mode === 'register' ? '/login/' : '/cadastro/'}?next=${encodeURIComponent(returnTo)}`}>
         {mode === 'register' ? 'Já tenho uma conta' : 'Quero criar uma conta'}
       </Link>
+      {mode === 'login' && (
+        <Link className={styles.quiet} href="/recuperar-senha/">
+          Esqueci minha senha
+        </Link>
+      )}
       <details className={styles.eventLog}>
         <summary>Privacidade</summary>
         <p>O apelido é público. O e-mail fica privado.</p>

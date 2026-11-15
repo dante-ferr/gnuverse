@@ -2,19 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { canManageTower } from '../../../../core/authz/policy'
-import { COLORS } from '../model/block-catalog'
 import { createTowerFromForm } from '../api/create-tower'
-import {
-  type BlockKind,
-  type Proposal,
-  type Snapshot,
-  type Wallet,
-} from '../model/types'
+import { type Proposal, type Wallet, type TreeNode } from '../model/types'
 import { useGameSession } from './use-game-session'
 import { useTowerLobby } from './use-tower-lobby'
 import { useTowerStream } from './use-tower-stream'
 import { useActionFeedback } from './use-action-feedback'
-export type ProposalTarget = { type: 'restore' | 'ban'; targetId: string }
+export type ProposalTarget = { type: 'ban'; targetId: string }
 
 /** Composes application actions; domain transport and stream lifecycles stay separate. */
 export function useGameController() {
@@ -22,87 +16,66 @@ export function useGameController() {
   const lobby = useTowerLobby(session.api)
   const live = useTowerStream(session.api, lobby.towerId)
   const feedback = useActionFeedback()
-  const [placement, setPlacement] = useState({
-    kind: 'wide' as BlockKind,
-    color: COLORS[0],
-    x: 500,
-    y: 180,
-    angle: 0,
-  })
-  const [preview, setPreview] = useState<Snapshot | null>(null)
+  const [selected, setSelected] = useState<TreeNode | null>(null)
+  const [growFrom, setGrowFrom] = useState<string | null>(null)
+  const [growPreview, setGrowPreview] = useState<{ x: number; y: number } | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(
-    null,
-  )
-  const [tab, setTab] = useState<'history' | 'community' | 'decisions'>(
-    'history',
-  )
+  const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null)
+  const [tab, setTab] = useState<'history' | 'community' | 'decisions'>('history')
   useEffect(() => {
-    setPreview(null)
     setProposalTarget(null)
+    setSelected(null)
+    setGrowFrom(null)
   }, [lobby.towerId])
   const tower = live.state?.tower || null
-  const member = live.state?.members.find(
-    (person) => person.id === session.user?.id,
-  )
+  const member = live.state?.members.find((person) => person.id === session.user?.id)
   const rules = live.state?.rules || lobby.rules
   const connection = lobby.towerId ? live.connection : lobby.connection
-  const canPlace = Boolean(
+  const canAct = Boolean(
     session.user &&
-    tower &&
-    !member?.banned &&
-    live.frame.blocks.length < Number(rules?.maxBlocks ?? 100) &&
-    !live.frame.checkpointPending &&
-    !(live.frame.cooldownRemainingMs && live.frame.cooldownRemainingMs > 0) &&
-    !live.frame.wind &&
-    !feedback.busy &&
-    !preview &&
-    connection === 'live' &&
-    session.wallet &&
-    session.wallet.balance >= tower.cost,
+      tower &&
+      !member?.banned &&
+      live.frame.outcome === 'playing' &&
+      live.frame.turn.phase !== 'physics' &&
+      !feedback.busy &&
+      connection === 'live' &&
+      session.wallet &&
+      session.wallet.balance >= 1,
   )
 
   const logout = () => feedback.run(session.logout)
-  const place = () =>
+  const perform = (path: string, body: Record<string, unknown>) =>
     feedback.run(async () => {
-      if (!canPlace) return
       const result = await session.api.request<{ wallet: Wallet }>(
-        `/api/towers/${lobby.towerId}/blocks`,
-        { ...placement, angle: (placement.angle * Math.PI) / 180 },
+        `/api/towers/${lobby.towerId}/${path}`,
+        body,
       )
       session.setWallet(result.wallet)
-      live.setFrame((frame) => ({
-        ...frame, settled: false,
-        cooldownRemainingMs: tower?.blockIntervalMs ?? 0,
-        checkpointPending: (frame.blocksUntilCheckpoint ?? 1) <= 1,
-      }))
-      feedback.setNotice('')
       await live.refresh()
     })
+  const growCommit = (point: { x: number; y: number }) => {
+    if (!growFrom) return
+    void perform('grow', { parentId: growFrom, x: point.x, y: point.y })
+    setGrowFrom(null)
+    setGrowPreview(null)
+  }
   const createTower = (form: HTMLFormElement) =>
     feedback.run(async () => {
       const result = await createTowerFromForm(session.api, form)
       await lobby.refresh()
       lobby.setTowerId(result.tower.id)
       setShowCreate(false)
-      feedback.setNotice('Torre criada.')
+      feedback.setNotice('Caverna criada.')
     })
   const deleteTower = () =>
     feedback.run(async () => {
       if (!tower || !canManageTower(session.user ? { ...session.user, roles: session.user.roles ?? [] } : null, 'delete', tower.creatorId)) return
-      await session.api.request(
-        `/api/towers/${lobby.towerId}`,
-        undefined,
-        'DELETE',
-      )
+      await session.api.request(`/api/towers/${lobby.towerId}`, undefined, 'DELETE')
       lobby.setTowerId('')
       await lobby.refresh()
-      feedback.setNotice('Torre excluída.')
+      feedback.setNotice('Sala excluída.')
     })
-  const openProposal = (target: ProposalTarget, version?: Snapshot) => {
-    if (version) setPreview(version)
-    setProposalTarget(target)
-  }
+  const openProposal = (target: ProposalTarget) => setProposalTarget(target)
   const propose = (reason: string) =>
     feedback.run(async () => {
       if (!proposalTarget) return
@@ -114,14 +87,6 @@ export function useGameController() {
       setTab('decisions')
       await live.refresh()
       feedback.setNotice('Proposta registrada.')
-    })
-  const vote = (proposal: Proposal, choice: string) =>
-    feedback.run(async () => {
-      await session.api.request(
-        `/api/towers/${lobby.towerId}/proposals/${proposal.id}/vote`,
-        { choice },
-      )
-      await live.refresh()
     })
   const decide = (proposal: Proposal, accept: boolean, reason: string) =>
     feedback.run(async () => {
@@ -139,12 +104,6 @@ export function useGameController() {
       )
       await live.refresh()
     })
-  const adminRestore = (snapshotId: string | null, reason: string) => feedback.run(async () => {
-    await session.api.request(`/api/towers/${lobby.towerId}/restore`, { snapshotId, reason })
-    await live.refresh()
-    setPreview(null)
-    feedback.setNotice('Intervenção administrativa concluída.')
-  })
   const saveSettings = (body: Record<string, string | number | boolean>) =>
     feedback.run(async () => {
       await session.api.request(`/api/towers/${lobby.towerId}/settings`, body)
@@ -157,10 +116,12 @@ export function useGameController() {
     lobby,
     live,
     feedback,
-    placement,
-    setPlacement,
-    preview,
-    setPreview,
+    selected,
+    setSelected,
+    growFrom,
+    setGrowFrom,
+    growPreview,
+    setGrowPreview,
     showCreate,
     setShowCreate,
     proposalTarget,
@@ -171,18 +132,17 @@ export function useGameController() {
     member,
     rules,
     connection,
-    canPlace,
+    canAct,
     logout,
-    place,
+    growCommit,
     createTower,
     deleteTower,
     openProposal,
     propose,
-    vote,
     decide,
     setEligibility,
     saveSettings,
-    adminRestore,
+    perform,
   }
 }
 export type GameController = ReturnType<typeof useGameController>

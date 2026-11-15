@@ -1,34 +1,21 @@
 # Regras ajustáveis do protótipo local do GNUverse.
 # Durações usam milissegundos, exceto quando o nome explicita outra unidade.
 
-# Carteira e ritmo
-balance_cap = 20
-initial_balance = 20
-coin_interval_ms = 30000
-action_cooldown_ms = 2000
+# Carteira e ritmo (árvore: +1 a cada 6s, teto 5, saldo inicial 5)
+balance_cap = 5
+initial_balance = 5
+coin_interval_ms = 6000
+action_cooldown_ms = 0
 default_cost = 1
 max_cost = 20
 
 # Propostas e participação
-proposal_duration_ms = 120000
-quorum = 0.5
-approval = 0.5
 min_contributions = 3
 ban_duration_ms = 600000
 
 # Limites do protótipo
-max_blocks = 100
+max_segments = 200
 max_towers = 200
 session_duration_ms = 604800000
-vote_changes = false
 prototype = true
 bdfl_veto = false
-
-# Ventania: primeira após m colocações aceitas; depois, a cada n colocações.
-# O evento dura cinco segundos e espera o bloco-gatilho estabilizar.
-# Quantidade de blocos antes da primeira ventania (inteiro >= 1).
-wind_min_blocks = 15
-# Quantidade de blocos entre as ventanias seguintes (inteiro >= 1).
-wind_every_blocks = 10
-# Intensidade física do vento, independente da frequência (0 a 1).
-wind_strength = 0.3

@@ -10,7 +10,6 @@ import { createTestIdentityProvider } from './helpers/identity-provider.ts'
 type MemberData = { id: string; contributions: number }
 type ProposalData = {
   id: string
-  electorate: string[]
   status: string
   executionStatus?: string
 }
@@ -49,7 +48,6 @@ async function fixture(overrides: Partial<Rules> = {}) {
     rules: {
       cooldownMs: 100,
       intervalMs: 1000,
-      proposalDurationMs: 100,
       minContributions: 1,
       banDurationMs: 1000,
       ...overrides,
@@ -98,7 +96,6 @@ async function fixture(overrides: Partial<Rules> = {}) {
         rules: {
           cooldownMs: 100,
           intervalMs: 1000,
-          proposalDurationMs: 100,
           minContributions: 1,
           banDurationMs: 1000,
           ...overrides,
@@ -267,7 +264,6 @@ test('BDFL restore preserves spent coins and contributions; ban remains local an
       await f.request('/towers', owner.token, {
         name: 'Governança',
         restoreMode: 'bdfl',
-        banMode: 'bdfl',
         cost: 1,
         minContributions: 1,
       })
@@ -368,144 +364,6 @@ test('BDFL restore preserves spent coins and contributions; ban remains local an
   }
 })
 
-test('frozen electorate, one vote each, no BDFL veto and tie rejects after deadline', async () => {
-  const f = await fixture()
-  try {
-    const owner = await f.register('voterone')
-    const player = await f.register('votertwo')
-    const late = await f.register('voterlate')
-    const id = (
-      await f.request('/towers', owner.token, {
-        name: 'Torre voto',
-        blockIntervalMs: 0,
-        minContributions: 1,
-        cost: 0,
-      })
-    ).data.tower.id
-    await f.request(`/towers/${id}/blocks`, player.token, { x: 300, y: 100 })
-    const initial = (await f.request(`/towers/${id}`)).data.snapshots[0].id
-    const p = (
-      await f.request(`/towers/${id}/proposals`, owner.token, {
-        type: 'restore',
-        targetId: initial,
-        reason: 'Retomar início',
-      })
-    ).data.proposal
-    assert.equal(p.electorate.length, 2)
-    for (
-      let tries = 0;
-      tries < 100 && !(await f.request(`/towers/${id}`)).data.frame.settled;
-      tries++
-    ) {
-      assert.equal((await f.request('/me')).status, 401)
-      await new Promise((resolve) => setTimeout(resolve, 50))
-    }
-    assert.equal(
-      (await f.request(`/towers/${id}`)).data.frame.settled,
-      true,
-      'rejected requests must not restart an active simulation',
-    )
-    assert.equal(
-      (await f.request(`/towers/${id}/blocks`, late.token, { x: 700, y: 100 }))
-        .status,
-      200,
-    )
-    assert.equal(
-      (
-        await f.request(`/towers/${id}/proposals/${p.id}/vote`, late.token, {
-          choice: 'for',
-        })
-      ).status,
-      403,
-    )
-    assert.equal(
-      (
-        await f.request(`/towers/${id}/proposals/${p.id}/vote`, owner.token, {
-          choice: 'for',
-        })
-      ).status,
-      200,
-    )
-    assert.equal(
-      (
-        await f.request(`/towers/${id}/proposals/${p.id}/vote`, owner.token, {
-          choice: 'against',
-        })
-      ).status,
-      409,
-    )
-    assert.equal(
-      (
-        await f.request(`/towers/${id}/proposals/${p.id}/vote`, player.token, {
-          choice: 'against',
-        })
-      ).status,
-      200,
-    )
-    assert.equal(
-      (
-        await f.request(`/towers/${id}/proposals/${p.id}/decide`, owner.token, {
-          accept: true,
-          reason: 'Quero vetar',
-        })
-      ).status,
-      403,
-    )
-    f.advance(101)
-    const details = (await f.request(`/towers/${id}`)).data
-    assert.equal(details.proposals[0].status, 'rejected')
-    assert.equal(details.frame.blocks.length, 2)
-  } finally {
-    await f.close()
-  }
-})
-
-test('successful vote restores the exact version and records a new event without refunding', async () => {
-  const f = await fixture()
-  try {
-    const player = await f.register('restorevoter')
-    const id = (
-      await f.request('/towers', player.token, {
-        name: 'Torre versão',
-        minContributions: 1,
-        cost: 2,
-      })
-    ).data.tower.id
-    const snapshot = (await f.request(`/towers/${id}`)).data.snapshots[0].id
-    assert.equal(
-      (
-        await f.request(`/towers/${id}/blocks`, player.token, {
-          x: 400,
-          y: 100,
-        })
-      ).status,
-      200,
-    )
-    const proposal = (
-      await f.request(`/towers/${id}/proposals`, player.token, {
-        type: 'restore',
-        targetId: snapshot,
-        reason: 'Restaurar versão inicial',
-      })
-    ).data.proposal
-    await f.request(
-      `/towers/${id}/proposals/${proposal.id}/vote`,
-      player.token,
-      { choice: 'for' },
-    )
-    f.advance(101)
-    const details = (await f.request(`/towers/${id}`)).data
-    assert.equal(details.proposals[0].status, 'accepted')
-    assert.equal(details.frame.blocks.length, 0)
-    assert.equal(details.snapshots.length, 2)
-    assert.equal(details.members[0].contributions, 1)
-    assert.equal((await f.request('/me', player.token)).data.wallet.balance, 18)
-    assert.ok(details.events.some((event) => event.type === 'vote-result'))
-  } finally {
-    await f.close()
-  }
-})
-
 test('malformed requests, expired tokens and auth rate limits are rejected', async () => {
   const f = await fixture()
   try {
@@ -543,7 +401,7 @@ test('malformed requests, expired tokens and auth rate limits are rejected', asy
   }
 })
 
-test('settings require creator and a reason, log old/new rules and freeze during pending votes', async () => {
+test('settings require creator and a reason, log old/new rules and freeze during pending proposals', async () => {
   const f = await fixture()
   try {
     const owner = await f.register('settingsowner')
@@ -606,12 +464,16 @@ test('settings require creator and a reason, log old/new rules and freeze during
       ).status,
       409,
     )
-    await f.request(
-      `/towers/${id}/proposals/${proposal.id}/vote`,
-      owner.token,
-      { choice: 'against' },
+    assert.equal(
+      (
+        await f.request(
+          `/towers/${id}/proposals/${proposal.id}/decide`,
+          owner.token,
+          { accept: false, reason: 'Manter o estado atual' },
+        )
+      ).status,
+      200,
     )
-    f.advance(101)
     assert.equal(
       (
         await f.request(path, owner.token, {
@@ -678,48 +540,23 @@ test('database has one live writer, recovers a dead lock and releases ownership 
   }
 })
 
-test('restart clamps lowered wallet cap and keeps vote-change rules frozen', async () => {
+test('restart clamps lowered wallet cap on reload', async () => {
   const f = await fixture()
   try {
     const user = await f.register('persistedrules')
-    const id = (
-      await f.request('/towers', user.token, { name: 'Regras congeladas' })
-    ).data.tower.id
-    const snapshot = (await f.request(`/towers/${id}`)).data.snapshots[0].id
-    const proposal = (
-      await f.request(`/towers/${id}/proposals`, user.token, {
-        type: 'restore',
-        targetId: snapshot,
-        reason: 'Validar regras congeladas',
-      })
-    ).data.proposal
-    await f.request(`/towers/${id}/proposals/${proposal.id}/vote`, user.token, {
-      choice: 'for',
-    })
+    await f.request('/towers', user.token, { name: 'Regras congeladas' })
     await f.game.close()
     const game = createGameServer({
       dbPath: f.dbPath,
       identityProvider: f.identityProvider,
       now: () => 100000,
-      rules: { cap: 10, initialBalance: 10, voteChanges: true },
+      rules: { cap: 10, initialBalance: 10 },
     })
     try {
       const base = await game.listen()
-      const headers = {
-        Authorization: `Bearer ${user.token}`,
-        'Content-Type': 'application/json',
-      }
+      const headers = { Authorization: `Bearer ${user.token}` }
       const me = await fetch(`${base}/api/me`, { headers })
       assert.equal(((await me.json()) as Data).wallet.balance, 10)
-      const vote = await fetch(
-        `${base}/api/towers/${id}/proposals/${proposal.id}/vote`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ choice: 'against' }),
-        },
-      )
-      assert.equal(vote.status, 409)
     } finally {
       await game.close()
     }
@@ -728,7 +565,7 @@ test('restart clamps lowered wallet cap and keeps vote-change rules frozen', asy
   }
 })
 
-test('creator suspension is opt-in at creation, immutable, limited to voting and persists', async () => {
+test('creator suspension is opt-in at creation, immutable, BDFL decides and persists', async () => {
   const f = await fixture()
   try {
     const owner = await f.register('suspensionowner')
@@ -758,26 +595,9 @@ test('creator suspension is opt-in at creation, immutable, limited to voting and
       ).status,
       400,
     )
-    const bdfl = (
-      await f.request('/towers', owner.token, {
-        name: 'Criador BDFL',
-        allowCreatorBan: true,
-        banMode: 'bdfl',
-      })
-    ).data.tower
-    assert.equal(
-      (
-        await f.request(`/towers/${bdfl.id}/proposals`, owner.token, {
-          type: 'ban',
-          targetId: owner.user.id,
-          reason: 'Propor suspensão do criador',
-        })
-      ).status,
-      400,
-    )
     const tower = (
       await f.request('/towers', owner.token, {
-        name: 'Criador sujeito a voto',
+        name: 'Criador sujeito a proposta',
         allowCreatorBan: true,
         minContributions: 1,
         eligibilityMode: 'automatic',
@@ -808,25 +628,20 @@ test('creator suspension is opt-in at creation, immutable, limited to voting and
       await f.request(`/towers/${tower.id}/proposals`, guest.token, {
         type: 'ban',
         targetId: owner.user.id,
-        reason: 'Suspender criador por votação',
+        reason: 'Suspender criador por proposta',
       })
     ).data.proposal
-    assert.equal(proposal.electorate.length, 2)
-    for (const token of [owner.token, guest.token]) {
-      assert.equal(
-        (
-          await f.request(
-            `/towers/${tower.id}/proposals/${proposal.id}/vote`,
-            token,
-            {
-              choice: 'for',
-            },
-          )
-        ).status,
-        200,
-      )
-    }
-    f.advance(101)
+    assert.equal(
+      (
+        await f.request(
+          `/towers/${tower.id}/proposals/${proposal.id}/decide`,
+          owner.token,
+          { accept: true, reason: 'Aceitar suspensão temporária' },
+        )
+      ).status,
+      200,
+    )
+    f.advance(1)
     const details = (await f.request(`/towers/${tower.id}`)).data
     assert.equal(details.proposals[0].status, 'accepted')
     assert.equal(details.tower.allowCreatorBan, true)

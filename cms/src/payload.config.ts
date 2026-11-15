@@ -13,6 +13,7 @@ import { Media } from './collections/Media'
 import { accessManagementEndpoints } from './access-management/endpoints'
 import { identityEndpoints } from './identity/endpoints'
 import { getLocalCMSURL, loadLocalEnvironment } from '../scripts/local-config.mjs'
+import { buildEmailAdapter } from './email/adapter'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const postgres = process.env.DATABASE_ADAPTER === 'postgres'
@@ -35,9 +36,12 @@ function required(name: string): string {
   return value
 }
 
+const email = await buildEmailAdapter()
+
 export default buildConfig({
   secret: process.env.PAYLOAD_SECRET,
   serverURL,
+  ...(email ? { email } : {}),
   admin: { user: 'users', importMap: { baseDir: dirname }, components: { afterNavLinks: ['/access-management/AccessLink#AccessLink'] } },
   endpoints: [...accessManagementEndpoints, ...identityEndpoints],
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },

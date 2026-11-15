@@ -13,3 +13,4 @@ cms/data/
 cms/media/
 .DS_Store
 *.log
+local/

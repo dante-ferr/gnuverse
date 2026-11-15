@@ -81,12 +81,41 @@ export class AuthService {
       nickname = text(body.nickname, 3, 32, 'Apelido')
       if (!/^[\p{L}\p{N}_-]+$/u.test(nickname)) fail(400, 'Use letras, números, _ ou - no apelido.')
     }
-    const session = register ? await this.identityProvider.register(email, password, nickname)
-      : await this.identityProvider.login(email, password)
+    if (register) {
+      const registered = await this.identityProvider.register(email, password, nickname)
+      if ('verificationRequired' in registered) {
+        return { verificationRequired: true, message: registered.message }
+      }
+      return this.store.atomic(() => {
+        const user = this.profile(registered.account, password)
+        return { token: registered.token, user: publicUser(user), wallet: this.wallet.read(user) }
+      })
+    }
+    const session = await this.identityProvider.login(email, password)
     return this.store.atomic(() => {
       const user = this.profile(session.account, password)
       return { token: session.token, user: publicUser(user), wallet: this.wallet.read(user) }
     })
+  }
+  async forgotPassword(body: Record<string, unknown>) {
+    const email = text(body.email, 3, 254, 'E-mail').toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'E-mail inválido.')
+    await this.identityProvider.forgotPassword(email)
+    return { message: 'Se o e-mail existir na base, você receberá instruções em instantes.' }
+  }
+  async resetPassword(body: Record<string, unknown>) {
+    const token = text(body.token, 8, 512, 'Token')
+    const password = body.password
+    if (typeof password !== 'string' || password.length < 1 || password.length > 128)
+      fail(400, 'Informe uma senha de até 128 caracteres.')
+    await this.identityProvider.resetPassword(token, password)
+    return { message: 'Senha redefinida. Agora você já pode entrar.' }
+  }
+  async verifyEmail(token: string) {
+    const value = token.trim()
+    if (value.length < 8 || value.length > 512) fail(400, 'Link de verificação inválido.')
+    await this.identityProvider.verifyEmail(value)
+    return { message: 'E-mail confirmado. Agora você já pode entrar.' }
   }
   async logout(authorization: string | undefined) {
     await this.identityProvider.logout(this.token(authorization))

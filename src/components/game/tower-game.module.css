@@ -647,16 +647,6 @@
 .tally {
   color: var(--accent);
 }
-.voteButtons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 20px;
-}
-.voteButtons button[aria-pressed='true'] {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
 .panel {
   background: var(--surface);
   padding: 26px;

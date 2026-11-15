@@ -4,7 +4,7 @@ import type { Tower } from '../model/types'
 export type TowerFilters = {
   search: string
   cost: 'all' | 'free' | 'paid'
-  sort: 'oldest' | 'name' | 'cost-asc' | 'cost-desc' | 'blocks-desc'
+  sort: 'oldest' | 'name' | 'cost-asc' | 'cost-desc' | 'segments-desc' | 'blocks-desc'
   mine: boolean
 }
 export const DEFAULT_TOWER_FILTERS: TowerFilters = {
@@ -53,7 +53,8 @@ export async function listTowers(
     if (filters.sort === 'name') return a.name.localeCompare(b.name, 'pt-BR')
     if (filters.sort === 'cost-asc') return a.cost - b.cost
     if (filters.sort === 'cost-desc') return b.cost - a.cost
-    if (filters.sort === 'blocks-desc') return b.blockCount - a.blockCount
+    if (filters.sort === 'segments-desc' || filters.sort === 'blocks-desc')
+      return (b.segmentCount ?? 0) - (a.segmentCount ?? 0)
     return 0
   })
   const pageCount = Math.ceil(towers.length / limit)

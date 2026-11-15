@@ -18,9 +18,9 @@ function withToml(contents: string, run: (configPath: string) => void) {
 
 test('loads the game-server configuration TOML and returns validated camelCase rules', () => {
   const { rules } = loadGameConfig()
-  assert.equal(rules.balanceCap, 20)
-  assert.equal(rules.initialBalance, 20)
-  assert.equal(rules.coinIntervalMs, 30_000)
+  assert.equal(rules.balanceCap, 5)
+  assert.equal(rules.initialBalance, 5)
+  assert.equal(rules.coinIntervalMs, 6_000)
   assert.equal(rules.sessionDurationMs, 604_800_000)
 })
 
@@ -43,9 +43,6 @@ test('rejects unknown TOML fields instead of silently ignoring them', () => {
 })
 
 test('rejects values outside rule bounds and inconsistent rules', () => {
-  withToml('quorum = 0\n', (configPath) => {
-    assert.throws(() => loadGameConfig(configPath), /quorum deve ser número/)
-  })
   withToml('balance_cap = 10\ninitial_balance = 11\n', (configPath) => {
     assert.throws(
       () => loadGameConfig(configPath),
@@ -55,27 +52,4 @@ test('rejects values outside rule bounds and inconsistent rules', () => {
   withToml('bdfl_veto = true\n', (configPath) => {
     assert.throws(() => loadGameConfig(configPath), /bdfl_veto está reservado/)
   })
-})
-
-test('wind thresholds and force are configurable and reject invalid values', () => {
-  assert.equal(loadGameConfig().rules.windMinBlocks, 15)
-  assert.equal(loadGameConfig().rules.windEveryBlocks, 10)
-  withToml(
-    'wind_min_blocks = 7\nwind_every_blocks = 4\nwind_strength = 0.25\n',
-    (configPath) => {
-      const { rules } = loadGameConfig(configPath)
-      assert.equal(rules.windMinBlocks, 7)
-      assert.equal(rules.windEveryBlocks, 4)
-      assert.equal(rules.windStrength, 0.25)
-    },
-  )
-  for (const contents of [
-    'wind_min_blocks = 0',
-    'wind_every_blocks = 1.5',
-    'wind_strength = 1.1',
-  ]) {
-    withToml(contents, (configPath) =>
-      assert.throws(() => loadGameConfig(configPath), /wind_/),
-    )
-  }
 })

@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { canManageTower } from '../../../core/authz/policy'
 import { useRouter } from 'next/navigation'
 import { AccountBanner } from './account/account-banner'
-import { BlockControls } from './construction/block-controls'
 import { CreateTowerPanel } from './construction/create-tower-panel'
-import { TowerScene } from './construction/tower-scene'
+import { TreeScene } from './construction/tree-scene'
+import { TreeControls } from './construction/tree-controls'
 import { TowerToolbar } from './construction/tower-toolbar'
 import { TowerCommunity } from './community/tower-community'
 import { ProposalForm } from './community/proposal-form'
@@ -21,15 +21,14 @@ export function TowerGame() {
     const destination = new URL(window.location.href)
     router.push(`/login/?next=${encodeURIComponent(destination.pathname + destination.search)}`)
   }
-  const { session, lobby, live, feedback, placement } = game
-  const [spaceExpanded, setSpaceExpanded] = useState(false)
+  const { session, lobby, live, feedback } = game
   const notice = feedback.notice || session.notice
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has('novo'))
       game.setShowCreate(true)
   }, [game.setShowCreate])
   return (
-    <main className={spaceExpanded ? `${styles.game} ${styles.gameExpanded}` : styles.game}>
+    <main className={styles.game}>
       <AccountBanner
         user={session.user}
         wallet={session.wallet}
@@ -54,10 +53,7 @@ export function TowerGame() {
       {feedback.error && !game.showCreate && (
         <div className={styles.error} role="alert">
           {feedback.error}
-          <button
-            aria-label="Fechar erro"
-            onClick={() => feedback.setError('')}
-          >
+          <button aria-label="Fechar erro" onClick={() => feedback.setError('')}>
             ×
           </button>
         </div>
@@ -76,53 +72,40 @@ export function TowerGame() {
           loginHref={session.user ? undefined : `/login/?next=${encodeURIComponent(window.location.pathname + window.location.search + (window.location.search ? '&' : '?') + 'novo=1')}`}
           maxCost={Number(game.rules?.maxCost ?? 0)}
           defaultCost={Number(game.rules?.defaultCost ?? 0)}
-          blockIntervalMs={Number(game.rules?.cooldownMs ?? 0)}
-          windMinBlocks={Number(game.rules?.windMinBlocks ?? 1)}
-          windEveryBlocks={Number(game.rules?.windEveryBlocks ?? 1)}
           minContributions={Number(game.rules?.minContributions ?? 1)}
           onClose={() => game.setShowCreate(false)}
           onCreateTower={game.createTower}
         />
       )}
-      <div className={spaceExpanded ? `${styles.playLayout} ${styles.playExpanded}` : styles.playLayout}>
-        <TowerScene
+      <div className={styles.playLayout}>
+        <TreeScene
           frame={live.frame}
-          preview={game.preview}
           tower={game.tower}
-          {...placement}
-          maxBlocks={Number(game.rules?.maxBlocks ?? 100)}
-          expanded={spaceExpanded}
-          onToggleExpanded={() => setSpaceExpanded((current) => !current)}
-          onPositionChange={(x, y) =>
-            game.setPlacement((current) => ({ ...current, x, y }))
-          }
-          onPreviewClose={() => game.setPreview(null)}
+          expanded={false}
+          growFrom={game.growFrom}
+          growPreview={game.growPreview}
+          onToggleExpanded={() => undefined}
+          onSelectNode={(node) => game.setSelected(node)}
+          onGrowPreview={(point) => game.setGrowPreview(point)}
+          onGrowCommit={game.growCommit}
         />
-        <BlockControls
-          kind={placement.kind}
-          x={placement.x}
-          y={placement.y}
-          angle={placement.angle}
-          onKindChange={(kind) =>
-            game.setPlacement((current) => ({ ...current, kind }))
-          }
-          onXChange={(x) => game.setPlacement((current) => ({ ...current, x }))}
-          onYChange={(y) => game.setPlacement((current) => ({ ...current, y }))}
-          onAngleChange={(angle) =>
-            game.setPlacement((current) => ({ ...current, angle }))
-          }
-          canPlace={game.canPlace}
-          busy={feedback.busy}
+        <TreeControls
           user={session.user}
           wallet={session.wallet}
           tower={game.tower}
+          frame={live.frame}
+          selected={game.selected}
+          growFrom={game.growFrom}
+          busy={feedback.busy}
           isBanned={Boolean(game.member?.banned)}
-          preview={game.preview}
-          checkpointPending={live.frame.checkpointPending}
-          cooldownRemainingMs={live.frame.cooldownRemainingMs}
-          blocksUntilCheckpoint={live.frame.blocksUntilCheckpoint}
-          wind={live.frame.wind}
-          onPlace={game.place}
+          onStartGrow={() => game.selected && game.setGrowFrom(game.selected.id)}
+          onCancelGrow={() => {
+            game.setGrowFrom(null)
+            game.setGrowPreview(null)
+          }}
+          onLeaf={() => game.selected && game.perform('leaf', { nodeId: game.selected.id })}
+          onFortify={() => game.selected && game.perform('fortify', { nodeId: game.selected.id })}
+          onPrune={() => game.selected && game.perform('prune', { nodeId: game.selected.id })}
         />
       </div>
       {live.state && (
@@ -133,24 +116,14 @@ export function TowerGame() {
           isBanned={Boolean(game.member?.banned)}
           tab={game.tab}
           onTabChange={game.setTab}
-          onPreview={game.setPreview}
-          onRestore={(version) =>
-            game.openProposal(
-              { type: 'restore', targetId: version.id },
-              version,
-            )
-          }
           onBan={(id) => game.openProposal({ type: 'ban', targetId: id })}
-          onVote={game.vote}
           onDecide={game.decide}
           onEligibility={game.setEligibility}
           onSettingsSave={game.saveSettings}
-          onAdminRestore={game.adminRestore}
         />
       )}
       {game.proposalTarget && (
         <ProposalForm
-          key={`${game.proposalTarget.type}-${game.proposalTarget.targetId}`}
           target={game.proposalTarget}
           busy={feedback.busy}
           onCancel={() => game.setProposalTarget(null)}

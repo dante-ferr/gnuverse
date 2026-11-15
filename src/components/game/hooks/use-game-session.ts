@@ -69,13 +69,21 @@ function useSessionState() {
   async function authenticate(
     mode: 'login' | 'register',
     form: HTMLFormElement,
-  ) {
+  ): Promise<{ verificationRequired: boolean }> {
     const data = new FormData(form)
-    const result = await api.request<Credentials>(`/api/${mode}`, {
+    const result = await api.request<Credentials & {
+      verificationRequired?: boolean
+      message?: string
+    }>(`/api/${mode}`, {
       email: data.get('email'),
       password: data.get('password'),
       ...(mode === 'register' ? { nickname: data.get('nickname') } : {}),
     })
+    if (result.verificationRequired) {
+      const message = result.message || 'Enviamos um e-mail de confirmação. Abra o link antes de entrar.'
+      setNotice(message)
+      return { verificationRequired: true }
+    }
     try {
       sessionStorage.setItem(SESSION_KEY, result.token)
     } catch {
@@ -85,6 +93,7 @@ function useSessionState() {
     setUser(result.user)
     setWallet(result.wallet)
     setNotice('')
+    return { verificationRequired: false }
   }
   async function logout() {
     await api.request('/api/logout', {})

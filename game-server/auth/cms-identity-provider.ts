@@ -1,4 +1,9 @@
-import type { IdentityAccount, IdentityProvider, IdentitySession } from '../../core/authn/identity-provider.ts'
+import type {
+  IdentityAccount,
+  IdentityProvider,
+  IdentityRegisterResult,
+  IdentitySession,
+} from '../../core/authn/identity-provider.ts'
 import { ROLES } from '../../core/authz/policy.ts'
 import { fail } from '../domain/validation.ts'
 
@@ -17,6 +22,11 @@ export class CMSIdentityProvider implements IdentityProvider {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(10000),
       })
     } catch { fail(503, 'O serviço de contas está indisponível. Tente novamente em instantes.') }
+    if (response.status === 403 && !token) {
+      const result = await response.json().catch(() => ({}))
+      const message = typeof result.message === 'string' ? result.message : 'Confirme seu e-mail antes de entrar.'
+      fail(403, message)
+    }
     if (response.status === 401 || response.status === 403) fail(401, token ? 'Sua sessão expirou. Entre novamente.' : 'E-mail ou senha incorretos.')
     if (response.status === 429) fail(429, 'Muitas tentativas. Aguarde um minuto.')
     if (!response.ok) {
@@ -33,10 +43,27 @@ export class CMSIdentityProvider implements IdentityProvider {
     if (typeof result.token !== 'string') fail(503, 'O serviço de contas não retornou uma sessão válida.')
     return { token: result.token, account: await this.authenticate(result.token) }
   }
-  async register(email: string, password: string, nickname: string): Promise<IdentitySession> {
+  async register(email: string, password: string, nickname: string): Promise<IdentityRegisterResult> {
     const result = await this.request('/identity/register', undefined, { email, password, nickname })
+    if (result.verificationRequired === true) {
+      return {
+        verificationRequired: true,
+        message: typeof result.message === 'string'
+          ? result.message
+          : 'Enviamos um e-mail de confirmação. Abra o link antes de entrar.',
+      }
+    }
     if (typeof result.token !== 'string') fail(503, 'O serviço de contas não retornou uma sessão válida.')
     return { token: result.token, account: await this.authenticate(result.token) }
+  }
+  async forgotPassword(email: string) {
+    await this.request('/users/forgot-password', undefined, { email })
+  }
+  async resetPassword(token: string, password: string) {
+    await this.request('/users/reset-password', undefined, { token, password })
+  }
+  async verifyEmail(token: string) {
+    await this.request(`/users/verify/${encodeURIComponent(token)}`, undefined, {})
   }
   async authenticate(token: string): Promise<IdentityAccount> {
     const { account } = await this.request('/identity/me', token)

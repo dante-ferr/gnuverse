@@ -75,6 +75,18 @@ export class HttpApplication {
         const result = await auth.login(body, path[1] === 'register')
         return json(res, path[1] === 'register' ? 201 : 200, result)
       }
+      if (req.method === 'POST' && path[1] === 'forgot-password' && path.length === 2) {
+        auth.rateLimit(req.socket.remoteAddress ?? 'unknown')
+        return json(res, 200, await auth.forgotPassword(body))
+      }
+      if (req.method === 'POST' && path[1] === 'reset-password' && path.length === 2) {
+        auth.rateLimit(req.socket.remoteAddress ?? 'unknown')
+        return json(res, 200, await auth.resetPassword(body))
+      }
+      if (req.method === 'POST' && path[1] === 'verify-email' && path.length === 3) {
+        auth.rateLimit(req.socket.remoteAddress ?? 'unknown')
+        return json(res, 200, await auth.verifyEmail(path[2]))
+      }
       if (req.method === 'GET' && path[1] === 'me' && path.length === 2) {
         const user = await auth.authenticate(req.headers.authorization)
         return json(
@@ -101,7 +113,7 @@ export class HttpApplication {
         const cost = params.get('cost') ?? 'all'
         const sort = params.get('sort') ?? 'oldest'
         if (!['all', 'free', 'paid'].includes(cost)) fail(400, 'Filtro de custo inválido.')
-        if (!['oldest', 'name', 'cost-asc', 'cost-desc', 'blocks-desc'].includes(sort))
+        if (!['oldest', 'name', 'cost-asc', 'cost-desc', 'segments-desc'].includes(sort))
           fail(400, 'Ordenação inválida.')
         const creatorId = params.get('mine') === 'true'
           ? (await auth.authenticate(req.headers.authorization)).id : null
@@ -114,7 +126,11 @@ export class HttpApplication {
           if (sort === 'name') return a.name.localeCompare(b.name, 'pt-BR')
           if (sort === 'cost-asc') return a.cost - b.cost
           if (sort === 'cost-desc') return b.cost - a.cost
-          if (sort === 'blocks-desc') return b.frame.blocks.length - a.frame.blocks.length
+          if (sort === 'segments-desc')
+            return (
+              b.frame.nodes.filter((n) => n.parentId !== null).length -
+              a.frame.nodes.filter((n) => n.parentId !== null).length
+            )
           return 0
         })
         const total = available.length
@@ -127,7 +143,7 @@ export class HttpApplication {
           filtersApplied: true,
           towers: available.slice(start, start + pageSize).map((tower) => ({
             ...towers.publicTower(tower),
-            coverBlocks: tower.frame.blocks,
+            coverNodes: tower.frame.nodes.slice(0, 24),
           })),
           page,
           pageSize,
@@ -159,8 +175,16 @@ export class HttpApplication {
         })
         return json(res, 200, { ok: true })
       }
+      if (req.method === 'GET' && path[3] === 'status' && path.length === 4) {
+        const user = await auth.authenticate(req.headers.authorization)
+        return json(
+          res,
+          200,
+          store.atomic(() => towers.statusPayload(tower, user)),
+        )
+      }
       if (req.method === 'GET' && path.length === 3) {
-        store.atomic(() => governance.finishVoting(tower))
+        store.atomic(() => governance.expireBans(tower))
         return json(res, 200, towers.detail(tower))
       }
       if (req.method === 'GET' && path[3] === 'events' && path.length === 4) {
@@ -172,21 +196,29 @@ export class HttpApplication {
       const result = store.atomic(() => {
         const tower = store.state.towers[path[2]]
         if (!tower) fail(404, 'Torre não encontrada.')
-        governance.finishVoting(tower)
+        governance.expireBans(tower)
         const actor = { id: user.id, roles: user.roles ?? [] }
         // Administrative actions do not depend on tower membership or local governance.
         if (path[3] === 'settings' && path.length === 4 && can(actor, 'tower:update:any')) {
           towers.member(tower, user)
           return towers.settings(tower, user, body)
         }
-        if (path[3] === 'restore' && path.length === 4)
-          return towers.adminRestore(tower, user, body)
         const participant = towers.member(tower, user)
         if (participant.banned) fail(403, 'Você foi banido desta torre.')
         if (path[3] === 'settings' && path.length === 4)
           return towers.settings(tower, user, body)
-        if (path[3] === 'blocks' && path.length === 4)
-          return towers.place(tower, user, participant, body)
+        const treeActions = ['grow', 'leaf', 'fortify', 'prune', 'root'] as const
+        if (
+          treeActions.includes(path[3] as (typeof treeActions)[number]) &&
+          path.length === 4
+        ) {
+          if (path[3] === 'grow') return towers.grow(tower, user, participant, body)
+          if (path[3] === 'leaf') return towers.leaf(tower, user, participant, body)
+          if (path[3] === 'fortify')
+            return towers.fortify(tower, user, participant, body)
+          if (path[3] === 'prune') return towers.prune(tower, user, participant, body)
+          return towers.secondaryRoot(tower, user, participant, body)
+        }
         if (
           path[3] === 'members' &&
           path[5] === 'eligibility' &&
@@ -199,8 +231,6 @@ export class HttpApplication {
         const proposal = tower.proposals.find((item) => item.id === path[4])
         if (!proposal) fail(404, 'Proposta não encontrada.')
         if (proposal.status !== 'pending') fail(409, 'Proposta encerrada.')
-        if (path[5] === 'vote' && path.length === 6)
-          return governance.vote(tower, user, proposal, body)
         if (path[5] === 'decide' && path.length === 6)
           return governance.decide(tower, user, proposal, body)
         fail(404, 'Não encontrado.')

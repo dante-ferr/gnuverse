@@ -36,8 +36,8 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
 
   const authenticate = (form: HTMLFormElement) =>
     feedback.run(async () => {
-      await session.authenticate(mode, form)
-      router.replace(returnTo)
+      const outcome = await session.authenticate(mode, form)
+      if (!outcome.verificationRequired) router.replace(returnTo)
     })
 
   return (
@@ -49,7 +49,9 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         returnTo={returnTo}
         onSubmit={authenticate}
       />
-      {notice && <p className={styles.message} role="status">{notice}</p>}
+      {(notice || session.notice) && (
+        <p className={styles.message} role="status">{session.notice || notice}</p>
+      )}
     </main>
   )
 }

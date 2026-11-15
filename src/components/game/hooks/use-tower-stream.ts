@@ -2,14 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type GameApi } from '../api/game-api'
-import { type Frame, type TowerState } from '../model/types'
+import { type TowerState, type TreeFrame } from '../model/types'
 import { type Connection } from './use-tower-lobby'
-const emptyFrame = (): Frame => ({ blocks: [], settled: true, tick: 0 })
+const emptyFrame = (): TreeFrame => ({
+  nodes: [],
+  energy: 0,
+  turn: { phase: 'idle', phaseEndsAt: null },
+  firefly: { path: [], index: 0, active: false, phasesSeen: 0 },
+  flower: { bloomed: false, nodeId: null, energyPhasesAboveZero: 0 },
+  outcome: 'playing',
+  exit: { x: 320, y: 0, width: 160, height: 80 },
+  tick: 0,
+})
 
 /** Owns the SSE lifecycle and guards responses from a previously selected tower. */
 export function useTowerStream(api: GameApi, towerId: string) {
   const [state, setState] = useState<TowerState | null>(null)
-  const [frame, setFrame] = useState<Frame>(emptyFrame)
+  const [frame, setFrame] = useState<TreeFrame>(emptyFrame)
   const [connection, setConnection] = useState<Connection>('connecting')
   const selected = useRef(towerId)
   selected.current = towerId
@@ -47,7 +56,7 @@ export function useTowerStream(api: GameApi, towerId: string) {
     const onFrame = (event: MessageEvent<string>) => {
       if (!active) return
       try {
-        const data = JSON.parse(event.data) as Frame
+        const data = JSON.parse(event.data) as TreeFrame
         setFrame(data)
         setConnection('live')
       } catch {

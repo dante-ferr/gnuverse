@@ -1,11 +1,24 @@
 import { APIError, type CollectionConfig } from 'payload'
 import { adminField, canAccessCMS, isAdmin } from '../access'
 import { readRoleRegistry } from '../../../core/authz/manage-role-store.ts'
+import { emailVerificationEnabled } from '../email/adapter'
+import { forgotPasswordEmailHTML, verificationEmailHTML } from '../email/auth-messages'
 
 export const Users: CollectionConfig = {
   slug: 'users',
   labels: { singular: 'Integrante', plural: 'Integrantes' },
-  auth: true,
+  auth: emailVerificationEnabled
+    ? {
+        verify: {
+          generateEmailHTML: verificationEmailHTML,
+          generateEmailSubject: () => 'Confirme seu e-mail no GNUverse',
+        },
+        forgotPassword: {
+          generateEmailHTML: forgotPasswordEmailHTML,
+          generateEmailSubject: () => 'Redefina sua senha no GNUverse',
+        },
+      }
+    : true,
   admin: { useAsTitle: 'name' },
   access: {
     admin: canAccessCMS,
@@ -27,6 +40,7 @@ export const Users: CollectionConfig = {
         if (existing.totalDocs === 0) {
           if (req.context.publicRegistration) throw new APIError('O administrador precisa configurar o site antes do cadastro de participantes.', 409)
           data.role = 'admin'
+          if (emailVerificationEnabled) data._verified = true
         }
       }
       return data

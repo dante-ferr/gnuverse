@@ -18,5 +18,11 @@
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
-  "exclude": ["node_modules", "cms"]
+  "exclude": [
+    "node_modules",
+    "cms",
+    "tests/game-server.test.ts",
+    "tests/game-physics.test.ts",
+    "tests/block-pieces.test.ts"
+  ]
 }

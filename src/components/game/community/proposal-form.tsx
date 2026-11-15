@@ -24,41 +24,34 @@ export function ProposalForm({ target, busy, onCancel, onSubmit }: Props) {
   return (
     <section ref={panel} className={styles.panel} aria-label="Nova proposta">
       <div className={styles.panelTitle}>
-        <h2>
-          {target.type === 'restore'
-            ? 'Restaurar versão'
-            : 'Suspender participante'}
-        </h2>
+        <h2>Suspender participante</h2>
         <button className={styles.quiet} onClick={onCancel}>
           Cancelar
         </button>
       </div>
       <details className={styles.eventLog}>
         <summary>Efeitos</summary>
-        <p>
-          {target.type === 'restore'
-            ? 'A restauração não devolve moedas nem apaga o histórico.'
-            : 'A suspensão vale só nesta torre. A conta, o saldo e as outras torres permanecem.'}
-        </p>
+        <p>O participante perde ações nesta árvore até o fim da suspensão.</p>
       </details>
       <form
+        className={styles.form}
         onSubmit={(event) => {
           event.preventDefault()
           onSubmit(reason)
         }}
       >
-        <label className={styles.reason}>
+        <label>
           Motivo público
           <textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            required
             minLength={3}
             maxLength={500}
+            required
           />
         </label>
-        <button className={styles.primary} disabled={busy}>
-          Enviar
+        <button className={styles.primary} disabled={busy || target.type !== 'ban'}>
+          Registrar proposta
         </button>
       </form>
     </section>

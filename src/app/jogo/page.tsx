@@ -1,9 +1,9 @@
 import { TowerDashboard } from '@/components/game/tower-dashboard'
 
 export const metadata = {
-  title: 'Torres colaborativas — GNUverse',
+  title: 'Árvores na caverna — GNUverse',
   description:
-    'Construa com outras pessoas. Empilhe blocos, acompanhe versões e participe das decisões da comunidade.',
+    'Cultive galhos em cavernas compartilhadas, gerencie energia luminosa e participe das decisões da comunidade.',
 }
 
 export default function GamePage() {
