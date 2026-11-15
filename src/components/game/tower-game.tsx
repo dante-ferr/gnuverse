@@ -31,14 +31,6 @@ export function TowerGame() {
   return (
     <main className={styles.gameShell}>
       <header className={styles.gameTopBar}>
-        <AccountBanner
-          user={session.user}
-          wallet={session.wallet}
-          secondsToCoin={session.secondsToCoin}
-          busy={feedback.busy}
-          onLogout={game.logout}
-          onOpenAuth={() => openLogin()}
-        />
         <TowerToolbar
           connection={game.connection}
           towerName={game.tower?.name}
@@ -47,6 +39,14 @@ export function TowerGame() {
             game.tower && canManageTower(session.user ? { ...session.user, roles: session.user.roles ?? [] } : null, 'delete', game.tower.creatorId),
           )}
           onDelete={game.deleteTower}
+        />
+        <AccountBanner
+          user={session.user}
+          wallet={session.wallet}
+          secondsToCoin={session.secondsToCoin}
+          busy={feedback.busy}
+          onLogout={game.logout}
+          onOpenAuth={() => openLogin()}
         />
       </header>
       {game.connection === 'offline' && (

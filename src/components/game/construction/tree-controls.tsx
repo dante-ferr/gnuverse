@@ -39,7 +39,7 @@ export function TreeControls({
         Moedas: {wallet?.balance ?? '—'} · Energia: {frame.energy}
       </p>
       <p className={styles.controlsHint}>
-        Clique num galho e no destino para crescer. Role ou belisque para dar zoom; WASD ou arraste para mover.
+        Clique num galho e no destino. Zoom com a roda; mova com WASD ou arraste.
       </p>
       {selected && (
         <p className={styles.controlsMeta}>

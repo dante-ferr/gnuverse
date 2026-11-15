@@ -119,8 +119,8 @@
   margin-bottom: 24px;
 }
 .towerDashboard {
-  margin: 0 0 28px;
-  padding: 24px 0;
+  margin: 0 0 20px;
+  padding: 14px 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
@@ -128,12 +128,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 32px;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.dashboardPageHeading .eyebrow {
+  margin-bottom: 6px;
+}
+.dashboardPageHeading .primary {
+  padding: 8px 14px;
+  font-size: 12px;
 }
 .dashboardPageHeading h1 {
-  margin: 0 0 10px;
-  font-size: clamp(34px, 5vw, 58px);
+  margin: 0 0 4px;
+  font-size: clamp(26px, 3vw, 36px);
   font-weight: 500;
   letter-spacing: -.055em;
 }
@@ -171,8 +178,8 @@
 .towerSearchInput input { flex: 1; }
 .towerSearchInput button { flex: none; }
 .towerFilters input[type='search'],
-.towerFilters select { width: 100%; min-width: 0; height: 42px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); padding: 11px; font: inherit; }
-.towerFilterActions { display: flex; align-items: center; gap: 18px; min-height: 42px; font-size: 12px; white-space: nowrap; }
+.towerFilters select { width: 100%; min-width: 0; height: 34px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); padding: 6px 10px; font: inherit; }
+.towerFilterActions { display: flex; align-items: center; gap: 18px; min-height: 34px; font-size: 12px; white-space: nowrap; }
 .mineFilter { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .mineFilter input { accent-color: var(--accent); }
 .clearTowerFilters { padding: 8px 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
@@ -962,7 +969,7 @@
 }
 /* Shared dark palette; construction material deliberately stays monochrome. */
 .game {
-  padding-top: 30px;
+  padding-top: 20px;
 }
 .heading {
   margin-bottom: 24px;
@@ -1315,6 +1322,20 @@
 @media (max-width: 900px) {
   .playExpanded {
     grid-template-columns: minmax(0, 1fr) 260px;
+  }
+}
+@media (max-width: 720px) {
+  .treePlayLayout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .gameSidebar {
+    max-height: 34dvh;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .actionButtons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 @media (max-width: 640px) {

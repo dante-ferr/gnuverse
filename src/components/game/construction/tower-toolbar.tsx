@@ -4,15 +4,17 @@ import styles from '../tower-game.module.css'
 
 type Props = {
   connection: Connection
+  towerName?: string
   onCreate: () => void
   canDelete: boolean
   onDelete: () => void
 }
 
-export function TowerToolbar({ connection, onCreate, canDelete, onDelete }: Props) {
+export function TowerToolbar({ connection, towerName, onCreate, canDelete, onDelete }: Props) {
   return (
     <div className={styles.detailToolbar}>
-      <a className={styles.backLink} href="/jogo/">← Todas as cavernas</a>
+      <a className={styles.backLink} href="/jogo/">← Cavernas</a>
+      <h1 className={styles.gameTitle}>{towerName || 'Árvore na caverna'}</h1>
       <span className={`${styles.connection} ${connection === 'live' ? styles.live : ''}`}>
         <i />
         {connection === 'live' ? 'Ao vivo' : connection === 'connecting' ? 'Conectando' : 'Offline'}
@@ -21,7 +23,7 @@ export function TowerToolbar({ connection, onCreate, canDelete, onDelete }: Prop
       {canDelete && (
         <button className={styles.secondary} onClick={() => {
           if (window.confirm('Excluir esta sala e todo o histórico?')) onDelete()
-        }}>Excluir sala</button>
+        }}>Excluir</button>
       )}
     </div>
   )

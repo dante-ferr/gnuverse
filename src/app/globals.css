@@ -201,6 +201,60 @@ summary {
 .article-card:hover {
   box-shadow: inset 0 2px var(--accent);
 }
+html:has(.tree-game-root),
+body:has(.tree-game-root) {
+  overflow: hidden;
+  height: 100dvh;
+}
+body:has(.tree-game-root) {
+  display: flex;
+  flex-direction: column;
+}
+.tree-game-root {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+body:has(.tree-game-root) .site-header {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  align-self: stretch;
+  padding: 4px 12px;
+  gap: 12px;
+}
+body:has(.tree-game-root) .site-account {
+  display: none;
+}
+body:has(.tree-game-root) .site-brand {
+  font-size: 14px;
+}
+body:has(.tree-game-root) .site-brand span {
+  font-size: 16px;
+}
+body:has(.tree-game-root) .site-nav {
+  gap: 14px;
+  font-size: 11px;
+}
+body:has(.tree-game-root) .site-link {
+  padding: 2px 0;
+}
+body:has(.tree-game-root) .site-avatar {
+  width: 26px;
+  height: 26px;
+}
+body:has(.tree-game-root) .site-avatar svg {
+  width: 15px;
+  height: 15px;
+}
+body:has(.tree-game-root) .site-credits {
+  font-size: 12px;
+}
+body:has(.tree-game-root) .site-auth-links a:last-child {
+  padding: 4px 8px;
+}
 @media (max-width: 480px) {
   .site-nav {
     gap: 16px;
