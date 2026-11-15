@@ -514,44 +514,6 @@
   margin-bottom: 20px;
   max-width: 700px;
 }
-.snapshots {
-  display: flex;
-  gap: 15px;
-  overflow-x: auto;
-  padding: 2px 2px 14px;
-}
-.snapshot {
-  min-width: 180px;
-  max-width: 220px;
-  flex: 1;
-  display: grid;
-  gap: 8px;
-  align-content: start;
-}
-.snapshot > button:first-child {
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  overflow: hidden;
-  cursor: pointer;
-}
-.snapshot svg {
-  width: 100%;
-  display: block;
-  max-height: 150px;
-}
-.snapshot strong {
-  font-size: 12px;
-  font-weight: 500;
-}
-.snapshot small {
-  font-size: 10px;
-  color: var(--muted);
-}
-.snapshot .quiet {
-  text-align: left;
-  font-size: 10px;
-}
 .eventLog {
   border-block: 1px solid var(--line);
   padding: 16px 0;

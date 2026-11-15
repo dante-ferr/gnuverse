@@ -30,13 +30,11 @@ src/components/game/
 │   ├── auth-panel.tsx                cadastro e login
 │   └── account-banner.tsx            conta e carteira
 └── community/
-    ├── history-panel.tsx             versões e restauração
     ├── members-panel.tsx              participantes e habilitação
     ├── proposals-panel.tsx            propostas e votos
     ├── tower-community.tsx            composição da comunidade
     ├── proposal-form.tsx             abertura de propostas
-    ├── tower-settings.tsx             regras da torre
-    └── event-detail.tsx               detalhes do histórico
+    └── tower-settings.tsx             regras da torre
 ```
 
 `TowerGame` reúne os módulos. A camada `api` cuida do transporte; hooks mantêm estado e ações da experiência; componentes em `construction`, `account` e `community` recebem valores e callbacks. `model` guarda tipos e catálogos sem chamar a rede.

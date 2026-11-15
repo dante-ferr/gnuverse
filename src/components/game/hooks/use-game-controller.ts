@@ -21,7 +21,7 @@ export function useGameController() {
   const [growPreview, setGrowPreview] = useState<{ x: number; y: number } | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null)
-  const [tab, setTab] = useState<'history' | 'community' | 'decisions'>('history')
+  const [tab, setTab] = useState<'community' | 'decisions'>('community')
   useEffect(() => {
     setProposalTarget(null)
     setSelected(null)

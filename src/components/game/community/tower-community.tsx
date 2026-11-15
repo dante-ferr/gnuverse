@@ -2,13 +2,12 @@
 
 import { canManageTower } from '../../../../core/authz/policy'
 import { type Proposal, type TowerState, type User } from '../model/types'
-import { HistoryPanel } from './history-panel'
 import { MembersPanel } from './members-panel'
 import { ProposalsPanel } from './proposals-panel'
 import { TowerSettings } from './tower-settings'
 import styles from '../tower-game.module.css'
 
-type Tab = 'history' | 'community' | 'decisions'
+type Tab = 'community' | 'decisions'
 type Props = {
   state: TowerState
   user: User | null
@@ -89,7 +88,6 @@ export function TowerCommunity({
       <div className={styles.tabs} role="tablist" aria-label="Comunidade da árvore">
         {(
           [
-            ['history', 'Versões & histórico'],
             ['community', 'Quem cultiva'],
             ['decisions', 'Decisões públicas'],
           ] as const
@@ -107,7 +105,6 @@ export function TowerCommunity({
         ))}
       </div>
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === 'history' && <HistoryPanel state={state} />}
         {tab === 'community' && (
           <MembersPanel
             state={state}
