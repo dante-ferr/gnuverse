@@ -1,6 +1,6 @@
 # Planejamento para 7 integrantes
 
-Escopo atualizado em 21/10/2026.
+Escopo atualizado em 15/11/2026.
 
 ## O que vem do enunciado
 
@@ -41,7 +41,7 @@ Todos os sete integrantes escrevem **dois posts autorais**, totalizando **14 pos
 
 Essa divisão é uma proposta de organização, não atribuição de nomes já confirmada. Ninguém fica responsável apenas por pensar ou apenas por executar. A pessoa 7 organiza o diário; cada integrante escreve sua própria reflexão. Os autores revisam como suas contribuições aparecem no site e acompanham os testes.
 
-As pessoas 2 e 3 selecionam palestras diferentes; todos leem ambas. Cada post deve incluir argumento próprio, evidências, fontes e ligação com o curso. A publicação precisa passar por autorização; o código atual do CMS ainda exige mudança para aplicar essa regra obrigatoriamente.
+As pessoas 2 e 3 selecionam palestras diferentes; todos leem ambas. Cada post deve incluir argumento próprio, evidências, fontes e ligação com o curso. A publicação passa obrigatoriamente por aprovação editorial: o código do CMS e o fluxo em `/blog/` já aplicam essa separação entre autoria (`author`) e revisão/publicação (`reviewer`/`admin`).
 
 ## Como trabalhar sem terceirizar a autoria
 
@@ -80,8 +80,13 @@ Escolher essas respostas antes de expandir páginas e animações.
 
 ## Estado técnico e próximos passos
 
-A base atual implementa o blog com Payload local, rascunhos, artigos e exportação estática. A decisão é usar Payload em nuvem, PostgreSQL/storage no Supabase e blog estático no Cloudflare Pages, sem commits de conteúdo. Configurar a nuvem e validar credenciais continua pendente conforme o estado conhecido da sessão.
+A base atual implementa:
+- **Blog e CMS:** Payload separado com papéis `author`, `reviewer` e `admin`, fluxo de revisão (`draft -> in_review -> changes_requested / approved -> published`), cadastro público de autores e painel colapsável de submissão em `/blog/`, além de filtro por categorias, exibição de capas nos cards, sincronização estática e hook de deploy para o Cloudflare Pages.
+- **Jogo (`game-server/` + `/jogo/`):** backend Node (`node:http`, `node:sqlite`, física com `matter-js` e SSE) com cadastro/login de jogadores, moedas globais, criação de torres, votações, governança BDFL e transparência local já funcionais via `make dev`.
 
-O código ainda permite publicação direta por editores. Separar autores/revisores e criar submissão pública são pendências; cadastro de jogadores e jogo ainda não existem. O jogo exige um serviço dinâmico e não deve depender do deploy editorial ou do despertar do CMS para cada ação.
+Permanecem pendentes:
+- Criação/configuração das contas e serviços em nuvem (Supabase para PostgreSQL/S3, Render Free para o CMS, Cloudflare Pages para o site estático e hospedagem sempre ligada com disco persistente para o `game-server/`) e validação real do deploy;
+- Configuração de adaptador SMTP no CMS para recuperação de senha por e-mail antes de divulgar o cadastro externo ao público amplo;
+- Redação, revisão cruzada e publicação dos **14 posts** da equipe, além dos testes de acessibilidade/celular e do diário coletivo/individual.
 
-Consultar [arquitetura](arquitetura-cms.md), [guia de teste](teste-cms.md), [plano do blog](blog.md) e [regras das torres](torres-colaborativas.md). Próxima etapa sugerida: validar um protótipo local da física e formalizar regras de revisão editorial antes de ampliar a infraestrutura.
+Consultar [arquitetura](arquitetura-cms.md), [guia de teste](teste-cms.md), [plano do blog](blog.md), [regras das torres](torres-colaborativas.md) e [guia local do jogo](jogo-local.md).
