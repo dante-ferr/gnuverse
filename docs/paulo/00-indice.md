@@ -26,9 +26,9 @@ O núcleo técnico do blog e do jogo já está implementado no código:
 Considerando o cronograma de [planejamento.md](../planejamento.md) (entrega final prevista até **02/12/2026**):
 
 ### Fase 1 — Validar o ambiente local (~1h)
-1. Ajustar `.env.local` se necessário (detalhe em [02-cms-local.md](02-cms-local.md): quando usar `make sync`/`make build` fora do `make dev`, confira se `CMS_CONTENT_MODE=live`).
-2. Rodar `make check` e `make dev`, criar seu usuário `admin` em `http://localhost:3001/admin` e publicar o artigo de teste (`content/demo-article.json`) com uma imagem de capa.
-3. Testar também o painel de submissão em `http://localhost:3000/blog/`: criar uma conta de autor, salvar rascunho, enviar para revisão, aprovar/publicar no `/admin` como `reviewer`/`admin`.
+1. **Atalho de 1 comando ("Modo Preguiçoso"):** rode `make test-blog`. Ele popula automaticamente o CMS local com 4 contas (`admin@gnuverse.local`, `revisor@gnuverse.local`, `autora@gnuverse.local`, `autor2@gnuverse.local` — senha `gnuverse123`), capa e 6 artigos em todas as categorias/estados editoriais, executa **10 testes E2E automatizados** no terminal e abre o navegador já logado e preenchido em `http://localhost:3000/blog/?autotest=1` + `http://localhost:3001/admin` (para rodar sem navegador e encerrar ao fim, use `make test-blog-ci`).
+2. Ajustar `.env.local` se necessário (detalhe em [02-cms-local.md](02-cms-local.md): quando usar `make sync`/`make build` fora do `make dev`, confira se `CMS_CONTENT_MODE=live`).
+3. Rodar `make check` e `make dev`, ou usar os botões de 1 clique da barra **Atalhos de Teste Rápido** em `/blog/?autotest=1` para alternar entre `Autora 1 (Ana)`, `Autor 2 (Beto)` e `Revisor (Rui)`, enviar artigo para revisão e aprovar/publicar no `/admin`.
 4. Validar a independência estática com `make build` -> desligar CMS -> `make preview`.
 
 ### Fase 2 — Código do Blog ([06-implementacao-blog.md](06-implementacao-blog.md))

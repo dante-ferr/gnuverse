@@ -61,7 +61,39 @@ Separação rígida entre **leitura estática** (build-time) e **submissão din�
 | [src/lib/blog-submission.ts](../../src/lib/blog-submission.ts) | Conversão texto <-> Lexical, slugificação, validação de submissão e tratamento de erros HTTP/timeout |
 | [scripts/cms-content.mjs](../../scripts/cms-content.mjs) | Validação da API pública do CMS e paginação de artigos publicados |
 | [scripts/dev.ts](../../scripts/dev.ts) e [.env.example](../../.env.example) | Wiring de `CMS_ALLOWED_ORIGINS` (CMS) e `NEXT_PUBLIC_CMS_URL` (Site) |
+| [cms/scripts/seed-blog-demo.ts](../../cms/scripts/seed-blog-demo.ts) e [scripts/test-blog.ts](../../scripts/test-blog.ts) | Seed idempotente de contas/artigos de demonstração e orquestrador `make test-blog` (10 testes E2E + abertura do navegador em `/blog/?autotest=1` e `/admin`) |
 | `cms/src/` (`access.ts`, `Users.ts`, `Articles.ts`, `payload.config.ts`, `migrations/`) | Regras `admin`/`reviewer`/`author`, campos de revisão, CORS/CSRF e migrações PostgreSQL |
+
+---
+
+## Teste de 1 comando no navegador ("Modo Preguiçoso" — `make test-blog`)
+
+Para testar todo o fluxo do blog com esforço quase zero:
+
+```bash
+make test-blog
+```
+
+O que esse comando faz sozinho:
+1. **Popula o banco local do CMS (`npm run cms:seed` / `cms/scripts/seed-blog-demo.ts`) de forma idempotente:**
+   - Cria 4 contas prontas (todas com senha `gnuverse123`):
+     - `admin@gnuverse.local` (`admin`)
+     - `revisor@gnuverse.local` (`reviewer` — Rui Revisor)
+     - `autora@gnuverse.local` (`author` — Ana Autora)
+     - `autor2@gnuverse.local` (`author` — Beto Autor)
+   - Cria uma imagem de capa real em `media` e **6 artigos** cobrindo todas as 4 categorias (`reflexoes`, `educacao`, `acesso`, `experiencias`) e todos os estados editoriais (`published` + `approved` em todas as categorias, `changes_requested` com `reviewNotes` preenchido e `in_review` aguardando parecer).
+2. **Sobe CMS + Site, sincroniza `.content/articles.json` e executa 10 testes E2E automatizados via HTTP:**
+   - Verifica `GET /api/health` e `CORS` para a origem do site;
+   - Verifica que a API anônima retorna os 4 artigos publicados sem vazar rascunhos nem `reviewNotes`;
+   - Verifica login de `autora@gnuverse.local` e visibilidade exclusiva dos 3 artigos dela (publicado, ajustes solicitados com `reviewNotes` e em revisão);
+   - Verifica bloqueio na API (`403`) quando `author` tenta publicar diretamente (`_status: 'published'`);
+   - Verifica isolamento entre autores (`autor2@gnuverse.local` não vê nem edita rascunhos da Ana);
+   - Verifica que `revisor@gnuverse.local` enxerga a fila de revisão e grava `reviewNotes`;
+   - Verifica que as páginas `/blog/` e `/artigos/[slug]/` respondem `200` com os artigos sincronizados.
+3. **Abre o navegador já pronto em `/blog/?autotest=1` e `/admin` (sob flag de compilação `NEXT_PUBLIC_BLOG_TEST_UI=1`):**
+   - Os atalhos de teste em [src/components/blog/submission-panel.tsx](../../src/components/blog/submission-panel.tsx) ficam protegidos pela constante `const BLOG_TEST_UI = process.env.NEXT_PUBLIC_BLOG_TEST_UI === '1'` (equivalente a `#ifdef BLOG_TEST_UI` em C: em `make dev` normal e em `make build` de produção a flag é `false` e o bundler elimina o código de teste).
+   - Quando iniciado via `make test-blog` (`NEXT_PUBLIC_BLOG_TEST_UI=1`), abrir `http://localhost:3000/blog/?autotest=1` expande o `SubmissionPanel` automaticamente, faz login sozinho em `autora@gnuverse.local`, carrega **Minhas submissões** (mostrando a caixa de **Devolutiva da revisão**), preenche um artigo inédito pronto para enviar com **1 clique** e exibe a barra **Atalhos de Teste Rápido (Ambiente Local)** para alternar entre `Autora 1 (Ana)`, `Autor 2 (Beto)` e `Revisor (Rui)` sem digitar nada.
+   - Para rodar apenas a suíte e encerrar (sem abrir navegador, ideal para CI): `make test-blog-ci` (`npm run test:blog:ci`).
 
 ---
 
