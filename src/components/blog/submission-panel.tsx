@@ -22,6 +22,11 @@ const CMS_URL = (
 const SESSION_KEY = 'gnuverse-blog-session'
 const REQUEST_TIMEOUT_MS = 120000
 
+// Flag de compilação (equivalente a #ifdef BLOG_TEST_UI em C):
+// Injetada apenas por `make test-blog` (NEXT_PUBLIC_BLOG_TEST_UI=1).
+// Em `make dev` normal e `make build` de produção, avalia para `false` e é eliminada pelo bundler.
+const BLOG_TEST_UI = process.env.NEXT_PUBLIC_BLOG_TEST_UI === '1'
+
 type CmsUser = {
   id: string | number
   name?: string
@@ -41,6 +46,52 @@ const ROLE_LABELS: Record<string, string> = {
   reviewer: 'Revisor',
   author: 'Autor',
   editor: 'Editor',
+}
+
+const SAMPLE_ARTICLE = {
+  title: 'Software Livre e Ciência Aberta na Universidade',
+  baseSlug: 'software-livre-e-ciencia-aberta',
+  summary:
+    'Como ferramentas abertas e reprodutíveis fortalecem a pesquisa acadêmica e evitam o aprisionamento tecnológico.',
+  category: 'educacao',
+  bodyText:
+    'A ciência depende da capacidade de inspecionar, reproduzir e auditar resultados. Quando laboratórios utilizam formatos fechados e softwares proprietários, parte do conhecimento fica trancada em caixas-pretas.\n\nAdotar software livre na universidade permite que estudantes compreendam o código por trás dos experimentos e compartilhem melhorias com toda a comunidade.',
+  references: [
+    {
+      label: 'GNU — Software Livre e Educação',
+      url: 'https://www.gnu.org/education/education.html',
+    },
+  ],
+}
+
+const QUICK_TEST_ACCOUNTS = [
+  {
+    label: 'Entrar: Autora 1 (Ana)',
+    email: 'autora@gnuverse.local',
+    name: 'Ana Autora',
+  },
+  {
+    label: 'Entrar: Autor 2 (Beto)',
+    email: 'autor2@gnuverse.local',
+    name: 'Beto Autor',
+  },
+  {
+    label: 'Entrar: Revisor (Rui)',
+    email: 'revisor@gnuverse.local',
+    name: 'Rui Revisor',
+  },
+] as const
+
+function pickUniqueSampleSlug(docs: SubmissionArticle[]): string {
+  const existing = new Set(docs.map((doc) => doc.slug).filter(Boolean))
+  if (!existing.has(SAMPLE_ARTICLE.baseSlug)) {
+    return SAMPLE_ARTICLE.baseSlug
+  }
+  let counter = 2
+  while (existing.has(`${SAMPLE_ARTICLE.baseSlug}-${counter}`)) {
+    counter += 1
+  }
+  return `${SAMPLE_ARTICLE.baseSlug}-${counter}`
 }
 
 function readStoredSession(): BlogSession | null {
@@ -128,14 +179,23 @@ export function SubmissionPanel() {
   const [listBusy, setListBusy] = useState(false)
   const [listError, setListError] = useState('')
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const sectionRef = useRef<HTMLElement>(null)
 
-  useEffect(() => {
-    const stored = readStoredSession()
-    if (stored) {
-      setSession(stored)
-      setAuthor((current) => current || stored.user.name || '')
-    }
-  }, [])
+  const applySampleDraft = useCallback(
+    (defaultAuthor: string, docs: SubmissionArticle[]) => {
+      setEditingId(null)
+      setTitle(SAMPLE_ARTICLE.title)
+      setSlug(pickUniqueSampleSlug(docs))
+      setSlugTouched(false)
+      setSummary(SAMPLE_ARTICLE.summary)
+      setAuthor((current) => defaultAuthor || current || 'Ana Autora')
+      setCategory(SAMPLE_ARTICLE.category)
+      setBodyText(SAMPLE_ARTICLE.bodyText)
+      setReferences(SAMPLE_ARTICLE.references.map((item) => ({ ...item })))
+      setSubmitError('')
+    },
+    [],
+  )
 
   const resetForm = useCallback(
     (defaultAuthor: string) => {
@@ -160,7 +220,7 @@ export function SubmissionPanel() {
   }, [])
 
   const loadMyArticles = useCallback(
-    async (activeSession: BlogSession) => {
+    async (activeSession: BlogSession): Promise<SubmissionArticle[]> => {
       setListBusy(true)
       setListError('')
       try {
@@ -178,19 +238,97 @@ export function SubmissionPanel() {
         if (!response.ok) {
           if (response.status === 401) {
             handleSessionExpired()
-            return
+            return []
           }
           throw new Error(extractCmsErrorMessage(data, response.status))
         }
-        setMyArticles(Array.isArray(data?.docs) ? data.docs : [])
+        const docs: SubmissionArticle[] = Array.isArray(data?.docs)
+          ? data.docs
+          : []
+        setMyArticles(docs)
+        if (BLOG_TEST_UI) {
+          setSlug((currentSlug) => {
+            if (
+              currentSlug === SAMPLE_ARTICLE.baseSlug &&
+              docs.some((doc) => doc.slug === SAMPLE_ARTICLE.baseSlug)
+            ) {
+              return pickUniqueSampleSlug(docs)
+            }
+            return currentSlug
+          })
+        }
+        return docs
       } catch (cause) {
         setListError(formatRequestFailure(cause))
+        return []
       } finally {
         setListBusy(false)
       }
     },
     [handleSessionExpired],
   )
+
+  useEffect(() => {
+    const stored = readStoredSession()
+    if (!BLOG_TEST_UI) {
+      if (stored) {
+        setSession(stored)
+        setAuthor((current) => current || stored.user.name || '')
+      }
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const isAutotest = params.get('autotest') === '1'
+    if (isAutotest) {
+      setIsOpen(true)
+    }
+
+    if (stored) {
+      setSession(stored)
+      setAuthor((current) => current || stored.user.name || '')
+      if (isAutotest) {
+        applySampleDraft(stored.user.name || 'Ana Autora', [])
+      }
+    } else if (isAutotest) {
+      applySampleDraft('Ana Autora', [])
+      void (async () => {
+        try {
+          const response = await fetch(`${CMS_URL}/api/users/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: 'autora@gnuverse.local',
+              password: 'gnuverse123',
+            }),
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          })
+          const data = await response.json().catch(() => null)
+          if (response.ok && typeof data?.token === 'string' && data?.user) {
+            const nextSession: BlogSession = {
+              token: data.token,
+              user: data.user as CmsUser,
+            }
+            writeStoredSession(nextSession)
+            setSession(nextSession)
+            setAuthor(nextSession.user.name || 'Ana Autora')
+          }
+        } catch {
+          /* Silencioso caso a conta de demonstração ainda não exista no banco local. */
+        }
+      })()
+    }
+
+    if (isAutotest) {
+      const scrollTimer = setTimeout(() => {
+        sectionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+      }, 150)
+      return () => clearTimeout(scrollTimer)
+    }
+  }, [applySampleDraft])
 
   useEffect(() => {
     if (isOpen && session) {
@@ -271,6 +409,31 @@ export function SubmissionPanel() {
       setAuthSlowHint(false)
       setAuthBusy(false)
     }
+  }
+
+  async function handleQuickLogin(email: string, defaultName: string) {
+    setAuthError('')
+    setSubmitError('')
+    setSubmitSuccess('')
+    setAuthBusy(true)
+    try {
+      const nextSession = await loginWithCredentials(email, 'gnuverse123')
+      writeStoredSession(nextSession)
+      setSession(nextSession)
+      setAuthor(nextSession.user.name || defaultName)
+      await loadMyArticles(nextSession)
+    } catch (cause) {
+      setAuthError(formatRequestFailure(cause))
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  function handleFillSampleArticle() {
+    applySampleDraft(session?.user.name || author || 'Ana Autora', myArticles)
+    setSubmitSuccess(
+      'Artigo de exemplo preenchido! Clique em "Enviar para revisão" ou "Salvar rascunho" com 1 clique.',
+    )
   }
 
   async function handleLogout() {
@@ -428,6 +591,7 @@ export function SubmissionPanel() {
 
   return (
     <section
+      ref={sectionRef}
       aria-labelledby="editorial-submission-heading"
       className="mt-16 border-t border-[var(--line)] pt-10"
     >
@@ -459,6 +623,58 @@ export function SubmissionPanel() {
           id="editorial-submission-body"
           className="mt-8 rounded-sm border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
         >
+          {BLOG_TEST_UI && (
+            <div className="mb-5 rounded-sm border border-[var(--accent)] bg-[var(--accent-soft)] p-3.5 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold uppercase tracking-wider text-[var(--accent)]">
+                  Atalhos de Teste Rápido (Ambiente Local)
+                </p>
+                <span className="text-[var(--muted)]">
+                  Painel CMS: <code>admin@gnuverse.local</code> /{' '}
+                  <code>revisor@gnuverse.local</code> · senha{' '}
+                  <code>gnuverse123</code>
+                </span>
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                {QUICK_TEST_ACCOUNTS.map((account) => {
+                  const isActive = session?.user.email === account.email
+                  return (
+                    <button
+                      key={account.email}
+                      type="button"
+                      disabled={authBusy}
+                      onClick={() =>
+                        void handleQuickLogin(account.email, account.name)
+                      }
+                      className={`cursor-pointer rounded-sm border px-2.5 py-1.5 text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isActive
+                          ? 'border-[var(--accent)] bg-[var(--accent)] font-medium text-[var(--on-accent)]'
+                          : 'border-[var(--line)] bg-[var(--background)] text-[var(--ink)] hover:border-[var(--accent)]'
+                      }`}
+                    >
+                      {account.label}
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  onClick={handleFillSampleArticle}
+                  className="cursor-pointer rounded-sm border border-[var(--line)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                >
+                  Preencher artigo exemplo
+                </button>
+                <a
+                  href={`${CMS_URL}/admin`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-sm border border-[var(--line)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-[var(--accent)] transition hover:border-[var(--accent)]"
+                >
+                  Abrir /admin (CMS) ↗
+                </a>
+              </div>
+            </div>
+          )}
+
           <p className="rounded-sm border border-[var(--line)] bg-[var(--surface-raised)] p-3.5 text-xs leading-relaxed text-[var(--muted)]">
             Os textos enviados entram como rascunho ou revisão editorial e só
             vão ao ar após aprovação de um revisor. No plano gratuito do
