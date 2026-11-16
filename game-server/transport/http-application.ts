@@ -9,6 +9,7 @@ import { GovernanceService } from '../governance/governance-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { json, readBody } from './http-helpers.ts'
 import { can, canManageTower } from '../../core/authz/policy.ts'
+import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import { verifyCMSAdministrator } from '../auth/cms-administrator.ts'
 
 type Dependencies = {
@@ -118,6 +119,7 @@ export class HttpApplication {
         const creatorId = params.get('mine') === 'true'
           ? (await auth.authenticate(req.headers.authorization)).id : null
         const available = Object.values(store.state.towers).filter((tower) =>
+          isPipelineFrame(tower.frame) &&
           (!search || normalize(tower.name).includes(search)) &&
           (cost === 'all' || (cost === 'free' ? tower.cost === 0 : tower.cost > 0)) &&
           (!creatorId || tower.creatorId === creatorId),
@@ -127,10 +129,7 @@ export class HttpApplication {
           if (sort === 'cost-asc') return a.cost - b.cost
           if (sort === 'cost-desc') return b.cost - a.cost
           if (sort === 'segments-desc')
-            return (
-              b.frame.nodes.filter((n) => n.parentId !== null).length -
-              a.frame.nodes.filter((n) => n.parentId !== null).length
-            )
+            return b.frame.belts.length - a.frame.belts.length
           return 0
         })
         const total = available.length
@@ -141,10 +140,7 @@ export class HttpApplication {
         const start = (page - 1) * pageSize
         return json(res, 200, {
           filtersApplied: true,
-          towers: available.slice(start, start + pageSize).map((tower) => ({
-            ...towers.publicTower(tower),
-            coverNodes: tower.frame.nodes.slice(0, 24),
-          })),
+          towers: available.slice(start, start + pageSize).map((tower) => towers.publicTower(tower)),
           page,
           pageSize,
           total,
@@ -207,17 +203,14 @@ export class HttpApplication {
         if (participant.banned) fail(403, 'Você foi banido desta torre.')
         if (path[3] === 'settings' && path.length === 4)
           return towers.settings(tower, user, body)
-        const treeActions = ['grow', 'leaf', 'fortify', 'prune', 'root'] as const
+        const pipelineActions = ['place', 'remove', 'join'] as const
         if (
-          treeActions.includes(path[3] as (typeof treeActions)[number]) &&
+          pipelineActions.includes(path[3] as (typeof pipelineActions)[number]) &&
           path.length === 4
         ) {
-          if (path[3] === 'grow') return towers.grow(tower, user, participant, body)
-          if (path[3] === 'leaf') return towers.leaf(tower, user, participant, body)
-          if (path[3] === 'fortify')
-            return towers.fortify(tower, user, participant, body)
-          if (path[3] === 'prune') return towers.prune(tower, user, participant, body)
-          return towers.secondaryRoot(tower, user, participant, body)
+          if (path[3] === 'place') return towers.place(tower, user, participant, body)
+          if (path[3] === 'remove') return towers.removeBelt(tower, user, participant, body)
+          return towers.join(tower, user)
         }
         if (
           path[3] === 'members' &&

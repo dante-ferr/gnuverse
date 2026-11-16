@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { Member, Rules, Tower, User } from '../domain/types.ts'
-import { fail, text, integer, number, mode } from '../domain/validation.ts'
+import { fail, text, integer, mode } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import { WalletService } from '../economy/wallet-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { HistoryService } from './history-service.ts'
-import { actionCosts, treeRules } from '../physics/tree-constants.ts'
-import { createInitialTreeFrame } from '../physics/map-gen.ts'
+import { isDirection } from '../pipeline/geometry/direction.ts'
+import { Match } from '../pipeline/world/match.ts'
+import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import { canManageTower } from '../../core/authz/policy.ts'
 
 export class TowerService {
@@ -41,9 +42,7 @@ export class TowerService {
     })
   }
   publicTower(tower: Tower) {
-    const segments = tower.frame.nodes.filter(
-      (n) => n.parentId !== null && !n.broken,
-    ).length
+    const belts = isPipelineFrame(tower.frame) ? tower.frame.belts.length : 0
     return {
       id: tower.id,
       name: tower.name,
@@ -52,9 +51,9 @@ export class TowerService {
       cost: tower.cost,
       eligibilityMode: tower.eligibilityMode,
       minContributions: tower.minContributions,
-      segmentCount: segments,
+      segmentCount: belts,
       actionCount: tower.actionCount,
-      outcome: tower.frame.outcome,
+      outcome: isPipelineFrame(tower.frame) && !tower.frame.crashed ? 'playing' : 'lost',
     }
   }
   detail(tower: Tower) {
@@ -72,25 +71,11 @@ export class TowerService {
     const frame = this.runtime.publicFrame(tower)
     return {
       id: tower.id,
-      phase: frame.turn.phase,
-      phaseRemainingMs: frame.phaseRemainingMs,
-      energy: frame.energy,
+      crashed: frame.crashed,
+      stability: frame.stability,
+      deliveries: frame.deliveries,
+      tick: frame.tick,
       coins: this.wallet.read(user).balance,
-      nodes: frame.nodes
-        .filter((n) => !n.broken)
-        .map((n) => ({
-          id: n.id,
-          x: n.x,
-          y: n.y,
-          parentId: n.parentId,
-          leaf: n.leaf,
-          fortified: n.fortified,
-          authorName: n.authorName,
-        })),
-      firefly: frame.firefly,
-      fireflyPosition: frame.fireflyPosition,
-      flower: frame.flower,
-      outcome: frame.outcome,
     }
   }
   create(user: User, body: Record<string, unknown>) {
@@ -135,10 +120,9 @@ export class TowerService {
       proposals: [],
       segmentCount: 0,
       actionCount: 0,
-      frame: createInitialTreeFrame(this.now(), towerId),
+      frame: Match.create(towerId, this.rules.pipeline).toFrame(),
     }
     this.member(tower, user)
-    this.runtime.simulation(tower).restore(tower.frame)
     this.store.state.towers[tower.id] = tower
     this.history.event(tower, 'created', user.id, {
       allowCreatorBan: tower.allowCreatorBan,
@@ -191,148 +175,66 @@ export class TowerService {
     this.history.event(tower, 'settings', user.id, { before, after, reason })
     return { tower: this.publicTower(tower) }
   }
-  private ensurePlayable(tower: Tower) {
-    if (tower.frame.outcome !== 'playing')
-      fail(409, 'A partida já terminou.')
-    if (tower.frame.turn.phase === 'physics')
-      fail(409, 'Aguarde a fase de física.')
+  place(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(tower)
+    const raw = body.cells
+    if (!Array.isArray(raw) || raw.length === 0 || raw.length > 64)
+      fail(400, 'Informe as células da esteira.')
+    const cells = raw.map((cell) => this.stroke(cell, match.width, match.height))
+    const error = match.place(cells, { id: user.id, nickname: user.nickname })
+    if (error) fail(409, error)
+    return this.commit(tower, user, participant, match, 'place')
   }
-  private spendAndRecord(
-    tower: Tower,
-    user: User,
-    participant: Member,
-    cost: number,
-    eventType: string,
-    detail: Record<string, unknown>,
-  ) {
-    this.wallet.read(user)
-    if (!this.wallet.unlimited(user) && user.balance < cost)
-      fail(409, 'Moedas insuficientes.')
-    if (!this.wallet.unlimited(user)) user.balance -= cost
-    user.lastAction = this.now()
+  removeBelt(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(tower)
+    const error = match.remove(
+      {
+        x: integer(body.x, 0, match.width - 1, 'X'),
+        y: integer(body.y, 0, match.height - 1, 'Y'),
+      },
+      { id: user.id, nickname: user.nickname },
+    )
+    if (error) fail(409, error)
+    return this.commit(tower, user, participant, match, 'remove')
+  }
+  join(tower: Tower, user: User) {
+    const match = this.editable(tower)
+    match.noteCollaborator({ id: user.id, nickname: user.nickname })
+    tower.frame = match.toFrame()
+    this.member(tower, user)
+    this.runtime.afterAction(tower)
+    return { frame: tower.frame }
+  }
+  private editable(tower: Tower) {
+    if (!isPipelineFrame(tower.frame))
+      fail(409, 'Esta sala é de uma versão anterior.')
+    if (tower.frame.crashed) fail(409, 'O sistema já caiu.')
+    return Match.fromFrame(tower.frame, this.rules.pipeline)
+  }
+  private stroke(cell: unknown, width: number, height: number) {
+    if (!cell || typeof cell !== 'object') fail(400, 'Célula inválida.')
+    const record = cell as Record<string, unknown>
+    if (!isDirection(record.direction)) fail(400, 'Direção inválida.')
+    return {
+      x: integer(record.x, 0, width - 1, 'X'),
+      y: integer(record.y, 0, height - 1, 'Y'),
+      direction: record.direction,
+    }
+  }
+  private commit(tower: Tower, user: User, participant: Member, match: Match, eventType: string) {
+    tower.frame = match.toFrame()
     participant.contributions++
     tower.actionCount++
     tower.lastActorId = user.id
-    tower.segmentCount = tower.frame.nodes.filter(
-      (n) => n.parentId !== null && !n.broken,
-    ).length
+    tower.segmentCount = tower.frame.belts.length
     if (
       tower.eligibilityMode === 'automatic' &&
       participant.contributions >= tower.minContributions
     )
       participant.eligible = true
-    this.history.event(tower, eventType, user.id, detail)
+    this.history.event(tower, eventType, user.id, { belts: tower.segmentCount })
     this.runtime.afterAction(tower)
-    return { wallet: this.wallet.read(user), frame: this.runtime.publicFrame(tower) }
-  }
-  grow(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
-    this.ensurePlayable(tower)
-    const world = treeRules()
-    const costs = actionCosts(world)
-    const segmentId = text(
-      (body.segmentId ?? body.parentId) as string,
-      1,
-      100,
-      'Segmento',
-    )
-    let anchorX: number
-    let anchorY: number
-    if (body.anchorX !== undefined && body.anchorY !== undefined) {
-      anchorX = number(body.anchorX, 0, world.worldWidth, 'Âncora X')
-      anchorY = number(body.anchorY, 0, world.worldHeight, 'Âncora Y')
-    } else {
-      const anchorNode = tower.frame.nodes.find(
-        (n) => n.id === segmentId && !n.broken,
-      )
-      if (!anchorNode) fail(400, 'Segmento inválido.')
-      anchorX = anchorNode.x
-      anchorY = anchorNode.y
-    }
-    const x = number(body.x, 0, world.worldWidth, 'X')
-    const y = number(body.y, 0, world.worldHeight, 'Y')
-    const sim = this.runtime.simulation(tower)
-    const result = sim.grow({
-      segmentId,
-      anchorX,
-      anchorY,
-      x,
-      y,
-      authorId: user.id,
-      authorName: user.nickname,
-    })
-    if (!result.ok) fail(409, result.error)
-    tower.frame = sim.read()
-    return this.spendAndRecord(tower, user, participant, costs.grow, 'grow', {
-      nodeId: result.nodeId,
-      segmentId,
-      cost: costs.grow,
-    })
-  }
-  leaf(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
-    this.ensurePlayable(tower)
-    const nodeId = text(body.nodeId, 1, 100, 'Nó')
-    const sim = this.runtime.simulation(tower)
-    const result = sim.placeLeaf(nodeId)
-    if (!result.ok) fail(409, result.error)
-    tower.frame = sim.read()
-    const costs = actionCosts()
-    return this.spendAndRecord(tower, user, participant, costs.leaf, 'leaf', {
-      nodeId,
-      cost: costs.leaf,
-    })
-  }
-  fortify(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
-    this.ensurePlayable(tower)
-    const nodeId = text(body.nodeId, 1, 100, 'Nó')
-    const sim = this.runtime.simulation(tower)
-    const result = sim.fortify(nodeId)
-    if (!result.ok) fail(409, result.error)
-    tower.frame = sim.read()
-    const costs = actionCosts()
-    return this.spendAndRecord(tower, user, participant, costs.fortify, 'fortify', {
-      nodeId,
-      cost: costs.fortify,
-    })
-  }
-  prune(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
-    this.ensurePlayable(tower)
-    const nodeId = text(body.nodeId, 1, 100, 'Nó')
-    const sim = this.runtime.simulation(tower)
-    const result = sim.prune(nodeId)
-    if (!result.ok) fail(409, result.error)
-    tower.frame = sim.read()
-    const costs = actionCosts()
-    return this.spendAndRecord(tower, user, participant, costs.prune, 'prune', {
-      nodeId,
-      cost: costs.prune,
-    })
-  }
-  secondaryRoot(
-    tower: Tower,
-    user: User,
-    participant: Member,
-    body: Record<string, unknown>,
-  ) {
-    this.ensurePlayable(tower)
-    const world = treeRules()
-    const costs = actionCosts(world)
-    const parentId = text(body.parentId, 1, 100, 'Nó pai')
-    const x = number(body.x, 0, world.worldWidth, 'X')
-    const y = number(body.y, 0, world.worldHeight, 'Y')
-    const sim = this.runtime.simulation(tower)
-    const result = sim.secondaryRoot(parentId, x, y)
-    if (!result.ok) fail(409, result.error)
-    tower.frame = sim.read()
-    const created = tower.frame.nodes.find((n) => n.id === result.nodeId)
-    if (created) {
-      created.authorId = user.id
-      created.authorName = user.nickname
-    }
-    return this.spendAndRecord(tower, user, participant, costs.root, 'secondary-root', {
-      nodeId: result.nodeId,
-      parentId,
-      cost: costs.root,
-    })
+    return { frame: tower.frame }
   }
   eligibility(
     tower: Tower,

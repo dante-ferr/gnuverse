@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { parse } from 'smol-toml'
+import { pipelineRulesFrom } from '../pipeline/load-rules.ts'
+import type { PipelineRules } from '../pipeline/rules.ts'
 
 export type GameRules = {
   balanceCap: number
@@ -80,6 +82,7 @@ export type TreeRules = {
 export type LoadedGameConfig = {
   rules: GameRules
   tree: TreeRules
+  pipeline: PipelineRules
 }
 
 const economyDefaults = {
@@ -305,7 +308,7 @@ const treeColorKeys = new Set([
 
 const economyKeys = Object.keys(economyDefaults) as (keyof typeof economyDefaults)[]
 const treeKeys = Object.keys(treeDefaults) as (keyof typeof treeDefaults)[]
-const knownKeys = new Set<string>([...economyKeys, ...treeKeys])
+const knownKeys = new Set<string>([...economyKeys, ...treeKeys, 'pipeline'])
 
 let cached: LoadedGameConfig | null = null
 
@@ -387,6 +390,7 @@ function parseConfig(contents: Record<string, unknown>): LoadedGameConfig {
   return {
     rules: validateEconomy(contents),
     tree: validateTree(contents),
+    pipeline: pipelineRulesFrom(contents.pipeline),
   }
 }
 

@@ -1,0 +1,46 @@
+/** Screen transform for the grid. Pan and zoom stay inside the world. */
+export class GridCamera {
+  x = 0
+  y = 0
+  zoom = 1
+  private fitted = false
+
+  constructor(
+    readonly columns: number,
+    readonly rows: number,
+  ) {}
+
+  fit(viewWidth: number, viewHeight: number, cell: number) {
+    if (this.fitted || viewWidth < 1 || viewHeight < 1) return
+    const worldWidth = this.columns * cell
+    const worldHeight = this.rows * cell
+    this.zoom = Math.min(viewWidth / worldWidth, viewHeight / worldHeight) * 0.92
+    this.x = (viewWidth - worldWidth * this.zoom) / 2
+    this.y = (viewHeight - worldHeight * this.zoom) / 2
+    this.fitted = true
+  }
+
+  world(screenX: number, screenY: number, cell: number) {
+    return {
+      x: (screenX - this.x) / (cell * this.zoom),
+      y: (screenY - this.y) / (cell * this.zoom),
+    }
+  }
+
+  cellAt(screenX: number, screenY: number, cell: number) {
+    const point = this.world(screenX, screenY, cell)
+    return { x: Math.floor(point.x), y: Math.floor(point.y) }
+  }
+
+  pan(dx: number, dy: number) {
+    this.x += dx
+    this.y += dy
+  }
+
+  zoomAt(screenX: number, screenY: number, factor: number, cell: number) {
+    const before = this.world(screenX, screenY, cell)
+    this.zoom = Math.min(3, Math.max(0.35, this.zoom * factor))
+    this.x = screenX - before.x * cell * this.zoom
+    this.y = screenY - before.y * cell * this.zoom
+  }
+}

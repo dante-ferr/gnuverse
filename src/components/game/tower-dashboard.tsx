@@ -39,8 +39,8 @@ export function TowerDashboard() {
       <header className={styles.dashboardPageHeading}>
         <div>
           <p className={styles.eyebrow}>GNUverse · Comunidade</p>
-          <h1>Árvores na caverna</h1>
-          <p>Escolha uma sala para cultivar galhos com a comunidade.</p>
+          <h1>Open Pipeline</h1>
+          <p>Escolha uma sala para ligar esteiras com a comunidade.</p>
         </div>
         <button type="button" className={styles.primary} onClick={() => {
           feedback.setError('')
@@ -49,7 +49,7 @@ export function TowerDashboard() {
             return
           }
           setShowCreate(true)
-        }}>Nova caverna</button>
+        }}>Nova sala</button>
       </header>
 
       {feedback.notice && <p className={styles.message} role="status">{feedback.notice}</p>}
@@ -71,7 +71,7 @@ export function TowerDashboard() {
       <section className={styles.towerDashboard} aria-labelledby="tower-dashboard-title">
         <div className={styles.dashboardHeading}>
           <div>
-            <h2 id="tower-dashboard-title">Cavernas disponíveis</h2>
+            <h2 id="tower-dashboard-title">Salas</h2>
             <p role="status">{lobby.connection === 'connecting' ? 'Buscando salas…' : `${lobby.total} ${lobby.total === 1 ? 'sala encontrada' : 'salas encontradas'}`}</p>
           </div>
           <span className={`${styles.connection} ${lobby.connection === 'live' ? styles.live : ''}`}>

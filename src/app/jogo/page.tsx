@@ -1,9 +1,9 @@
 import { TowerDashboard } from '@/components/game/tower-dashboard'
 
 export const metadata = {
-  title: 'Árvores na caverna — GNUverse',
+  title: 'Open Pipeline — GNUverse',
   description:
-    'Cultive galhos em cavernas compartilhadas, gerencie energia luminosa e participe das decisões da comunidade.',
+    'Open Pipeline: ligue esteiras e entregue círculos ao núcleo com outras pessoas.',
 }
 
 export default function GamePage() {

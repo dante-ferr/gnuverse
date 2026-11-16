@@ -12,7 +12,6 @@ import { TowerService } from './towers/tower-service.ts'
 import { GovernanceService } from './governance/governance-service.ts'
 import { SimulationCoordinator } from './runtime/simulation-coordinator.ts'
 import { HttpApplication } from './transport/http-application.ts'
-import { isLegacyBlockFrame } from './physics/map-gen.ts'
 
 /** Composition root. Domain services own behavior; transport only maps requests. */
 export function createGameServer(options: ServerOptions = {}) {
@@ -23,18 +22,14 @@ export function createGameServer(options: ServerOptions = {}) {
       process.env.GAME_DB_PATH ??
       resolve('.content/game.sqlite'),
   )
-  const runtime = new SimulationCoordinator(store, now)
+  const runtime = new SimulationCoordinator(store, rules.pipeline)
   store.onRollback = () => runtime.rollback()
   const history = new HistoryService(now, (towerId) =>
     runtime.publishChange(towerId),
   )
   for (const tower of Object.values(store.state.towers)) {
-    if (isLegacyBlockFrame(tower.frame) || !tower.frame?.nodes) {
-      runtime.migrateTowerFrame(tower)
-    }
     tower.segmentCount ??= 0
     tower.actionCount ??= 0
-    if (tower.frame && !tower.frame.treeSeed) tower.frame.treeSeed = tower.id
     delete (tower as { restoreMode?: unknown }).restoreMode
     delete (tower as { wind?: unknown }).wind
     delete (tower as { placementCount?: unknown }).placementCount
@@ -80,7 +75,7 @@ export function createGameServer(options: ServerOptions = {}) {
   })
   server.requestTimeout = 15000
   server.headersTimeout = 10000
-  runtime.start(history, governance)
+  runtime.start(governance)
   let closed = false
   return {
     server,

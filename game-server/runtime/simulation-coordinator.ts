@@ -1,81 +1,47 @@
 import type { ServerResponse } from 'node:http'
-import { createTreeSimulation } from '../physics/index.ts'
-import { treeRules } from '../physics/tree-constants.ts'
 import type { Tower } from '../domain/types.ts'
 import { fail } from '../domain/validation.ts'
+import type { PipelineRules } from '../pipeline/rules.ts'
+import { isPipelineFrame } from '../pipeline/world/frame.ts'
+import { Match } from '../pipeline/world/match.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import type { GovernanceService } from '../governance/governance-service.ts'
-import type { HistoryService } from '../towers/history-service.ts'
-import {
-  advanceFirefly,
-  checkExitBloom,
-  drainEnergy,
-  evaluateStarvation,
-  evaluateTrunkLoss,
-  evaluateWin,
-  harvestEnergy,
-  openActionWindow,
-  publicTreeFrame,
-  returnToIdle,
-  startPhysicsPhase,
-} from '../tree/tree-phase-service.ts'
-import { createInitialTreeFrame } from '../physics/map-gen.ts'
-import type { TreeSimulation } from '../physics/tree/tree-simulation.ts'
 
-/** Owns tree engines, turn phases and spectator streams. */
+/** Steps every pipeline match and fans the frame out over SSE. */
 export class SimulationCoordinator {
   private store: GameStore
-  private now: () => number
-  private simulations = new Map<string, TreeSimulation>()
+  private rules: PipelineRules
   private streams = new Map<string, Set<ServerResponse>>()
   private timer?: ReturnType<typeof setInterval>
-  constructor(store: GameStore, now: () => number) {
+
+  constructor(store: GameStore, rules: PipelineRules) {
     this.store = store
-    this.now = now
+    this.rules = rules
   }
 
-  simulation(tower: Tower): TreeSimulation {
-    if (!this.simulations.has(tower.id)) {
-      const sim = createTreeSimulation(tower.frame)
-      this.simulations.set(tower.id, sim)
-    }
-    const sim = this.simulations.get(tower.id)!
-    sim.restore(tower.frame)
-    return sim
-  }
   publicFrame(tower: Tower) {
-    return publicTreeFrame(tower.frame, this.now())
+    if (!isPipelineFrame(tower.frame))
+      fail(409, 'Esta sala é de uma versão anterior.')
+    return tower.frame
   }
-  rollback() {
-    for (const [id, simulation] of this.simulations) {
-      const restored = this.store.state.towers[id]
-      if (!restored) {
-        simulation.dispose()
-        this.simulations.delete(id)
-        continue
-      }
-      simulation.restore(restored.frame)
-    }
-  }
+
+  rollback() {}
+
   afterAction(tower: Tower) {
-    const now = this.now()
-    if (tower.frame.turn.phase === 'idle') {
-      tower.frame = openActionWindow(tower.frame, now)
-      this.simulation(tower).setFrame(tower.frame)
-    }
     this.publishChange(tower.id)
   }
+
   publishChange(towerId: string) {
     for (const response of this.streams.get(towerId) ?? [])
       if (response.writableLength < 1024 * 1024)
         response.write('event: change\ndata: {}\n\n')
   }
+
   remove(towerId: string) {
     for (const response of this.streams.get(towerId) ?? []) response.end()
     this.streams.delete(towerId)
-    this.simulations.get(towerId)?.dispose()
-    this.simulations.delete(towerId)
   }
+
   subscribe(tower: Tower, response: ServerResponse) {
     if ((this.streams.get(tower.id)?.size ?? 0) >= 100)
       fail(503, 'Muitos espectadores.')
@@ -92,89 +58,46 @@ export class SimulationCoordinator {
     this.streams.get(tower.id)!.add(response)
     response.on('close', () => this.streams.get(tower.id)?.delete(response))
   }
-  private tickTurnPhases() {
-    let needsSave = false
-    const now = this.now()
-    for (const tower of Object.values(this.store.state.towers)) {
-      if (tower.frame.outcome !== 'playing') continue
-      const frame = tower.frame
-      if (
-        frame.turn.phase === 'actionWindow' &&
-        frame.turn.phaseEndsAt !== null &&
-        now >= frame.turn.phaseEndsAt
-      ) {
-        tower.frame = startPhysicsPhase(frame, now)
-        this.simulation(tower).setPhase('physics', tower.frame.turn.phaseEndsAt, true)
-        needsSave = true
-      } else if (
-        frame.turn.phase === 'physics' &&
-        frame.turn.phaseEndsAt !== null &&
-        now >= frame.turn.phaseEndsAt
-      ) {
-        const sim = this.simulation(tower)
-        harvestEnergy(tower.frame, sim)
-        drainEnergy(tower.frame)
-        checkExitBloom(tower.frame, sim)
-        evaluateTrunkLoss(tower.frame, sim)
-        evaluateStarvation(tower.frame, sim)
-        evaluateWin(tower.frame)
-        advanceFirefly(tower.frame)
-        tower.frame = returnToIdle(tower.frame)
-        sim.setFrame(tower.frame)
-        needsSave = true
-      }
-    }
-    return needsSave
-  }
-  private stepPhysics() {
+
+  private step() {
     let needsSave = false
     for (const tower of Object.values(this.store.state.towers)) {
-      if (tower.frame.turn.phase !== 'physics' || tower.frame.outcome !== 'playing')
-        continue
-      let sim = this.simulations.get(tower.id)
-      if (!sim) {
-        sim = createTreeSimulation(tower.frame)
-        this.simulations.set(tower.id, sim)
-      }
-      tower.frame = sim.step()
+      if (!isPipelineFrame(tower.frame) || tower.frame.crashed) continue
+      const match = Match.fromFrame(tower.frame, this.rules)
+      match.tick()
+      tower.frame = match.toFrame()
+      tower.segmentCount = tower.frame.belts.length
       needsSave = true
     }
     return needsSave
   }
-  start(history: HistoryService, governance: GovernanceService) {
-    let ticks = 0
+
+  start(governance: GovernanceService) {
     this.timer = setInterval(() => {
       try {
-        let needsSave = this.tickTurnPhases()
-        if (this.stepPhysics()) needsSave = true
+        const needsSave = this.step()
         for (const tower of Object.values(this.store.state.towers))
           governance.expireBans(tower)
-        for (const tower of Object.values(this.store.state.towers))
+        for (const tower of Object.values(this.store.state.towers)) {
+          if (!isPipelineFrame(tower.frame)) continue
           for (const response of this.streams.get(tower.id) ?? []) {
             if (response.writableLength > 256 * 1024) continue
             response.write(
-              `event: frame\ndata: ${JSON.stringify(this.publicFrame(tower))}\n\n`,
+              `event: frame\ndata: ${JSON.stringify(tower.frame)}\n\n`,
             )
           }
-        if (needsSave || ticks % 60 === 0) this.store.persist()
-        ticks++
+        }
+        if (needsSave) this.store.persist()
       } catch (error) {
         console.error('Game simulation failed:', error)
       }
-    }, 1000 / treeRules().physicsFps)
+    }, this.rules.tickMs)
     this.timer.unref()
   }
+
   close() {
     clearInterval(this.timer)
     for (const clients of this.streams.values())
       for (const response of clients) response.end()
-    for (const simulation of this.simulations.values()) simulation.dispose()
-  }
-  migrateTowerFrame(tower: Tower) {
-    if (!tower.frame || !('nodes' in tower.frame)) {
-      tower.frame = createInitialTreeFrame(this.now(), tower.id)
-      tower.segmentCount = 0
-      tower.actionCount = tower.actionCount ?? 0
-    }
   }
 }

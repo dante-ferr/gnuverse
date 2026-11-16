@@ -13,13 +13,13 @@ type Props = {
 export function TowerToolbar({ connection, towerName, onCreate, canDelete, onDelete }: Props) {
   return (
     <div className={styles.detailToolbar}>
-      <a className={styles.backLink} href="/jogo/">← Cavernas</a>
-      <h1 className={styles.gameTitle}>{towerName || 'Árvore na caverna'}</h1>
+      <a className={styles.backLink} href="/jogo/">← Salas</a>
+      <h1 className={styles.gameTitle}>{towerName || 'Open Pipeline'}</h1>
       <span className={`${styles.connection} ${connection === 'live' ? styles.live : ''}`}>
         <i />
         {connection === 'live' ? 'Ao vivo' : connection === 'connecting' ? 'Conectando' : 'Offline'}
       </span>
-      <button className={styles.secondary} onClick={onCreate}>Nova caverna</button>
+      <button className={styles.secondary} onClick={onCreate}>Nova sala</button>
       {canDelete && (
         <button className={styles.secondary} onClick={() => {
           if (window.confirm('Excluir esta sala e todo o histórico?')) onDelete()

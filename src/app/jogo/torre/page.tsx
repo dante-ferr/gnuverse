@@ -1,10 +1,10 @@
-import { TowerGame } from '@/components/game/tower-game'
+import { PipelineRoom } from '@/components/game/pipeline/pipeline-room'
 
 export const metadata = {
-  title: 'Árvore na caverna — GNUverse',
-  description: 'Acompanhe o estado, cultive galhos e participe das decisões da árvore.',
+  title: 'Open Pipeline — GNUverse',
+  description: 'Conecte esteiras e entregue círculos ao núcleo.',
 }
 
 export default function TowerPage() {
-  return <TowerGame />
+  return <PipelineRoom />
 }

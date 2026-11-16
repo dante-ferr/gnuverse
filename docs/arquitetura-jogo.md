@@ -1,6 +1,8 @@
 # Arquitetura do jogo
 
-O jogo é uma aplicação de navegador ligada a um backend Node independente do CMS. A página é montada em `/jogo/`; a interface fala com uma API HTTP e recebe atualizações da torre por eventos enviados pelo servidor (SSE). As regras são validadas e persistidas no backend, enquanto React apresenta a construção e as decisões.
+A partida jogável é o Open Pipeline. O navegador fala com um backend Node por HTTP e SSE. O estado autoritativo fica em `game-server/pipeline/`; a tela é o canvas em `src/components/game/pipeline/`. As rotas continuam `/jogo/` e `/jogo/torre/?id=`.
+
+O texto abaixo descreve a organização anterior da interface e ainda serve para sessão, lobby e transporte.
 
 ## Frontend
 

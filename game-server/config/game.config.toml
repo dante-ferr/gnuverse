@@ -94,3 +94,26 @@ click_drag_threshold_px = 6
 segment_hit_padding = 20
 node_hit_radius = 16
 grow_anchor_tolerance = 12
+
+# Open Pipeline v0.1. O núcleo é 5×5 e cada face tem 3 entradas (12 no total).
+[pipeline]
+tick_ms = 250
+grid_width = 24
+grid_height = 24
+tile_cap = 25
+source_period_ticks = 4
+stability_capacity = 100
+stability_initial = 80
+stability_window_ticks = 16
+stability_required_deliveries = 2
+stability_drain = 2
+stability_restore = 3
+stability_grace_ticks = 80
+color_background = "#f4f1ea"
+color_grid = "#d9d3c5"
+color_belt = "#2c3330"
+color_packet = "#1f6f5b"
+color_core = "#243028"
+color_source = "#243028"
+color_stability = "#c4552a"
+color_stability_ok = "#2f7d4a"

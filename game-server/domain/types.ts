@@ -1,5 +1,7 @@
 import type { TreeFrame } from '../physics/tree-types.ts'
 import type { TreeRules } from '../config/load-game-config.ts'
+import type { PipelineFrame } from '../pipeline/world/frame.ts'
+import type { PipelineRules } from '../pipeline/rules.ts'
 import type { Role } from '../../core/authz/policy.ts'
 import type { Identity } from '../../core/authz/identity.ts'
 import type { IdentityProvider } from '../../core/authn/identity-provider.ts'
@@ -20,6 +22,7 @@ export type Rules = {
   prototype: boolean
   infiniteCoins: boolean
   tree: TreeRules
+  pipeline: PipelineRules
 }
 export type User = {
   roles?: readonly Role[]
@@ -51,7 +54,7 @@ export type TowerEvent = {
 export type Snapshot = {
   id: string
   createdAt: number
-  tree: TreeFrame
+  tree: PipelineFrame
   actorId: string | null
   reason: string
 }
@@ -83,7 +86,7 @@ export type Tower = {
   events: TowerEvent[]
   proposals: Proposal[]
   segmentCount: number
-  frame: TreeFrame
+  frame: PipelineFrame
   lastActorId?: string
   actionCount: number
 }
@@ -97,5 +100,5 @@ export type ServerOptions = {
   dbPath?: string
   now?: () => number
   allowedOrigins?: string[]
-  rules?: Partial<Rules>
+  rules?: Partial<Omit<Rules, 'pipeline'>> & { pipeline?: Partial<PipelineRules> }
 }

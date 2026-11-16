@@ -1,9 +1,13 @@
 import { loadGameConfig } from '../config/load-game-config.ts'
+import type { PipelineRules } from '../pipeline/rules.ts'
 import type { Rules } from '../domain/types.ts'
 
-export function createRules(overrides: Partial<Rules> = {}): Readonly<Rules> {
+export function createRules(
+  overrides: Partial<Omit<Rules, 'pipeline'>> & { pipeline?: Partial<PipelineRules> } = {},
+): Readonly<Rules> {
   const loaded = loadGameConfig()
   const configured = loaded.rules
+  const { pipeline: pipelineOverride, ...rest } = overrides
   const rules: Readonly<Rules> = Object.freeze({
     cap: configured.balanceCap,
     initialBalance: configured.initialBalance,
@@ -22,7 +26,8 @@ export function createRules(overrides: Partial<Rules> = {}): Readonly<Rules> {
       process.env.GAME_INFINITE_COINS === 'true',
     bdflVeto: configured.bdflVeto,
     tree: loaded.tree,
-    ...overrides,
+    pipeline: { ...loaded.pipeline, ...pipelineOverride },
+    ...rest,
   })
   for (const key of [
     'cap',
