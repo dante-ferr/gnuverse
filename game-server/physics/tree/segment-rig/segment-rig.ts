@@ -71,8 +71,8 @@ export class SegmentRig {
       const alpha = (3 * gravity * Math.cos(link.body.angle)) / (2 * link.length)
       link.angularVelocity += alpha * dt
       link.angularVelocity *= Math.exp(-0.7 * dt)
-      this.matter.Body.setAngle(link.body, link.body.angle + link.angularVelocity * dt, false)
-      link.body.angularVelocity = link.angularVelocity
+      this.matter.Body.setAngle(link.body, link.body.angle + link.angularVelocity * dt)
+      this.matter.Body.setAngularVelocity(link.body, link.angularVelocity)
     }
     this.holdJoints()
   }
@@ -87,14 +87,10 @@ export class SegmentRig {
       const jointX = parent.position.x + point.x * cosine - point.y * sine
       const jointY = parent.position.y + point.x * sine + point.y * cosine
       const pose = link.pose()
-      this.matter.Body.setPosition(
-        link.body,
-        {
-          x: link.body.position.x + jointX - pose.attachX,
-          y: link.body.position.y + jointY - pose.attachY,
-        },
-        false,
-      )
+      this.matter.Body.setPosition(link.body, {
+        x: link.body.position.x + jointX - pose.attachX,
+        y: link.body.position.y + jointY - pose.attachY,
+      })
     }
   }
 

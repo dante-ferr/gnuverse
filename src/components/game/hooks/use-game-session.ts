@@ -27,7 +27,7 @@ function useSessionState() {
   }, [])
   const expire = useCallback(() => {
     clear()
-    setNotice('Sua sessão expirou. Entre novamente para construir.')
+    setNotice('Sua sessão expirou. Entre novamente para jogar.')
   }, [clear])
   const api = useMemo(() => new GameApi(token, () => {
     // An expired response from a previous session must not clear a fresh login.

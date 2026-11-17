@@ -22,7 +22,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       setNotice(
         next?.startsWith('/blog')
           ? 'Entre na sua conta para contribuir com um artigo. Depois do login, você voltará ao blog.'
-          : 'Entre na sua conta para criar uma torre. Depois do login, você voltará para a criação.',
+          : 'Entre na sua conta para criar ou entrar em uma caverna. Depois do login, você voltará ao jogo.',
       )
     }
     if (!next) return

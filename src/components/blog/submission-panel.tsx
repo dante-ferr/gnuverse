@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { EditorialHeader } from '@/components/blog/editorial-header'
+import { GAME_API_URL } from '@/components/game/api/game-api'
 import { useGameSession } from '@/components/game/hooks/use-game-session'
 import { categoryNames, type ArticleReference } from '@/lib/article-meta'
 import {
@@ -41,6 +42,36 @@ type CmsUser = {
 type BlogSession = {
   token: string
   user: CmsUser
+}
+
+/** Same identity path as /login: game-server validates, JWT works on the CMS APIs. */
+async function loginWithSharedSession(
+  email: string,
+  password: string,
+): Promise<BlogSession> {
+  const loginResponse = await fetch(`${GAME_API_URL}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+  const loginData = await loginResponse.json().catch(() => null)
+  if (!loginResponse.ok || typeof loginData?.token !== 'string') {
+    throw new Error(
+      typeof loginData?.error === 'string'
+        ? loginData.error
+        : extractCmsErrorMessage(loginData, loginResponse.status),
+    )
+  }
+  const meResponse = await fetch(`${CMS_URL}/api/users/me`, {
+    headers: { Authorization: `Bearer ${loginData.token}` },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+  const meData = await meResponse.json().catch(() => null)
+  if (!meResponse.ok || !meData?.user) {
+    throw new Error(extractCmsErrorMessage(meData, meResponse.status))
+  }
+  return { token: loginData.token, user: meData.user as CmsUser }
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -295,22 +326,13 @@ export function SubmissionPanel({
     if (!token) {
       void (async () => {
         try {
-          const response = await fetch(`${CMS_URL}/api/users/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: 'autora@gnuverse.local',
-              password: 'gnuverse123',
-            }),
-            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-          })
-          const data = await response.json().catch(() => null)
-          if (response.ok && typeof data?.token === 'string' && data?.user) {
-            const cmsUser = data.user as CmsUser
-            setSessionToken(data.token)
-            setSession({ token: data.token, user: cmsUser })
-            setAuthor(cmsUser.name || cmsUser.nickname || 'Ana Autora')
-          }
+          const nextSession = await loginWithSharedSession(
+            'autora@gnuverse.local',
+            'gnuverse123',
+          )
+          setSessionToken(nextSession.token)
+          setSession(nextSession)
+          setAuthor(nextSession.user.name || nextSession.user.nickname || 'Ana Autora')
         } catch {
           /* Silencioso caso a conta de demonstração ainda não exista no banco local. */
         }
@@ -332,27 +354,13 @@ export function SubmissionPanel({
     }
   }, [isOpen, session, loadMyArticles])
 
-  async function loginWithCredentials(email: string, password: string) {
-    const response = await fetch(`${CMS_URL}/api/users/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-    const data = await response.json().catch(() => null)
-    if (!response.ok || typeof data?.token !== 'string' || !data?.user) {
-      throw new Error(extractCmsErrorMessage(data, response.status))
-    }
-    return { token: data.token, user: data.user as CmsUser }
-  }
-
   async function handleQuickLogin(email: string, defaultName: string) {
     setAuthError('')
     setSubmitError('')
     setSubmitSuccess('')
     setAuthBusy(true)
     try {
-      const nextSession = await loginWithCredentials(email, 'gnuverse123')
+      const nextSession = await loginWithSharedSession(email, 'gnuverse123')
       setSessionToken(nextSession.token)
       setSession(nextSession)
       setAuthor(nextSession.user.name || nextSession.user.nickname || defaultName)
