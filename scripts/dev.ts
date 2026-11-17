@@ -146,7 +146,9 @@ try {
   console.log(
     'E-mails locais: inicie make mailpit e abra http://127.0.0.1:8025 para ver confirmações e recuperação de senha.',
   )
-  start(['run', 'cms:dev'], 'CMS')
+  start(['run', 'cms:dev'], 'CMS', {
+    CMS_ALLOWED_ORIGINS: config.allowedOrigins,
+  })
   start(['run', 'game:dev'], 'Jogo', {
     GAME_PORT: config.gamePort,
     GAME_ALLOWED_ORIGINS: config.allowedOrigins,

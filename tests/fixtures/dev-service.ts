@@ -20,6 +20,8 @@ server.listen(port, '127.0.0.1', () => {
       role,
       api: process.env.NEXT_PUBLIC_GAME_API_URL,
       origins: process.env.GAME_ALLOWED_ORIGINS,
+      cmsUrl: process.env.NEXT_PUBLIC_CMS_URL,
+      cmsOrigins: process.env.CMS_ALLOWED_ORIGINS,
     }) + '\n',
   )
 })

@@ -59,4 +59,4 @@ node game-server/cli/tree-cli.ts wait --id <uuid> --timeout 15000 --token "$GAME
 
 `--parent` ainda é aceito como alias de `--segment`. Se `--anchor-x` / `--anchor-y` forem omitidos, a âncora é o nó do segmento (compatível com scripts antigos).
 
-Use credenciais de teste descritas em [`jogo-local.md`](jogo-local.md). O login chama a mesma API `POST /api/login` do jogo.
+Use credenciais de teste descritas em [`src/game/local.md`](src/game/local.md). O login chama a mesma API `POST /api/login` do jogo.

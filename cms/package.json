@@ -13,6 +13,7 @@
     "migrate": "payload migrate",
     "migrate:create": "payload migrate:create",
     "setup:local": "node scripts/setup-local.mjs",
+    "seed:demo": "node --import tsx scripts/seed-blog-demo.ts",
     "test": "node --import tsx scripts/verify.ts"
   },
   "engines": {
@@ -27,7 +28,7 @@
     "@payloadcms/storage-s3": "3.90.2",
     "@payloadcms/translations": "3.90.2",
     "graphql": "16.14.2",
-    "next": "16.4.1",
+    "next": "16.4.6",
     "payload": "3.90.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",

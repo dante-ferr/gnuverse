@@ -89,7 +89,7 @@ export const accessManagementEndpoints: Endpoint[] = [
       return saveRegistry(req, body.revision, (_, enabled) => {
         if (enabled) throw new RoleManagementError(409, 'A gestão compartilhada já está ativa.')
         return users.map((user) => ({ id: randomUUID(), name: user.name,
-          roles: user.role === 'admin' ? ['admin'] : user.role === 'editor' ? ['blog-editor'] : ['member'],
+          roles: user.role === 'admin' ? ['admin'] : user.role === 'editor' || user.role === 'reviewer' ? ['blog-editor'] : ['member'],
           identities: [{ provider: 'cms', id: String(user.id) }],
         }))
       })

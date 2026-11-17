@@ -85,4 +85,4 @@ game-server/
 
 ## Limites da implantação
 
-O site continua exportado como conteúdo estático; o backend precisa ser hospedado separadamente para uso fora da rede local. O serviço atual usa uma instância Node e SQLite, e não compartilha estado entre instâncias. A hospedagem de produção, durabilidade, monitoramento e operação de múltiplas instâncias ainda precisam ser definidos. Veja o [guia local](jogo-local.md) para iniciar frontend e backend e conhecer os limites atuais.
+O site continua exportado como conteúdo estático; o backend precisa ser hospedado separadamente para uso fora da rede local. O serviço atual usa uma instância Node e SQLite, e não compartilha estado entre instâncias. A hospedagem de produção, durabilidade, monitoramento e operação de múltiplas instâncias ainda precisam ser definidos. Veja o [guia local no method book](src/game/local.md) para iniciar frontend e backend e conhecer os limites atuais.

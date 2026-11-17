@@ -128,9 +128,9 @@ export interface User {
   name: string;
   nickname?: string | null;
   /**
-   * Papel inicial do blog. Com a gestão compartilhada ativa, use Pessoas e acessos para definir os papéis válidos em todo o site.
+   * Papel editorial do blog. Com a gestão compartilhada ativa, use Pessoas e acessos para papéis válidos em todo o site. Participante (member) é o cadastro público do jogo.
    */
-  role: 'admin' | 'editor' | 'member';
+  role: 'admin' | 'reviewer' | 'editor' | 'author' | 'member';
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -166,8 +166,21 @@ export interface Article {
   slug: string;
   summary: string;
   author: string;
+  owner?: (number | null) | User;
+  reviewStatus: 'draft' | 'in_review' | 'changes_requested' | 'approved';
+  /**
+   * Critérios, ajustes necessários ou observações da revisão editorial.
+   */
+  reviewNotes?: string | null;
   category: 'reflexoes' | 'educacao' | 'acesso' | 'experiencias';
   cover?: (number | null) | Media;
+  publishedAt?: string | null;
+  hashtags?:
+    | {
+        tag: string;
+        id?: string | null;
+      }[]
+    | null;
   body: {
     root: {
       type: string;
@@ -339,8 +352,18 @@ export interface ArticlesSelect<T extends boolean = true> {
   slug?: T;
   summary?: T;
   author?: T;
+  owner?: T;
+  reviewStatus?: T;
+  reviewNotes?: T;
   category?: T;
   cover?: T;
+  publishedAt?: T;
+  hashtags?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
   body?: T;
   references?:
     | T
