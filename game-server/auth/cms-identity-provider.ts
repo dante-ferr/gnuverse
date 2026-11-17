@@ -13,7 +13,7 @@ export class CMSIdentityProvider implements IdentityProvider {
   constructor(base = process.env.CMS_URL || `http://localhost:${process.env.CMS_PORT || 3001}`) {
     this.base = base.replace(/\/$/, '')
   }
-  private async request(path: string, token?: string, body?: unknown) {
+  private async request(path: string, token?: string, body?: unknown, sessionError = 'Sua sessão expirou. Entre novamente.') {
     let response: Response
     try {
       response = await fetch(`${this.base}/api${path}`, {
@@ -27,7 +27,7 @@ export class CMSIdentityProvider implements IdentityProvider {
       const message = typeof result.message === 'string' ? result.message : 'Confirme seu e-mail antes de entrar.'
       fail(403, message)
     }
-    if (response.status === 401 || response.status === 403) fail(401, token ? 'Sua sessão expirou. Entre novamente.' : 'E-mail ou senha incorretos.')
+    if (response.status === 401 || response.status === 403) fail(401, token ? sessionError : 'E-mail ou senha incorretos.')
     if (response.status === 429) fail(429, 'Muitas tentativas. Aguarde um minuto.')
     if (!response.ok) {
       if (path === '/identity/register' && [400, 409, 422].includes(response.status)) {
@@ -41,7 +41,10 @@ export class CMSIdentityProvider implements IdentityProvider {
   async login(email: string, password: string): Promise<IdentitySession> {
     const result = await this.request('/users/login', undefined, { email, password })
     if (typeof result.token !== 'string') fail(503, 'O serviço de contas não retornou uma sessão válida.')
-    return { token: result.token, account: await this.authenticate(result.token) }
+    return {
+      token: result.token,
+      account: await this.authenticate(result.token, 'A senha foi aceita, mas a sessão da conta não pôde ser aberta.'),
+    }
   }
   async register(email: string, password: string, nickname: string): Promise<IdentityRegisterResult> {
     const result = await this.request('/identity/register', undefined, { email, password, nickname })
@@ -54,7 +57,7 @@ export class CMSIdentityProvider implements IdentityProvider {
       }
     }
     if (typeof result.token !== 'string') fail(503, 'O serviço de contas não retornou uma sessão válida.')
-    return { token: result.token, account: await this.authenticate(result.token) }
+    return { token: result.token, account: await this.authenticate(result.token, 'A conta foi criada, mas a sessão não pôde ser aberta.') }
   }
   async forgotPassword(email: string) {
     await this.request('/users/forgot-password', undefined, { email })
@@ -65,8 +68,8 @@ export class CMSIdentityProvider implements IdentityProvider {
   async verifyEmail(token: string) {
     await this.request(`/users/verify/${encodeURIComponent(token)}`, undefined, {})
   }
-  async authenticate(token: string): Promise<IdentityAccount> {
-    const { account } = await this.request('/identity/me', token)
+  async authenticate(token: string, sessionError?: string): Promise<IdentityAccount> {
+    const { account } = await this.request('/identity/me', token, undefined, sessionError)
     if (!account || account.identity?.provider !== 'cms' || typeof account.identity.id !== 'string' ||
         typeof account.email !== 'string' || typeof account.name !== 'string' || !Array.isArray(account.roles) ||
         !account.roles.every((role: unknown) => ROLES.includes(role as typeof ROLES[number])))

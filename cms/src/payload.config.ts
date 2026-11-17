@@ -12,6 +12,7 @@ import { Articles } from './collections/Articles'
 import { Media } from './collections/Media'
 import { accessManagementEndpoints } from './access-management/endpoints'
 import { identityEndpoints } from './identity/endpoints'
+import { markLegacyAccountsVerified } from './identity/legacy-verification'
 import { getLocalCMSURL, loadLocalEnvironment } from '../scripts/local-config.mjs'
 import { buildEmailAdapter } from './email/adapter'
 
@@ -58,6 +59,7 @@ export default buildConfig({
   endpoints: [...accessManagementEndpoints, ...identityEndpoints],
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },
   collections: [Users, Articles, Media],
+  onInit: markLegacyAccountsVerified,
   editor: lexicalEditor({ features: ({ defaultFeatures }) => [
     ...defaultFeatures.filter((feature) => !['link', 'upload', 'relationship'].includes(feature.key)),
     // Apenas links externos e capa: nenhuma mídia do corpo dependerá do CMS no navegador.
