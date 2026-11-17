@@ -1,92 +1,51 @@
 # GNUverse
 
-Projeto multimodal de MATA68 (2026.2) sobre software livre como forma de democratizar o acesso à tecnologia. Stack: Next.js App Router, Tailwind e TypeScript.
+Multimodal MATA68 project (2026.2): free software as a way to democratize access to technology. Stack: Next.js App Router, Tailwind, and TypeScript.
 
-## Experiência proposta
+Team method (architecture, blog, game, planning, roadmap):
 
-Duas áreas paralelas e independentes:
+```bash
+make docs-serve
+```
 
-- **Torres colaborativas:** jogo multiplayer local com física simplificada, cadastro, moedas globais, criação de torres, histórico, votações e governança transparente. O backend Node e a persistência SQLite funcionam localmente; a hospedagem ainda será escolhida. Veja [gameplay e regras](docs/torres-colaborativas.md) e o [guia de teste local](docs/jogo-local.md).
-- **Blog autoral:** posts da equipe e de visitantes, sujeitos a aprovação. A prova de conceito terá dois posts por integrante, totalizando 14. A integração editorial inicial existe, mas submissão pública e aprovação obrigatória ainda não. Veja [o plano editorial e o estado do CMS](docs/blog.md).
+Opens the book at `http://localhost:3003`. Course brief: `docs/references/trabalho-multimodal-2026.2.pdf`.
 
-## Navegação e divisão de trabalho
+UI copy is Portuguese; code and documentation are English (`AGENTS.md`).
 
-- `/`: página inicial do GNUverse, com entradas para jogo e blog.
-- `/jogo/`: interface interativa do jogo, conectada ao backend Node configurado em `NEXT_PUBLIC_GAME_API_URL`.
-- `/blog/`: entrada do blog, reutilizando a base editorial existente. O desenvolvimento do blog fica reservado a outro integrante.
-- `/artigos/` e `/artigos/[slug]/`: rotas editoriais anteriores preservadas por compatibilidade.
+## Experience
 
-A navegação compartilhada fica em `src/components/site-header.tsx`. O jogo e o blog usam serviços e dados separados; implementar o jogo não altera o fluxo editorial do CMS.
+Two independent areas:
 
-As políticas de acesso ficam em `core/authz/`, independentes do CMS. Consulte [papéis compartilhados e administração de torres](docs/autorizacao.md) para configurar o registro central opcional.
+- **Collaborative towers** (`/jogo/`): local multiplayer with physics, coins, votes, and BDFL. Backend in `game-server/`; production hosting still open.
+- **Authorial blog** (`/blog/`, `/artigos/`): team and visitor posts with approval. `author` / `reviewer` / `admin` flow and submission panel are in code; 14 posts and cloud setup are still pending.
 
-A conta é única: o site autentica no Payload pelo contrato independente em `core/authn/`. O jogo guarda apenas perfis e estado das partidas; a conta do primeiro administrador também entra no site e herda seus papéis automaticamente.
+Single account in Payload; roles in `core/authz/` and **People and access** on the CMS. Detail: book → Authorization.
 
-## Arquitetura escolhida
+## Architecture
 
-- Site público estático na raiz, preparado para Cloudflare Pages. O jogo consulta um backend dinâmico Node separado; ele funciona localmente e sua hospedagem ainda será definida.
-- Payload CMS separado em `cms/`, preparado para Render.
-- Banco PostgreSQL e mídia S3 no Supabase em produção; SQLite e disco local somente no desenvolvimento.
-- Conteúdo é salvo no banco, sem commits editoriais. Publicar solicita novo build por deploy hook.
-- Artigos e capas são copiados durante o build: o visitante não precisa esperar o CMS acordar.
+- Static site (Cloudflare Pages) + Payload (`cms/`, Render Free) + `game-server/` (always on + disk).
+- Content in database/storage; publish triggers a deploy hook; readers do not wait for the CMS to wake.
 
-Leia [as decisões do CMS](docs/arquitetura-cms.md), [o guia de teste e credenciais do CMS](docs/teste-cms.md), [a arquitetura do jogo](docs/arquitetura-jogo.md) e [o guia de teste local](docs/jogo-local.md).
-Para a organização técnica do jogo, veja [a arquitetura do jogo](docs/arquitetura-jogo.md) e o [guia de teste local](docs/jogo-local.md).
+## Local testing
 
-## Teste local
-
-Requer Node.js 22.18+, npm e GNU Make. Versões fixadas nos dois arquivos `package-lock.json`.
-
-Na primeira vez:
+Node.js 22.18+, npm, GNU Make.
 
 ```bash
 make setup
-```
-
-Depois, para iniciar CMS, jogo e site juntos:
-
-```bash
 make dev
 ```
 
-Abra a URL do painel impressa no terminal, crie seu administrador e insira o artigo de teste descrito em `docs/teste-cms.md`. O site fica no endereço impresso no terminal, normalmente http://localhost:3000/artigos/.
+Ctrl+C stops CMS, game, and site. Shortcuts: `make test-blog`, `make check`, `make build`, `make preview`, `make help`.
 
-O setup instala as duas aplicações, gera o segredo do CMS e prepara `.env.local` para o modo live. A porta local é definida somente por `CMS_PORT` nesse arquivo; o endereço do painel e a leitura do conteúdo são derivados dela. Configurações antigas são migradas, preservando os demais valores. `make dev` inicia o CMS e o backend do jogo, aguarda as duas APIs e só então inicia o site; Ctrl+C encerra os três.
+Default ports: site `3000`, CMS `3001`, game `3002`. Alternatives: `CMS_PORT=3011 SITE_PORT=3010 GAME_PORT=3012 make dev`.
 
-Depois de editar/publicar no CMS, pare e execute `make dev` novamente para atualizar o conteúdo. A sincronização acontece na inicialização, não a cada visita.
+## Layout
 
-O backend do jogo já é iniciado por `make dev`. Para iniciar apenas o backend separadamente, use `npm run game:dev`. Com o site iniciado, abra `http://localhost:3000/jogo/`; o backend local usa a porta `3002` e o CMS continua na `3001`. Se o CMS estiver desligado, use `CMS_CONTENT_MODE=demo` em `.env.local`. O jogo pode ser testado em duas sessões de navegador. Veja [o guia de teste local](docs/jogo-local.md) para contas, variáveis de ambiente e limitações do protótipo.
-
-Sem configuração, o site usa um artigo claramente identificado como demonstração. Em modo live, falhas do CMS abortam a sincronização; nunca substituem o conteúdo real pelo exemplo.
-
-## Exportação e verificação
-
-```bash
-make check
-make build
-make preview
-```
-
-`make build` sincroniza o conteúdo e exporta o site para `out/`. `make preview` serve esses arquivos, sem servidor Next.js ou consulta ao CMS. O build usa Webpack para evitar a restrição de processos/portas do Turbopack observada neste ambiente.
-
-Use `make help` para listar os atalhos. Para trabalhar em terminais separados: `make cms` e `make site`. Os scripts npm continuam disponíveis, inclusive nos provedores de nuvem.
-
-## Estrutura
-
-- `src/app/`: abertura, lista e páginas de artigos.
-- `src/lib/articles.ts`: leitura do snapshot preparado no build.
-- `scripts/`: leitura da API, validação e cópia das capas.
-- `content/demo-article.json`: exemplo técnico, não publicado automaticamente no banco.
-- `cms/`: painel, usuários, artigos, uploads, testes e migrações PostgreSQL.
-- `game-server/`: backend Node, simulação autoritativa, autenticação e persistência SQLite do jogo.
-- `game-server/config/game.config.toml`: regras ajustáveis de moedas, custos, votações e limites do jogo.
-- `src/components/game/`: interface interativa da experiência em `/jogo/`.
-- `docs/jogo-local.md`: inicialização, contas, configuração e limites do backend local.
-- `docs/planejamento.md`: responsabilidades dos sete integrantes e cronograma.
-- `docs/diario-de-bordo.md`: modelo coletivo e individual.
-
-O escopo implementado inclui a integração editorial inicial e o multiplayer local do jogo. Conteúdo acadêmico, hospedagem do backend, contas de nuvem, remoto GitHub e credenciais de produção ainda precisam ser configurados. Nenhum serviço externo foi publicado nesta etapa.
-
-Se as portas estiverem ocupadas, use `CMS_PORT=3011 SITE_PORT=3010 GAME_PORT=3012 make dev`. Esse comando conecta o site ao CMS local na porta escolhida, sobrescrevendo a porta definida no ambiente apenas para essa execução. Para usar um CMS remoto, execute somente `make site`, que lê sua configuração.
-
-Encerre servidores deste mesmo projeto antes de usar `make dev`: o Next.js permite apenas uma sessão de desenvolvimento por diretório, mesmo em portas diferentes.
+| Folder | Role |
+| :--- | :--- |
+| `src/` | Site (blog, articles, game) |
+| `cms/` | Payload, users, media, migrations |
+| `game-server/` | API, physics, game SQLite |
+| `core/` | Pure authz/authn |
+| `scripts/` | Dev, sync, E2E tests |
+| `docs/` | mdBook + `references/` |

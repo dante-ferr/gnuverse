@@ -1,0 +1,8 @@
+[book]
+authors = ["GNUverse team"]
+language = "en"
+src = "src"
+title = "GNUverse — method"
+
+[output.html]
+git-repository-url = "https://github.com"
