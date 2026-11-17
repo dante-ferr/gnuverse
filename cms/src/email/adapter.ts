@@ -1,10 +1,10 @@
-import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
+import { emailVerificationEnabled } from './settings'
 
-export const emailVerificationEnabled =
-  process.env.NODE_ENV !== 'test' && process.env.EMAIL_VERIFICATION !== 'false'
+export { emailVerificationEnabled }
 
 export async function buildEmailAdapter() {
   if (!emailVerificationEnabled) return undefined
+  const { nodemailerAdapter } = await import('@payloadcms/email-nodemailer')
   const host = process.env.SMTP_HOST?.trim() || '127.0.0.1'
   const port = Number(process.env.SMTP_PORT?.trim() || '1025')
   return nodemailerAdapter({

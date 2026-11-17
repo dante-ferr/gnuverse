@@ -3,7 +3,7 @@ import type { IdentityAccount } from '../../../core/authn/identity-provider.ts'
 import { authorizationFilePath, FileRoleStore } from '../../../core/authz/file-role-store.ts'
 import { existsSync } from 'node:fs'
 import { cmsActor } from '../access'
-import { emailVerificationEnabled } from '../email/adapter'
+import { emailVerificationEnabled } from '../email/settings'
 
 export function identityAccount(req: PayloadRequest): IdentityAccount {
   if (!req.user) throw new Error('Authentication required')

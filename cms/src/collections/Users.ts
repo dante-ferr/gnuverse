@@ -1,7 +1,7 @@
 import { APIError, type CollectionConfig } from 'payload'
 import { adminField, canAccessCMS, isAdmin } from '../access'
 import { readRoleRegistry } from '../../../core/authz/manage-role-store.ts'
-import { emailVerificationEnabled } from '../email/adapter'
+import { emailVerificationEnabled } from '../email/settings'
 import { forgotPasswordEmailHTML, verificationEmailHTML } from '../email/auth-messages'
 
 export const Users: CollectionConfig = {

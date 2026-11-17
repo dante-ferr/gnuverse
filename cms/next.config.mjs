@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 export default withPayload({
   outputFileTracingRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
+  serverExternalPackages: ['@payloadcms/email-nodemailer', 'nodemailer'],
   experimental: {
     agentUpgrade: 'security',
   },
