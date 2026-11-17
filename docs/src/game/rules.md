@@ -27,4 +27,4 @@ Footprints and machine art rules are locked in [Decisions §9](../decisions.md#9
 
 ## Unset design
 
-Ask before inventing rules that are not in the proposal, WIP handoff, locked [Decisions §9](../decisions.md#9-open-pipeline-machines), `AGENTS.md`, or TOML.
+Ask before inventing rules that are not in the proposal, WIP handoff, locked [Decisions §9](../decisions.md#9-open-pipeline-machines), `AGENTS.md`, or TOML. For machine art, palette, outlines, belt presentation, or resource glyphs, open §9 first — do not invent from memory.

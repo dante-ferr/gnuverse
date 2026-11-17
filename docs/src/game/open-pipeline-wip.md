@@ -33,7 +33,7 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 | Core footprint | Starts `3×3`, grows with versions | Fixed **5×5** now; see `CoreMachine` |
 | Source footprint | Unspecified / 1 cell implied | Fixed **3×3** with one face-center output; see `SourceMachine` |
 | Active core ports | Milestone-gated (e.g. 2 ports at start) | **All 12** inputs accept deliveries in v0.1 |
-| Machine art | Proposal: procedural for geometric visuals | Cell-fit body + “[” slots procedural; color-agnostic SVG decor only — [Decisions §9](../decisions.md#9-open-pipeline-machines) |
+| Machine art | Proposal: procedural for geometric visuals | Cell-fit body + “[” slots procedural; QuiverAI black-ink decor tinted darker than each body (`decor_darken_percent`) — [Decisions §9](../decisions.md#9-open-pipeline-machines) |
 | Collaborators | `localStorage` token option | **CMS accounts only**; `join` records nickname |
 | Building cost | Cheap, no coin gate | Belts do **not** spend wallet coins yet |
 | Fail / victory | No crash; victory at 9 cores | **No fail state**; no victory screen |
