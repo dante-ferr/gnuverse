@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import type { Cell } from '../game-server/pipeline/geometry/cell.ts'
+import { ahead, opposite, type Direction } from '../game-server/pipeline/geometry/direction.ts'
 import { CoreMachine } from '../game-server/pipeline/machines/core-machine.ts'
 import { Packet } from '../game-server/pipeline/packets/packet.ts'
 import type { PipelineRules } from '../game-server/pipeline/rules.ts'
@@ -11,22 +13,61 @@ const rules: PipelineRules = {
   gridHeight: 24,
   tileCap: 25,
   sourcePeriodTicks: 4,
-  colorBackground: '#f4f1ea',
-  colorGrid: '#d9d3c5',
-  colorBelt: '#2c3330',
-  colorPacket: '#1f6f5b',
-  colorCore: '#243028',
-  colorSource: '#243028',
+  colorBackground: '#0e171d',
+  colorGrid: '#23343c',
+  colorBelt: '#9eb0b7',
+  colorPacket: '#52d6c9',
+  colorCore: '#edf4f4',
+  colorSource: '#edf4f4',
+  colorAccent: '#52d6c9',
+  decorStrokeWidth: 28,
+  machineClearanceMin: 1,
+  coreClearanceExtra: 2,
 }
 
 const author = { id: 'ada', nickname: 'Ada' }
 
+function directionBetween(from: Cell, to: Cell): Direction {
+  if (to.x > from.x) return 'east'
+  if (to.x < from.x) return 'west'
+  if (to.y > from.y) return 'south'
+  return 'north'
+}
+
+function manhattanBelts(from: Cell, to: Cell, finalDirection: Direction) {
+  const path: Cell[] = [{ ...from }]
+  let { x, y } = from
+  while (x !== to.x) {
+    x += Math.sign(to.x - x)
+    path.push({ x, y })
+  }
+  while (y !== to.y) {
+    y += Math.sign(to.y - y)
+    path.push({ x, y })
+  }
+  return path.map((cell, index) => ({
+    ...cell,
+    direction: index < path.length - 1 ? directionBetween(cell, path[index + 1]!) : finalDirection,
+  }))
+}
+
 function connected() {
   const match = Match.create('seed', rules)
   const output = match.source.outputSlots()[0]!.cell
-  const cells = []
-  for (let x = output.x; x < match.core.origin.x; x++)
-    cells.push({ x, y: output.y, direction: 'east' as const })
+  const facing = match.source.direction
+  const slots = match.core
+    .inputSlots()
+    .filter((slot) => slot.travel === facing)
+  assert.ok(slots.length > 0)
+  const target = slots.reduce((best, slot) => {
+    const dist =
+      Math.abs(slot.cell.x - output.x) + Math.abs(slot.cell.y - output.y)
+    const bestDist =
+      Math.abs(best.cell.x - output.x) + Math.abs(best.cell.y - output.y)
+    return dist < bestDist ? slot : best
+  })
+  const approach = ahead(target.cell.x, target.cell.y, opposite(facing))
+  const cells = manhattanBelts(output, approach, facing)
   assert.equal(match.place(cells, author), null)
   return match
 }
@@ -42,7 +83,7 @@ test('core exposes three input slots on every face and skips corners', () => {
 test('a belt line carries a circle into the facing core slot', () => {
   const match = connected()
   const before = match.deliveries
-  for (let i = 0; i < 12; i++) match.tick()
+  for (let i = 0; i < 30; i++) match.tick()
   assert.ok(match.deliveries > before)
   assert.equal(match.packets.every((packet) => packet.shape === 'circle'), true)
 })

@@ -118,7 +118,7 @@
   border-bottom: 1px solid var(--line);
   margin-bottom: 24px;
 }
-.towerDashboard {
+.roomDashboard {
   margin: 0 0 20px;
   padding: 14px 0;
   border-top: 1px solid var(--line);
@@ -159,7 +159,7 @@
 .detailToolbar .connection { margin-left: auto; }
 .dashboardHeading,
 .dashboardActions,
-.towerCardTop,
+.roomCardTop,
 .pagination {
   display: flex;
   align-items: center;
@@ -171,23 +171,23 @@
 .dashboardHeading h2 { margin: 0; font-size: 23px; font-weight: 500; letter-spacing: -0.04em; }
 .dashboardHeading p:not(.eyebrow) { margin: 5px 0 0; font-size: 12px; color: var(--muted); }
 .dashboardActions { justify-content: flex-end; flex-wrap: wrap; }
-.towerFilters { display: grid; grid-template-columns: minmax(240px, 1fr) 150px 170px auto; align-items: end; gap: 16px; margin-bottom: 18px; }
-.towerFilters > label,
-.towerSearch { display: grid; gap: 7px; min-width: 0; color: var(--muted); font-size: 12px; }
-.towerSearchInput { display: flex; gap: 8px; }
-.towerSearchInput input { flex: 1; }
-.towerSearchInput button { flex: none; }
-.towerFilters input[type='search'],
-.towerFilters select { width: 100%; min-width: 0; height: 34px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); padding: 6px 10px; font: inherit; }
-.towerFilterActions { display: flex; align-items: center; gap: 18px; min-height: 34px; font-size: 12px; white-space: nowrap; }
+.roomFilters { display: grid; grid-template-columns: minmax(240px, 1fr) 150px 170px auto; align-items: end; gap: 16px; margin-bottom: 18px; }
+.roomFilters > label,
+.roomSearch { display: grid; gap: 7px; min-width: 0; color: var(--muted); font-size: 12px; }
+.roomSearchInput { display: flex; gap: 8px; }
+.roomSearchInput input { flex: 1; }
+.roomSearchInput button { flex: none; }
+.roomFilters input[type='search'],
+.roomFilters select { width: 100%; min-width: 0; height: 34px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); padding: 6px 10px; font: inherit; }
+.roomFilterActions { display: flex; align-items: center; gap: 18px; min-height: 34px; font-size: 12px; white-space: nowrap; }
 .mineFilter { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .mineFilter input { accent-color: var(--accent); }
-.clearTowerFilters { padding: 8px 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
-.clearTowerFilters:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 4px; }
+.clearRoomFilters { padding: 8px 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.clearRoomFilters:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 4px; }
 .filterHint { margin: 0 0 18px; font-size: 12px; color: var(--muted); }
 .filterHint a { color: var(--accent); }
-.towerGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.towerCard {
+.roomGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.roomCard {
   display: grid;
   gap: 0;
   border: 1px solid var(--line);
@@ -198,16 +198,16 @@
   overflow: hidden;
   transition: border-color .15s, background .15s, transform .15s;
 }
-.towerCard:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-2px); }
-.towerCard:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-.activeTowerCard { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.towerCardTop { font-size: 10px; color: var(--muted); }
-.towerCardTop span:last-child { color: var(--accent); font-size: 15px; }
-.towerCover { display: block; width: 100%; aspect-ratio: 1.65; background: var(--scene); }
-.towerCardInfo { display: grid; gap: 12px; padding: 16px; }
-.towerCard strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 500; }
-.towerCardMeta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 10px; }
-.emptyTowers { padding: 20px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
+.roomCard:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-2px); }
+.roomCard:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.activeRoomCard { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.roomCardTop { font-size: 10px; color: var(--muted); }
+.roomCardTop span:last-child { color: var(--accent); font-size: 15px; }
+.roomCover { display: block; width: 100%; aspect-ratio: 1.65; background: var(--scene); }
+.roomCardInfo { display: grid; gap: 12px; padding: 16px; }
+.roomCard strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 500; }
+.roomCardMeta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 10px; }
+.emptyRooms { padding: 20px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .pagination { justify-content: center; margin-top: 18px; font-size: 11px; color: var(--muted); }
 .connection {
   display: flex;
@@ -624,7 +624,7 @@
   margin: 20px 0;
   scroll-margin-top: 20px;
 }
-.createTowerOverlay {
+.createRoomOverlay {
   width: min(720px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   margin: auto;
@@ -637,18 +637,18 @@
   border-radius: 8px;
   box-shadow: 0 24px 80px rgb(0 0 0 / 30%);
 }
-.createTowerOverlay::backdrop {
+.createRoomOverlay::backdrop {
   background: rgb(0 0 0 / 60%);
   backdrop-filter: blur(4px);
 }
-.createTowerOverlay > .form {
+.createRoomOverlay > .form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   align-items: start;
 }
-.createTowerOverlay > .form > fieldset,
-.createTowerOverlay > .form > details,
-.createTowerOverlay > .form > button {
+.createRoomOverlay > .form > fieldset,
+.createRoomOverlay > .form > details,
+.createRoomOverlay > .form > button {
   grid-column: 1 / -1;
 }
 .panelTitle {
@@ -763,9 +763,9 @@
   }
 }
 @media (max-width: 900px) {
-  .towerFilters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .towerSearch { grid-column: 1 / -1; }
-  .towerFilterActions { grid-column: 1 / -1; justify-content: space-between; }
+  .roomFilters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .roomSearch { grid-column: 1 / -1; }
+  .roomFilterActions { grid-column: 1 / -1; justify-content: space-between; }
   .playLayout {
     grid-template-columns: minmax(0, 1fr) 230px;
     gap: 20px;
@@ -824,7 +824,7 @@
   .detailToolbar { flex-wrap: wrap; }
   .detailToolbar .connection { order: 0; width: auto; margin-left: auto; padding: 0; }
   .dashboardActions { justify-content: flex-start; }
-  .towerGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .roomGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pagination { justify-content: space-between; }
   .connection {
     order: 3;
@@ -1090,7 +1090,6 @@
   }
 }
 
-/* Árvore na caverna: viewport fixo, sidebar densa */
 .pipelineCanvas {
   flex: 1;
   min-height: 0;
@@ -1239,13 +1238,6 @@
   font: 10px var(--display-font);
   letter-spacing: 0.02em;
 }
-.treePlayLayout {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) min(280px, 28vw);
-  gap: 0;
-}
 .sceneViewport {
   position: relative;
   min-height: 0;
@@ -1358,11 +1350,7 @@
   }
 }
 @media (max-width: 720px) {
-  .treePlayLayout {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-  }
-  .gameSidebar {
+    .gameSidebar {
     max-height: 34dvh;
     border-left: 0;
     border-top: 1px solid var(--line);

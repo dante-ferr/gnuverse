@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import type { Member, Proposal, Rules, Tower, User } from '../domain/types.ts'
+import type { Member, Proposal, Rules, Room, User } from '../domain/types.ts'
 import { fail, text, mode } from '../domain/validation.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
-import { HistoryService } from '../towers/history-service.ts'
+import { HistoryService } from '../rooms/history-service.ts'
 
 export class GovernanceService {
   private rules: Readonly<Rules>
@@ -20,11 +20,11 @@ export class GovernanceService {
     this.runtime = runtime
     this.history = history
   }
-  private enact(tower: Tower, proposal: Proposal, actorId: string | null) {
-    tower.members[proposal.targetId].banned = true
-    tower.members[proposal.targetId].bannedUntil =
+  private enact(room: Room, proposal: Proposal, actorId: string | null) {
+    room.members[proposal.targetId].banned = true
+    room.members[proposal.targetId].bannedUntil =
       this.now() + this.rules.banDurationMs
-    this.history.event(tower, 'ban', actorId, {
+    this.history.event(room, 'ban', actorId, {
       targetId: proposal.targetId,
       proposalId: proposal.id,
       reason: proposal.decisionReason ?? proposal.reason,
@@ -32,35 +32,35 @@ export class GovernanceService {
     proposal.executionStatus = 'executed'
     proposal.executedAt = this.now()
   }
-  expireBans(tower: Tower) {
-    for (const participant of Object.values(tower.members))
+  expireBans(room: Room) {
+    for (const participant of Object.values(room.members))
       if (
         participant.banned &&
         participant.bannedUntil !== undefined &&
         participant.bannedUntil <= this.now()
       ) {
         participant.banned = false
-        this.history.event(tower, 'ban-expired', null, {
+        this.history.event(room, 'ban-expired', null, {
           targetId: participant.id,
         })
       }
   }
   propose(
-    tower: Tower,
+    room: Room,
     user: User,
     participant: Member,
     body: Record<string, unknown>,
   ) {
-    if (!participant.contributions && user.id !== tower.creatorId)
+    if (!participant.contributions && user.id !== room.creatorId)
       fail(403, 'Contribua antes de propor uma decisão.')
-    if (tower.proposals.some((p) => p.status === 'pending'))
+    if (room.proposals.some((p) => p.status === 'pending'))
       fail(409, 'Já existe uma proposta pendente.')
     const type = mode(body.type, ['ban'])
     const targetId = text(body.targetId, 1, 100, 'Alvo')
     if (
-      !tower.members[targetId] ||
-      tower.members[targetId].banned ||
-      (targetId === tower.creatorId && tower.allowCreatorBan !== true)
+      !room.members[targetId] ||
+      room.members[targetId].banned ||
+      (targetId === room.creatorId && room.allowCreatorBan !== true)
     )
       fail(400, 'Alvo de banimento inválido.')
     const proposal: Proposal = {
@@ -72,27 +72,27 @@ export class GovernanceService {
       status: 'pending',
       createdAt: this.now(),
     }
-    tower.proposals.push(proposal)
-    this.history.event(tower, 'proposal', user.id, {
+    room.proposals.push(proposal)
+    this.history.event(room, 'proposal', user.id, {
       proposalId: proposal.id,
       type,
       targetId,
     })
-    if (user.id === tower.creatorId) {
+    if (user.id === room.creatorId) {
       proposal.status = 'accepted'
       proposal.decidedAt = this.now()
       proposal.decidedBy = user.id
-      this.enact(tower, proposal, user.id)
+      this.enact(room, proposal, user.id)
     }
     return { proposal }
   }
   decide(
-    tower: Tower,
+    room: Room,
     user: User,
     proposal: Proposal,
     body: Record<string, unknown>,
   ) {
-    if (user.id !== tower.creatorId)
+    if (user.id !== room.creatorId)
       fail(403, 'Somente o BDFL decide esta proposta.')
     const accept = body.accept === true
     const reason = text(body.reason, 3, 500, 'Motivo')
@@ -100,12 +100,12 @@ export class GovernanceService {
     proposal.decidedAt = this.now()
     proposal.decidedBy = user.id
     proposal.decisionReason = reason
-    this.history.event(tower, 'bdfl-decision', user.id, {
+    this.history.event(room, 'bdfl-decision', user.id, {
       proposalId: proposal.id,
       accept,
       reason,
     })
-    if (accept) this.enact(tower, proposal, user.id)
+    if (accept) this.enact(room, proposal, user.id)
     return { ok: true }
   }
 }

@@ -1,32 +1,32 @@
 import { randomUUID } from 'node:crypto'
-import type { Tower } from '../domain/types.ts'
+import type { Room } from '../domain/types.ts'
 export class HistoryService {
   private now: () => number
-  private onChange: (towerId: string) => void
-  constructor(now: () => number, onChange: (towerId: string) => void) {
+  private onChange: (roomId: string) => void
+  constructor(now: () => number, onChange: (roomId: string) => void) {
     this.now = now
     this.onChange = onChange
   }
-  event(tower: Tower, type: string, actorId: string | null, detail: unknown) {
-    tower.events.push({
+  event(room: Room, type: string, actorId: string | null, detail: unknown) {
+    room.events.push({
       id: randomUUID(),
       type,
       actorId,
       detail,
       createdAt: this.now(),
     })
-    this.onChange(tower.id)
+    this.onChange(room.id)
   }
-  snapshot(tower: Tower, actorId: string | null, reason: string) {
-    tower.snapshots.push({
+  snapshot(room: Room, actorId: string | null, reason: string) {
+    room.snapshots.push({
       id: randomUUID(),
       createdAt: this.now(),
-      tree: structuredClone(tower.frame),
+      frame: structuredClone(room.frame),
       actorId,
       reason,
     })
-    this.event(tower, 'snapshot', actorId, {
-      snapshotId: tower.snapshots.at(-1)!.id,
+    this.event(room, 'snapshot', actorId, {
+      snapshotId: room.snapshots.at(-1)!.id,
       reason,
     })
   }

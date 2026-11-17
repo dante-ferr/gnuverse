@@ -8,13 +8,13 @@ A playful analogy for collaboration and free-software logistics — independent 
 
 ## Form and loop
 
-Top-down grid. One **3×3** circle source and a **5×5** central core. Each core face has three input slots on the central tiles; corners are solid (**12** inputs). The source emits from a single output on the center of its facing edge. Players drag unidirectional belts. Each cell holds one packet. Past the tile cap, the oldest belt is removed.
+Top-down grid. One **3×3** circle source and a **5×5** central core. Each core face has three input slots on the central tiles; corners are solid (**12** inputs). The source emits from a single output on the center of its facing edge. At match start, `map-layout.ts` places the source from the room seed on one of four clearance-separated approaches around the centered core. Map generation reserves non-overlapping rectangular clearance pads around each machine from TOML (`machine_clearance_min`, `core_clearance_extra`); see [Decisions §9](../decisions.md#9-open-pipeline-machines). Players may still place belts on those cells after the match starts. Players drag unidirectional belts. Each cell holds one packet. Past the tile cap, the oldest belt is removed.
 
 The server moves packets simultaneously. Packets do not swap. An open core slot consumes a circle and counts a delivery. There is no stability bar and no crash: the match keeps running. Later versions keep prior packet demands active; without those supplies, leveling up is impossible. There is no victory screen yet.
 
 ## Presentation
 
-Machine **bodies** and **slots** are procedural canvas drawings: a cell-fit rectangle plus “[”-shaped slot brackets from `Machine`. Optional **decor** SVGs under `public/pipeline/` are color-agnostic black ink; the painter multiplies them over the TOML body color. Belts and packets stay procedural. In-room copy is Portuguese. Readouts sit on the core, not in a sidebar. Product name **Open Pipeline** stays untranslated in UI and metadata titles.
+Dark background, light machine bodies. Machine **bodies** and **slots** are procedural canvas drawings: a cell-fit rectangle plus “[”-shaped slot brackets from `Machine`. Core decor (`core-decor.svg`) is a simple thick-stroke glyph with GNUverse accent details (`color_accent`). Each source shows a clear **resource** SVG for its shape (`resource-circle.svg` in v0.1) and nothing else. Stroke thickness is `decor_stroke_width` in `[pipeline]`. Belts and packets stay procedural. In-room copy is Portuguese. Readouts sit on the core, not in a sidebar. Product name **Open Pipeline** stays untranslated in UI and metadata titles.
 
 Footprints and machine art rules are locked in [Decisions §9](../decisions.md#9-open-pipeline-machines).
 

@@ -1,11 +1,10 @@
-import { TowerDashboard } from '@/components/game/tower-dashboard'
+import { PipelineLobby } from '@/components/game/pipeline-lobby'
 
 export const metadata = {
   title: 'Open Pipeline — GNUverse',
-  description:
-    'Open Pipeline: ligue esteiras e entregue círculos ao núcleo com outras pessoas.',
+  description: 'Escolha uma sala e conecte esteiras com a comunidade.',
 }
 
-export default function GamePage() {
-  return <TowerDashboard />
+export default function GameLobbyPage() {
+  return <PipelineLobby />
 }

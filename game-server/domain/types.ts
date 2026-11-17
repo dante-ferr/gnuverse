@@ -1,7 +1,5 @@
-import type { TreeFrame } from '../physics/tree-types.ts'
-import type { TreeRules } from '../config/load-game-config.ts'
-import type { PipelineFrame } from '../pipeline/world/frame.ts'
 import type { PipelineRules } from '../pipeline/rules.ts'
+import type { PipelineFrame } from '../pipeline/world/frame.ts'
 import type { Role } from '../../core/authz/policy.ts'
 import type { Identity } from '../../core/authz/identity.ts'
 import type { IdentityProvider } from '../../core/authn/identity-provider.ts'
@@ -14,14 +12,13 @@ export type Rules = {
   defaultCost: number
   maxCost: number
   minContributions: number
-  maxSegments: number
-  maxTowers: number
+  maxBelts: number
+  maxRooms: number
   tokenLifetimeMs: number
   banDurationMs: number
   bdflVeto: boolean
   prototype: boolean
   infiniteCoins: boolean
-  tree: TreeRules
   pipeline: PipelineRules
 }
 export type User = {
@@ -44,7 +41,7 @@ export type Member = {
   banned: boolean
   bannedUntil?: number
 }
-export type TowerEvent = {
+export type RoomEvent = {
   id: string
   type: string
   actorId: string | null
@@ -54,7 +51,7 @@ export type TowerEvent = {
 export type Snapshot = {
   id: string
   createdAt: number
-  tree: PipelineFrame
+  frame: PipelineFrame
   actorId: string | null
   reason: string
 }
@@ -72,8 +69,7 @@ export type Proposal = {
   executionStatus?: 'executed'
   executedAt?: number
 }
-export type PublicTreeFrame = TreeFrame & { phaseRemainingMs: number; fireflyPosition: { x: number; y: number } | null }
-export type Tower = {
+export type Room = {
   id: string
   name: string
   creatorId: string
@@ -83,9 +79,9 @@ export type Tower = {
   minContributions: number
   members: Record<string, Member>
   snapshots: Snapshot[]
-  events: TowerEvent[]
+  events: RoomEvent[]
   proposals: Proposal[]
-  segmentCount: number
+  beltCount: number
   frame: PipelineFrame
   lastActorId?: string
   actionCount: number
@@ -93,7 +89,7 @@ export type Tower = {
 export type State = {
   users: Record<string, User>
   sessions: Record<string, { userId: string; expiresAt: number }>
-  towers: Record<string, Tower>
+  rooms: Record<string, Room>
 }
 export type ServerOptions = {
   identityProvider?: IdentityProvider

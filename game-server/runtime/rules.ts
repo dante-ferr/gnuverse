@@ -16,8 +16,8 @@ export function createRules(
     defaultCost: configured.defaultCost,
     maxCost: configured.maxCost,
     minContributions: configured.minContributions,
-    maxSegments: configured.maxSegments,
-    maxTowers: configured.maxTowers,
+    maxBelts: configured.maxBelts,
+    maxRooms: configured.maxRooms,
     tokenLifetimeMs: configured.sessionDurationMs,
     banDurationMs: configured.banDurationMs,
     prototype: configured.prototype,
@@ -25,7 +25,6 @@ export function createRules(
       process.env.NODE_ENV !== 'production' &&
       process.env.GAME_INFINITE_COINS === 'true',
     bdflVeto: configured.bdflVeto,
-    tree: loaded.tree,
     pipeline: { ...loaded.pipeline, ...pipelineOverride },
     ...rest,
   })
@@ -36,8 +35,8 @@ export function createRules(
     'cooldownMs',
     'maxCost',
     'minContributions',
-    'maxSegments',
-    'maxTowers',
+    'maxBelts',
+    'maxRooms',
     'tokenLifetimeMs',
     'banDurationMs',
   ] as const) {
@@ -47,8 +46,8 @@ export function createRules(
         ([
           'intervalMs',
           'tokenLifetimeMs',
-          'maxTowers',
-          'maxSegments',
+          'maxRooms',
+          'maxBelts',
           'banDurationMs',
         ].includes(key)
           ? 1
@@ -56,7 +55,7 @@ export function createRules(
     )
       throw new Error(`Invalid rule: ${key}`)
   }
-  if (rules.initialBalance > rules.cap || rules.maxSegments > 500)
+  if (rules.initialBalance > rules.cap || rules.maxBelts > 500)
     throw new Error('Invalid economy rules')
   if (rules.bdflVeto) throw new Error('Veto do BDFL não é suportado.')
   return rules

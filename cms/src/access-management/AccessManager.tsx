@@ -10,9 +10,9 @@ import styles from './access-manager.module.css'
 const roleDetails: Record<Role, { name: string; description: string }> = {
   admin: { name: 'Administrador', description: 'Gerencia pessoas e todos os domínios do site.' },
   'blog-editor': { name: 'Editor do blog', description: 'Edita e publica artigos; envia e edita imagens.' },
-  'game-moderator': { name: 'Moderador do jogo', description: 'Edita, restaura e exclui qualquer torre.' },
+  'game-moderator': { name: 'Moderador do jogo', description: 'Edita e exclui qualquer sala Open Pipeline.' },
   'quiz-editor': { name: 'Editor de quizzes', description: 'Permissão preparada para a futura área de quizzes.' },
-  member: { name: 'Membro', description: 'Participa do jogo e administra as próprias torres.' },
+  member: { name: 'Membro', description: 'Participa do jogo e administra as próprias salas.' },
 }
 const blankEntry = (): RoleEntry => ({ id: '', name: '', roles: ['member'], identities: [] })
 type Directory = { accounts: AccountOption[]; gameError?: string }

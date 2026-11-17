@@ -25,8 +25,8 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 - Players drag unidirectional belts. Each cell holds one packet. The oldest belt past the tile cap is removed.
 - The server moves packets simultaneously. Packets do not swap. An open core slot consumes a circle and counts a delivery.
 - No stability bar and no crash / game over. Deliveries accumulate; later versions keep prior packet demands active so dropping an older supply blocks leveling up rather than ending the match. There is no victory screen yet.
-- All gameplay and presentation numbers live in the `[pipeline]` table and reach the client on the rules payload. Do not hardcode them in TypeScript.
-- Machine bodies and “[” slots are procedural (cell-fit rects + brackets from `Machine`). Decor SVGs are color-agnostic black ink tinted/multiplied from `[pipeline]` colors. Belts and packets stay procedural. In-room copy is Portuguese. Readouts sit on the core, not in a sidebar.
+- All gameplay and presentation numbers live in the `[pipeline]` table and reach the client on the rules payload. Do not hardcode them in TypeScript. `game:dev` watches `game.config.toml` and hot-reloads `[pipeline]` on save (invalid edits keep the previous rules).
+- Dark background, light machines. Bodies and “[” slots are procedural. Core decor uses `color_accent` (site teal) in its details; sources show only the resource glyph SVG for their shape. SVG stroke width is `decor_stroke_width` in `[pipeline]`. Belts and packets stay procedural. In-room copy is Portuguese. Readouts sit on the core, not in a sidebar.
 - **Machine presentation and footprints:** [`docs/src/decisions.md`](docs/src/decisions.md) §9 Open Pipeline machines. **Gameplay loop:** [`docs/src/game/rules.md`](docs/src/game/rules.md).
 
 ### Agent workflow

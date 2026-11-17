@@ -3,15 +3,15 @@ import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import type { State } from '../domain/types.ts'
 import { acquireDatabaseLock } from './database-lock.ts'
-const freshState = (): State => ({ users: {}, sessions: {}, towers: {} })
+const freshState = (): State => ({ users: {}, sessions: {}, rooms: {} })
 
-function normalizeState(saved: Partial<State> | undefined): State {
-  // Older saves used a `pipelines` document and have no tower map.
+function normalizeState(saved: Partial<State> & { towers?: State['rooms'] } | undefined): State {
+  // Older saves used a `pipelines` document and keyed rooms as `towers`.
   // Sessions belong to the identity issuer; stored hashes confer no access.
   return {
     users: saved?.users ?? {},
     sessions: {},
-    towers: saved?.towers ?? {},
+    rooms: saved?.rooms ?? saved?.towers ?? {},
   }
 }
 
@@ -45,8 +45,8 @@ export class GameStore {
     this.db = db
     const saved = db.prepare('SELECT value FROM game_state WHERE id=1').get()
     this.state = normalizeState(saved ? JSON.parse(saved.value as string) : undefined)
-    for (const tower of Object.values(this.state.towers))
-      tower.allowCreatorBan = tower.allowCreatorBan === true
+    for (const room of Object.values(this.state.rooms))
+      room.allowCreatorBan = room.allowCreatorBan === true
     this.save = db.prepare(
       'INSERT INTO game_state(id,value) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value',
     )

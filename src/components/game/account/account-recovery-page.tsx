@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { RecoveryPanel, usePublicGameApi } from './account-recovery-panel'
 import { useActionFeedback } from '../hooks/use-action-feedback'
-import styles from '../tower-game.module.css'
+import styles from '../game-shell.module.css'
 import authStyles from './auth-page.module.css'
 
 type Mode = 'forgot' | 'reset' | 'verify'

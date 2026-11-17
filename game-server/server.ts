@@ -7,11 +7,13 @@ import { GameStore } from './persistence/game-store.ts'
 import { WalletService } from './economy/wallet-service.ts'
 import { AuthService } from './auth/auth-service.ts'
 import { CMSIdentityProvider } from './auth/cms-identity-provider.ts'
-import { HistoryService } from './towers/history-service.ts'
-import { TowerService } from './towers/tower-service.ts'
+import { HistoryService } from './rooms/history-service.ts'
+import { RoomService } from './rooms/room-service.ts'
 import { GovernanceService } from './governance/governance-service.ts'
 import { SimulationCoordinator } from './runtime/simulation-coordinator.ts'
 import { HttpApplication } from './transport/http-application.ts'
+import { resolveGameConfigPath } from './config/load-game-config.ts'
+import { watchGameConfig } from './config/watch-game-config.ts'
 
 /** Composition root. Domain services own behavior; transport only maps requests. */
 export function createGameServer(options: ServerOptions = {}) {
@@ -24,15 +26,15 @@ export function createGameServer(options: ServerOptions = {}) {
   )
   const runtime = new SimulationCoordinator(store, rules.pipeline)
   store.onRollback = () => runtime.rollback()
-  const history = new HistoryService(now, (towerId) =>
-    runtime.publishChange(towerId),
+  const history = new HistoryService(now, (roomId) =>
+    runtime.publishChange(roomId),
   )
-  for (const tower of Object.values(store.state.towers)) {
-    tower.segmentCount ??= 0
-    tower.actionCount ??= 0
-    delete (tower as { restoreMode?: unknown }).restoreMode
-    delete (tower as { wind?: unknown }).wind
-    delete (tower as { placementCount?: unknown }).placementCount
+  for (const room of Object.values(store.state.rooms)) {
+    room.beltCount ??= 0
+    room.actionCount ??= 0
+    delete (room as { restoreMode?: unknown }).restoreMode
+    delete (room as { wind?: unknown }).wind
+    delete (room as { placementCount?: unknown }).placementCount
   }
   store.persist()
   const wallet = new WalletService(rules, now)
@@ -43,7 +45,7 @@ export function createGameServer(options: ServerOptions = {}) {
     wallet,
     options.identityProvider ?? new CMSIdentityProvider(),
   )
-  const towers = new TowerService(
+  const rooms = new RoomService(
     store,
     rules,
     now,
@@ -65,7 +67,7 @@ export function createGameServer(options: ServerOptions = {}) {
     rules,
     auth,
     wallet,
-    towers,
+    rooms,
     governance,
     runtime,
     origins,
@@ -76,6 +78,16 @@ export function createGameServer(options: ServerOptions = {}) {
   server.requestTimeout = 15000
   server.headersTimeout = 10000
   runtime.start(governance)
+  let stopWatching: (() => void) | undefined
+  if (!options.rules) {
+    const configPath = resolveGameConfigPath(process.env.GAME_CONFIG_PATH)
+    stopWatching = watchGameConfig(configPath, (loaded) => {
+      Object.assign(rules.pipeline, loaded.pipeline)
+      runtime.setPipelineRules(rules.pipeline)
+      runtime.publishAllChanges()
+      console.log(`Pipeline rules reloaded from ${configPath}`)
+    })
+  }
   let closed = false
   return {
     server,
@@ -94,6 +106,7 @@ export function createGameServer(options: ServerOptions = {}) {
     async close() {
       if (closed) return
       closed = true
+      stopWatching?.()
       runtime.close()
       store.persist()
       await new Promise<void>((resolveClose) => {

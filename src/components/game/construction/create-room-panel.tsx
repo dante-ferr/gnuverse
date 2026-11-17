@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useId, useRef, type FormEvent } from 'react'
-import styles from '../tower-game.module.css'
+import styles from '../game-shell.module.css'
 
-export type CreateTowerPanelProps = {
+export type CreateRoomPanelProps = {
   busy: boolean
   error: string
   loading?: boolean
@@ -12,10 +12,10 @@ export type CreateTowerPanelProps = {
   defaultCost: number
   minContributions: number
   onClose: () => void
-  onCreateTower: (form: HTMLFormElement) => void
+  onCreateRoom: (form: HTMLFormElement) => void
 }
 
-export function CreateTowerPanel({
+export function CreateRoomPanel({
   busy,
   error,
   loading = false,
@@ -24,8 +24,8 @@ export function CreateTowerPanel({
   defaultCost,
   minContributions,
   onClose,
-  onCreateTower,
-}: CreateTowerPanelProps) {
+  onCreateRoom,
+}: CreateRoomPanelProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
@@ -44,13 +44,13 @@ export function CreateTowerPanel({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (loading || loginHref) return
-    onCreateTower(event.currentTarget)
+    onCreateRoom(event.currentTarget)
   }
 
   return (
     <dialog
       ref={dialogRef}
-      className={styles.createTowerOverlay}
+      className={styles.createRoomOverlay}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()
@@ -62,7 +62,7 @@ export function CreateTowerPanel({
       }}
     >
       <div className={styles.panelTitle}>
-        <h2 id={titleId}>Nova caverna</h2>
+        <h2 id={titleId}>Nova sala</h2>
         <button type="button" className={styles.quiet} onClick={onClose}>
           Fechar
         </button>
@@ -103,7 +103,7 @@ export function CreateTowerPanel({
           <p>Suspensões de participantes são sempre decididas pelo BDFL.</p>
           {error && <p role="alert">{error}</p>}
           <button className={styles.primary} disabled={busy || loading}>
-            Criar caverna
+            Criar sala
           </button>
         </form>
       )}

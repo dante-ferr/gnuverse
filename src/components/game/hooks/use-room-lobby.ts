@@ -2,19 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type GameApi } from '../api/game-api'
-import { type Tower } from '../model/types'
-import { DEFAULT_TOWER_FILTERS, listTowers, type TowerFilters } from '../api/list-towers'
-export { DEFAULT_TOWER_FILTERS, type TowerFilters } from '../api/list-towers'
+import { type Room } from '../model/types'
+import { DEFAULT_ROOM_FILTERS, listRooms, type RoomFilters } from '../api/list-rooms'
+export { DEFAULT_ROOM_FILTERS, type RoomFilters } from '../api/list-rooms'
 export type Connection = 'connecting' | 'live' | 'offline'
 
-export function useTowerLobby(api: GameApi, userId?: string) {
-  const [towers, setTowers] = useState<Tower[]>([])
-  const [towerId, setTowerId] = useState('')
-  const [{ page, filters }, setQuery] = useState({ page: 1, filters: DEFAULT_TOWER_FILTERS })
+export function useRoomLobby(api: GameApi, userId?: string) {
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [roomId, setRoomId] = useState('')
+  const [{ page, filters }, setQuery] = useState({ page: 1, filters: DEFAULT_ROOM_FILTERS })
   const requestId = useRef(0)
-  const setFilters = useCallback((changes: Partial<TowerFilters>) => {
+  const setFilters = useCallback((changes: Partial<RoomFilters>) => {
     requestId.current++
-    setTowers([])
+    setRooms([])
     setTotal(0)
     setPageCount(1)
     setConnection('connecting')
@@ -24,8 +24,8 @@ export function useTowerLobby(api: GameApi, userId?: string) {
   const [total, setTotal] = useState(0)
   const [rules, setRules] = useState<Record<string, unknown> | null>(null)
   const [connection, setConnection] = useState<Connection>('connecting')
-  const selectTower = useCallback((id: string) => {
-    setTowerId(id)
+  const selectRoom = useCallback((id: string) => {
+    setRoomId(id)
     const url = new URL(window.location.href)
     url.searchParams.delete('novo')
     if (id) url.searchParams.set('id', id)
@@ -36,21 +36,21 @@ export function useTowerLobby(api: GameApi, userId?: string) {
   const refresh = useCallback(async (requestedPage = page) => {
     const id = ++requestId.current
     const [data, config] = await Promise.all([
-      listTowers(api, filters, requestedPage, userId),
+      listRooms(api, filters, requestedPage, userId),
       api.request<{ rules: Record<string, unknown> }>('/api/rules'),
     ])
     if (id !== requestId.current) return
     setRules(config.rules)
-    setTowers(data.towers)
+    setRooms(data.rooms)
     setQuery((current) => current.page === data.page ? current : { ...current, page: data.page })
     setPageCount(data.pageCount)
     setTotal(data.total)
     const locationParams = new URLSearchParams(window.location.search)
-    const requestedTower = locationParams.get('torre') || locationParams.get('id')
-    setTowerId((current) => requestedTower || (
-      data.towers.some((tower) => tower.id === current)
+    const requestedRoom = locationParams.get('torre') || locationParams.get('id')
+    setRoomId((current) => requestedRoom || (
+      data.rooms.some((room) => room.id === current)
         ? current
-        : data.towers[0]?.id || ''
+        : data.rooms[0]?.id || ''
     ))
   }, [api, page, filters, userId])
   useEffect(() => {
@@ -72,7 +72,7 @@ export function useTowerLobby(api: GameApi, userId?: string) {
     }
   }, [refresh])
   return {
-    towers, towerId, setTowerId: selectTower, rules, connection, refresh,
+    rooms, roomId, setRoomId: selectRoom, rules, connection, refresh,
     page, pageCount, total,
     filters, setFilters,
     goToPage: (nextPage: number) => {

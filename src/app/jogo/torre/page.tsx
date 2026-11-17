@@ -5,6 +5,6 @@ export const metadata = {
   description: 'Conecte esteiras e entregue círculos ao núcleo.',
 }
 
-export default function TowerPage() {
+export default function PipelineRoomPage() {
   return <PipelineRoom />
 }

@@ -20,7 +20,7 @@ Page `/jogo/` on the static site; authoritative match state in `game-server/pipe
 | Area | Role |
 | :--- | :--- |
 | `pipeline/` | Grid sim: machines, packets, match, movement, emission, belts |
-| `pipeline/load-rules.ts` | Validates `[pipeline]` from TOML |
+| `pipeline/load-rules.ts` | Validates `[pipeline]` from TOML (includes seeded layout fit check) |
 | `rooms/` | `room-service`, `history-service` |
 | `runtime/simulation-coordinator.ts` | Grid tick + SSE (no Matter) |
 | `transport/` | HTTP routes, CORS |
@@ -32,15 +32,17 @@ Page `/jogo/` on the static site; authoritative match state in `game-server/pipe
 
 ```text
 game-server/pipeline/
-  geometry/          direction, cell keys
+  geometry/          direction, cell, clearance (generation free pads), seed-rng
   machines/          Machine, Slot, Source (3×3), Core (5×5), Belt
   packets/           Packet (circle only in v0.1)
-  world/             Match, frame, Movement, Emission, BeltEditor
+  world/             Match, map-layout, frame, Movement, Emission, BeltEditor
   rules.ts           TypeScript mirror of TOML
   load-rules.ts      [pipeline] validation
 ```
 
 **Frame contract:** `PipelineFrame` in `game-server/pipeline/world/frame.ts` — live state on `Room.frame`; history in `Snapshot.frame`. Persisted under `State.rooms` in SQLite JSON (`game-store` still loads a legacy `towers` key when present).
+
+**Match layout:** `Match.create(seed, rules)` centers the core and places the source from `seed` via `map-layout.ts` (clearance-separated procedural placement).
 
 ## Actions
 

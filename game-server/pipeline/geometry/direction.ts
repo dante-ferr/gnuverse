@@ -12,3 +12,10 @@ export function ahead(x: number, y: number, direction: Direction) {
   if (direction === 'east') return { x: x + 1, y }
   return { x: x - 1, y }
 }
+
+export function opposite(direction: Direction): Direction {
+  if (direction === 'north') return 'south'
+  if (direction === 'south') return 'north'
+  if (direction === 'east') return 'west'
+  return 'east'
+}

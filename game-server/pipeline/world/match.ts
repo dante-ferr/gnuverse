@@ -6,6 +6,7 @@ import { CoreMachine } from '../machines/core-machine.ts'
 import { SourceMachine } from '../machines/source-machine.ts'
 import { Packet } from '../packets/packet.ts'
 import type { PipelineRules } from '../rules.ts'
+import { layoutInitialMachines } from './map-layout.ts'
 import { BeltEditor } from './belt-editor.ts'
 import { Emission } from './emission.ts'
 import type { CollaboratorRecord, PipelineFrame } from './frame.ts'
@@ -44,20 +45,13 @@ export class Match {
   }
 
   static create(seed: string, rules: PipelineRules) {
-    const coreOrigin = {
-      x: Math.floor((rules.gridWidth - CoreMachine.size) / 2),
-      y: Math.floor((rules.gridHeight - CoreMachine.size) / 2),
-    }
-    const sourceOrigin = {
-      x: coreOrigin.x - SourceMachine.size - 2,
-      y: coreOrigin.y + Math.floor((CoreMachine.size - SourceMachine.size) / 2),
-    }
+    const { coreOrigin, sourceOrigin, sourceDirection } = layoutInitialMachines(rules, seed)
     return new Match(
       rules,
       seed,
       rules.gridWidth,
       rules.gridHeight,
-      new SourceMachine('source', sourceOrigin, 'east', 'circle', rules.sourcePeriodTicks),
+      new SourceMachine('source', sourceOrigin, sourceDirection, 'circle', rules.sourcePeriodTicks),
       new CoreMachine('core', coreOrigin),
     )
   }

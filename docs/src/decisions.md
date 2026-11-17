@@ -36,6 +36,25 @@ CMS cold start on Render Free; delay until the Cloudflare build finishes; hook w
 
 UI copy is Portuguese. Code and docs are English. Sign-in and registration use dedicated pages — no inline auth forms at the call site. See `AGENTS.md`.
 
+## 9. Open Pipeline machines
+
+Locked presentation and footprints for v0.1 (enforced on `Machine` in `game-server/pipeline/machines/`):
+
+| Choice | Rule |
+| :--- | :--- |
+| Body | Axis-aligned rectangle that **exactly** fills `width × height` cells |
+| Slots | “[”-shaped protuberances from `Machine.slotBracket`; may stick slightly past the body; **one cell** wide along the face |
+| Core | **5×5**; 12 inputs (three central tiles per face; corners solid) |
+| Source | **3×3**; single output on the **center cell of the facing edge**, one step outside along `direction` |
+| Decor SVG | Simple thick-stroke glyphs under `public/pipeline/`; stroke width is `[pipeline] decor_stroke_width` (512 viewBox). Core uses `core-decor.svg` with **accent** details. Source shows only the **resource** glyph (`resource-<shape>.svg`) — no extra chrome |
+| Colors | Dark grid / light machines. Body fills and palette from `[pipeline]` TOML. `color_accent` is the site accent (`#52d6c9`) and appears in core decor details (keep SVG in sync). Packets use `color_packet` |
+| Belts | Procedural tracks only; no decor SVG |
+| Clearance (generation) | Per-side depth = `max(machine_clearance_min, I/O ports on that face)`; full rectangular AABB pad (corners included); free pads of different machines must not overlap; applies only when the match layout is generated — belts may use those cells afterward |
+| Core extra | `core_clearance_extra` from `[pipeline]` TOML is added on **every** core side on top of port-based depth |
+| Initial layout | **Seeded procedural:** `Match.create` hashes the room id / seed to pick one valid placement among the four cardinal approaches (side facing the core plus offset along that face). Clearance pads are enforced the same way on every candidate |
+
+Gameplay loop detail: [Rules and design](game/rules.md).
+
 ## Still open
 
 | Item | When it resolves |

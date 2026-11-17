@@ -16,7 +16,7 @@ const emptyFrame = (): PipelineFrame => ({
   collaborators: [],
   belts: [],
   packets: [],
-  source: { id: 'source', x: 0, y: 0, direction: 'east' },
+  source: { id: 'source', x: 0, y: 0, direction: 'east', shape: 'circle' },
   core: { id: 'core', x: 0, y: 0 },
 })
 

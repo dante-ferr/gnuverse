@@ -2,7 +2,7 @@
 
 import type { FormEvent } from 'react'
 import Link from 'next/link'
-import styles from '../tower-game.module.css'
+import styles from '../game-shell.module.css'
 import authStyles from './auth-page.module.css'
 
 export type AuthMode = 'login' | 'register'

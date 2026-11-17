@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AuthPanel, type AuthMode } from './auth-panel'
 import { useGameSession } from '../hooks/use-game-session'
 import { useActionFeedback } from '../hooks/use-action-feedback'
-import styles from '../tower-game.module.css'
+import styles from '../game-shell.module.css'
 import authStyles from './auth-page.module.css'
 
 export function AuthPage({ mode }: { mode: AuthMode }) {
@@ -22,7 +22,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       setNotice(
         next?.startsWith('/blog')
           ? 'Entre na sua conta para contribuir com um artigo. Depois do login, você voltará ao blog.'
-          : 'Entre na sua conta para criar ou entrar em uma caverna. Depois do login, você voltará ao jogo.',
+          : 'Entre na sua conta para criar ou entrar em uma sala. Depois do login, você voltará ao jogo.',
       )
     }
     if (!next) return

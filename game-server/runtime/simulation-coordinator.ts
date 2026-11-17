@@ -11,12 +11,13 @@ import type { GovernanceService } from '../governance/governance-service.ts'
 export class SimulationCoordinator {
   private store: GameStore
   private rules: PipelineRules
+  private governance?: GovernanceService
   private streams = new Map<string, Set<ServerResponse>>()
   private timer?: ReturnType<typeof setInterval>
 
   constructor(store: GameStore, rules: PipelineRules) {
     this.store = store
-    this.rules = rules
+    this.rules = { ...rules }
   }
 
   publicFrame(room: Room) {
@@ -35,6 +36,22 @@ export class SimulationCoordinator {
     for (const response of this.streams.get(roomId) ?? [])
       if (response.writableLength < 1024 * 1024)
         response.write('event: change\ndata: {}\n\n')
+  }
+
+  publishAllChanges(): void {
+    for (const roomId of Object.keys(this.store.state.rooms))
+      this.publishChange(roomId)
+  }
+
+  setPipelineRules(rules: PipelineRules): void {
+    const previousTick = this.rules.tickMs
+    // Copy so in-place Object.assign on the shared rules.pipeline is visible only after this call.
+    this.rules = { ...rules }
+    if (rules.tickMs !== previousTick && this.timer && this.governance) {
+      clearInterval(this.timer)
+      this.timer = undefined
+      this.start(this.governance)
+    }
   }
 
   remove(roomId: string) {
@@ -73,6 +90,8 @@ export class SimulationCoordinator {
   }
 
   start(governance: GovernanceService) {
+    this.governance = governance
+    if (this.timer) clearInterval(this.timer)
     this.timer = setInterval(() => {
       try {
         const needsSave = this.step()

@@ -4,11 +4,11 @@ import { HttpError, fail } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import { AuthService, publicUser } from '../auth/auth-service.ts'
 import { WalletService } from '../economy/wallet-service.ts'
-import { TowerService } from '../towers/tower-service.ts'
+import { RoomService } from '../rooms/room-service.ts'
 import { GovernanceService } from '../governance/governance-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { json, readBody } from './http-helpers.ts'
-import { can, canManageTower } from '../../core/authz/policy.ts'
+import { can, canManageRoom } from '../../core/authz/policy.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import { verifyCMSAdministrator } from '../auth/cms-administrator.ts'
 
@@ -17,7 +17,7 @@ type Dependencies = {
   rules: Readonly<Rules>
   auth: AuthService
   wallet: WalletService
-  towers: TowerService
+  rooms: RoomService
   governance: GovernanceService
   runtime: SimulationCoordinator
   origins: string[]
@@ -31,7 +31,7 @@ export class HttpApplication {
   }
 
   async handle(req: IncomingMessage, res: ServerResponse) {
-    const { store, rules, auth, wallet, towers, governance, runtime, origins } =
+    const { store, rules, auth, wallet, rooms, governance, runtime, origins } =
       this.services
     try {
       const origin = req.headers.origin
@@ -114,21 +114,21 @@ export class HttpApplication {
         const cost = params.get('cost') ?? 'all'
         const sort = params.get('sort') ?? 'oldest'
         if (!['all', 'free', 'paid'].includes(cost)) fail(400, 'Filtro de custo inválido.')
-        if (!['oldest', 'name', 'cost-asc', 'cost-desc', 'segments-desc'].includes(sort))
+        if (!['oldest', 'name', 'cost-asc', 'cost-desc', 'belts-desc'].includes(sort))
           fail(400, 'Ordenação inválida.')
         const creatorId = params.get('mine') === 'true'
           ? (await auth.authenticate(req.headers.authorization)).id : null
-        const available = Object.values(store.state.towers).filter((tower) =>
-          isPipelineFrame(tower.frame) &&
-          (!search || normalize(tower.name).includes(search)) &&
-          (cost === 'all' || (cost === 'free' ? tower.cost === 0 : tower.cost > 0)) &&
-          (!creatorId || tower.creatorId === creatorId),
+        const available = Object.values(store.state.rooms).filter((room) =>
+          isPipelineFrame(room.frame) &&
+          (!search || normalize(room.name).includes(search)) &&
+          (cost === 'all' || (cost === 'free' ? room.cost === 0 : room.cost > 0)) &&
+          (!creatorId || room.creatorId === creatorId),
         )
         available.sort((a, b) => {
           if (sort === 'name') return a.name.localeCompare(b.name, 'pt-BR')
           if (sort === 'cost-asc') return a.cost - b.cost
           if (sort === 'cost-desc') return b.cost - a.cost
-          if (sort === 'segments-desc')
+          if (sort === 'belts-desc')
             return b.frame.belts.length - a.frame.belts.length
           return 0
         })
@@ -140,7 +140,7 @@ export class HttpApplication {
         const start = (page - 1) * pageSize
         return json(res, 200, {
           filtersApplied: true,
-          towers: available.slice(start, start + pageSize).map((tower) => towers.publicTower(tower)),
+          rooms: available.slice(start, start + pageSize).map((room) => rooms.publicRoom(room)),
           page,
           pageSize,
           total,
@@ -153,21 +153,21 @@ export class HttpApplication {
           res,
           201,
           store.atomic(() =>
-            towers.create(user, body),
+            rooms.create(user, body),
           ),
         )
       }
-      const tower = store.state.towers[path[2]]
-      if (!tower) fail(404, 'Torre não encontrada.')
+      const room = store.state.rooms[path[2]]
+      if (!room) fail(404, 'Sala não encontrada.')
       if (req.method === 'DELETE' && path.length === 3) {
         const user = await auth.authenticate(req.headers.authorization)
         store.atomic(() => {
-          const tower = store.state.towers[path[2]]
-          if (!tower) fail(404, 'Torre não encontrada.')
-          if (!canManageTower({ id: user.id, roles: user.roles ?? [] }, 'delete', tower.creatorId))
-            fail(403, 'Somente quem criou a torre pode excluí-la.')
-          runtime.remove(tower.id)
-          delete store.state.towers[tower.id]
+          const room = store.state.rooms[path[2]]
+          if (!room) fail(404, 'Sala não encontrada.')
+          if (!canManageRoom({ id: user.id, roles: user.roles ?? [] }, 'delete', room.creatorId))
+            fail(403, 'Somente quem criou a sala pode excluí-la.')
+          runtime.remove(room.id)
+          delete store.state.rooms[room.id]
         })
         return json(res, 200, { ok: true })
       }
@@ -176,56 +176,56 @@ export class HttpApplication {
         return json(
           res,
           200,
-          store.atomic(() => towers.statusPayload(tower, user)),
+          store.atomic(() => rooms.statusPayload(room, user)),
         )
       }
       if (req.method === 'GET' && path.length === 3) {
-        store.atomic(() => governance.expireBans(tower))
-        return json(res, 200, towers.detail(tower))
+        store.atomic(() => governance.expireBans(room))
+        return json(res, 200, rooms.detail(room))
       }
       if (req.method === 'GET' && path[3] === 'events' && path.length === 4) {
-        runtime.subscribe(tower, res)
+        runtime.subscribe(room, res)
         return
       }
       if (req.method !== 'POST') fail(404, 'Não encontrado.')
       const user = await auth.authenticate(req.headers.authorization)
       const result = store.atomic(() => {
-        const tower = store.state.towers[path[2]]
-        if (!tower) fail(404, 'Torre não encontrada.')
-        governance.expireBans(tower)
+        const room = store.state.rooms[path[2]]
+        if (!room) fail(404, 'Sala não encontrada.')
+        governance.expireBans(room)
         const actor = { id: user.id, roles: user.roles ?? [] }
-        // Administrative actions do not depend on tower membership or local governance.
-        if (path[3] === 'settings' && path.length === 4 && can(actor, 'tower:update:any')) {
-          towers.member(tower, user)
-          return towers.settings(tower, user, body)
+        // Administrative actions do not depend on room membership or local governance.
+        if (path[3] === 'settings' && path.length === 4 && can(actor, 'room:update:any')) {
+          rooms.member(room, user)
+          return rooms.settings(room, user, body)
         }
-        const participant = towers.member(tower, user)
-        if (participant.banned) fail(403, 'Você foi banido desta torre.')
+        const participant = rooms.member(room, user)
+        if (participant.banned) fail(403, 'Você foi banido desta sala.')
         if (path[3] === 'settings' && path.length === 4)
-          return towers.settings(tower, user, body)
+          return rooms.settings(room, user, body)
         const pipelineActions = ['place', 'remove', 'join'] as const
         if (
           pipelineActions.includes(path[3] as (typeof pipelineActions)[number]) &&
           path.length === 4
         ) {
-          if (path[3] === 'place') return towers.place(tower, user, participant, body)
-          if (path[3] === 'remove') return towers.removeBelt(tower, user, participant, body)
-          return towers.join(tower, user)
+          if (path[3] === 'place') return rooms.place(room, user, participant, body)
+          if (path[3] === 'remove') return rooms.removeBelt(room, user, participant, body)
+          return rooms.join(room, user)
         }
         if (
           path[3] === 'members' &&
           path[5] === 'eligibility' &&
           path.length === 6
         )
-          return towers.eligibility(tower, user, path[4], body)
+          return rooms.eligibility(room, user, path[4], body)
         if (path[3] !== 'proposals') fail(404, 'Não encontrado.')
         if (path.length === 4)
-          return governance.propose(tower, user, participant, body)
-        const proposal = tower.proposals.find((item) => item.id === path[4])
+          return governance.propose(room, user, participant, body)
+        const proposal = room.proposals.find((item) => item.id === path[4])
         if (!proposal) fail(404, 'Proposta não encontrada.')
         if (proposal.status !== 'pending') fail(409, 'Proposta encerrada.')
         if (path[5] === 'decide' && path.length === 6)
-          return governance.decide(tower, user, proposal, body)
+          return governance.decide(room, user, proposal, body)
         fail(404, 'Não encontrado.')
       })
       json(res, 200, result)

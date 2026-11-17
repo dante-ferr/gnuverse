@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" fill="none" viewBox="0 0 512 512">
+  <!-- stroke-width matches [pipeline] decor_stroke_width -->
+  <rect x="56" y="56" width="400" height="400" stroke="#1a2428" stroke-width="28"/>
+  <circle cx="256" cy="256" r="118" stroke="#52d6c9" stroke-width="28"/>
+  <circle cx="256" cy="256" r="48" fill="#52d6c9"/>
+  <path d="M256 96v40M256 376v40M96 256h40M376 256h40" stroke="#1a2428" stroke-width="28" stroke-linecap="square"/>
+</svg>

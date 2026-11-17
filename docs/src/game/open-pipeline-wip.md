@@ -44,8 +44,10 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 - **Config:** `[pipeline]` in [`game.config.toml`](../game-server/config/game.config.toml), loaded via [`pipeline/load-rules.ts`](../game-server/pipeline/load-rules.ts).
 - **HTTP:** `POST /api/towers/:id/place`, `remove`, `join`; SSE `frame` pushes `PipelineFrame`.
 - **Client:** `src/components/game/pipeline/` — canvas scene, painters, drag belts, pan/zoom; room at `/jogo/torre/` via `PipelineRoom`.
-- **Art:** procedural machine bodies/slots; color-agnostic decor SVGs in [`public/pipeline/`](../public/pipeline/) (`*-decor.svg`).
+- **Art:** dark grid / light machines; procedural bodies/slots; `core-decor.svg` (accent details) + `resource-<shape>.svg` on sources; stroke = `decor_stroke_width`.
 - **Tests:** [`tests/pipeline-tick.test.ts`](../tests/pipeline-tick.test.ts), [`tests/pipeline-http.test.ts`](../tests/pipeline-http.test.ts).
+- **Generation clearance:** `geometry/clearance.ts` + `world/map-layout.ts` — per-side pads at match creation — 2026-11-17.
+- **Seeded initial layout:** `geometry/seed-rng.ts` + procedural `layoutInitialMachines` (room seed picks approach + offset; clearance enforced) — 2026-11-17.
 
 ### Gaps / debt (fix in small PRs, not one blob)
 
@@ -72,10 +74,10 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 
 ```text
 game-server/pipeline/
-  geometry/          direction, cell keys
+  geometry/          direction, cell, clearance (generation pads), seed-rng
   machines/          Machine, Slot, Source (3×3), Core (5×5), Belt
   packets/           Packet (circle only)
-  world/             Match, frame, Movement, Emission, BeltEditor
+  world/             Match, map-layout, frame, Movement, Emission, BeltEditor
   rules.ts           TypeScript mirror of TOML
   load-rules.ts      [pipeline] validation
 

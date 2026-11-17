@@ -6,7 +6,7 @@
 | :--- | :--- |
 | `admin` | All: users, CMS, articles, media, rooms, future quizzes |
 | `blog-editor` | CMS panel, articles, media |
-| `game-moderator` | Edit, delete, and restore any room (legacy tower APIs) |
+| `game-moderator` | Edit or delete any room |
 | `quiz-editor` | Manage quizzes (permission reserved; no UI yet) |
 | `member` | Edit rules and delete own rooms |
 
@@ -37,4 +37,4 @@ The panel queries the game at `GAME_INTERNAL_URL` (default `http://localhost:${G
 
 ## Room interventions
 
-Admin and `game-moderator` can still hit legacy room APIs (`POST /api/towers/:id/restore`, delete, rename/rules) where those routes remain. Open Pipeline v0.1 gameplay itself only needs a signed-in account to place or remove belts; in-room governance UI was dropped for now (see [`open-pipeline-wip.md`](../../open-pipeline-wip.md)).
+Admin and `game-moderator` can delete rooms and change settings through `/api/towers` where those routes remain. Open Pipeline v0.1 gameplay itself only needs a signed-in account to place or remove belts; in-room governance UI was dropped for now (see [`open-pipeline-wip.md`](../../open-pipeline-wip.md)).

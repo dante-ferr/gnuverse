@@ -4,7 +4,57 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createGameServer } from '../game-server/server.ts'
+import type { Direction } from '../game-server/pipeline/geometry/direction.ts'
+import { ahead, opposite } from '../game-server/pipeline/geometry/direction.ts'
+import { CoreMachine } from '../game-server/pipeline/machines/core-machine.ts'
+import { SourceMachine } from '../game-server/pipeline/machines/source-machine.ts'
 import { createTestIdentityProvider } from './helpers/identity-provider.ts'
+
+function directionBetween(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): Direction {
+  if (to.x > from.x) return 'east'
+  if (to.x < from.x) return 'west'
+  if (to.y > from.y) return 'south'
+  return 'north'
+}
+
+function beltPathToCore(
+  sourceOrigin: { x: number; y: number },
+  sourceDirection: Direction,
+  coreOrigin: { x: number; y: number },
+) {
+  const core = new CoreMachine('core', coreOrigin)
+  const source = new SourceMachine('source', sourceOrigin, sourceDirection, 'circle', 4)
+  const output = source.outputSlots()[0]!.cell
+  const slots = core.inputSlots().filter((slot) => slot.travel === sourceDirection)
+  const target = slots.reduce((best, slot) => {
+    const dist =
+      Math.abs(slot.cell.x - output.x) + Math.abs(slot.cell.y - output.y)
+    const bestDist =
+      Math.abs(best.cell.x - output.x) + Math.abs(best.cell.y - output.y)
+    return dist < bestDist ? slot : best
+  })
+  const approach = ahead(target.cell.x, target.cell.y, opposite(sourceDirection))
+  const path = [{ ...output }]
+  let { x, y } = output
+  while (x !== approach.x) {
+    x += Math.sign(approach.x - x)
+    path.push({ x, y })
+  }
+  while (y !== approach.y) {
+    y += Math.sign(approach.y - y)
+    path.push({ x, y })
+  }
+  return path.map((cell, index) => ({
+    ...cell,
+    direction:
+      index < path.length - 1
+        ? directionBetween(cell, path[index + 1]!)
+        : sourceDirection,
+  }))
+}
 
 test('a signed-in player can belt a circle into the core and a guest cannot', async () => {
   let time = 1_000_000
@@ -39,7 +89,7 @@ test('a signed-in player can belt a circle into the core and a guest cannot', as
     const detail = await fetch(`${base}/api/towers/${room.id}`)
     const state = (await detail.json()) as {
       frame: {
-        source: { x: number; y: number }
+        source: { x: number; y: number; direction: Direction }
         core: { x: number; y: number }
         collaborators: { id: string }[]
       }
@@ -51,9 +101,7 @@ test('a signed-in player can belt a circle into the core and a guest cannot', as
     })
     assert.equal(guest.status, 401)
     const { source, core } = state.frame
-    const y = source.y + 1
-    const cells = []
-    for (let x = source.x + 3; x < core.x; x++) cells.push({ x, y, direction: 'east' })
+    const cells = beltPathToCore(source, source.direction, core)
     const placed = await fetch(`${base}/api/towers/${room.id}/place`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -68,7 +116,7 @@ test('a signed-in player can belt a circle into the core and a guest cannot', as
     const body = (await joined.json()) as { frame: { collaborators: { nickname: string }[]; belts: unknown[] } }
     assert.equal(body.frame.collaborators[0]?.nickname, 'ada')
     assert.ok(body.frame.belts.length >= 2)
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await new Promise((resolve) => setTimeout(resolve, 4_000))
     const later = await fetch(`${base}/api/towers/${room.id}`)
     const after = (await later.json()) as { frame: { deliveries: number } }
     assert.ok(after.frame.deliveries > 0)

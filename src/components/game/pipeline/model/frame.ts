@@ -12,6 +12,10 @@ export type PipelineRules = {
   colorPacket: string
   colorCore: string
   colorSource: string
+  colorAccent: string
+  decorStrokeWidth: number
+  machineClearanceMin: number
+  coreClearanceExtra: number
 }
 
 export type BeltRecord = {
@@ -35,7 +39,7 @@ export type PipelineFrame = {
   collaborators: { id: string; nickname: string }[]
   belts: BeltRecord[]
   packets: { id: string; x: number; y: number; shape: 'circle' }[]
-  source: { id: string; x: number; y: number; direction: Direction }
+  source: { id: string; x: number; y: number; direction: Direction; shape: 'circle' }
   core: { id: string; x: number; y: number }
 }
 

@@ -30,6 +30,8 @@ For local confirmation and password-recovery email, run `make mailpit` and open 
 | `GAME_DB_PATH` | SQLite (default `.content/game.sqlite`) |
 | `GAME_ALLOWED_ORIGINS` | Browser origins |
 | `GAME_CONFIG_PATH` | Optional TOML path |
+
+While `npm run game:dev` is running, edits to `game-server/config/game.config.toml` (or the file at `GAME_CONFIG_PATH`) hot-reload the `[pipeline]` table—colors, tick interval, and other presentation or simulation numbers—without restarting the server. Invalid TOML or validation errors are logged and ignored until the file is fixed; connected clients receive an update when a reload succeeds. Existing rooms keep the grid size they were created with; changing `grid_width` or `grid_height` affects new rooms only.
 | `NEXT_PUBLIC_GAME_API_URL` | URL baked into the client |
 
 Include the site origin in `GAME_ALLOWED_ORIGINS`. On LAN: `GAME_HOST=0.0.0.0` and a reachable URL in `NEXT_PUBLIC_*`.

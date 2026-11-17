@@ -7,7 +7,7 @@ import { BeltStroke } from './belt-stroke.ts'
 import { GridCamera } from './grid-camera.ts'
 import { BeltPainter } from './painters/belt-painter.ts'
 import { cellSize, GridPainter } from './painters/grid-painter.ts'
-import { MachinePainter } from './painters/machine-painter.ts'
+import { loadMachineDecor, MachinePainter } from './painters/machine-painter.ts'
 import { ReadoutPainter } from './painters/readout-painter.ts'
 import styles from '../../game-shell.module.css'
 
@@ -24,22 +24,12 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
   const cameraRef = useRef(new GridCamera(24, 24))
   const frameRef = useRef(frame)
   const rulesRef = useRef(rules)
-  const images = useRef<{ core: HTMLImageElement | null; source: HTMLImageElement | null }>({
-    core: null,
-    source: null,
-  })
+  const images = useRef(loadMachineDecor(() => {}))
   frameRef.current = frame
   rulesRef.current = rules
 
   useEffect(() => {
-    const core = new Image()
-    const source = new Image()
-    core.src = '/pipeline/core-decor.svg'
-    source.src = '/pipeline/source-decor.svg'
-    const redraw = () => paint()
-    core.onload = redraw
-    source.onload = redraw
-    images.current = { core, source }
+    images.current = loadMachineDecor(() => paint())
   }, [])
 
   const paint = () => {
@@ -72,7 +62,7 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
     }))
     const belts = visibleBelts(current)
     new BeltPainter().draw(ctx, [...belts, ...(preview ?? [])], palette)
-    new MachinePainter(images.current.core, images.current.source).draw(ctx, current, palette)
+    new MachinePainter(images.current).draw(ctx, current, palette)
     const hover = hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
     new ReadoutPainter().draw(ctx, current, palette, hover)
     ctx.restore()

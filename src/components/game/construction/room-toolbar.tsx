@@ -1,20 +1,20 @@
 'use client'
-import { type Connection } from '../hooks/use-tower-lobby'
-import styles from '../tower-game.module.css'
+import { type Connection } from '../hooks/use-room-lobby'
+import styles from '../game-shell.module.css'
 
 type Props = {
   connection: Connection
-  towerName?: string
+  roomName?: string
   onCreate: () => void
   canDelete: boolean
   onDelete: () => void
 }
 
-export function TowerToolbar({ connection, towerName, onCreate, canDelete, onDelete }: Props) {
+export function RoomToolbar({ connection, roomName, onCreate, canDelete, onDelete }: Props) {
   return (
     <div className={styles.detailToolbar}>
       <a className={styles.backLink} href="/jogo/">← Salas</a>
-      <h1 className={styles.gameTitle}>{towerName || 'Open Pipeline'}</h1>
+      <h1 className={styles.gameTitle}>{roomName || 'Open Pipeline'}</h1>
       <span className={`${styles.connection} ${connection === 'live' ? styles.live : ''}`}>
         <i />
         {connection === 'live' ? 'Ao vivo' : connection === 'connecting' ? 'Conectando' : 'Offline'}

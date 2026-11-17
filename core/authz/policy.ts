@@ -3,8 +3,8 @@ export const ROLES = ['admin', 'blog-editor', 'game-moderator', 'quiz-editor', '
 export type Role = typeof ROLES[number]
 export const PERMISSIONS = [
   'roles:manage', 'cms:access', 'article:manage', 'media:manage', 'media:delete',
-  'tower:update:any', 'tower:delete:any', 'tower:restore:any',
-  'tower:update:own', 'tower:delete:own', 'quiz:manage',
+  'room:update:any', 'room:delete:any',
+  'room:update:own', 'room:delete:own', 'quiz:manage',
 ] as const
 export type Permission = typeof PERMISSIONS[number]
 export type Actor = { id: string; roles: readonly Role[] }
@@ -13,9 +13,9 @@ export type OwnedResource = { ownerId: string }
 const grants: Record<Role, readonly Permission[]> = {
   admin: PERMISSIONS,
   'blog-editor': ['cms:access', 'article:manage', 'media:manage'],
-  'game-moderator': ['tower:update:any', 'tower:delete:any', 'tower:restore:any'],
+  'game-moderator': ['room:update:any', 'room:delete:any'],
   'quiz-editor': ['quiz:manage'],
-  member: ['tower:update:own', 'tower:delete:own'],
+  member: ['room:update:own', 'room:delete:own'],
 }
 
 export function can(actor: Actor | null | undefined, permission: Permission, resource?: OwnedResource): boolean {
@@ -24,6 +24,6 @@ export function can(actor: Actor | null | undefined, permission: Permission, res
   return actor.roles.some((role) => Object.hasOwn(grants, role) && grants[role].includes(permission))
 }
 
-export function canManageTower(actor: Actor | null | undefined, action: 'update' | 'delete', ownerId: string) {
-  return can(actor, `tower:${action}:any`) || can(actor, `tower:${action}:own`, { ownerId })
+export function canManageRoom(actor: Actor | null | undefined, action: 'update' | 'delete', ownerId: string) {
+  return can(actor, `room:${action}:any`) || can(actor, `room:${action}:own`, { ownerId })
 }

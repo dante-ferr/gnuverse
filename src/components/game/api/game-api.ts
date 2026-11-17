@@ -42,9 +42,9 @@ export class GameApi {
     return data as T
   }
 
-  stream(towerId: string) {
+  stream(roomId: string) {
     return new EventSource(
-      `${GAME_API_URL}/api/towers/${encodeURIComponent(towerId)}/events`,
+      `${GAME_API_URL}/api/towers/${encodeURIComponent(roomId)}/events`,
     )
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 import { type User, type Wallet } from '../model/types'
-import styles from '../tower-game.module.css'
+import styles from '../game-shell.module.css'
 
 type Props = {
   user: User | null

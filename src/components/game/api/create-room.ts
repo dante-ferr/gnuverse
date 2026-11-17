@@ -1,9 +1,9 @@
 import type { GameApi } from './game-api'
-import type { Tower } from '../model/types'
+import type { Room } from '../model/types'
 
-export function createTowerFromForm(api: GameApi, form: HTMLFormElement) {
+export function createRoomFromForm(api: GameApi, form: HTMLFormElement) {
   const data = new FormData(form)
-  return api.request<{ tower: Tower }>('/api/towers', {
+  return api.request<{ room: Room }>('/api/towers', {
     name: data.get('name'),
     cost: Number(data.get('cost')),
     eligibilityMode: data.get('eligibilityMode') ?? 'automatic',

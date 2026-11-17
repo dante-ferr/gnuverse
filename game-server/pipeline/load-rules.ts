@@ -1,4 +1,5 @@
 import type { PipelineRules } from './rules.ts'
+import { layoutInitialMachines } from './world/map-layout.ts'
 
 const defaults = {
   tick_ms: 250,
@@ -6,20 +7,27 @@ const defaults = {
   grid_height: 24,
   tile_cap: 25,
   source_period_ticks: 4,
-  color_background: '#f4f1ea',
-  color_grid: '#d9d3c5',
-  color_belt: '#2c3330',
-  color_packet: '#1f6f5b',
-  color_core: '#243028',
-  color_source: '#243028',
+  color_background: '#0e171d',
+  color_grid: '#23343c',
+  color_belt: '#9eb0b7',
+  color_packet: '#52d6c9',
+  color_core: '#edf4f4',
+  color_source: '#edf4f4',
+  color_accent: '#52d6c9',
+  decor_stroke_width: 28,
+  machine_clearance_min: 1,
+  core_clearance_extra: 2,
 } as const
 
 const integers = {
   tick_ms: [50, 5_000],
-  grid_width: [16, 64],
-  grid_height: [16, 64],
+  grid_width: [24, 64],
+  grid_height: [24, 64],
   tile_cap: [1, 500],
   source_period_ticks: [1, 120],
+  decor_stroke_width: [12, 64],
+  machine_clearance_min: [1, 8],
+  core_clearance_extra: [0, 8],
 } as const
 
 const mappings = {
@@ -34,6 +42,10 @@ const mappings = {
   color_packet: 'colorPacket',
   color_core: 'colorCore',
   color_source: 'colorSource',
+  color_accent: 'colorAccent',
+  decor_stroke_width: 'decorStrokeWidth',
+  machine_clearance_min: 'machineClearanceMin',
+  core_clearance_extra: 'coreClearanceExtra',
 } as const
 
 /** Reads the `[pipeline]` table. Missing keys use the v0.1 defaults. */
@@ -62,7 +74,12 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
     result[mappings[key]] = value
   }
   const rules = result as PipelineRules
-  if (rules.gridWidth < 16 || rules.gridHeight < 16)
-    throw new Error('O mapa do pipeline é pequeno demais para o núcleo')
+  try {
+    layoutInitialMachines(rules, 'config-check')
+  } catch {
+    throw new Error(
+      'O mapa do pipeline é pequeno demais para o núcleo, a fonte e a folga de segurança',
+    )
+  }
   return rules
 }

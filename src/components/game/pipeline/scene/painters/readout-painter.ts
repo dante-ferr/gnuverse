@@ -11,7 +11,7 @@ export class ReadoutPainter {
   ) {
     const coreX = (frame.core.x + 2.5) * cellSize
     const below = (frame.core.y + 5) * cellSize + 18
-    ctx.fillStyle = rules.colorCore
+    ctx.fillStyle = rules.colorBelt
     ctx.font = '12px sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText(`Entregas ${frame.deliveries}`, coreX, below)
@@ -30,10 +30,10 @@ export class ReadoutPainter {
       const width = ctx.measureText(label).width + 12
       const x = (hover.x + 1) * cellSize
       const y = hover.y * cellSize - 6
-      ctx.fillStyle = 'rgba(255,255,255,0.94)'
+      ctx.fillStyle = rules.colorCore
       roundRect(ctx, x, y, width, 18, 4)
       ctx.fill()
-      ctx.fillStyle = rules.colorCore
+      ctx.fillStyle = rules.colorBackground
       ctx.fillText(label, x + 6, y + 13)
     }
   }

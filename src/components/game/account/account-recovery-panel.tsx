@@ -3,7 +3,7 @@
 import type { FormEvent, ReactNode } from 'react'
 import Link from 'next/link'
 import { GameApi } from '../api/game-api'
-import styles from '../tower-game.module.css'
+import styles from '../game-shell.module.css'
 import authStyles from './auth-page.module.css'
 
 type RecoveryPanelProps = {
