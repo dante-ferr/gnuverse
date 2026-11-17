@@ -22,7 +22,8 @@ How the blog is wired today. For the C/Node → Next/Payload mental model, see a
 | `cms/src/collections/Users.ts` | Auth; admin bootstrap; public signup → `author` |
 | `cms/src/access.ts` | `admin` / `reviewer` / `author` rules |
 | `cms/src/hooks/deploy-site.ts` | Deploy-hook POST when published content changes |
-| `cms/scripts/seed-blog-demo.ts` | Idempotent seed for `make test-blog` |
+| `cms/scripts/seed-blog-demo.ts` | Idempotent local CMS seed (`make cms-seed`, also used by `make test-blog`) |
+| `cms/scripts/reset-local-db.mjs` | Deletes local SQLite DB (+ WAL/SHM) and media (`make cms-reset`) |
 
 ## Invariants
 
@@ -37,8 +38,11 @@ How the blog is wired today. For the C/Node → Next/Payload mental model, see a
 ## One-command test
 
 ```bash
+make cms-seed       # apply demo users, covers, and articles
+make cms-reset      # wipe local CMS SQLite DB and media
+make cms-fresh      # reset, then seed
 make test-blog      # seed + E2E + browser
 make test-blog-ci   # suite only, no browser
 ```
 
-Seed: `admin@gnuverse.local`, `revisor@gnuverse.local`, `autora@gnuverse.local`, `autor2@gnuverse.local` (password `gnuverse123`), covers, and articles in several states. With `NEXT_PUBLIC_BLOG_TEST_UI=1`, shortcuts on `/blog/?autotest=1` (test UI stripped from normal builds).
+Seed accounts (password `gnuverse123`): `admin@gnuverse.local`, `revisor@gnuverse.local`, `autora@gnuverse.local`, `autor2@gnuverse.local`. The seed also creates covers and articles in several editorial states. With `NEXT_PUBLIC_BLOG_TEST_UI=1`, shortcuts on `/blog/?autotest=1` (test UI stripped from normal builds).

@@ -1,9 +1,23 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev cms site sync build preview check test typecheck mailpit cms-reset test-blog test-blog-ci docs-serve
+.PHONY: help setup dev cms site sync build preview check test typecheck mailpit cms-reset cms-seed cms-fresh test-blog test-blog-ci docs-serve
 
 help:
-	@printf '%s\n' 'GNUverse — commands' '' '  make setup       Install dependencies and prepare local environments' '  make dev         Start CMS + game + site; Ctrl+C stops all three' '  make test-blog   Seed demo data, run E2E tests, open the browser' '  make cms         Start only the CMS on CMS_PORT' '  make mailpit     Start local Mailpit (SMTP 1025, UI 8025)' '  make cms-reset   Wipe the CMS SQLite DB so you can recreate the first admin' '  make site        Start only the site' '  make sync        Refresh local content from the CMS' '  make build       Build the static site into out/' '  make preview     Serve the static site without the CMS' '  make check       Run tests and TypeScript checks' '  make docs-serve  Serve the method book (mdBook) at http://localhost:3003' ''
+	@printf '%s\n' 'GNUverse — commands' '' \
+		'  make setup       Install dependencies and prepare local environments' \
+		'  make dev         Start CMS + game + site; Ctrl+C stops all three' \
+		'  make test-blog   Seed demo data, run E2E tests, open the browser' \
+		'  make cms         Start only the CMS on CMS_PORT' \
+		'  make mailpit     Start local Mailpit (SMTP 1025, UI 8025)' \
+		'  make cms-reset   Wipe the local CMS SQLite DB and media' \
+		'  make cms-seed    Apply the local CMS demo seed (users, covers, articles)' \
+		'  make cms-fresh   Wipe the local CMS DB/media, then apply the demo seed' \
+		'  make site        Start only the site' \
+		'  make sync        Refresh local content from the CMS' \
+		'  make build       Build the static site into out/' \
+		'  make preview     Serve the static site without the CMS' \
+		'  make check       Run tests and TypeScript checks' \
+		'  make docs-serve  Serve the method book (mdBook) at http://localhost:3003' ''
 
 setup:
 	npm ci
@@ -21,7 +35,12 @@ mailpit:
 	docker compose -f compose.mailpit.yml up -d
 
 cms-reset:
-	node cms/scripts/reset-local-db.mjs
+	npm run cms:reset-db
+
+cms-seed:
+	npm run cms:seed
+
+cms-fresh: cms-reset cms-seed
 
 site:
 	npm run dev -- --webpack

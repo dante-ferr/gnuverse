@@ -55,6 +55,9 @@ flowchart LR
 ```bash
 make setup          # first time
 make dev            # CMS + game + site
+make cms-seed       # demo users, covers, and articles in the local CMS
+make cms-reset      # wipe local CMS SQLite DB and media
+make cms-fresh      # reset local CMS, then seed
 make test-blog      # seed + E2E + browser
 make check          # tests + typecheck
 make build          # sync + out/

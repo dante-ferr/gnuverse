@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getPayload, type Payload } from 'payload'
 import sharp from 'sharp'
+import { emailVerificationEnabled } from '../src/email/settings'
 import { loadLocalEnvironment } from './local-config.mjs'
 
 export const DEMO_PASSWORD = 'gnuverse123'
@@ -27,6 +28,7 @@ if (!process.env.PAYLOAD_SECRET) {
 }
 
 process.env.SITE_DEPLOY_HOOK_URL = ''
+process.env.CMS_SEEDING = '1'
 
 function buildLexicalBody(paragraphs: string[]) {
   return {
@@ -130,16 +132,20 @@ async function main() {
         where: { email: { equals: account.email } },
       })
 
+      const accountData = {
+        email: account.email,
+        name: account.name,
+        role: account.role,
+        password: DEMO_PASSWORD,
+        ...(emailVerificationEnabled ? { _verified: true } : {}),
+      }
+
       if (existing.docs[0]) {
         const updated = await payload.update({
           collection: 'users',
           id: existing.docs[0].id,
           overrideAccess: true,
-          data: {
-            name: account.name,
-            role: account.role,
-            password: DEMO_PASSWORD,
-          },
+          data: accountData,
         })
         usersByEmail.set(account.email, {
           id: updated.id,
@@ -151,12 +157,7 @@ async function main() {
         const created = await payload.create({
           collection: 'users',
           overrideAccess: true,
-          data: {
-            email: account.email,
-            name: account.name,
-            role: account.role,
-            password: DEMO_PASSWORD,
-          },
+          data: accountData,
         })
         usersByEmail.set(account.email, {
           id: created.id,
