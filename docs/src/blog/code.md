@@ -13,12 +13,13 @@ How the blog is wired today. For the C/Node → Next/Payload mental model, see a
 | Path | Role |
 | :--- | :--- |
 | `src/app/blog/page.tsx` | `/blog/`: explorer + submission |
+| `src/app/blog/pagina/[page]/page.tsx` | Static paginated blog listing (`/blog/pagina/[page]`) |
 | `src/app/artigos/` | Static list and `[slug]`; back link to `/blog/` |
-| `src/components/blog/blog-explorer.tsx` | Category filter and cards with covers (no runtime HTTP) |
-| `src/components/blog/submission-panel.tsx` | Drafts and review status (auth should redirect to dedicated pages) |
+| `src/components/blog/blog-explorer.tsx` | Search, date sort, grid/list toggle, pagination, and cards with covers (no runtime HTTP) |
+| `src/components/blog/submission-panel.tsx` | Drafts and review status (redirects unauthenticated contributors to `/login` and `/cadastro`) |
 | `src/lib/blog-submission.ts` | Text ↔ Lexical, validation, HTTP errors |
 | `scripts/sync-content.mjs` | Public API → `.content/` + `public/cms-media/` |
-| `cms/src/collections/Articles.ts` | Fields, `owner`, `reviewStatus`, publish hooks |
+| `cms/src/collections/Articles.ts` | Fields (`hashtags`, `publishedAt`), `owner`, `reviewStatus`, publish hooks |
 | `cms/src/collections/Users.ts` | Auth; admin bootstrap; public signup → `author` |
 | `cms/src/access.ts` | `admin` / `reviewer` / `author` rules |
 | `cms/src/hooks/deploy-site.ts` | Deploy-hook POST when published content changes |
