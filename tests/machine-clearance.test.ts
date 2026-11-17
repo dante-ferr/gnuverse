@@ -30,6 +30,7 @@ const rules: PipelineRules = {
   colorSource: '#52d6c9',
   colorAccent: '#52d6c9',
   colorDecor: '#1a4542',
+  decorDarkenPercent: 35,
   outlineWidthPx: 3,
   colorOutline: '#0a1014',
   colorSurface: '#17252c',

@@ -3,6 +3,7 @@ import { SourceMachine } from '../../../../../../game-server/pipeline/machines/s
 import type { Machine } from '../../../../../../game-server/pipeline/machines/machine.ts'
 import type { PacketShape } from '../../../../../../game-server/pipeline/packets/packet.ts'
 import type { PipelineFrame, PipelineRules } from '../../model/frame.ts'
+import { darkenHex } from './darken-hex.ts'
 import { cellSize } from './grid-painter.ts'
 
 /** Shape → resource glyph under /public/pipeline/ (optional fallback). */
@@ -37,20 +38,20 @@ export class MachinePainter {
       frame.source.shape,
       1,
     )
-    this.machine(ctx, core, rules.colorCore, this.images.core, rules.colorBackground)
-    this.machine(ctx, source, rules.colorSource, this.images.source, rules.colorBackground)
+    this.machine(ctx, core, rules.colorCore, this.images.core, rules)
+    this.machine(ctx, source, rules.colorSource, this.images.source, rules)
     this.drawOrbitingResourceGlyph(ctx, source, frame.source.shape, rules, cameraZoom, timeMs)
     for (const packet of frame.packets) {
+      const px = (packet.x + 0.5) * cellSize
+      const py = (packet.y + 0.5) * cellSize
+      const radius = cellSize * 0.22
       ctx.beginPath()
       ctx.fillStyle = rules.colorPacket
-      ctx.arc(
-        (packet.x + 0.5) * cellSize,
-        (packet.y + 0.5) * cellSize,
-        cellSize * 0.22,
-        0,
-        Math.PI * 2,
-      )
+      ctx.arc(px, py, radius, 0, Math.PI * 2)
       ctx.fill()
+      ctx.strokeStyle = rules.colorOutline
+      ctx.lineWidth = rules.outlineWidthPx
+      ctx.stroke()
     }
   }
 
@@ -59,7 +60,7 @@ export class MachinePainter {
     machine: Machine,
     bodyColor: string,
     decor: HTMLImageElement | null,
-    inkColor: string,
+    rules: PipelineRules,
   ) {
     const px = machine.origin.x * cellSize
     const py = machine.origin.y * cellSize
@@ -67,6 +68,9 @@ export class MachinePainter {
     const height = machine.height * cellSize
     ctx.fillStyle = bodyColor
     ctx.fillRect(px, py, width, height)
+    ctx.strokeStyle = rules.colorOutline
+    ctx.lineWidth = rules.outlineWidthPx
+    ctx.strokeRect(px, py, width, height)
     for (const slot of machine.slots) {
       const path = machine.slotBracket(slot, cellSize)
       ctx.beginPath()
@@ -74,8 +78,10 @@ export class MachinePainter {
       for (let i = 1; i < path.length; i++) ctx.lineTo(path[i]!.x, path[i]!.y)
       ctx.closePath()
       ctx.fill()
+      ctx.stroke()
     }
-    drawTintedDecor(ctx, decor, inkColor, px, py, width, height, this.tintCache)
+    const decorInk = darkenHex(bodyColor, rules.decorDarkenPercent)
+    drawTintedDecor(ctx, decor, decorInk, px, py, width, height, this.tintCache)
   }
 
   private drawOrbitingResourceGlyph(
@@ -103,21 +109,14 @@ export class MachinePainter {
   private drawResourceGlyph(ctx: CanvasRenderingContext2D, shape: PacketShape, rules: PipelineRules) {
     const size = rules.resourceGlyphSizePx
     if (shape === 'circle') {
+      // Single filled disk + dark outline only (no inner rings or nested circles).
       const radius = size / 2
       ctx.beginPath()
       ctx.arc(0, 0, radius, 0, Math.PI * 2)
-      ctx.strokeStyle = rules.colorBackground
-      ctx.lineWidth = 3.5
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.arc(0, 0, radius * 0.92, 0, Math.PI * 2)
-      ctx.strokeStyle = '#ffffff'
-      ctx.lineWidth = 1.75
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2)
-      ctx.strokeStyle = '#ffffff'
-      ctx.lineWidth = 1.25
+      ctx.fillStyle = '#ffffff'
+      ctx.fill()
+      ctx.strokeStyle = rules.colorOutline
+      ctx.lineWidth = rules.outlineWidthPx
       ctx.stroke()
       return
     }

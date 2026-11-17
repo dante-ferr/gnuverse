@@ -35,6 +35,7 @@ color_core = "#ffffff"
 color_source = "#52d6c9"
 color_accent = "#52d6c9"
 color_decor = "#1a4542"
+decor_darken_percent = 35
 outline_width_px = 3
 color_outline = "#0a1014"
 color_surface = "#17252c"

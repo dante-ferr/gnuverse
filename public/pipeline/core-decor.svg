@@ -1,10 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" fill="none" viewBox="0 0 512 512">
-  <!-- Color-agnostic black ink. Thick strokes match [pipeline] decor_stroke_width (28). -->
-  <rect x="56" y="56" width="400" height="400" stroke="#000000" stroke-width="28"/>
-  <rect x="96" y="96" width="320" height="320" stroke="#000000" stroke-width="8"/>
-  <circle cx="256" cy="256" r="118" stroke="#000000" stroke-width="28"/>
-  <circle cx="256" cy="256" r="160" stroke="#000000" stroke-width="8"/>
-  <circle cx="256" cy="256" r="18" fill="#000000"/>
-  <path d="M256 96v40M256 376v40M96 256h40M376 256h40" stroke="#000000" stroke-width="28" stroke-linecap="square"/>
-  <path d="M256 56v30M256 426v30M56 256h30M426 256h30" stroke="#000000" stroke-width="8" stroke-linecap="square"/>
+  <!-- QuiverAI processing-core; thick strokes match [pipeline] decor_stroke_width (28). -->
+  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="29" y="32.4" width="453.8" height="447.2" rx="43" stroke-width="28"/>
+    <rect x="63.6" y="65.6" width="384.4" height="380" rx="27.4" stroke-width="8"/>
+    <circle cx="255.8" cy="255.4" r="63.2" stroke-width="28"/>
+    <circle cx="255.6" cy="255.2" r="41.8" stroke-width="8"/>
+    <path d="m157.6 86.8h-63.6c-4.6 0-9 3.6-9 8.8v64.4h11.6l61-60.6z" stroke-width="8"/>
+    <circle cx="106.2" cy="108.4" r="7.4" stroke-width="6"/>
+    <path d="m354 86.8h63.6c4.6 0 9 3.6 9 8.8v64.4h-12l-60.6-60.6z" stroke-width="8"/>
+    <circle cx="405.6" cy="108.4" r="7.4" stroke-width="6"/>
+    <path d="m157.6 423.8h-63.6c-4.6 0-9-3.6-9-8.8v-64.4h11.6l61 60.6z" stroke-width="8"/>
+    <circle cx="106.2" cy="402.2" r="7.4" stroke-width="6"/>
+    <path d="m354 423.8h63.6c4.6 0 9-3.6 9-8.8v-64.4h-12l-60.6 60.6z" stroke-width="8"/>
+    <circle cx="405.6" cy="402.2" r="7.4" stroke-width="6"/>
+    <path d="m233 86.8v27.6m22.8-27.6v27.6m22.8-27.6v27.6m-45.6 281.8v27.6m22.8-27.6v27.6m23-27.6v27.6" stroke-width="8"/>
+    <path d="m85.2 227.8h27.6m-27.6 19.4h27.6m-27.6 19.4h27.6m-27.6 19.4h27.6m286.2-58.6h27.6m-27.6 19.4h27.6m-27.6 19.4h27.6m-27.6 19.4h27.6" stroke-width="8"/>
+    <path d="m255.8 140.6v34m-116.6 80.8h34.6m163.6 0h34.4m-116.4 80.4v33.6" stroke-width="28"/>
+  </g>
 </svg>

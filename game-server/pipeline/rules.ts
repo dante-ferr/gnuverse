@@ -12,8 +12,10 @@ export type PipelineRules = {
   colorSource: string
   /** GNUverse accent; site teal (legacy palette key). */
   colorAccent: string
-  /** Dark decor ink; SVGs tint to this at draw time (darker than machine body fills). */
+  /** Palette ink reserved for future UI; machine overlays use darkenHex(body, decorDarkenPercent). */
   colorDecor: string
+  /** Percent to darken each machine body color when tinting its decor SVG (0–90). */
+  decorDarkenPercent: number
   /** Global stroke width (px) for bodies, slots, packets, glyphs. */
   outlineWidthPx: number
   /** Near-black outline color. */

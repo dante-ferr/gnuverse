@@ -1,13 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" fill="none" viewBox="0 0 512 512">
-  <!-- Color-agnostic black ink for source chrome. No material glyph (drawn screen-space). -->
-  <!-- Thick frame -->
-  <rect x="64" y="64" width="384" height="384" stroke="#000000" stroke-width="28"/>
-  <!-- Thin inset frame -->
-  <rect x="100" y="100" width="312" height="312" stroke="#000000" stroke-width="8"/>
-  <!-- Thick diamond -->
-  <path d="M256 128L384 256L256 384L128 256Z" stroke="#000000" stroke-width="28" stroke-linejoin="miter"/>
-  <!-- Thin inner diamond -->
-  <path d="M256 168L344 256L256 344L168 256Z" stroke="#000000" stroke-width="8" stroke-linejoin="miter"/>
-  <!-- Thin crosshair -->
-  <path d="M256 200v112M200 256h112" stroke="#000000" stroke-width="8" stroke-linecap="square"/>
+  <!-- QuiverAI resource-source-emitter; no resource glyph (drawn screen-space). Thick strokes match decor_stroke_width (28). -->
+  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m82.08 355.3-15.44 15.1v79.44h78.44l15.88-16.66h190l15.88 16.66h78.44v-79.44l-15.62-15.1v-200.4l15.62-15.44v-79.14h-78.44l-15.88 16.52h-190l-15.88-16.52h-78.44v79.14l15.44 15.44v200.4" stroke-width="28"/>
+    <path d="m81.42 372.5 59.96 60.68h229.3l59.96-60.68v-236.3l-60.68-60.42h-227.8l-60.68 60.42v236.3" stroke-width="28"/>
+    <path d="m134.7 127.1h243.1v255.6h-243.1z" stroke-width="8"/>
+    <path d="m256 156.3-97.82 99 97.82 97.82 98.24-97.82z" stroke-width="28"/>
+  </g>
 </svg>

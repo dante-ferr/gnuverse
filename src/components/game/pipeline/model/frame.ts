@@ -14,6 +14,7 @@ export type PipelineRules = {
   colorSource: string
   colorAccent: string
   colorDecor: string
+  decorDarkenPercent: number
   outlineWidthPx: number
   colorOutline: string
   colorSurface: string

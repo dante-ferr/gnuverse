@@ -80,7 +80,7 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
       placedAt: index,
     }))
     const belts = visibleBelts(current)
-    beltPainter.current.draw(ctx, [...belts, ...(preview ?? [])], palette)
+    beltPainter.current.draw(ctx, [...belts, ...(preview ?? [])], palette, performance.now())
     machinePainter.current.draw(ctx, current, palette, camera.zoom, performance.now())
     const hover = hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
     readoutPainter.current.draw(ctx, current, palette, hover)

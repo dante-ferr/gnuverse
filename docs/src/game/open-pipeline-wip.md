@@ -44,7 +44,7 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 - **Config:** `[pipeline]` in [`game.config.toml`](../game-server/config/game.config.toml), loaded via [`pipeline/load-rules.ts`](../game-server/pipeline/load-rules.ts).
 - **HTTP:** `POST /api/towers/:id/place`, `remove`, `join`; SSE `frame` pushes `PipelineFrame`.
 - **Client:** `src/components/game/pipeline/` — canvas scene, painters, drag belts, pan/zoom; room at `/jogo/torre/` via `PipelineRoom`.
-- **Art:** dark grid / light machines; procedural bodies/slots + `color_outline`; decor SVGs tint to `color_decor`; screen-space circle resource = one filled disk (canvas outline); sidebar uses `resource-circle.svg` (single black fill); `decor_stroke_width` on thick decor strokes.
+- **Art:** dark grid / light machines; procedural bodies/slots + `color_outline`; decor SVGs tint to a darker tone of each body color (`decor_darken_percent`); `color_decor` is palette-only for future UI; screen-space circle resource = one filled disk (canvas outline); sidebar uses `resource-circle.svg` (single black fill); `decor_stroke_width` on thick decor strokes.
 - **Tests:** [`tests/pipeline-tick.test.ts`](../tests/pipeline-tick.test.ts), [`tests/pipeline-http.test.ts`](../tests/pipeline-http.test.ts).
 - **Generation clearance:** `geometry/clearance.ts` + `world/map-layout.ts` — per-side pads at match creation — 2026-11-17.
 - **Seeded initial layout:** `geometry/seed-rng.ts` + procedural `layoutInitialMachines` (room seed picks approach + offset; clearance enforced) — 2026-11-17.
