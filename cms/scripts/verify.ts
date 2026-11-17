@@ -141,11 +141,21 @@ try {
     )
   }
 
-  // 5. Upload de mídia permitido para autores; exclusão restrita a admins.
+  // 5. Upload/gestão de mídia restritos a equipe editorial (/admin -> Imagens); exclusão restrita a admins.
   const image = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#7c3aed' } }).png().toBuffer()
+  await assert.rejects(
+    payload.create({
+      collection: 'media',
+      user: author1,
+      overrideAccess: false,
+      data: { alt: 'Bloqueada para autor', credit: 'Teste' },
+      file: { data: image, mimetype: 'image/png', name: `blocked-${randomBytes(6).toString('hex')}.png`, size: image.length },
+    }),
+    'Autor não pode enviar mídia fora da equipe editorial',
+  )
   const media = await payload.create({
     collection: 'media',
-    user: author1,
+    user: reviewer,
     overrideAccess: false,
     data: { alt: 'Quadrado violeta de teste', credit: 'Fixture de teste GNUverse' },
     file: { data: image, mimetype: 'image/png', name: `test-${randomBytes(6).toString('hex')}.png`, size: image.length },
@@ -154,6 +164,10 @@ try {
   await assert.rejects(
     payload.delete({ collection: 'media', id: media.id, user: author1, overrideAccess: false }),
     'Autor não pode apagar mídia',
+  )
+  await assert.rejects(
+    payload.delete({ collection: 'media', id: media.id, user: reviewer, overrideAccess: false }),
+    'Revisor não pode apagar mídia',
   )
 
   // 6. Criação de rascunho por autor e isolamento entre autores distintos.
@@ -431,6 +445,28 @@ try {
 
   const publicArticle = (await payload.find({ collection: 'articles', overrideAccess: false })).docs[0]
   assert.equal(publicArticle.title, example.title, 'Novo rascunho não pode vazar para leitura pública')
+
+  await assert.rejects(
+    payload.update({
+      collection: 'articles',
+      id: article.id,
+      user: author1,
+      overrideAccess: false,
+      draft: false,
+      data: { title: 'Bypass após rascunho proibido' },
+    }),
+    'Autora não pode despublicar artigo publicado via update sem draft: true após salvar rascunho',
+  )
+  await assert.rejects(
+    payload.update({
+      collection: 'articles',
+      id: article.id,
+      user: author1,
+      overrideAccess: false,
+      data: { title: 'Bypass implícito após rascunho proibido' },
+    }),
+    'Autora não pode despublicar artigo publicado via update implícito após salvar rascunho',
+  )
 
   await assert.rejects(
     payload.delete({ collection: 'articles', id: article.id, user: author1, overrideAccess: false }),

@@ -21,15 +21,14 @@ export function cmsActor(user: CMSUser): Actor | null {
   }
 }
 
-const reviewerRoles: readonly string[] = ['admin', 'reviewer', 'editor']
-
 type RequestCheck = ({ req }: { req: PayloadRequest }) => boolean
 
-export const isAdmin: RequestCheck = ({ req }) => req.user?.role === 'admin'
+export const isAdmin: RequestCheck = ({ req }) =>
+  can(cmsActor(req.user), 'roles:manage')
 export const isReviewer: RequestCheck = ({ req }) =>
-  reviewerRoles.includes(req.user?.role ?? '')
+  can(cmsActor(req.user), 'article:manage')
 export const isAuthor: RequestCheck = ({ req }) =>
-  req.user?.role === 'author' || req.user?.role === 'member'
+  !isReviewer({ req }) && (req.user?.role === 'author' || req.user?.role === 'member')
 export const canCreateArticle: RequestCheck = ({ req }) =>
   isReviewer({ req }) || isAuthor({ req })
 
