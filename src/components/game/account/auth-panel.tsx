@@ -85,7 +85,11 @@ export function AuthPanel({
         <summary>Privacidade</summary>
         <p>O apelido é público. O e-mail fica privado.</p>
       </details>
-      <Link className={styles.quiet} href={returnTo}>Voltar ao jogo</Link>
+      <Link className={styles.quiet} href={returnTo}>
+        {returnTo.startsWith('/blog') || returnTo.startsWith('/artigos')
+          ? 'Voltar ao blog'
+          : 'Voltar ao jogo'}
+      </Link>
     </section>
   )
 }
