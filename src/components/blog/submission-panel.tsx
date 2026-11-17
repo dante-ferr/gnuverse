@@ -126,7 +126,7 @@ export function SubmissionPanel({
 }: {
   mode?: 'demo' | 'live'
 }) {
-  const gameSession = useGameSession()
+  const { token, setSessionToken, logout, user: gameUser } = useGameSession()
   const [isOpen, setIsOpen] = useState(false)
   const [session, setSession] = useState<BlogSession | null>(null)
   const [authBusy, setAuthBusy] = useState(false)
@@ -154,6 +154,7 @@ export function SubmissionPanel({
   const [listError, setListError] = useState('')
   const titleInputRef = useRef<HTMLInputElement>(null)
   const sectionRef = useRef<HTMLElement>(null)
+  const autotestInitializedRef = useRef(false)
 
   const applySampleDraft = useCallback(
     (defaultAuthor: string, docs: SubmissionArticle[]) => {
@@ -189,11 +190,11 @@ export function SubmissionPanel({
   )
 
   const handleSessionExpired = useCallback(() => {
-    gameSession.setSessionToken('')
+    setSessionToken('')
     setSession(null)
     setMyArticles([])
     setAuthError('Sua sessão expirou. Entre novamente em /login para continuar.')
-  }, [gameSession])
+  }, [setSessionToken])
 
   const loadMyArticles = useCallback(
     async (activeSession: BlogSession): Promise<SubmissionArticle[]> => {
@@ -245,7 +246,7 @@ export function SubmissionPanel({
   )
 
   useEffect(() => {
-    if (!gameSession.token) {
+    if (!token) {
       setSession(null)
       setMyArticles([])
       return
@@ -254,19 +255,19 @@ export function SubmissionPanel({
     void (async () => {
       try {
         const response = await fetch(`${CMS_URL}/api/users/me`, {
-          headers: { Authorization: `Bearer ${gameSession.token}` },
+          headers: { Authorization: `Bearer ${token}` },
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         })
         const data = await response.json().catch(() => null)
         if (!active) return
         if (!response.ok || !data?.user) {
-          if (response.status === 401) {
+          if (response.status === 401 || response.ok) {
             handleSessionExpired()
           }
           return
         }
         const cmsUser = data.user as CmsUser
-        setSession({ token: gameSession.token, user: cmsUser })
+        setSession({ token, user: cmsUser })
         setAuthor(
           (current) => current || cmsUser.name || cmsUser.nickname || '',
         )
@@ -278,19 +279,20 @@ export function SubmissionPanel({
     return () => {
       active = false
     }
-  }, [gameSession.token, handleSessionExpired])
+  }, [token, handleSessionExpired])
 
   useEffect(() => {
-    if (!BLOG_TEST_UI) return
+    if (!BLOG_TEST_UI || autotestInitializedRef.current) return
 
     const params = new URLSearchParams(window.location.search)
     const isAutotest = params.get('autotest') === '1'
     if (!isAutotest) return
 
+    autotestInitializedRef.current = true
     setIsOpen(true)
-    applySampleDraft(gameSession.user?.nickname || 'Ana Autora', [])
+    applySampleDraft(gameUser?.nickname || 'Ana Autora', [])
 
-    if (!gameSession.token) {
+    if (!token) {
       void (async () => {
         try {
           const response = await fetch(`${CMS_URL}/api/users/login`, {
@@ -305,7 +307,7 @@ export function SubmissionPanel({
           const data = await response.json().catch(() => null)
           if (response.ok && typeof data?.token === 'string' && data?.user) {
             const cmsUser = data.user as CmsUser
-            gameSession.setSessionToken(data.token)
+            setSessionToken(data.token)
             setSession({ token: data.token, user: cmsUser })
             setAuthor(cmsUser.name || cmsUser.nickname || 'Ana Autora')
           }
@@ -322,7 +324,7 @@ export function SubmissionPanel({
       })
     }, 150)
     return () => clearTimeout(scrollTimer)
-  }, [applySampleDraft, gameSession])
+  }, [applySampleDraft, gameUser?.nickname, setSessionToken, token])
 
   useEffect(() => {
     if (isOpen && session) {
@@ -351,7 +353,7 @@ export function SubmissionPanel({
     setAuthBusy(true)
     try {
       const nextSession = await loginWithCredentials(email, 'gnuverse123')
-      gameSession.setSessionToken(nextSession.token)
+      setSessionToken(nextSession.token)
       setSession(nextSession)
       setAuthor(nextSession.user.name || nextSession.user.nickname || defaultName)
       await loadMyArticles(nextSession)
@@ -370,21 +372,24 @@ export function SubmissionPanel({
   }
 
   async function handleLogout() {
-    if (session) {
+    const activeToken = session?.token || token
+    let loggedOutViaGameServer = false
+    try {
+      await logout()
+      loggedOutViaGameServer = true
+    } catch {
+      setSessionToken('')
+    }
+    if (!loggedOutViaGameServer && activeToken) {
       try {
         await fetch(`${CMS_URL}/api/users/logout`, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${session.token}` },
+          headers: { Authorization: `Bearer ${activeToken}` },
           signal: AbortSignal.timeout(10000),
         })
       } catch {
         /* Encerramento local da sessão continua garantido. */
       }
-    }
-    try {
-      await gameSession.logout()
-    } catch {
-      gameSession.setSessionToken('')
     }
     setSession(null)
     setMyArticles([])
