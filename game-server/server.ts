@@ -32,6 +32,7 @@ export function createGameServer(options: ServerOptions = {}) {
   for (const room of Object.values(store.state.rooms)) {
     room.beltCount ??= 0
     room.actionCount ??= 0
+    room.chat ??= []
     delete (room as { restoreMode?: unknown }).restoreMode
     delete (room as { wind?: unknown }).wind
     delete (room as { placementCount?: unknown }).placementCount

@@ -20,6 +20,9 @@ export function createRules(
     maxRooms: configured.maxRooms,
     tokenLifetimeMs: configured.sessionDurationMs,
     banDurationMs: configured.banDurationMs,
+    chatMessageMaxLength: configured.chatMessageMaxLength,
+    chatHistoryLimit: configured.chatHistoryLimit,
+    chatCooldownMs: configured.chatCooldownMs,
     prototype: configured.prototype,
     infiniteCoins:
       process.env.NODE_ENV !== 'production' &&
@@ -39,6 +42,9 @@ export function createRules(
     'maxRooms',
     'tokenLifetimeMs',
     'banDurationMs',
+    'chatMessageMaxLength',
+    'chatHistoryLimit',
+    'chatCooldownMs',
   ] as const) {
     if (
       !Number.isSafeInteger(rules[key]) ||
@@ -49,6 +55,8 @@ export function createRules(
           'maxRooms',
           'maxBelts',
           'banDurationMs',
+          'chatMessageMaxLength',
+          'chatHistoryLimit',
         ].includes(key)
           ? 1
           : 0)

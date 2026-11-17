@@ -45,8 +45,10 @@ export class GameStore {
     this.db = db
     const saved = db.prepare('SELECT value FROM game_state WHERE id=1').get()
     this.state = normalizeState(saved ? JSON.parse(saved.value as string) : undefined)
-    for (const room of Object.values(this.state.rooms))
+    for (const room of Object.values(this.state.rooms)) {
       room.allowCreatorBan = room.allowCreatorBan === true
+      room.chat ??= []
+    }
     this.save = db.prepare(
       'INSERT INTO game_state(id,value) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value',
     )

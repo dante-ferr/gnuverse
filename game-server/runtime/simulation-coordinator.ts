@@ -1,5 +1,5 @@
 import type { ServerResponse } from 'node:http'
-import type { Room } from '../domain/types.ts'
+import type { ChatMessage, Room } from '../domain/types.ts'
 import { fail } from '../domain/validation.ts'
 import type { PipelineRules } from '../pipeline/rules.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
@@ -38,6 +38,12 @@ export class SimulationCoordinator {
         response.write('event: change\ndata: {}\n\n')
   }
 
+  publishChat(roomId: string, chat: ChatMessage[]) {
+    const payload = `event: chat\ndata: ${JSON.stringify({ chat })}\n\n`
+    for (const response of this.streams.get(roomId) ?? [])
+      if (response.writableLength < 1024 * 1024) response.write(payload)
+  }
+
   publishAllChanges(): void {
     for (const roomId of Object.keys(this.store.state.rooms))
       this.publishChange(roomId)
@@ -70,6 +76,9 @@ export class SimulationCoordinator {
     })
     response.write(
       `event: frame\ndata: ${JSON.stringify(this.publicFrame(room))}\n\n`,
+    )
+    response.write(
+      `event: chat\ndata: ${JSON.stringify({ chat: room.chat ?? [] })}\n\n`,
     )
     if (!this.streams.has(room.id)) this.streams.set(room.id, new Set())
     this.streams.get(room.id)!.add(response)

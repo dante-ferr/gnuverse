@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameApi } from '../../api/game-api'
 import { isPipelineFrame, type PipelineFrame } from '../model/frame'
 import type { Connection } from '../../hooks/use-room-lobby'
+import type { ChatMessage } from '../../model/types'
 
 const emptyFrame = (): PipelineFrame => ({
   kind: 'pipeline',
@@ -22,12 +23,13 @@ const emptyFrame = (): PipelineFrame => ({
   core: { id: 'core', x: 0, y: 0 },
 })
 
-/** SSE frames for one pipeline room. */
+/** SSE frames, chat, and room detail for one pipeline room. */
 export function usePipelineStream(api: GameApi, roomId: string) {
   const [frame, setFrame] = useState<PipelineFrame>(emptyFrame)
   const [rules, setRules] = useState<Record<string, unknown> | null>(null)
   const [name, setName] = useState('')
   const [creatorId, setCreatorId] = useState('')
+  const [chat, setChat] = useState<ChatMessage[]>([])
   const [connection, setConnection] = useState<Connection>('connecting')
   const selected = useRef(roomId)
   selected.current = roomId
@@ -37,16 +39,18 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       room: { id: string; name: string; creatorId: string }
       frame: PipelineFrame
       rules: Record<string, unknown>
-      members: { id: string; banned: boolean }[]
+      chat?: ChatMessage[]
     }>(`/api/towers/${roomId}`)
     if (selected.current !== result.room.id || !isPipelineFrame(result.frame)) return
     setFrame((current) => (result.frame.tick >= current.tick ? result.frame : current))
     setRules(result.rules)
     setName(result.room.name)
     setCreatorId(result.room.creatorId)
+    setChat(Array.isArray(result.chat) ? result.chat : [])
   }, [api, roomId])
   useEffect(() => {
     setFrame(emptyFrame())
+    setChat([])
     setConnection('connecting')
     if (!roomId) return
     let active = true
@@ -74,13 +78,25 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       }
     }
     stream.addEventListener('frame', onFrame)
+    const onChat = (event: MessageEvent<string>) => {
+      if (!active) return
+      try {
+        const data = JSON.parse(event.data) as { chat?: ChatMessage[] }
+        if (Array.isArray(data.chat)) setChat(data.chat)
+      } catch {
+        /* ignore malformed chat payloads */
+      }
+    }
+    stream.addEventListener('chat', onChat)
     stream.addEventListener('change', () => {
       if (active) void update()
     })
     return () => {
       active = false
+      stream.removeEventListener('chat', onChat)
+      stream.removeEventListener('frame', onFrame)
       stream.close()
     }
   }, [api, roomId, refresh])
-  return { frame, rules, name, creatorId, connection, refresh }
+  return { frame, rules, name, creatorId, chat, connection, refresh }
 }

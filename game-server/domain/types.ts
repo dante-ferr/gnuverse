@@ -16,6 +16,9 @@ export type Rules = {
   maxRooms: number
   tokenLifetimeMs: number
   banDurationMs: number
+  chatMessageMaxLength: number
+  chatHistoryLimit: number
+  chatCooldownMs: number
   bdflVeto: boolean
   prototype: boolean
   infiniteCoins: boolean
@@ -40,6 +43,14 @@ export type Member = {
   eligible: boolean
   banned: boolean
   bannedUntil?: number
+  lastChatAt?: number
+}
+export type ChatMessage = {
+  id: string
+  authorId: string
+  authorNickname: string
+  text: string
+  createdAt: number
 }
 export type RoomEvent = {
   id: string
@@ -78,6 +89,7 @@ export type Room = {
   eligibilityMode: 'automatic' | 'manual'
   minContributions: number
   members: Record<string, Member>
+  chat: ChatMessage[]
   snapshots: Snapshot[]
   events: RoomEvent[]
   proposals: Proposal[]

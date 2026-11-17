@@ -1106,17 +1106,21 @@
   grid-template-columns: minmax(0, 1fr) 260px;
   background: var(--scene);
 }
+.sidebarStats {
+  display: grid;
+  gap: 8px;
+}
 .coreRequirements {
   display: grid;
-  gap: 10px;
+  gap: 4px;
   margin: 0;
 }
 .coreRequirements > div {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px 12px;
+  gap: 4px 10px;
   align-items: baseline;
-  padding-bottom: 10px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--line);
 }
 .coreRequirements > div:last-child {
@@ -1134,16 +1138,9 @@
   margin: 0;
   font-family: var(--display-font);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink);
   text-align: right;
-}
-.coreRequirementsLegend {
-  margin: 14px 0 8px;
-  color: var(--muted);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 .coreRequirementGrid {
   list-style: none;
@@ -1151,19 +1148,19 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px 8px;
+  gap: 6px;
 }
 .coreRequirementCell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 .coreRequirementShapeGlyph {
   display: block;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   flex: none;
   background-color: var(--muted);
   mask-size: contain;
@@ -1180,6 +1177,9 @@
   color: var(--muted);
   line-height: 1.2;
   text-align: center;
+}
+.coreRequirementMet {
+  color: var(--accent);
 }
 .gameShell {
   height: 100%;
@@ -1210,8 +1210,25 @@
   margin: 0;
   border: 0;
 }
-.gameTitle {
+.gameTitleBlock {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.15;
+}
+.gameProduct {
+  margin: 0;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gameTitle {
   margin: 0;
   min-width: 0;
   overflow: hidden;
@@ -1340,11 +1357,23 @@
   min-height: 0;
   overflow: auto;
   border-left: 1px solid var(--line);
-  padding: 10px 12px 16px;
+  padding: 8px 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   font-size: 11px;
+}
+.sidebarSectionTitle {
+  margin: 0 0 4px;
+  font-family: var(--display-font);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.sidebarModeration {
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
 }
 .gameSidebar .collective {
   margin-top: 0;
@@ -1356,11 +1385,11 @@
   font-size: 16px;
 }
 .gameSidebar .tabs {
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 .gameSidebar .tabs button {
-  padding: 6px 0;
+  padding: 4px 0;
   font-size: 10px;
 }
 .gameSidebar .members > article {
@@ -1384,6 +1413,125 @@
 }
 .gameSidebar .proposals > article {
   padding: 10px;
+}
+.sidebarDock {
+  margin-top: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sidebarBlock {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.roomCollaboratorList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.roomCollaboratorItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.roomCollaboratorName {
+  font-size: 11px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.roomChat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  flex: 1;
+}
+.roomChatLog {
+  flex: 1;
+  min-height: 72px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+.roomChatList {
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px;
+  display: grid;
+  gap: 8px;
+}
+.roomChatMessage {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+.roomChatBody {
+  margin: 0;
+  line-height: 1.45;
+  color: var(--ink);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.roomChatBody strong {
+  display: block;
+  font-size: 10px;
+  font-family: var(--display-font);
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+.roomChatTime {
+  font-size: 9px;
+  color: var(--muted);
+}
+.roomChatForm,
+.roomChatGuest {
+  display: grid;
+  gap: 6px;
+}
+.roomChatField {
+  display: grid;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.roomChatField textarea,
+.roomChatGuestInput {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink);
+  min-width: 0;
+  width: 100%;
+  resize: vertical;
+  min-height: 52px;
+}
+.gameSidebar .roomChatForm .primary,
+.gameSidebar .roomChatGuest .primary {
+  padding: 8px 12px;
+  font-size: 11px;
+  text-align: center;
+  text-decoration: none;
+}
+.roomChatGuestInput {
+  cursor: pointer;
+  color: var(--muted);
 }
 .controls {
   display: grid;

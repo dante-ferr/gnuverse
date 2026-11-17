@@ -34,6 +34,13 @@ export type Proposal = {
   decidedBy?: string | null
   executionStatus?: string
 }
+export type ChatMessage = {
+  id: string
+  authorId: string
+  authorNickname: string
+  text: string
+  createdAt: number
+}
 export type GameEvent = {
   id: string
   type: string

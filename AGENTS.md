@@ -26,7 +26,7 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 - The server moves packets simultaneously. Packets do not swap. An open core slot consumes a circle and counts a delivery.
 - No stability bar and no crash / game over. Deliveries accumulate; later versions keep prior packet demands active so dropping an older supply blocks leveling up rather than ending the match. There is no victory screen yet.
 - All gameplay and presentation numbers live in the `[pipeline]` table and reach the client on the rules payload. Do not hardcode them in TypeScript. `game:dev` watches `game.config.toml` and hot-reloads `[pipeline]` on save (invalid edits keep the previous rules).
-- In-room copy is Portuguese. Core requirements sit in a room sidebar (stacked under the canvas on mobile). Git blame on belts stays on the canvas hover label.
+- In-room copy is Portuguese. Core requirements, collaborators, and room chat sit in a room sidebar (stacked under the canvas on mobile). Git blame on belts stays on the canvas hover label.
 - **Machine presentation and footprints:** [`docs/src/decisions.md`](docs/src/decisions.md) §9 Open Pipeline machines. **Gameplay loop:** [`docs/src/game/rules.md`](docs/src/game/rules.md). When implementing or changing machine art, palette, outlines, belts presentation, or resource glyphs, **read §9 before inventing** — do not invent art rules from memory or this file’s short bullets.
 
 ### Agent workflow

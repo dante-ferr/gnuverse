@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { Member, Rules, Room, User } from '../domain/types.ts'
+import type { ChatMessage, Member, Rules, Room, User } from '../domain/types.ts'
 import { fail, text, integer, mode } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import { WalletService } from '../economy/wallet-service.ts'
@@ -63,6 +63,7 @@ export class RoomService {
       snapshots: room.snapshots,
       events: room.events,
       members: Object.values(room.members),
+      chat: room.chat ?? [],
       proposals: room.proposals,
       rules: this.rules,
     }
@@ -113,6 +114,7 @@ export class RoomService {
         'Contribuições mínimas',
       ),
       members: {},
+      chat: [],
       snapshots: [],
       events: [],
       proposals: [],
@@ -202,6 +204,28 @@ export class RoomService {
     this.member(room, user)
     this.runtime.afterAction(room)
     return { frame: room.frame }
+  }
+  chat(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    this.editable(room)
+    const now = this.now()
+    if (
+      this.rules.chatCooldownMs > 0 &&
+      participant.lastChatAt != null &&
+      now - participant.lastChatAt < this.rules.chatCooldownMs
+    )
+      fail(429, 'Aguarde um momento antes de enviar outra mensagem.')
+    const message: ChatMessage = {
+      id: randomUUID(),
+      authorId: user.id,
+      authorNickname: user.nickname,
+      text: text(body.text, 1, this.rules.chatMessageMaxLength, 'Mensagem'),
+      createdAt: now,
+    }
+    room.chat = [...(room.chat ?? []), message].slice(-this.rules.chatHistoryLimit)
+    participant.lastChatAt = now
+    participant.nickname = user.nickname
+    this.runtime.publishChat(room.id, room.chat)
+    return { message, chat: room.chat }
   }
   private editable(room: Room) {
     if (!isPipelineFrame(room.frame))

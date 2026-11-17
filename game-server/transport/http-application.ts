@@ -203,13 +203,14 @@ export class HttpApplication {
         if (participant.banned) fail(403, 'Você foi banido desta sala.')
         if (path[3] === 'settings' && path.length === 4)
           return rooms.settings(room, user, body)
-        const pipelineActions = ['place', 'remove', 'join'] as const
+        const pipelineActions = ['place', 'remove', 'join', 'chat'] as const
         if (
           pipelineActions.includes(path[3] as (typeof pipelineActions)[number]) &&
           path.length === 4
         ) {
           if (path[3] === 'place') return rooms.place(room, user, participant, body)
           if (path[3] === 'remove') return rooms.removeBelt(room, user, participant, body)
+          if (path[3] === 'chat') return rooms.chat(room, user, participant, body)
           return rooms.join(room, user)
         }
         if (

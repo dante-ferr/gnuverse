@@ -17,6 +17,9 @@ export type GameRules = {
   maxBelts: number
   maxRooms: number
   sessionDurationMs: number
+  chatMessageMaxLength: number
+  chatHistoryLimit: number
+  chatCooldownMs: number
   prototype: boolean
   bdflVeto: boolean
 }
@@ -38,6 +41,9 @@ const economyDefaults = {
   max_belts: 200,
   max_rooms: 200,
   session_duration_ms: 604_800_000,
+  chat_message_max_length: 280,
+  chat_history_limit: 100,
+  chat_cooldown_ms: 1000,
   prototype: true,
   bdfl_veto: false,
 } satisfies Record<string, number | boolean>
@@ -54,6 +60,9 @@ const economyMappings = {
   max_belts: 'maxBelts',
   max_rooms: 'maxRooms',
   session_duration_ms: 'sessionDurationMs',
+  chat_message_max_length: 'chatMessageMaxLength',
+  chat_history_limit: 'chatHistoryLimit',
+  chat_cooldown_ms: 'chatCooldownMs',
   prototype: 'prototype',
   bdfl_veto: 'bdflVeto',
 } as const
@@ -70,6 +79,9 @@ const economyIntegerRules: Record<string, { min: number; max: number }> = {
   max_belts: { min: 1, max: 500 },
   max_rooms: { min: 1, max: 100_000 },
   session_duration_ms: { min: 60_000, max: 31_536_000_000 },
+  chat_message_max_length: { min: 1, max: 2000 },
+  chat_history_limit: { min: 10, max: 500 },
+  chat_cooldown_ms: { min: 0, max: 60_000 },
 }
 
 const economyKeys = Object.keys(economyDefaults) as (keyof typeof economyDefaults)[]

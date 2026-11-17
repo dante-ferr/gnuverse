@@ -13,8 +13,15 @@ import { useRoomLobby } from '../hooks/use-room-lobby'
 import { pipelineRulesFrom } from './model/frame'
 import { usePipelineStream } from './hooks/use-pipeline-stream'
 import { CoreRequirementsSidebar } from './core-requirements-sidebar'
+import { RoomCollaborators } from './room-collaborators'
+import { RoomChat } from './room-chat'
 import { PipelineScene } from './scene/pipeline-scene'
 import styles from '../game-shell.module.css'
+
+function roomLoginHref() {
+  if (typeof window === 'undefined') return '/login/'
+  return `/login/?next=${encodeURIComponent(window.location.pathname + window.location.search)}`
+}
 
 /** Room chrome, core-requirements sidebar, and the grid canvas. */
 export function PipelineRoom() {
@@ -23,11 +30,18 @@ export function PipelineRoom() {
   const live = usePipelineStream(session.api, lobby.roomId)
   const feedback = useActionFeedback()
   const router = useRouter()
+  const [loginHref, setLoginHref] = useState('/login/')
+  const chatMaxLength =
+    typeof live.rules?.chatMessageMaxLength === 'number' && live.rules.chatMessageMaxLength > 0
+      ? live.rules.chatMessageMaxLength
+      : 280
   const [showCreate, setShowCreate] = useState(false)
   const rules = pipelineRulesFrom(live.rules ?? lobby.rules)
+  useEffect(() => {
+    setLoginHref(roomLoginHref())
+  }, [lobby.roomId])
   const openLogin = () => {
-    const destination = new URL(window.location.href)
-    router.push(`/login/?next=${encodeURIComponent(destination.pathname + destination.search)}`)
+    router.push(roomLoginHref())
   }
   useEffect(() => {
     if (!session.user || !lobby.roomId) return
@@ -44,6 +58,15 @@ export function PipelineRoom() {
     })
   }
   const removeRefresh = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sendChat = (text: string) => {
+    if (!session.user) {
+      router.push(loginHref)
+      return
+    }
+    void feedback.run(async () => {
+      await session.api.request(`/api/towers/${lobby.roomId}/chat`, { text })
+    })
+  }
   const remove = (cells: { x: number; y: number }[]) => {
     if (cells.length === 0) return
     if (!session.user) {
@@ -139,7 +162,20 @@ export function PipelineRoom() {
               onRemove={remove}
             />
           </div>
-          <CoreRequirementsSidebar frame={live.frame.seed ? live.frame : null} />
+          <aside className={styles.gameSidebar} aria-label="Painel da sala">
+            <CoreRequirementsSidebar frame={live.frame.seed ? live.frame : null} />
+            {live.frame.seed ? (
+              <RoomCollaborators collaborators={live.frame.collaborators} />
+            ) : null}
+            <RoomChat
+              messages={live.chat}
+              user={session.user}
+              loginHref={loginHref}
+              maxLength={chatMaxLength}
+              busy={feedback.busy}
+              onSend={sendChat}
+            />
+          </aside>
         </div>
       ) : (
         <p className={styles.message} role="status">
