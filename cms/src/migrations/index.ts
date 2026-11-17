@@ -1,6 +1,7 @@
 import * as migration_20261014_224435 from './20261014_224435';
 import * as migration_20261014_224856_storage from './20261014_224856_storage';
 import * as migration_20261115_155653_editorial_workflow from './20261115_155653_editorial_workflow';
+import * as migration_20261116_162100_article_hashtags_published_at from './20261116_162100_article_hashtags_published_at';
 
 export const migrations = [
   {
@@ -17,5 +18,10 @@ export const migrations = [
     up: migration_20261115_155653_editorial_workflow.up,
     down: migration_20261115_155653_editorial_workflow.down,
     name: '20261115_155653_editorial_workflow'
+  },
+  {
+    up: migration_20261116_162100_article_hashtags_published_at.up,
+    down: migration_20261116_162100_article_hashtags_published_at.down,
+    name: '20261116_162100_article_hashtags_published_at',
   },
 ];

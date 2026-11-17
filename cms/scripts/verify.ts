@@ -151,17 +151,34 @@ try {
   )
 
   // 6. Criação de rascunho por autor e isolamento entre autores distintos.
-  const example = JSON.parse(await readFile(path.resolve('../content/demo-article.json'), 'utf8'))
+  const rawExample = JSON.parse(await readFile(path.resolve('../content/demo-article.json'), 'utf8'))
+  const example = {
+    ...rawExample,
+    hashtags: Array.isArray(rawExample.hashtags)
+      ? rawExample.hashtags.map((tag: string | { tag: string }) => (typeof tag === 'string' ? { tag } : tag))
+      : [],
+  }
   const article = await payload.create({
     collection: 'articles',
     user: author1,
     overrideAccess: false,
     draft: true,
-    data: { ...example, cover: media.id, owner: author2.id, _status: 'draft' },
+    data: {
+      ...example,
+      hashtags: [{ tag: '#GNU' }, { tag: 'software-livre' }, { tag: 'gnu' }],
+      cover: media.id,
+      owner: author2.id,
+      _status: 'draft',
+    },
   })
   assert.equal(ownerIdOf(article.owner), author1.id, 'Owner precisa ser atribuído à conta autora autenticada')
   assert.equal(article._status, 'draft')
   assert.equal(article.reviewStatus, 'draft')
+  assert.deepEqual(
+    (article.hashtags ?? []).map((item) => item.tag),
+    ['gnu', 'software-livre'],
+    'Hashtags precisam ser normalizadas e deduplicadas no beforeChange',
+  )
 
   assert.equal((await payload.find({ collection: 'articles', overrideAccess: false })).totalDocs, 0)
   assert.equal((await payload.find({ collection: 'articles', user: author1, overrideAccess: false })).totalDocs, 1)
@@ -296,6 +313,12 @@ try {
   assert.equal(anonByID.title, example.title)
   assert.equal(anonByID.reviewNotes, undefined, 'reviewNotes não pode vazar na leitura pública por ID')
   assert.equal(anonByID.owner, undefined, 'owner não pode vazar na leitura pública')
+  assert.deepEqual(
+    (anonByID.hashtags ?? []).map((item) => item.tag),
+    ['gnu', 'software-livre'],
+    'Hashtags precisam persistir na leitura pública do artigo',
+  )
+  assert.ok(typeof anonByID.publishedAt === 'string' && anonByID.publishedAt.length > 0, 'publishedAt precisa persistir na leitura pública')
 
   const otherAuthorPublishedView = await payload.findByID({
     collection: 'articles',

@@ -55,3 +55,13 @@ test('lê todas as páginas com filtro de publicação, sem credenciais de usuá
 test('falha de CMS aborta a publicação em vez de substituir por conteúdo demo', async () => {
   await assert.rejects(fetchPublishedArticles('https://cms.example.test', async () => new Response('', { status: 503 })), /indisponível/)
 })
+
+test('validateArticle normaliza hashtags e preserva publishedAt', () => {
+  const validated = validateArticle({
+    ...published,
+    publishedAt: '2026-11-10T12:00:00.000Z',
+    hashtags: [{ tag: '#GNU' }, 'softwarelivre', { tag: 'gnu' }, { tag: 'tag invalida' }, 'Educação'],
+  })
+  assert.equal(validated.publishedAt, '2026-11-10T12:00:00.000Z')
+  assert.deepEqual(validated.hashtags, ['gnu', 'softwarelivre', 'educacao'])
+})
