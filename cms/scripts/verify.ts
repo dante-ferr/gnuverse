@@ -510,6 +510,41 @@ try {
   assert.equal(removed.status, 200)
   assert.ok(await payload.findByID({ collection: 'users', id: editor.id }), 'Remover vínculo não exclui a conta')
   await verifySharedIdentity(payload, directory, admin.email, adminPassword)
+
+  // Conta member (cadastrada via /cadastro/) pode enviar rascunho para revisão, mas não publicar diretamente.
+  const member = await payload.create({
+    collection: 'users',
+    user: admin,
+    overrideAccess: false,
+    data: {
+      name: 'Participante Blog',
+      nickname: 'participante_blog',
+      email: 'member-blog@example.test',
+      password: randomBytes(24).toString('hex'),
+      role: 'member',
+    },
+  })
+  const memberDraft = await payload.create({
+    collection: 'articles',
+    user: member,
+    overrideAccess: false,
+    draft: true,
+    data: { ...example, slug: 'rascunho-participante', reviewStatus: 'in_review', _status: 'draft' },
+  })
+  assert.equal(memberDraft._status, 'draft')
+  assert.equal(memberDraft.reviewStatus, 'in_review')
+  await assert.rejects(
+    payload.update({
+      collection: 'articles',
+      id: memberDraft.id,
+      user: member,
+      overrideAccess: false,
+      data: { _status: 'published' },
+    }),
+    'Participante não pode publicar diretamente sem aprovação editorial',
+  )
+  await payload.delete({ collection: 'articles', id: memberDraft.id, user: reviewer, overrideAccess: false })
+
   console.log(
     'CMS verificado: bootstrap admin, auto-registro author, bloqueio de escalada, isolamento entre autores, fluxo editorial de revisão/aprovação, proteção contra sobrescrita de publicado e sigilo de reviewNotes.',
   )

@@ -28,7 +28,8 @@ type RequestCheck = ({ req }: { req: PayloadRequest }) => boolean
 export const isAdmin: RequestCheck = ({ req }) => req.user?.role === 'admin'
 export const isReviewer: RequestCheck = ({ req }) =>
   reviewerRoles.includes(req.user?.role ?? '')
-export const isAuthor: RequestCheck = ({ req }) => req.user?.role === 'author'
+export const isAuthor: RequestCheck = ({ req }) =>
+  req.user?.role === 'author' || req.user?.role === 'member'
 export const canCreateArticle: RequestCheck = ({ req }) =>
   isReviewer({ req }) || isAuthor({ req })
 
