@@ -1,6 +1,6 @@
 # Blog autoral — proposta e situação atual
 
-Atualizado em 21/10/2026.
+Atualizado em 15/11/2026.
 
 ## Decisões de produto
 
@@ -13,29 +13,26 @@ Atualizado em 21/10/2026.
 
 Como proposta editorial, cada integrante pode escrever um texto de investigação e um de experiência, entrevista ou caso analisado. Essa distribuição não é uma exigência do PDF e os títulos serão escolhidos pelo grupo. Revisão cruzada entre integrantes antes da submissão.
 
-## Fluxo pretendido, ainda não implementado
+## Fluxo editorial implementado
 
-Rascunho → enviado para revisão → ajustes ou aprovação → publicado.
+Rascunho (`draft`) → enviado para revisão (`in_review`) → ajustes solicitados (`changes_requested`) ou aprovação (`approved`) → publicado (`_status: 'published'`).
 
-Autores podem preparar/submeter seus textos; revisores autorizam a publicação. Definir quem revisa, critérios, mensagens de devolutiva e revisão de alterações em posts já publicados. Registrar autoria e fontes sem delegar a reflexão à IA.
+Autores preparam e submetem seus textos (`author`); revisores (`reviewer`) e administradores (`admin`) analisam, registram devolutiva (`reviewNotes`), aprovam e autorizam a publicação. A equipe ainda precisa alinhar critérios editoriais humanos e revisão cruzada antes de cada publicação, registrando autoria e fontes sem delegar a reflexão à IA.
 
-O registro público de jogadores e a submissão de posts podem compartilhar identidade no futuro, mas esse desenho ainda não foi escolhido. A política editorial do blog é independente de banimentos e votações de uma torre.
+O registro público de jogadores (`game-server/`) e o cadastro de autores do blog no CMS funcionam de forma independente: a política editorial do blog não depende de banimentos ou votações de uma torre.
 
 ## O que está implementado
 
-Verificado no código em 21/10/2026:
-
-- Payload CMS separado em `cms/`, com painel, login e contas criadas pelo administrador.
-- Administrador e editor. Editor atualmente pode criar, editar, publicar e excluir artigos; não há aprovação obrigatória nem papel restrito de autor/revisor.
-- Não existe cadastro público de autores ou jogadores, nem formulário público de submissão.
-- Editor visual, título, endereço, resumo, autoria em texto, categoria, capa opcional e referências.
-- Rascunhos e versões; leitura pública de artigos publicados.
-- Lista `/artigos/` e páginas `/artigos/[slug]/`.
-- Sincronização no build, exportação estática e cópia de capas, sem consulta ao CMS durante a visita.
-- Hook para solicitar deploy na publicação; depende de configuração de produção.
-- Exemplo técnico “Olá, GNUverse!” e guia para inseri-lo pelo painel.
-
-A infraestrutura atual serve para um piloto com equipe confiável, mas não atende ainda ao fluxo público moderado. Não abrir o papel de editor a todos os visitantes como substituto da submissão.
+- Payload CMS separado em `cms/`, com painel `/admin`, login e papéis `admin`, `reviewer` e `author`.
+- Regras de acesso e hooks na API e no painel: `author` cria e edita apenas os próprios rascunhos/submissões em `draft` ou `changes_requested` e é bloqueado de publicar diretamente (`_status: 'published'`) ou alterar papéis; `reviewer` e `admin` revisam, registram devolutiva privada (`reviewNotes`), aprovam, publicam, despublicam e excluem artigos.
+- Campo `owner` vinculado automaticamente ao usuário criador na criação do artigo, preservando o campo `author` em texto livre para o nome público exibido.
+- Cadastro público de autores (`POST /api/users`, papel padrão `author`) e painel colapsável `"Contribuir com um artigo · Submissão editorial"` em `/blog/` (`src/components/blog/submission-panel.tsx`), usando Bearer token em `sessionStorage`, allowlist de `CORS`/`CSRF` configurável via `CMS_ALLOWED_ORIGINS` e timeout de 120 s para acomodar o despertar do Render Free.
+- Editor visual no `/admin` e conversão automática de parágrafos em texto simples para Lexical no formulário público; título, endereço (`slug`), resumo, autoria exibida, categoria, capa opcional (via `/admin`) e referências.
+- Rascunhos, versões e status de revisão; leitura pública anônima retorna apenas artigos publicados (sem vazar `reviewNotes`).
+- Lista interativa (`src/components/blog/blog-explorer.tsx`) com filtro por categorias (`Todas`, `Reflexões`, `Educação`, `Acesso`, `Experiências`) e exibição de capas nos cards em `/blog/` e `/artigos/`, além de páginas estáticas `/artigos/[slug]/` com link `← Voltar ao blog`.
+- Sincronização no build (`scripts/sync-content.mjs`), exportação estática em `out/` e cópia de capas para `public/cms-media/`, sem consulta ao CMS durante a leitura dos artigos pelos visitantes.
+- Hook para solicitar deploy na publicação (`cms/src/hooks/deploy-site.ts`).
+- Exemplo técnico “Olá, GNUverse!” (`content/demo-article.json`) e guia para inseri-lo pelo painel.
 
 ## CMS e hospedagem escolhidos
 
@@ -44,20 +41,18 @@ A infraestrutura atual serve para um piloto com equipe confiável, mas não aten
 - Site público exportado no Cloudflare Pages.
 - Conteúdo no banco e mídia no storage, sem commits editoriais.
 - Publicar solicita um build, que lê publicados e copia as capas. Após sucesso, a versão estática é atualizada.
-- O CMS pode suspender no plano gratuito sem fazer leitores aguardarem seu despertar; painel e builds ainda dependem de ele responder.
+- O CMS pode suspender no plano gratuito sem fazer leitores aguardarem seu despertar; painel, builds e o painel opcional de submissão em `/blog/` dependem de ele responder (com espera de até 120 s).
 
-Testes locais anteriores cobriram permissões atuais, rascunhos, upload, migrações e builds, incluindo artigo e capa com o CMS desligado. A configuração real de Supabase/S3 e do deploy hook não foi validada. Não há evidência nesta sessão de publicação em nuvem.
+A configuração real de Supabase/S3, `CMS_ALLOWED_ORIGINS`, `NEXT_PUBLIC_CMS_URL` e do deploy hook na nuvem ainda não foi validada em produção.
 
 ## Próximos passos
 
-1. Implementar autor/revisor e impedir publicação direta por autores, inclusive pela API.
-2. Definir e implementar como visitantes se cadastram e enviam posts para revisão.
-3. Configurar serviços e credenciais e validar o fluxo de publicação na nuvem.
-4. Produzir, revisar e publicar os 14 posts do grupo.
-5. Configurar recuperação de senha por e-mail e revisar o uso de contas públicas antes da abertura externa.
+1. Configurar serviços e credenciais na nuvem (Supabase, Render Free e Cloudflare Pages) e validar o fluxo completo de publicação e submissão externa em produção.
+2. Configurar adaptador **SMTP** no Payload para recuperação de senha por e-mail e revisar proteções anti-spam/rate limit antes de divulgar o cadastro externo ao público amplo.
+3. Produzir, revisar de forma cruzada e publicar os **14 posts** do grupo.
 
 Operação local e credenciais: [guia do CMS](teste-cms.md). Arquitetura: [decisões técnicas](arquitetura-cms.md).
 
 ## Divisão de trabalho atual
 
-O usuário decidiu deixar a implementação do blog para outro integrante. A entrada pública é `/blog/`, reutilizando a lista já existente; `/artigos/` e as páginas individuais foram preservadas. Nesta etapa não foram alterados modelos, permissões ou publicação do CMS. O jogo será implementado em outra conversa e tem entrada independente em `/jogo/`.
+A entrada pública do blog é `/blog/` (com listagem filtrável, capas e submissão editorial colapsável), mantendo `/artigos/` e `/artigos/[slug]/` compatíveis. Tanto o fluxo editorial (`author`/`reviewer`/`admin`) no CMS quanto a experiência do jogo em `/jogo/` (`game-server/` local) já estão implementados na base atual, restando nuvem, SMTP e conteúdo.

@@ -57,7 +57,13 @@ test(
       output += data
     })
     try {
-      let started: { role: string; api?: string; origins?: string }[] = []
+      let started: {
+        role: string
+        api?: string
+        origins?: string
+        cmsUrl?: string
+        cmsOrigins?: string
+      }[] = []
       const deadline = Date.now() + 10000
       while (Date.now() < deadline && child.exitCode === null) {
         try {
@@ -80,10 +86,19 @@ test(
         started.find((item) => item.role === 'site')?.api,
         `http://localhost:${gamePort}`,
       )
+      assert.equal(
+        started.find((item) => item.role === 'site')?.cmsUrl,
+        `http://localhost:${cmsPort}`,
+      )
       assert.ok(
         started
           .find((item) => item.role === 'game')
           ?.origins?.includes(`http://localhost:${sitePort}`),
+      )
+      assert.ok(
+        started
+          .find((item) => item.role === 'cms')
+          ?.cmsOrigins?.includes(`http://localhost:${sitePort}`),
       )
       child.kill('SIGTERM')
       await exited

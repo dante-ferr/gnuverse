@@ -13,6 +13,7 @@
     "migrate": "payload migrate",
     "migrate:create": "payload migrate:create",
     "setup:local": "node scripts/setup-local.mjs",
+    "seed:demo": "node --import tsx scripts/seed-blog-demo.ts",
     "test": "node --import tsx scripts/verify.ts"
   },
   "engines": {

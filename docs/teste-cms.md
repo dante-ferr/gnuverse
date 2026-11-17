@@ -2,7 +2,7 @@
 
 ## Escopo deste guia
 
-Este guia testa a integração editorial já implementada. O produto agora prevê [blog com aprovação](blog.md) e [jogo de torres independente](torres-colaborativas.md). Editores ainda publicam diretamente no código atual: revisão obrigatória, cadastro/submissão públicos e jogo estão pendentes. Os passos abaixo não comprovam essas funcionalidades futuras.
+Este guia testa a integração básica de escrita e publicação do CMS para [blog com aprovação](blog.md) (além do [jogo de torres independente](torres-colaborativas.md)). O repositório também já inclui o fluxo de revisão editorial (`author`, `reviewer`, `editor` como alias legado e `admin`) e o painel de submissão pública em `/blog/`, verificados por `make check`.
 
 ## 1. Teste local sem chaves externas
 
@@ -15,7 +15,7 @@ make dev
 
 Abra a URL do painel impressa no terminal. `make dev` inicia CMS, jogo e site juntos e Ctrl+C encerra os três. O setup gera `cms/.env` com segredo local aleatório e cria o diretório do SQLite. O segredo não é mostrado e não entra no Git. Essa base de desenvolvimento não será transferida automaticamente ao Supabase.
 
-No primeiro acesso, crie seu usuário com nome, e-mail e senha. Ele será administrador. Depois, em **Integrantes**, você poderá criar contas com papel **Editor**. Não é necessário pagar por esses papéis nem obter uma chave de API do Payload.
+No primeiro acesso, crie seu usuário com nome, e-mail e senha. Ele será administrador (`admin`). Depois, em **Integrantes**, você poderá criar contas com papel **Revisor** (`reviewer`), **Editor** (`editor`, alias legado de revisor) ou **Autor** (`author`). Não é necessário pagar por esses papéis nem obter uma chave de API do Payload.
 
 ## 2. Inserir este conteúdo pelo painel
 
@@ -95,7 +95,7 @@ Não precisamos de `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` ou chave de 
 4. **Build Command:** `npm ci && npm run generate:importmap && npm run build`.
 5. **Start Command:** `npm run migrate && npm start`. O Next.js usa a variável `PORT` fornecida pelo Render. A migração inicial já está versionada; não gerar migrações automaticamente em produção.
 6. Configure as variáveis do CMS na tabela. O deploy hook pode ficar vazio enquanto o site público não existir.
-7. No primeiro acesso ao CMS de produção, crie o administrador antes de compartilhar o link e depois crie os editores.
+7. No primeiro acesso ao CMS de produção, crie o administrador antes de compartilhar o link e depois crie as contas de revisores (`reviewer`) ou autores (`author`) da equipe.
 
 Use um projeto Supabase dedicado ao GNUverse. A migração cria tabelas de artigos, versões, usuários e mídia no banco. Para futuras alterações de modelo, gerar/revisar uma nova migração de PostgreSQL e versioná-la antes do deploy. Não usar comandos de reset/fresh no banco de produção.
 

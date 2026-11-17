@@ -9,7 +9,8 @@ export const Users: CollectionConfig = {
   admin: { useAsTitle: 'name' },
   access: {
     admin: canAccessCMS,
-    create: isAdmin,
+    create: ({ data, req }) =>
+      isAdmin({ req }) || (!req.user && (!data?.role || data.role === 'author')),
     read: ({ req }) => isAdmin({ req }) ? true : req.user ? { id: { equals: req.user.id } } : false,
     update: ({ req }) => isAdmin({ req }) ? true : req.user ? { id: { equals: req.user.id } } : false,
     delete: isAdmin,
@@ -27,6 +28,9 @@ export const Users: CollectionConfig = {
         if (existing.totalDocs === 0) {
           if (req.context.publicRegistration) throw new APIError('O administrador precisa configurar o site antes do cadastro de participantes.', 409)
           data.role = 'admin'
+        } else if (!req.context.publicRegistration) {
+          // Cadastro público do blog é sempre author; o endpoint de identidade define member explicitamente.
+          data.role = 'author'
         }
       }
       return data
@@ -38,9 +42,15 @@ export const Users: CollectionConfig = {
       hooks: { beforeValidate: [({ value }) => typeof value === 'string' && value ? value.toLowerCase() : value || null] },
       validate: (value: unknown) => value == null || value === '' || (typeof value === 'string' && /^[\p{L}\p{N}_-]{3,32}$/u.test(value)) || 'Use de 3 a 32 letras, números, _ ou -.' },
     {
-      name: 'role', label: 'Papel', type: 'select', required: true, defaultValue: 'editor',
-      admin: { description: 'Papel inicial do blog. Com a gestão compartilhada ativa, use Pessoas e acessos para definir os papéis válidos em todo o site.' },
-      options: [{ label: 'Administrador', value: 'admin' }, { label: 'Editor', value: 'editor' }, { label: 'Participante', value: 'member' }],
+      name: 'role', label: 'Papel', type: 'select', required: true, defaultValue: 'author',
+      admin: { description: 'Papel editorial do blog. Com a gestão compartilhada ativa, use Pessoas e acessos para papéis válidos em todo o site. Participante (member) é o cadastro público do jogo.' },
+      options: [
+        { label: 'Administrador', value: 'admin' },
+        { label: 'Revisor', value: 'reviewer' },
+        { label: 'Editor', value: 'editor' },
+        { label: 'Autor', value: 'author' },
+        { label: 'Participante', value: 'member' },
+      ],
       access: { create: adminField, update: adminField },
     },
   ],
