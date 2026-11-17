@@ -5,12 +5,16 @@ export type ArticleReference = {
   url: string
 }
 
+export const BLOG_PAGE_SIZE = 6
+
 export type Article = {
   title: string
   slug: string
   summary: string
   author: string
   category: string
+  hashtags?: string[]
+  publishedAt?: string
   body: SerializedEditorState
   references: ArticleReference[]
   cover?: { url: string; alt: string; credit: string }

@@ -278,6 +278,10 @@ async function main() {
       }
     }
 
+    function daysAgoIso(days: number): string {
+      return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+    }
+
     const publishedArticles = [
       {
         title: 'Olá, GNUverse!',
@@ -287,6 +291,8 @@ async function main() {
         owner: autora.id,
         category: 'experiencias' as const,
         cover: mediaByKey.get('experiencias')!,
+        publishedAt: daysAgoIso(2),
+        hashtags: [{ tag: 'gnuverse' }, { tag: 'softwarelivre' }, { tag: 'experiencias' }],
         paragraphs: [
           'Este é um conteúdo de demonstração do GNUverse. Nosso coletivo investiga como o software livre pode ampliar o acesso à tecnologia em escolas, centros comunitários e projetos estudantis.',
           'O fluxo editorial foi desenhado para que autoras e autores escrevam rascunhos diretamente pelo blog e recebam devolutivas da equipe revisora antes da publicação.',
@@ -307,6 +313,8 @@ async function main() {
         owner: autora.id,
         category: 'reflexoes' as const,
         cover: mediaByKey.get('reflexoes')!,
+        publishedAt: daysAgoIso(5),
+        hashtags: [{ tag: 'autonomiadigital' }, { tag: 'softwarelivre' }, { tag: 'cidadania' }],
         paragraphs: [
           'A autonomia digital começa quando uma comunidade deixa de ser apenas consumidora de caixas-pretas tecnológicas e passa a compreender como seus dados e ferramentas funcionam.',
           'Com licenças livres e padrões abertos, estudantes, professoras e coletivos podem auditar programas, traduzir interfaces e adaptar soluções para as necessidades locais sem pedir permissão a grandes corporações.',
@@ -331,6 +339,8 @@ async function main() {
         owner: autor2.id,
         category: 'educacao' as const,
         cover: mediaByKey.get('educacao')!,
+        publishedAt: daysAgoIso(15),
+        hashtags: [{ tag: 'educacao' }, { tag: 'linux' }, { tag: 'escola' }],
         paragraphs: [
           'Muitos laboratórios escolares possuem máquinas que deixam de receber suporte de sistemas proprietários, mas que ganham vida nova quando instaladas com sistemas livres leves e bem documentados.',
           'Durante as oficinas, estudantes aprendem desde a instalação até a manutenção básica do sistema, descobrindo que erros não são bloqueios misteriosos, mas convites para investigar como o computador opera.',
@@ -350,6 +360,8 @@ async function main() {
         owner: autor2.id,
         category: 'acesso' as const,
         cover: mediaByKey.get('acesso')!,
+        publishedAt: daysAgoIso(22),
+        hashtags: [{ tag: 'redescomunitarias' }, { tag: 'acesso' }, { tag: 'gnuverse' }],
         paragraphs: [
           'O acesso à internet e a acervos educacionais ainda é desigual. Redes comunitárias construídas com roteadores livres e servidores locais mostram que a infraestrutura também pode ser um bem comum.',
           'Ao hospedar bibliotecas digitais, wikis e serviços locais em software livre, uma comunidade garante que o aprendizado continue mesmo quando a conexão externa falha ou é limitada.',
@@ -358,6 +370,90 @@ async function main() {
           {
             label: 'Projeto Debian — O Sistema Operacional Universal',
             url: 'https://www.debian.org/intro/about',
+          },
+        ],
+      },
+      {
+        title: 'Festival de Instalação Livre no Campus',
+        slug: 'festival-instalacao-livre-campus',
+        summary: 'Como organizamos um mutirão de instalação de sistemas livres e recuperação de notebooks com estudantes.',
+        author: 'Ana Autora',
+        owner: autora.id,
+        category: 'experiencias' as const,
+        cover: mediaByKey.get('experiencias')!,
+        publishedAt: daysAgoIso(45),
+        hashtags: [{ tag: 'installfest' }, { tag: 'debian' }, { tag: 'experiencias' }],
+        paragraphs: [
+          'Durante um sábado inteiro, voluntárias e estudantes trouxeram computadores antigos para testar distribuições GNU/Linux e aprender a fazer cópias de segurança antes da migração.',
+          'Mais de vinte máquinas voltaram a funcionar com fluidez para estudos de programação, edição de textos e pesquisa acadêmica.',
+        ],
+        references: [
+          {
+            label: 'Documentação Debian',
+            url: 'https://www.debian.org/doc/',
+          },
+        ],
+      },
+      {
+        title: 'Por que Documentação Aberta Também é Software Livre',
+        slug: 'documentacao-aberta-e-software-livre',
+        summary: 'Manuais livres e guias colaborativos garantem que o conhecimento técnico não fique restrito a poucos especialistas.',
+        author: 'Beto Autor',
+        owner: autor2.id,
+        category: 'reflexoes' as const,
+        cover: mediaByKey.get('reflexoes')!,
+        publishedAt: daysAgoIso(65),
+        hashtags: [{ tag: 'documentacao' }, { tag: 'softwarelivre' }, { tag: 'culturalivre' }],
+        paragraphs: [
+          'Um programa livre sem documentação acessível ainda cria barreiras para quem está começando. Licenças livres para manuais permitem traduzir, adaptar e imprimir apostilas sem restrições.',
+          'Documentar em linguagem clara faz parte da responsabilidade coletiva de acolher novas pessoas na comunidade.',
+        ],
+        references: [
+          {
+            label: 'Licença de Documentação Livre GNU (GFDL)',
+            url: 'https://www.gnu.org/licenses/fdl-1.3.html',
+          },
+        ],
+      },
+      {
+        title: 'Bibliotecas Digitais Offline em Salas de Aula',
+        slug: 'bibliotecas-digitais-offline-na-aula',
+        summary: 'Servidores locais com conteúdo aberto permitem consultar enciclopédias e apostilas mesmo sem internet.',
+        author: 'Ana Autora',
+        owner: autora.id,
+        category: 'educacao' as const,
+        cover: mediaByKey.get('educacao')!,
+        publishedAt: daysAgoIso(90),
+        hashtags: [{ tag: 'educacao' }, { tag: 'offline' }, { tag: 'acessibilidade' }],
+        paragraphs: [
+          'Nem toda escola conta com banda larga estável. Usando um computador simples na rede local, é possível servir materiais didáticos em HTML, PDF e vídeo aberto para dezenas de alunos.',
+          'A manutenção desse acervo vira também uma atividade interdisciplinar envolvendo leitura, curadoria e administração básica de sistemas.',
+        ],
+        references: [
+          {
+            label: 'Recursos Educacionais Abertos — UNESCO',
+            url: 'https://www.unesco.org/en/open-educational-resources',
+          },
+        ],
+      },
+      {
+        title: 'Acessibilidade Digital com Leitores de Tela Livres',
+        slug: 'acessibilidade-digital-leitores-de-tela',
+        summary: 'Práticas simples de semântica web e testes com tecnologias assistivas livres tornam projetos estudantis mais inclusivos.',
+        author: 'Beto Autor',
+        owner: autor2.id,
+        category: 'acesso' as const,
+        cover: mediaByKey.get('acesso')!,
+        publishedAt: daysAgoIso(120),
+        hashtags: [{ tag: 'acessibilidade' }, { tag: 'acesso' }, { tag: 'inclusao' }],
+        paragraphs: [
+          'Testar sites e apostilas com leitores de tela livres como o Orca revela rapidamente problemas de contraste, falta de texto alternativo e navegação confusa por teclado.',
+          'Quando a acessibilidade entra desde o início do projeto, todas as pessoas ganham em clareza e autonomia de leitura.',
+        ],
+        references: [
+          {
+            label: 'Projeto Orca — GNOME Accessibility',
+            url: 'https://help.gnome.org/users/orca/stable/',
           },
         ],
       },
@@ -380,6 +476,8 @@ async function main() {
         owner: item.owner,
         category: item.category,
         cover: item.cover,
+        publishedAt: item.publishedAt,
+        hashtags: item.hashtags,
         body: buildLexicalBody(item.paragraphs),
         references: item.references,
         reviewStatus: 'approved' as const,
@@ -519,7 +617,7 @@ async function main() {
         'Seed de demonstração do blog concluído com sucesso:',
         `  • 4 contas preparadas (senha padrão: ${DEMO_PASSWORD}): admin@gnuverse.local, revisor@gnuverse.local, autora@gnuverse.local, autor2@gnuverse.local`,
         '  • 4 imagens de capa geradas (experiencias, reflexoes, educacao, acesso)',
-        '  • 4 artigos publicados (ola-gnuverse, autonomia-digital-e-software-livre, oficinas-de-codigo-aberto-na-escola, redes-comunitarias-e-acesso-livre)',
+        '  • 8 artigos publicados (2 por categoria, com capa, hashtags e datas variadas)',
         '  • 3 artigos em fluxo editorial de autora@gnuverse.local (draft, in_review, changes_requested)',
       ].join('\n'),
     )

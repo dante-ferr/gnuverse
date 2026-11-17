@@ -51,6 +51,34 @@ function assertSafeLexicalNode(node: unknown): void {
   }
 }
 
+function normalizeHashtagItems(raw: unknown[]): Array<Record<string, unknown>> {
+  const seen = new Set<string>()
+  const result: Array<Record<string, unknown>> = []
+  for (const item of raw) {
+    const rawTag =
+      typeof item === 'string'
+        ? item
+        : typeof item === 'object' && item !== null && 'tag' in item && typeof (item as { tag?: unknown }).tag === 'string'
+          ? (item as { tag: string }).tag
+          : ''
+    const normalized = rawTag
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/^#+/, '')
+      .toLowerCase()
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    result.push(
+      typeof item === 'object' && item !== null
+        ? { ...(item as Record<string, unknown>), tag: normalized }
+        : { tag: normalized },
+    )
+    if (result.length >= 10) break
+  }
+  return result
+}
+
 const canReadReviewNotes: FieldAccess = ({ doc, req }) => {
   if (!req.user) return false
   if (isReviewer({ req })) return true
@@ -158,6 +186,14 @@ export const Articles: CollectionConfig = {
           data.reviewStatus = 'approved'
         }
 
+        if (Array.isArray(data.hashtags)) {
+          data.hashtags = normalizeHashtagItems(data.hashtags)
+        }
+
+        if (data._status === 'published' && !data.publishedAt && !originalDoc?.publishedAt) {
+          data.publishedAt = new Date().toISOString()
+        }
+
         return data
       },
     ],
@@ -214,6 +250,29 @@ export const Articles: CollectionConfig = {
       { label: 'Experiências', value: 'experiencias' },
     ] },
     { name: 'cover', label: 'Imagem de capa (opcional)', type: 'upload', relationTo: 'media' },
+    {
+      name: 'publishedAt',
+      label: 'Data de publicação',
+      type: 'date',
+      admin: { position: 'sidebar' },
+    },
+    {
+      name: 'hashtags',
+      label: 'Hashtags',
+      type: 'array',
+      maxRows: 10,
+      fields: [
+        {
+          name: 'tag',
+          label: 'Hashtag',
+          type: 'text',
+          required: true,
+          validate: (value: unknown) =>
+            (typeof value === 'string' && /^[a-z0-9][a-z0-9-_]{0,39}$/.test(value.trim().replace(/^#/, '').toLowerCase())) ||
+            'Use apenas letras minúsculas, números, hífen ou sublinhado (até 40 caracteres).',
+        },
+      ],
+    },
     { name: 'body', label: 'Texto', type: 'richText', required: true },
     { name: 'references', label: 'Referências', type: 'array', fields: [
       { name: 'label', label: 'Título da fonte', type: 'text', required: true },

@@ -23,12 +23,57 @@ export type SubmissionArticle = {
   summary: string
   author: string
   category: string
+  hashtags?: Array<{ tag?: string } | string>
   body?: unknown
   references?: ArticleReference[]
   _status?: 'draft' | 'published'
   reviewStatus?: ReviewStatus
   reviewNotes?: string | null
   updatedAt?: string
+}
+
+const MAX_HASHTAGS = 10
+
+/**
+ * Converte texto livre de hashtags (separadas por vírgula ou espaço) em uma
+ * lista normalizada, única e limitada a 10 itens.
+ */
+export function parseHashtagsInput(input: string): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  const tokens = input.split(/[\s,]+/)
+
+  for (const raw of tokens) {
+    const cleaned = raw
+      .trim()
+      .replace(/^#+/, '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, '')
+
+    if (!cleaned || seen.has(cleaned)) continue
+    seen.add(cleaned)
+    result.push(cleaned)
+    if (result.length >= MAX_HASHTAGS) break
+  }
+
+  return result
+}
+
+/**
+ * Formata uma lista de hashtags do CMS ou formulário para edição em texto.
+ */
+export function formatHashtagsInput(
+  tags?: Array<{ tag?: string } | string>,
+): string {
+  if (!Array.isArray(tags) || tags.length === 0) return ''
+  const raw = tags
+    .map((item) => (typeof item === 'string' ? item : item?.tag ?? ''))
+    .join(' ')
+  return parseHashtagsInput(raw)
+    .map((tag) => `#${tag}`)
+    .join(', ')
 }
 
 export function slugifyTitle(title: string): string {
@@ -127,6 +172,7 @@ export type SubmissionFormValues = {
   summary: string
   author: string
   category: string
+  hashtags: string[]
   bodyText: string
   references: ArticleReference[]
 }
@@ -137,6 +183,7 @@ export type ValidatedSubmission = {
   summary: string
   author: string
   category: string
+  hashtags: string[]
   body: SerializedEditorState
   references: ArticleReference[]
 }
@@ -192,9 +239,13 @@ export function validateSubmissionInput(
     references.push({ label, url })
   }
 
+  const hashtags = parseHashtagsInput(
+    Array.isArray(input.hashtags) ? input.hashtags.join(' ') : '',
+  )
+
   return {
     ok: true,
-    data: { title, slug, summary, author, category, body, references },
+    data: { title, slug, summary, author, category, hashtags, body, references },
   }
 }
 

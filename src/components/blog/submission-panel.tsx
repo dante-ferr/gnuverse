@@ -2,12 +2,15 @@
 
 import Link from 'next/link'
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { EditorialHeader } from '@/components/blog/editorial-header'
 import { categoryNames, type ArticleReference } from '@/lib/article-meta'
 import {
   canAuthorEditSubmission,
   extractCmsErrorMessage,
+  formatHashtagsInput,
   formatRequestFailure,
   lexicalToPlainText,
+  parseHashtagsInput,
   REVIEW_STATUS_LABELS,
   type ReviewStatus,
   slugifyTitle,
@@ -54,6 +57,7 @@ const SAMPLE_ARTICLE = {
   summary:
     'Como ferramentas abertas e reprodutíveis fortalecem a pesquisa acadêmica e evitam o aprisionamento tecnológico.',
   category: 'educacao',
+  hashtags: ['softwarelivre', 'cienciaaberta', 'educacao'],
   bodyText:
     'A ciência depende da capacidade de inspecionar, reproduzir e auditar resultados. Quando laboratórios utilizam formatos fechados e softwares proprietários, parte do conhecimento fica trancada em caixas-pretas.\n\nAdotar software livre na universidade permite que estudantes compreendam o código por trás dos experimentos e compartilhem melhorias com toda a comunidade.',
   references: [
@@ -146,7 +150,11 @@ function formatUpdatedAt(value?: string): string {
   }).format(date)
 }
 
-export function SubmissionPanel() {
+export function SubmissionPanel({
+  mode = 'live',
+}: {
+  mode?: 'demo' | 'live'
+}) {
   const [isOpen, setIsOpen] = useState(false)
   const [session, setSession] = useState<BlogSession | null>(null)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
@@ -167,6 +175,7 @@ export function SubmissionPanel() {
   const [summary, setSummary] = useState('')
   const [author, setAuthor] = useState('')
   const [category, setCategory] = useState('reflexoes')
+  const [hashtagsInput, setHashtagsInput] = useState('')
   const [bodyText, setBodyText] = useState('')
   const [references, setReferences] = useState<ArticleReference[]>([])
   const [submitBusy, setSubmitBusy] = useState(false)
@@ -190,6 +199,7 @@ export function SubmissionPanel() {
       setSummary(SAMPLE_ARTICLE.summary)
       setAuthor((current) => defaultAuthor || current || 'Ana Autora')
       setCategory(SAMPLE_ARTICLE.category)
+      setHashtagsInput(formatHashtagsInput(SAMPLE_ARTICLE.hashtags))
       setBodyText(SAMPLE_ARTICLE.bodyText)
       setReferences(SAMPLE_ARTICLE.references.map((item) => ({ ...item })))
       setSubmitError('')
@@ -206,6 +216,7 @@ export function SubmissionPanel() {
       setSummary('')
       setAuthor(defaultAuthor)
       setCategory('reflexoes')
+      setHashtagsInput('')
       setBodyText('')
       setReferences([])
     },
@@ -493,6 +504,7 @@ export function SubmissionPanel() {
         ? doc.category
         : 'reflexoes',
     )
+    setHashtagsInput(formatHashtagsInput(doc.hashtags))
     setBodyText(lexicalToPlainText(doc.body))
     setReferences(
       Array.isArray(doc.references)
@@ -514,12 +526,14 @@ export function SubmissionPanel() {
     setSubmitError('')
     setSubmitSuccess('')
 
+    const parsedHashtags = parseHashtagsInput(hashtagsInput)
     const validated = validateSubmissionInput({
       title,
       slug,
       summary,
       author,
       category,
+      hashtags: parsedHashtags,
       bodyText,
       references,
     })
@@ -537,6 +551,7 @@ export function SubmissionPanel() {
         ? `${CMS_URL}/api/articles/${encodeURIComponent(editingId)}?draft=true`
         : `${CMS_URL}/api/articles?draft=true`
       const method = editingId ? 'PATCH' : 'POST'
+      const { hashtags, ...submissionPayload } = validated.data
 
       const response = await fetch(endpoint, {
         method,
@@ -545,7 +560,8 @@ export function SubmissionPanel() {
           Authorization: `Bearer ${session.token}`,
         },
         body: JSON.stringify({
-          ...validated.data,
+          ...submissionPayload,
+          hashtags: hashtags.map((tag) => ({ tag })),
           reviewStatus: targetReviewStatus,
           _status: 'draft',
         }),
@@ -586,37 +602,27 @@ export function SubmissionPanel() {
     }
   }
 
+  const previewHashtags = parseHashtagsInput(hashtagsInput)
+
   const inputClass =
     'mt-1.5 w-full rounded-sm border border-[var(--line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none'
 
   return (
-    <section
-      ref={sectionRef}
-      aria-labelledby="editorial-submission-heading"
-      className="mt-16 border-t border-[var(--line)] pt-10"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-[var(--accent)]">
-            Colaboração editorial
-          </p>
-          <h2
-            id="editorial-submission-heading"
-            className="mt-2 text-2xl tracking-tight"
+    <section ref={sectionRef} aria-label="Submissão editorial">
+      <EditorialHeader
+        mode={mode}
+        action={
+          <button
+            type="button"
+            aria-expanded={isOpen}
+            aria-controls="editorial-submission-body"
+            onClick={() => setIsOpen((open) => !open)}
+            className="cursor-pointer rounded-sm border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
           >
-            Contribuir com um artigo · Submissão editorial
-          </h2>
-        </div>
-        <button
-          type="button"
-          aria-expanded={isOpen}
-          aria-controls="editorial-submission-body"
-          onClick={() => setIsOpen((open) => !open)}
-          className="cursor-pointer rounded-sm border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-        >
-          {isOpen ? 'Fechar submissão' : 'Enviar ou acompanhar artigo'}
-        </button>
-      </div>
+            {isOpen ? 'Fechar submissão' : 'Contribuir com um artigo'}
+          </button>
+        }
+      />
 
       {isOpen && (
         <div
@@ -957,6 +963,42 @@ export function SubmissionPanel() {
                     placeholder="Síntese curta apresentada no card e no topo do artigo."
                     className={inputClass}
                   />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="submission-hashtags"
+                    className="block text-sm text-[var(--ink)]"
+                  >
+                    Hashtags (opcional)
+                  </label>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    Separe por vírgula ou espaço (máximo de 10). Ex.:{' '}
+                    <code>#softwarelivre, #educacao, #gnu</code>
+                  </p>
+                  <input
+                    id="submission-hashtags"
+                    type="text"
+                    value={hashtagsInput}
+                    onChange={(e) => setHashtagsInput(e.target.value)}
+                    placeholder="#softwarelivre, #educacao, #cienciaaberta"
+                    className={inputClass}
+                  />
+                  {previewHashtags.length > 0 && (
+                    <ul
+                      aria-label="Pré-visualização das hashtags"
+                      className="mt-2 flex flex-wrap gap-1.5"
+                    >
+                      {previewHashtags.map((tag) => (
+                        <li
+                          key={tag}
+                          className="rounded-sm border border-[var(--line)] bg-[var(--background)] px-2 py-0.5 text-xs text-[var(--accent)]"
+                        >
+                          #{tag}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <div>

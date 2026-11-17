@@ -206,7 +206,7 @@ async function loginUser(email: string, password = DEMO_PASSWORD) {
 
 async function runE2ETests() {
   const siteURL = `http://localhost:${config.sitePort}`
-  console.log('\nIniciando bateria de 10 testes E2E (CMS + Site)...\n')
+  console.log('\nIniciando bateria de 11 testes E2E (CMS + Site)...\n')
 
   // [1/10] GET /api/articles sem auth retorna apenas publicados (>= 4) e oculta reviewNotes e owner
   {
@@ -365,6 +365,7 @@ async function runE2ETests() {
         summary: 'Artigo temporário para validar o ciclo de submissão e revisão.',
         author: 'Ana Autora',
         category: 'experiencias',
+        hashtags: [{ tag: 'teste2e' }, { tag: 'gnuverse' }],
         body: buildSampleLexical('Primeiro parágrafo do rascunho temporário E2E.'),
         references: [{ label: 'Projeto GNU', url: 'https://www.gnu.org/' }],
         reviewStatus: 'draft',
@@ -372,9 +373,20 @@ async function runE2ETests() {
       }),
     })
     assert.equal(createRes.ok, true, 'Autora deve conseguir criar rascunho temporário')
-    const createdPayload = (await createRes.json()) as { doc: { id: number | string; reviewStatus: string } }
+    const createdPayload = (await createRes.json()) as {
+      doc: {
+        id: number | string
+        reviewStatus: string
+        hashtags?: Array<{ tag?: string }>
+      }
+    }
     const tempId = createdPayload.doc.id
     assert.equal(createdPayload.doc.reviewStatus, 'draft')
+    assert.ok(
+      Array.isArray(createdPayload.doc.hashtags) &&
+        createdPayload.doc.hashtags.some((item) => item.tag === 'teste2e'),
+      'Rascunho criado via REST deve preservar hashtags',
+    )
 
     const submitRes = await fetch(`${cmsURL}/api/articles/${tempId}?draft=true`, {
       method: 'PATCH',
@@ -438,20 +450,25 @@ async function runE2ETests() {
       html.includes('Contribuir com um artigo'),
       'HTML de /blog/ deve renderizar o painel "Contribuir com um artigo"',
     )
-    console.log('[PASS] [8/10] GET /blog/ retorna HTTP 200 com os 4 artigos publicados, capas /cms-media/ e painel de submissão.')
+    assert.ok(
+      html.indexOf('Contribuir com um artigo') < html.indexOf('Explorar artigos'),
+      'Painel "Contribuir com um artigo" deve aparecer acima da lista de artigos em /blog/',
+    )
+    assert.ok(html.includes('#'), 'HTML de /blog/ deve renderizar hashtags nos artigos')
+    console.log('[PASS] [8/11] GET /blog/ retorna HTTP 200 com artigos publicados, capas /cms-media/, hashtags e painel de submissão acima.')
   }
 
-  // [9/10] GET /artigos/ retorna HTTP 200 e lista os artigos
+  // [9/11] GET /artigos/ retorna HTTP 200 e lista os artigos
   {
     const res = await fetch(`${siteURL}/artigos/`)
     assert.equal(res.status, 200, 'GET /artigos/ deve retornar HTTP 200')
     const html = await res.text()
     assert.ok(html.includes('Autonomia Digital e Software Livre no Cotidiano'))
     assert.ok(html.includes('Oficinas de Código Aberto na Escola Pública'))
-    console.log('[PASS] [9/10] GET /artigos/ retorna HTTP 200 e lista os artigos publicados.')
+    console.log('[PASS] [9/11] GET /artigos/ retorna HTTP 200 e lista os artigos publicados.')
   }
 
-  // [10/10] GET /artigos/autonomia-digital-e-software-livre/ retorna HTTP 200 e renderiza título, autoria, capa e referências
+  // [10/11] GET /artigos/autonomia-digital-e-software-livre/ retorna HTTP 200 e renderiza título, autoria, capa e referências
   {
     const res = await fetch(`${siteURL}/artigos/autonomia-digital-e-software-livre/`)
     assert.equal(res.status, 200, 'GET /artigos/autonomia-digital-e-software-livre/ deve retornar HTTP 200')
@@ -467,7 +484,17 @@ async function runE2ETests() {
       html.includes('https://www.debian.org/social_contract.pt.html'),
       'Deve renderizar link de referência para debian.org',
     )
-    console.log('[PASS] [10/10] GET /artigos/autonomia-digital-e-software-livre/ renderiza título, autoria, capa e referências.')
+    console.log('[PASS] [10/11] GET /artigos/autonomia-digital-e-software-livre/ renderiza título, autoria, capa e referências.')
+  }
+
+  // [11/11] GET /blog/pagina/2/ retorna HTTP 200 e renderiza artigos paginados
+  {
+    const res = await fetch(`${siteURL}/blog/pagina/2/`)
+    assert.equal(res.status, 200, 'GET /blog/pagina/2/ deve retornar HTTP 200')
+    const html = await res.text()
+    assert.ok(html.includes('<article'), 'GET /blog/pagina/2/ deve renderizar cards de artigos paginados')
+    assert.ok(html.includes('/blog/'), 'GET /blog/pagina/2/ deve incluir link de paginação para /blog/')
+    console.log('[PASS] [11/11] GET /blog/pagina/2/ retorna HTTP 200 com artigos paginados.')
   }
 }
 
@@ -555,7 +582,7 @@ try {
   await runE2ETests()
 
   if (isOnce) {
-    console.log('\nTodos os 10 testes E2E passaram! Encerrando servidores (--once/--ci).')
+    console.log('\nTodos os 11 testes E2E passaram! Encerrando servidores (--once/--ci).')
     stop(0)
   } else {
     const autotestBlogURL = `${siteURL}/blog/?autotest=1`
@@ -564,7 +591,7 @@ try {
       [
         '',
         '========================================================================',
-        '  AMBIENTE DE DEMONSTRAÇÃO E TESTE DO BLOG PRONTO (10/10 TESTES PASSARAM)',
+        '  AMBIENTE DE DEMONSTRAÇÃO E TESTE DO BLOG PRONTO (11/11 TESTES PASSARAM)',
         '========================================================================',
         `  Blog (já logado e preenchido automaticamente):`,
         `    ${autotestBlogURL}`,

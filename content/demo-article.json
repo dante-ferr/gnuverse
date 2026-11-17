@@ -4,6 +4,8 @@
   "summary": "Um artigo de demonstração para testar o caminho entre o CMS e o site.",
   "author": "Equipe GNUverse",
   "category": "experiencias",
+  "publishedAt": "2026-11-10T12:00:00.000Z",
+  "hashtags": ["gnuverse", "softwarelivre", "educacao"],
   "body": {
     "root": {
       "type": "root", "version": 1, "format": "", "indent": 0, "direction": "ltr",

@@ -172,6 +172,13 @@ export interface Article {
   reviewNotes?: string | null;
   category: 'reflexoes' | 'educacao' | 'acesso' | 'experiencias';
   cover?: (number | null) | Media;
+  publishedAt?: string | null;
+  hashtags?:
+    | {
+        tag: string;
+        id?: string | null;
+      }[]
+    | null;
   body: {
     root: {
       type: string;
@@ -346,6 +353,13 @@ export interface ArticlesSelect<T extends boolean = true> {
   reviewNotes?: T;
   category?: T;
   cover?: T;
+  publishedAt?: T;
+  hashtags?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
   body?: T;
   references?:
     | T
