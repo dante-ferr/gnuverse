@@ -22,7 +22,7 @@ Another agent should treat this file as the living checklist for staged delivery
 
 ### Intent
 
-One room, one **3×3** circle source, player-built belts, a **5×5 central core** with **12 input slots** (three central tiles per face, corners solid). Server tick moves packets simultaneously; deliveries accumulate with **no stability bar and no crash**. CMS login required to place or remove belts. In-world readouts on the core (no gameplay sidebar).
+One room, one **3×3** circle source, player-built belts, a **5×5 central core** with **12 input slots** (three central tiles per face, corners solid). Server tick moves packets simultaneously; deliveries accumulate with **no stability bar and no crash**. CMS login required to place or remove belts. Core requirements in a room sidebar (stacked under the canvas on mobile); git blame on belts stays on the canvas.
 
 **Progression pressure (proposal, not v0.1 code yet):** when more packet types are demanded, prior supplies stay required. Dropping an older line does not end the match — it blocks leveling up because the delivery milestone needs every demanded type.
 
@@ -87,7 +87,8 @@ src/components/game/pipeline/
   model/frame.ts     client PipelineFrame + rules helper
   hooks/             use-pipeline-stream.ts
   scene/             PipelineScene, camera, belt stroke, painters/
-  pipeline-room.tsx  top bar + full-viewport canvas
+  pipeline-room.tsx  top bar + sidebar + canvas
+  core-requirements-sidebar.tsx  version / deliveries / demands
 
 Routes unchanged: /jogo/, /jogo/torre/?id=, /api/towers
 ```
@@ -129,6 +130,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-17 | UX | Core requirements moved to room sidebar (`CoreRequirementsSidebar`); canvas keeps git blame only |
 | 2026-11-17 | Design | Removed stability bar and crash/game over; progression (cumulative prior demands) is what keeps older supplies necessary |
 | 2026-11-17 | Docs + cleanup | Architecture docs match pipeline-only tree; tree/Matter orphans and `game-server.test.ts` gone |
 | 2026-11-16 | Initial handoff | v0.1 WIP: 5×5 core, modular pipeline server, canvas client, partial UI rename to Open Pipeline |

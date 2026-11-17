@@ -12,10 +12,11 @@ import { useGameSession } from '../hooks/use-game-session'
 import { useRoomLobby } from '../hooks/use-room-lobby'
 import { pipelineRulesFrom } from './model/frame'
 import { usePipelineStream } from './hooks/use-pipeline-stream'
+import { CoreRequirementsSidebar } from './core-requirements-sidebar'
 import { PipelineScene } from './scene/pipeline-scene'
 import styles from '../game-shell.module.css'
 
-/** Room chrome plus the grid. Game numbers stay on the canvas. */
+/** Room chrome, core-requirements sidebar, and the grid canvas. */
 export function PipelineRoom() {
   const session = useGameSession()
   const lobby = useRoomLobby(session.api)
@@ -129,7 +130,17 @@ export function PipelineRoom() {
         />
       )}
       {lobby.roomId ? (
-        <PipelineScene frame={live.frame.seed ? live.frame : null} rules={rules} onPlace={place} onRemove={remove} />
+        <div className={styles.pipelinePlay}>
+          <div className={styles.sceneViewport}>
+            <PipelineScene
+              frame={live.frame.seed ? live.frame : null}
+              rules={rules}
+              onPlace={place}
+              onRemove={remove}
+            />
+          </div>
+          <CoreRequirementsSidebar frame={live.frame.seed ? live.frame : null} />
+        </div>
       ) : (
         <p className={styles.message} role="status">
           Nenhuma sala ainda. Crie uma para ligar a fonte ao núcleo.

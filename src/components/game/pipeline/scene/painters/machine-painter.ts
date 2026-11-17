@@ -5,21 +5,30 @@ import type { PacketShape } from '../../../../../../game-server/pipeline/packets
 import type { PipelineFrame, PipelineRules } from '../../model/frame.ts'
 import { cellSize } from './grid-painter.ts'
 
-/** Shape → resource glyph under /public/pipeline/. Sources must show this clearly. */
+/** Shape → resource glyph under /public/pipeline/ (optional fallback). */
 const resourceDecorSrc: Record<PacketShape, string> = {
   circle: '/pipeline/resource-circle.svg',
 }
 
 export type MachineDecorImages = {
   core: HTMLImageElement | null
+  source: HTMLImageElement | null
   resources: Partial<Record<PacketShape, HTMLImageElement | null>>
 }
 
-/** Draws machine bodies (cell-fit rects), “[” slots, decor SVGs, and packets. */
+/** Draws machine bodies (cell-fit rects), “[” slots, tinted decor SVGs, orbiting glyphs, and packets. */
 export class MachinePainter {
+  private readonly tintCache = new Map<string, HTMLCanvasElement>()
+
   constructor(private readonly images: MachineDecorImages) {}
 
-  draw(ctx: CanvasRenderingContext2D, frame: PipelineFrame, rules: PipelineRules) {
+  draw(
+    ctx: CanvasRenderingContext2D,
+    frame: PipelineFrame,
+    rules: PipelineRules,
+    cameraZoom: number,
+    timeMs: number,
+  ) {
     const core = new CoreMachine(frame.core.id, { x: frame.core.x, y: frame.core.y })
     const source = new SourceMachine(
       frame.source.id,
@@ -28,15 +37,9 @@ export class MachinePainter {
       frame.source.shape,
       1,
     )
-    this.machine(ctx, core, rules.colorCore, this.images.core)
-    if (!(frame.source.shape in resourceDecorSrc))
-      throw new Error(`Source has no resource SVG for shape "${frame.source.shape}"`)
-    this.machine(
-      ctx,
-      source,
-      rules.colorSource,
-      this.images.resources[frame.source.shape] ?? null,
-    )
+    this.machine(ctx, core, rules.colorCore, this.images.core, rules.colorBackground)
+    this.machine(ctx, source, rules.colorSource, this.images.source, rules.colorBackground)
+    this.drawOrbitingResourceGlyph(ctx, source, frame.source.shape, rules, cameraZoom, timeMs)
     for (const packet of frame.packets) {
       ctx.beginPath()
       ctx.fillStyle = rules.colorPacket
@@ -54,14 +57,15 @@ export class MachinePainter {
   private machine(
     ctx: CanvasRenderingContext2D,
     machine: Machine,
-    color: string,
+    bodyColor: string,
     decor: HTMLImageElement | null,
+    inkColor: string,
   ) {
     const px = machine.origin.x * cellSize
     const py = machine.origin.y * cellSize
     const width = machine.width * cellSize
     const height = machine.height * cellSize
-    ctx.fillStyle = color
+    ctx.fillStyle = bodyColor
     ctx.fillRect(px, py, width, height)
     for (const slot of machine.slots) {
       const path = machine.slotBracket(slot, cellSize)
@@ -71,15 +75,67 @@ export class MachinePainter {
       ctx.closePath()
       ctx.fill()
     }
-    drawDecor(ctx, decor, px, py, width, height)
+    drawTintedDecor(ctx, decor, inkColor, px, py, width, height, this.tintCache)
+  }
+
+  private drawOrbitingResourceGlyph(
+    ctx: CanvasRenderingContext2D,
+    machine: Machine,
+    shape: PacketShape,
+    rules: PipelineRules,
+    cameraZoom: number,
+    timeMs: number,
+  ) {
+    const worldCx = (machine.origin.x + machine.width / 2) * cellSize
+    const worldCy = (machine.origin.y + machine.height / 2) * cellSize
+    const angle = (2 * Math.PI * timeMs) / rules.resourceGlyphOrbitMs
+    const ox = Math.cos(angle) * rules.resourceGlyphOrbitPx
+    const oy = Math.sin(angle) * rules.resourceGlyphOrbitPx
+    const zoom = cameraZoom > 0 ? cameraZoom : 1
+    ctx.save()
+    ctx.translate(worldCx, worldCy)
+    ctx.scale(1 / zoom, 1 / zoom)
+    ctx.translate(ox, oy)
+    this.drawResourceGlyph(ctx, shape, rules)
+    ctx.restore()
+  }
+
+  private drawResourceGlyph(ctx: CanvasRenderingContext2D, shape: PacketShape, rules: PipelineRules) {
+    const size = rules.resourceGlyphSizePx
+    if (shape === 'circle') {
+      const radius = size / 2
+      ctx.beginPath()
+      ctx.arc(0, 0, radius, 0, Math.PI * 2)
+      ctx.strokeStyle = rules.colorBackground
+      ctx.lineWidth = 3.5
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(0, 0, radius * 0.92, 0, Math.PI * 2)
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 1.75
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2)
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 1.25
+      ctx.stroke()
+      return
+    }
+    const image = this.images.resources[shape]
+    if (image?.complete && image.naturalWidth > 0) {
+      ctx.drawImage(image, -size / 2, -size / 2, size, size)
+    }
   }
 }
 
-/** Prefetch core decor and every known resource glyph. */
+/** Prefetch core and source decor; resource glyphs are optional fallbacks. */
 export function loadMachineDecor(onLoad: () => void): MachineDecorImages {
   const core = new Image()
   core.src = '/pipeline/core-decor.svg'
   core.onload = onLoad
+  const source = new Image()
+  source.src = '/pipeline/source-decor.svg'
+  source.onload = onLoad
   const resources: MachineDecorImages['resources'] = {}
   for (const [shape, src] of Object.entries(resourceDecorSrc) as [PacketShape, string][]) {
     const image = new Image()
@@ -87,17 +143,33 @@ export function loadMachineDecor(onLoad: () => void): MachineDecorImages {
     image.onload = onLoad
     resources[shape] = image
   }
-  return { core, resources }
+  return { core, source, resources }
 }
 
-function drawDecor(
+function drawTintedDecor(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement | null,
+  ink: string,
   x: number,
   y: number,
   width: number,
   height: number,
+  cache: Map<string, HTMLCanvasElement>,
 ) {
   if (!image || !image.complete || image.naturalWidth <= 0) return
-  ctx.drawImage(image, x, y, width, height)
+  const key = `${image.currentSrc}|${ink}|${image.naturalWidth}x${image.naturalHeight}`
+  let tinted = cache.get(key)
+  if (!tinted) {
+    tinted = document.createElement('canvas')
+    tinted.width = image.naturalWidth
+    tinted.height = image.naturalHeight
+    const tctx = tinted.getContext('2d')
+    if (!tctx) return
+    tctx.drawImage(image, 0, 0)
+    tctx.globalCompositeOperation = 'source-in'
+    tctx.fillStyle = ink
+    tctx.fillRect(0, 0, tinted.width, tinted.height)
+    cache.set(key, tinted)
+  }
+  ctx.drawImage(tinted, x, y, width, height)
 }

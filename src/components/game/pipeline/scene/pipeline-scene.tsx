@@ -18,18 +18,33 @@ type Props = {
   onRemove: (cells: { x: number; y: number }[]) => void
 }
 
-/** Full-viewport grid. Readouts are painted on the core, not in a sidebar. */
+/** Full-viewport grid. Core requirements sit in the room sidebar. */
 export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cameraRef = useRef(new GridCamera(24, 24))
   const frameRef = useRef(frame)
   const rulesRef = useRef(rules)
   const images = useRef(loadMachineDecor(() => {}))
+  const machinePainter = useRef(new MachinePainter(images.current))
+  const gridPainter = useRef(new GridPainter())
+  const beltPainter = useRef(new BeltPainter())
+  const readoutPainter = useRef(new ReadoutPainter())
   frameRef.current = frame
   rulesRef.current = rules
 
   useEffect(() => {
     images.current = loadMachineDecor(() => paint())
+    machinePainter.current = new MachinePainter(images.current)
+  }, [])
+
+  useEffect(() => {
+    let frameId = 0
+    const loop = () => {
+      paint()
+      frameId = requestAnimationFrame(loop)
+    }
+    frameId = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(frameId)
   }, [])
 
   const paint = () => {
@@ -41,8 +56,12 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
     if (!ctx) return
     const view = canvas.getBoundingClientRect()
     const ratio = window.devicePixelRatio || 1
-    canvas.width = Math.max(1, Math.floor(view.width * ratio))
-    canvas.height = Math.max(1, Math.floor(view.height * ratio))
+    const nextWidth = Math.max(1, Math.floor(view.width * ratio))
+    const nextHeight = Math.max(1, Math.floor(view.height * ratio))
+    if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+      canvas.width = nextWidth
+      canvas.height = nextHeight
+    }
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
     const camera = cameraRef.current
     camera.fit(view.width, view.height, cellSize)
@@ -50,7 +69,7 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
     ctx.save()
     ctx.translate(camera.x, camera.y)
     ctx.scale(camera.zoom, camera.zoom)
-    new GridPainter().draw(ctx, current, palette)
+    gridPainter.current.draw(ctx, current, palette)
     const preview = stroke.current?.cells.map((cell, index) => ({
       id: `preview-${index}`,
       x: cell.x,
@@ -61,10 +80,10 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
       placedAt: index,
     }))
     const belts = visibleBelts(current)
-    new BeltPainter().draw(ctx, [...belts, ...(preview ?? [])], palette)
-    new MachinePainter(images.current).draw(ctx, current, palette)
+    beltPainter.current.draw(ctx, [...belts, ...(preview ?? [])], palette)
+    machinePainter.current.draw(ctx, current, palette, camera.zoom, performance.now())
     const hover = hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
-    new ReadoutPainter().draw(ctx, current, palette, hover)
+    readoutPainter.current.draw(ctx, current, palette, hover)
     ctx.restore()
   }
 

@@ -42,7 +42,7 @@ Include the site origin in `GAME_ALLOWED_ORIGINS`. On LAN: `GAME_HOST=0.0.0.0` a
 node --test tests/pipeline-tick.test.ts tests/pipeline-http.test.ts tests/game-config.test.ts
 ```
 
-Manual: create or open a room at `/jogo/torre/?id=`, place belts while signed in, confirm packets move and the core readout updates.
+Manual: create or open a room at `/jogo/torre/?id=`, place belts while signed in, confirm packets move and the sidebar **Requisitos do núcleo** updates deliveries.
 
 ## Prototype limits
 

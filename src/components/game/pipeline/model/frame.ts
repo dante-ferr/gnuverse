@@ -14,6 +14,9 @@ export type PipelineRules = {
   colorSource: string
   colorAccent: string
   decorStrokeWidth: number
+  resourceGlyphSizePx: number
+  resourceGlyphOrbitPx: number
+  resourceGlyphOrbitMs: number
   machineClearanceMin: number
   coreClearanceExtra: number
 }

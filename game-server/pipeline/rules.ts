@@ -10,10 +10,16 @@ export type PipelineRules = {
   colorPacket: string
   colorCore: string
   colorSource: string
-  /** GNUverse accent; used in core decor details (must match core-decor.svg). */
+  /** GNUverse accent; site teal (legacy palette key; decor ink uses colorBackground). */
   colorAccent: string
   /** SVG stroke width in artboard units (512 viewBox); keep in sync with public/pipeline/*.svg. */
   decorStrokeWidth: number
+  /** Screen-space resource glyph diameter (px). */
+  resourceGlyphSizePx: number
+  /** Orbit radius around source center (screen px). */
+  resourceGlyphOrbitPx: number
+  /** Full orbit period (ms). */
+  resourceGlyphOrbitMs: number
   machineClearanceMin: number
   coreClearanceExtra: number
 }

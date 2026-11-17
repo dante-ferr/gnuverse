@@ -46,8 +46,8 @@ Locked presentation and footprints for v0.1 (enforced on `Machine` in `game-serv
 | Slots | “[”-shaped protuberances from `Machine.slotBracket`; may stick slightly past the body; **one cell** wide along the face |
 | Core | **5×5**; 12 inputs (three central tiles per face; corners solid) |
 | Source | **3×3**; single output on the **center cell of the facing edge**, one step outside along `direction` |
-| Decor SVG | Simple thick-stroke glyphs under `public/pipeline/`; stroke width is `[pipeline] decor_stroke_width` (512 viewBox). Core uses `core-decor.svg` with **accent** details. Source shows only the **resource** glyph (`resource-<shape>.svg`) — no extra chrome |
-| Colors | Dark grid / light machines. Body fills and palette from `[pipeline]` TOML. `color_accent` is the site accent (`#52d6c9`) and appears in core decor details (keep SVG in sync). Packets use `color_packet` |
+| Decor SVG | Black ink (`#000000`) on transparent under `public/pipeline/`; thick strokes use `[pipeline] decor_stroke_width` (512 viewBox) with thinner companion strokes for detail. Canvas tints decor to `color_background` at draw time. Core uses `core-decor.svg`; source body uses `source-decor.svg` (no resource glyph on the body) |
+| Colors | Body color code: core **white** (`color_core`), source **site accent** (`color_source`, same as `color_accent` / `#52d6c9`). Ink (decor) tints to `color_background`. Resource symbol is **screen-space**: fixed px size (`resource_glyph_size_px`), white stroke + dark outline, orbits the source center (`resource_glyph_orbit_px`, `resource_glyph_orbit_ms`). Packets use `color_packet` |
 | Belts | Procedural tracks only; no decor SVG |
 | Clearance (generation) | Per-side depth = `max(machine_clearance_min, I/O ports on that face)`; full rectangular AABB pad (corners included); free pads of different machines must not overlap; applies only when the match layout is generated — belts may use those cells afterward |
 | Core extra | `core_clearance_extra` from `[pipeline]` TOML is added on **every** core side on top of port-based depth |
