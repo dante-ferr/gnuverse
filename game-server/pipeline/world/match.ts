@@ -13,12 +13,14 @@ import type { PacketShape } from '../packets/packet.ts'
 import { coreAcceptsShape, coreDemands } from './demands.ts'
 import type { CollaboratorRecord, PipelineFrame } from './frame.ts'
 import { Movement } from './movement.ts'
+import { tryAutoUnlock } from './unlock.ts'
 
 /** One Open Pipeline match. The server tick is the only writer. */
 export class Match {
   belts: BeltMachine[] = []
   packets: Packet[] = []
   collaborators: CollaboratorRecord[] = []
+  version = '0.1'
   tickIndex = 0
   deliveries = 0
   deliveryByShape: Partial<Record<PacketShape, number>> = {}
@@ -82,7 +84,7 @@ export class Match {
   }
 
   acceptsDelivery(shape: PacketShape) {
-    return coreAcceptsShape(this.rules, '0.1', shape, this.deliveryByShape)
+    return coreAcceptsShape(this.rules, this.version, shape, this.deliveryByShape)
   }
 
   recordDelivery(shape: PacketShape) {
@@ -95,19 +97,20 @@ export class Match {
     new Movement(this).resolve()
     new Emission(this).emit()
     this.tickIndex += 1
+    tryAutoUnlock(this)
   }
 
   toFrame(): PipelineFrame {
     return {
       kind: 'pipeline',
-      version: '0.1',
+      version: this.version,
       seed: this.seed,
       width: this.width,
       height: this.height,
       tick: this.tickIndex,
       deliveries: this.deliveries,
       deliveryByShape: { ...this.deliveryByShape },
-      demands: coreDemands(this.rules, '0.1', this.deliveryByShape),
+      demands: coreDemands(this.rules, this.version, this.deliveryByShape),
       collaborators: this.collaborators.map((person) => ({ ...person })),
       nextPacketId: this.nextPacketId,
       nextBeltSeq: this.nextBeltSeq,
@@ -154,6 +157,7 @@ export class Match {
       ),
       new CoreMachine(frame.core.id, { x: frame.core.x, y: frame.core.y }),
     )
+    match.version = frame.version ?? '0.1'
     match.tickIndex = frame.tick
     match.deliveries = frame.deliveries
     match.deliveryByShape = frame.deliveryByShape

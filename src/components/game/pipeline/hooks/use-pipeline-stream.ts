@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameApi } from '../../api/game-api'
 import { isPipelineFrame, type PipelineFrame } from '../model/frame'
 import type { Connection } from '../../hooks/use-room-lobby'
-import type { ChatMessage } from '../../model/types'
+import type { ChatMessage, Member, Proposal } from '../../model/types'
 
 const emptyFrame = (): PipelineFrame => ({
   kind: 'pipeline',
@@ -30,6 +30,8 @@ export function usePipelineStream(api: GameApi, roomId: string) {
   const [name, setName] = useState('')
   const [creatorId, setCreatorId] = useState('')
   const [chat, setChat] = useState<ChatMessage[]>([])
+  const [members, setMembers] = useState<Member[]>([])
+  const [proposals, setProposals] = useState<Proposal[]>([])
   const [connection, setConnection] = useState<Connection>('connecting')
   const selected = useRef(roomId)
   selected.current = roomId
@@ -40,6 +42,8 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       frame: PipelineFrame
       rules: Record<string, unknown>
       chat?: ChatMessage[]
+      members?: Member[]
+      proposals?: Proposal[]
     }>(`/api/towers/${roomId}`)
     if (selected.current !== result.room.id || !isPipelineFrame(result.frame)) return
     setFrame((current) => (result.frame.tick >= current.tick ? result.frame : current))
@@ -47,10 +51,14 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     setName(result.room.name)
     setCreatorId(result.room.creatorId)
     setChat(Array.isArray(result.chat) ? result.chat : [])
+    setMembers(Array.isArray(result.members) ? result.members : [])
+    setProposals(Array.isArray(result.proposals) ? result.proposals : [])
   }, [api, roomId])
   useEffect(() => {
     setFrame(emptyFrame())
     setChat([])
+    setMembers([])
+    setProposals([])
     setConnection('connecting')
     if (!roomId) return
     let active = true
@@ -98,5 +106,5 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       stream.close()
     }
   }, [api, roomId, refresh])
-  return { frame, rules, name, creatorId, chat, connection, refresh }
+  return { frame, rules, name, creatorId, chat, members, proposals, connection, refresh }
 }

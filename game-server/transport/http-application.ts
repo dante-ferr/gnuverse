@@ -199,6 +199,7 @@ export class HttpApplication {
           rooms.member(room, user)
           return rooms.settings(room, user, body)
         }
+        if (path[3] === 'advance' && path.length === 4) return rooms.advance(room, user)
         const participant = rooms.member(room, user)
         if (participant.banned) fail(403, 'Você foi banido desta sala.')
         if (path[3] === 'settings' && path.length === 4)

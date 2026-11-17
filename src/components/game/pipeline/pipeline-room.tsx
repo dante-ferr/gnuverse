@@ -15,6 +15,7 @@ import { usePipelineStream } from './hooks/use-pipeline-stream'
 import { CoreRequirementsSidebar } from './core-requirements-sidebar'
 import { RoomCollaborators } from './room-collaborators'
 import { RoomChat } from './room-chat'
+import { PipelineModerationPanel } from './pipeline-moderation'
 import { PipelineScene } from './scene/pipeline-scene'
 import styles from '../game-shell.module.css'
 
@@ -23,7 +24,7 @@ function roomLoginHref() {
   return `/login/?next=${encodeURIComponent(window.location.pathname + window.location.search)}`
 }
 
-/** Room chrome, core-requirements sidebar, and the grid canvas. */
+/** Room chrome, compact sidebar, and the grid canvas. */
 export function PipelineRoom() {
   const session = useGameSession()
   const lobby = useRoomLobby(session.api)
@@ -37,6 +38,7 @@ export function PipelineRoom() {
       : 280
   const [showCreate, setShowCreate] = useState(false)
   const rules = pipelineRulesFrom(live.rules ?? lobby.rules)
+  const isAdmin = Boolean(session.user?.roles?.includes('admin'))
   useEffect(() => {
     setLoginHref(roomLoginHref())
   }, [lobby.roomId])
@@ -58,6 +60,13 @@ export function PipelineRoom() {
     })
   }
   const removeRefresh = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const advance = () => {
+    if (!session.user || !isAdmin) return
+    void feedback.run(async () => {
+      await session.api.request(`/api/towers/${lobby.roomId}/advance`, {})
+      await live.refresh()
+    })
+  }
   const sendChat = (text: string) => {
     if (!session.user) {
       router.push(loginHref)
@@ -114,6 +123,9 @@ export function PipelineRoom() {
               lobby.setRoomId('')
             })
           }
+          canAdvance={Boolean(lobby.roomId && isAdmin)}
+          onAdvance={advance}
+          busy={feedback.busy}
         />
         <AccountBanner
           user={session.user}
@@ -163,18 +175,34 @@ export function PipelineRoom() {
             />
           </div>
           <aside className={styles.gameSidebar} aria-label="Painel da sala">
-            <CoreRequirementsSidebar frame={live.frame.seed ? live.frame : null} />
-            {live.frame.seed ? (
-              <RoomCollaborators collaborators={live.frame.collaborators} />
-            ) : null}
-            <RoomChat
-              messages={live.chat}
-              user={session.user}
-              loginHref={loginHref}
-              maxLength={chatMaxLength}
-              busy={feedback.busy}
-              onSend={sendChat}
+            <CoreRequirementsSidebar
+              frame={live.frame.seed ? live.frame : null}
+              rules={rules}
             />
+            <PipelineModerationPanel
+              api={session.api}
+              roomId={lobby.roomId}
+              user={session.user}
+              creatorId={live.creatorId}
+              members={live.members}
+              proposals={live.proposals}
+              busy={feedback.busy}
+              onRefresh={live.refresh}
+              onError={feedback.setError}
+            />
+            <div className={styles.sidebarDock}>
+              {live.frame.seed ? (
+                <RoomCollaborators collaborators={live.frame.collaborators} />
+              ) : null}
+              <RoomChat
+                messages={live.chat}
+                user={session.user}
+                loginHref={loginHref}
+                maxLength={chatMaxLength}
+                busy={feedback.busy}
+                onSend={sendChat}
+              />
+            </div>
           </aside>
         </div>
       ) : (

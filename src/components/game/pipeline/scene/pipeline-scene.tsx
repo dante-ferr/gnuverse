@@ -89,12 +89,18 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
     beltPainter.current.draw(ctx, [...belts, ...(preview ?? [])], palette, timeMs)
     packetPainter.current.draw(ctx, current, belts, palette, packetMotion.current, timeMs)
     machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs)
-    const hover = hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
+    const hover = pinnedBlame.current ?? hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
     readoutPainter.current.draw(ctx, current, palette, hover)
     ctx.restore()
   }
 
   const lastPointer = useRef<{ x: number; y: number } | null>(null)
+  const pinnedBlame = useRef<{ x: number; y: number; nickname: string } | null>(null)
+  const longPress = useRef<{
+    timer: ReturnType<typeof setTimeout> | null
+    origin: { x: number; y: number } | null
+    fired: boolean
+  }>({ timer: null, origin: null, fired: false })
   const stroke = useRef<BeltStroke | null>(null)
   const eraseStroke = useRef<BeltEraseStroke | null>(null)
   const hiddenBelts = useRef(new Set<string>())
@@ -155,6 +161,31 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
     return cell
   }
 
+  const cancelLongPress = () => {
+    if (longPress.current.timer) clearTimeout(longPress.current.timer)
+    longPress.current = { timer: null, origin: null, fired: false }
+  }
+
+  const beltAt = (current: PipelineFrame, cell: { x: number; y: number }) =>
+    current.belts.find(
+      (belt) =>
+        belt.x === cell.x &&
+        belt.y === cell.y &&
+        !hiddenBelts.current.has(cellKey(belt)),
+    )
+
+  const scheduleLongPress = (belt: { x: number; y: number; authorNickname: string }, x: number, y: number) => {
+    cancelLongPress()
+    longPress.current.origin = { x, y }
+    longPress.current.timer = setTimeout(() => {
+      pinnedBlame.current = { x: belt.x, y: belt.y, nickname: belt.authorNickname }
+      longPress.current.fired = true
+      longPress.current.timer = null
+      stroke.current = null
+      paint()
+    }, 450)
+  }
+
   const trackEraseCell = (cell: { x: number; y: number }) => {
     if (!eraseStroke.current?.push(cell)) return
     tryEraseCell(cell)
@@ -177,6 +208,7 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
           pan.current = { x: event.clientX, y: event.clientY }
           stroke.current = null
           eraseStroke.current = null
+          cancelLongPress()
           return
         }
         const cell = localCell(event)
@@ -188,10 +220,23 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
           eraseStroke.current = next
           trackEraseCell(cell)
           stroke.current = null
+          cancelLongPress()
           return
         }
         if (event.button !== 0) return
-        if (!cell) return
+        const current = frameRef.current
+        cancelLongPress()
+        if (!cell) {
+          pinnedBlame.current = null
+          stroke.current = null
+          paint()
+          return
+        }
+        if (current) {
+          const belt = beltAt(current, cell)
+          if (belt) scheduleLongPress(belt, event.clientX, event.clientY)
+          else pinnedBlame.current = null
+        }
         const next = new BeltStroke()
         next.push(cell)
         stroke.current = next
@@ -220,8 +265,19 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
           return
         }
         const cell = localCell(event)
+        if (longPress.current.origin && longPress.current.timer) {
+          const moved = Math.hypot(
+            event.clientX - longPress.current.origin.x,
+            event.clientY - longPress.current.origin.y,
+          )
+          if (moved > 8) cancelLongPress()
+        }
         if (cell && eraseStroke.current) trackEraseCell(cell)
-        else if (cell && stroke.current) stroke.current.push(cell)
+        else if (cell && stroke.current) {
+          const before = stroke.current.cells.length
+          stroke.current.push(cell)
+          if (before > 0 && stroke.current.cells.length > before) cancelLongPress()
+        }
         paint()
       }}
       onPointerUp={(event) => {
@@ -231,6 +287,12 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
         pan.current = null
         eraseStroke.current = null
         revertPendingRemovals()
+        if (longPress.current.fired) {
+          stroke.current = null
+          cancelLongPress()
+          return
+        }
+        cancelLongPress()
         const done = stroke.current
         stroke.current = null
         if (done && done.cells.length > 0) onPlace(done.cells)

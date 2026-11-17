@@ -24,7 +24,7 @@ export type CollaboratorRecord = { id: string; nickname: string }
 /** Persisted match. Classes are rebuilt from this on each tick. */
 export type PipelineFrame = {
   kind: 'pipeline'
-  version: '0.1'
+  version: string
   seed: string
   width: number
   height: number

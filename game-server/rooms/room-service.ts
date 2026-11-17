@@ -9,6 +9,7 @@ import { isDirection } from '../pipeline/geometry/direction.ts'
 import { Match } from '../pipeline/world/match.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import { canManageRoom } from '../../core/authz/policy.ts'
+import { forceAdvance } from '../pipeline/world/unlock.ts'
 
 export class RoomService {
   private store: GameStore
@@ -202,6 +203,17 @@ export class RoomService {
     match.noteCollaborator({ id: user.id, nickname: user.nickname })
     room.frame = match.toFrame()
     this.member(room, user)
+    this.runtime.afterAction(room)
+    return { frame: room.frame }
+  }
+  advance(room: Room, user: User) {
+    if (!(user.roles ?? []).includes('admin'))
+      fail(403, 'Apenas administradores podem avançar a versão.')
+    const match = this.editable(room)
+    const from = match.version
+    forceAdvance(match)
+    room.frame = match.toFrame()
+    this.history.event(room, 'version-advance', user.id, { from, to: match.version })
     this.runtime.afterAction(room)
     return { frame: room.frame }
   }

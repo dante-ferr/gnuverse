@@ -17,7 +17,7 @@ export function activeDemandShapes(version: PipelineFrameVersion): PacketShape[]
   }
 }
 
-export type PipelineFrameVersion = '0.1'
+export type PipelineFrameVersion = string
 
 function requiredForShape(rules: PipelineRules, shape: PacketShape): number {
   switch (shape) {

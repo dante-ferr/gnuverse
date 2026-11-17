@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { loadGameConfig } from '../game-server/config/load-game-config.ts'
+import { pipelineRulesFrom } from '../game-server/pipeline/load-rules.ts'
 
 function withToml(contents: string, run: (configPath: string) => void) {
   const directory = mkdtempSync(path.join(tmpdir(), 'gnuverse-game-config-'))
@@ -34,6 +35,14 @@ test('loads an explicit TOML path and maps configured values', () => {
       assert.equal(rules.coinIntervalMs, 45_000)
     },
   )
+})
+
+test('loads unlock_collaborators in the pipeline table and rejects unknown pipeline keys', () => {
+  withToml('[pipeline]\nunlock_collaborators = 4\n', (configPath) => {
+    const { pipeline } = loadGameConfig(configPath)
+    assert.equal(pipeline.unlockCollaborators, 4)
+  })
+  assert.throws(() => pipelineRulesFrom({ mystery_pipeline_key: 1 }), /desconhecida: pipeline\.mystery_pipeline_key/)
 })
 
 test('rejects unknown TOML fields instead of silently ignoring them', () => {

@@ -42,10 +42,14 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 
 - **Server sim:** `game-server/pipeline/` — `Machine` / `SourceMachine` / `CoreMachine` / `BeltMachine`, `Match`, `Movement`, `Emission`, `BeltEditor` (no `StabilityMeter`).
 - **Config:** `[pipeline]` in [`game.config.toml`](../game-server/config/game.config.toml), loaded via [`pipeline/load-rules.ts`](../game-server/pipeline/load-rules.ts).
-- **HTTP:** `POST /api/towers/:id/place`, `remove`, `join`; SSE `frame` pushes `PipelineFrame`.
-- **Client:** `src/components/game/pipeline/` — canvas scene, painters, drag belts, pan/zoom; room at `/jogo/torre/` via `PipelineRoom`.
+- **HTTP:** `POST /api/towers/:id/place`, `remove`, `join`, `chat`; SSE `frame` pushes `PipelineFrame`; SSE `chat` pushes room messages.
+- **Client:** `src/components/game/pipeline/` — canvas scene, painters, drag belts, pan/zoom; room at `/jogo/torre/` via `PipelineRoom` with sidebar chat + collaborators.
+
 - **Art:** dark grid / light machines; procedural bodies/slots + `color_outline`; decor SVGs tint to a darker tone of each body color (`decor_darken_percent`); `color_decor` is palette-only for future UI; screen-space circle resource = one filled disk (canvas outline); sidebar uses `resource-circle.svg` (single black fill); `decor_stroke_width` on thick decor strokes.
-- **Tests:** [`tests/pipeline-tick.test.ts`](../tests/pipeline-tick.test.ts), [`tests/pipeline-http.test.ts`](../tests/pipeline-http.test.ts).
+- **Tests:** [`tests/pipeline-tick.test.ts`](../tests/pipeline-tick.test.ts), [`tests/pipeline-http.test.ts`](../tests/pipeline-http.test.ts), [`tests/pipeline-unlock-http.test.ts`](../tests/pipeline-unlock-http.test.ts).
+- **Unlock:** `game-server/pipeline/world/unlock.ts`; `unlock_collaborators = 2` in TOML; `POST /api/towers/:id/advance` (admin).
+- **Moderation UI:** `pipeline-moderation.tsx` (sala, suspensão, BDFL).
+- **Room chat:** `Room.chat` in SQLite; `POST /api/towers/:id/chat`; SSE `chat`; sidebar `room-chat.tsx` + `room-collaborators.tsx`.
 - **Generation clearance:** `geometry/clearance.ts` + `world/map-layout.ts` — per-side pads at match creation — 2026-11-17.
 - **Seeded initial layout:** `geometry/seed-rng.ts` + procedural `layoutInitialMachines` (room seed picks approach + offset; clearance enforced) — 2026-11-17.
 
@@ -58,15 +62,15 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 - [x] Tree-era [`game-server.test.ts`](../tests/game-server.test.ts) **removed** (file no longer in `tests/`) — 2026-11-17.
 - [x] `npm run game:cli` **tree CLI removed** — 2026-03-25.
 - [ ] Legacy SQLite rooms without `kind: "pipeline"` are **hidden** from list; no migration story documented for operators.
-- [ ] Room UI dropped **governance/community** panels; ban proposals still exist server-side — decide per version whether to restore a minimal in-room UI.
+- [x] Minimal **Sala** moderation UI (participantes, propor suspensão, BDFL decide) — 2026-11-17.
 - [ ] Pinch-zoom / pointer edge cases on `PipelineScene` need a real device pass.
 - [x] Matter **tree** physics removed from the build path — 2026-03-25.
 
 **Design / proposal alignment**
 
 - [ ] Proposal milestone table still says `3×3` core — update proposal or add errata when user locks 5×5 for v0.1.
-- [ ] Dual unlock (deliveries + unique collaborators) and solo 45s fallback — **not started**.
-- [ ] Git blame on belts exists as `authorNickname` in frame; hover on desktop only.
+- [x] Dual unlock (all demands met + `unlock_collaborators` ≥ 2); auto **0.1 → 0.2** only; admin `advance`; no solo fallback — 2026-11-17.
+- [x] Git blame on belts: desktop hover + ~450ms long-press — 2026-11-17.
 
 ---
 
@@ -88,7 +92,10 @@ src/components/game/pipeline/
   hooks/             use-pipeline-stream.ts
   scene/             PipelineScene, camera, belt stroke, painters/
   pipeline-room.tsx  top bar + sidebar + canvas
-  core-requirements-sidebar.tsx  version / deliveries / demands
+  core-requirements-sidebar.tsx  version / collaborators / demands
+  room-collaborators.tsx         compact avatar + name list
+  room-chat.tsx                  per-room chat (SSE + POST)
+  pipeline-moderation.tsx        sala ban proposals (BDFL)
 
 Routes unchanged: /jogo/, /jogo/torre/?id=, /api/towers
 ```
@@ -130,6 +137,8 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-17 | UX | Room sidebar chat (`POST …/chat` + SSE `chat`) and compact collaborators block |
+| 2026-11-17 | Progression + UX | Dual unlock (`unlock_collaborators=2`), admin advance, sala ban UI, long-press belt blame |
 | 2026-11-17 | UX | Core requirements moved to room sidebar (`CoreRequirementsSidebar`); canvas keeps git blame only |
 | 2026-11-17 | Design | Removed stability bar and crash/game over; progression (cumulative prior demands) is what keeps older supplies necessary |
 | 2026-11-17 | Docs + cleanup | Architecture docs match pipeline-only tree; tree/Matter orphans and `game-server.test.ts` gone |

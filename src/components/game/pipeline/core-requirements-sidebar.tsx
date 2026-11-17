@@ -1,4 +1,4 @@
-import type { PipelineFrame } from './model/frame'
+import type { PipelineFrame, PipelineRules } from './model/frame'
 import styles from '../game-shell.module.css'
 
 const resourceGlyph: Record<PipelineFrame['source']['shape'], string> = {
@@ -7,29 +7,24 @@ const resourceGlyph: Record<PipelineFrame['source']['shape'], string> = {
 
 type Props = {
   frame: PipelineFrame | null
+  rules: PipelineRules | null
 }
 
-/** Live unlock / delivery readouts for the central core (HTML sidebar, not canvas). */
-export function CoreRequirementsSidebar({ frame }: Props) {
+/** Compact unlock / delivery readouts for the central core. */
+export function CoreRequirementsSidebar({ frame, rules }: Props) {
   if (!frame?.seed) {
     return (
-      <aside className={styles.gameSidebar} aria-label="Requisitos do núcleo">
-        <p className={styles.controlsHint}>Abra ou crie uma sala para ver os requisitos do núcleo.</p>
-      </aside>
+      <div className={styles.sidebarStats}>
+        <p className={styles.controlsHint}>Abra ou crie uma sala para ver o progresso.</p>
+      </div>
     )
   }
 
-  const collaborators =
-    frame.collaborators.length === 1
-      ? '1 colaborador'
-      : `${frame.collaborators.length} colaboradores`
+  const unlockTarget = rules?.unlockCollaborators ?? 2
+  const collaboratorCount = frame.collaborators.length
 
   return (
-    <aside className={styles.gameSidebar} aria-label="Requisitos do núcleo">
-      <div className={styles.collectiveHeading}>
-        <p className={styles.eyebrow}>Open Pipeline</p>
-        <h2>Requisitos do núcleo</h2>
-      </div>
+    <div className={styles.sidebarStats}>
       <dl className={styles.coreRequirements}>
         <div>
           <dt>Versão</dt>
@@ -37,13 +32,15 @@ export function CoreRequirementsSidebar({ frame }: Props) {
         </div>
         <div>
           <dt>Colaboradores</dt>
-          <dd>{collaborators}</dd>
+          <dd>
+            {collaboratorCount} / {unlockTarget}
+          </dd>
         </div>
       </dl>
-      <p className={styles.coreRequirementsLegend}>Formas exigidas</p>
-      <ul className={styles.coreRequirementGrid}>
+      <ul className={styles.coreRequirementGrid} aria-label="Formas exigidas">
         {frame.demands.map((demand) => {
           const glyph = resourceGlyph[demand.shape]
+          const met = demand.received >= demand.required
           return (
             <li key={demand.shape} className={styles.coreRequirementCell}>
               <span
@@ -54,13 +51,15 @@ export function CoreRequirementsSidebar({ frame }: Props) {
                 }}
                 aria-hidden
               />
-              <span className={styles.coreRequirementCount}>
+              <span
+                className={`${styles.coreRequirementCount}${met ? ` ${styles.coreRequirementMet}` : ''}`}
+              >
                 {demand.received} / {demand.required}
               </span>
             </li>
           )
         })}
       </ul>
-    </aside>
+    </div>
   )
 }

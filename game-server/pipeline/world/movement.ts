@@ -67,7 +67,7 @@ export class Movement {
       if (!budget.has(shape)) {
         budget.set(
           shape,
-          remainingDemand(this.match.rules, '0.1', shape, this.match.deliveryByShape),
+          remainingDemand(this.match.rules, this.match.version, shape, this.match.deliveryByShape),
         )
       }
       const left = budget.get(shape) ?? 0
