@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { Member, Rules, Tower, User } from '../domain/types.ts'
+import type { Member, Rules, Room, User } from '../domain/types.ts'
 import { fail, text, integer, mode } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import { WalletService } from '../economy/wallet-service.ts'
@@ -8,9 +8,9 @@ import { HistoryService } from './history-service.ts'
 import { isDirection } from '../pipeline/geometry/direction.ts'
 import { Match } from '../pipeline/world/match.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
-import { canManageTower } from '../../core/authz/policy.ts'
+import { canManageRoom } from '../../core/authz/policy.ts'
 
-export class TowerService {
+export class RoomService {
   private store: GameStore
   private rules: Readonly<Rules>
   private now: () => number
@@ -32,47 +32,45 @@ export class TowerService {
     this.runtime = runtime
     this.history = history
   }
-  member(tower: Tower, user: User): Member {
-    return (tower.members[user.id] ??= {
+  member(room: Room, user: User): Member {
+    return (room.members[user.id] ??= {
       id: user.id,
       nickname: user.nickname,
       contributions: 0,
-      eligible: user.id === tower.creatorId,
+      eligible: user.id === room.creatorId,
       banned: false,
     })
   }
-  publicTower(tower: Tower) {
-    const belts = isPipelineFrame(tower.frame) ? tower.frame.belts.length : 0
+  publicRoom(room: Room) {
+    const belts = isPipelineFrame(room.frame) ? room.frame.belts.length : 0
     return {
-      id: tower.id,
-      name: tower.name,
-      creatorId: tower.creatorId,
-      allowCreatorBan: tower.allowCreatorBan === true,
-      cost: tower.cost,
-      eligibilityMode: tower.eligibilityMode,
-      minContributions: tower.minContributions,
-      segmentCount: belts,
-      actionCount: tower.actionCount,
-      outcome: isPipelineFrame(tower.frame) && !tower.frame.crashed ? 'playing' : 'lost',
+      id: room.id,
+      name: room.name,
+      creatorId: room.creatorId,
+      allowCreatorBan: room.allowCreatorBan === true,
+      cost: room.cost,
+      eligibilityMode: room.eligibilityMode,
+      minContributions: room.minContributions,
+      beltCount: belts,
+      actionCount: room.actionCount,
+      outcome: isPipelineFrame(room.frame) ? 'playing' : 'lost',
     }
   }
-  detail(tower: Tower) {
+  detail(room: Room) {
     return {
-      tower: this.publicTower(tower),
-      frame: this.runtime.publicFrame(tower),
-      snapshots: tower.snapshots,
-      events: tower.events,
-      members: Object.values(tower.members),
-      proposals: tower.proposals,
+      room: this.publicRoom(room),
+      frame: this.runtime.publicFrame(room),
+      snapshots: room.snapshots,
+      events: room.events,
+      members: Object.values(room.members),
+      proposals: room.proposals,
       rules: this.rules,
     }
   }
-  statusPayload(tower: Tower, user: User) {
-    const frame = this.runtime.publicFrame(tower)
+  statusPayload(room: Room, user: User) {
+    const frame = this.runtime.publicFrame(room)
     return {
-      id: tower.id,
-      crashed: frame.crashed,
-      stability: frame.stability,
+      id: room.id,
       deliveries: frame.deliveries,
       tick: frame.tick,
       coins: this.wallet.read(user).balance,
@@ -80,8 +78,8 @@ export class TowerService {
   }
   create(user: User, body: Record<string, unknown>) {
     if (
-      Object.keys(this.store.state.towers).length >= this.rules.maxTowers ||
-      Object.values(this.store.state.towers).filter(
+      Object.keys(this.store.state.rooms).length >= this.rules.maxRooms ||
+      Object.values(this.store.state.rooms).filter(
         (t) => t.creatorId === user.id,
       ).length >= 10
     )
@@ -91,9 +89,9 @@ export class TowerService {
       typeof body.allowCreatorBan !== 'boolean'
     )
       fail(400, 'A opção de suspensão do criador deve ser booleana.')
-    const towerId = randomUUID()
-    const tower: Tower = {
-      id: towerId,
+    const roomId = randomUUID()
+    const room: Room = {
+      id: roomId,
       name: text(body.name, 3, 60, 'Nome'),
       creatorId: user.id,
       allowCreatorBan: body.allowCreatorBan === true,
@@ -118,75 +116,75 @@ export class TowerService {
       snapshots: [],
       events: [],
       proposals: [],
-      segmentCount: 0,
+      beltCount: 0,
       actionCount: 0,
-      frame: Match.create(towerId, this.rules.pipeline).toFrame(),
+      frame: Match.create(roomId, this.rules.pipeline).toFrame(),
     }
-    this.member(tower, user)
-    this.store.state.towers[tower.id] = tower
-    this.history.event(tower, 'created', user.id, {
-      allowCreatorBan: tower.allowCreatorBan,
-      cost: tower.cost,
-      eligibilityMode: tower.eligibilityMode,
-      minContributions: tower.minContributions,
+    this.member(room, user)
+    this.store.state.rooms[room.id] = room
+    this.history.event(room, 'created', user.id, {
+      allowCreatorBan: room.allowCreatorBan,
+      cost: room.cost,
+      eligibilityMode: room.eligibilityMode,
+      minContributions: room.minContributions,
     })
-    this.history.snapshot(tower, user.id, 'Árvore criada')
-    return { tower: this.publicTower(tower) }
+    this.history.snapshot(room, user.id, 'Sala criada')
+    return { room: this.publicRoom(room) }
   }
-  settings(tower: Tower, user: User, body: Record<string, unknown>) {
-    if (!canManageTower({ id: user.id, roles: user.roles ?? [] }, 'update', tower.creatorId))
+  settings(room: Room, user: User, body: Record<string, unknown>) {
+    if (!canManageRoom({ id: user.id, roles: user.roles ?? [] }, 'update', room.creatorId))
       fail(403, 'Apenas o criador pode alterar as regras.')
     if (Object.hasOwn(body, 'allowCreatorBan'))
       fail(400, 'A opção de suspensão do criador é imutável após criar a sala.')
     if (
-      tower.proposals.some((proposal) => proposal.status === 'pending')
+      room.proposals.some((proposal) => proposal.status === 'pending')
     )
       fail(409, 'Aguarde a proposta pendente antes de alterar regras.')
     const reason = text(body.reason, 3, 500, 'Justificativa')
     const before = {
-      name: tower.name,
-      cost: tower.cost,
-      eligibilityMode: tower.eligibilityMode,
-      minContributions: tower.minContributions,
+      name: room.name,
+      cost: room.cost,
+      eligibilityMode: room.eligibilityMode,
+      minContributions: room.minContributions,
     }
     const after = {
-      name: body.name === undefined ? tower.name : text(body.name, 3, 60, 'Nome'),
+      name: body.name === undefined ? room.name : text(body.name, 3, 60, 'Nome'),
       cost:
         body.cost === undefined
-          ? tower.cost
+          ? room.cost
           : integer(body.cost, 0, this.rules.maxCost, 'Custo'),
       eligibilityMode:
         body.eligibilityMode === undefined
-          ? tower.eligibilityMode
+          ? room.eligibilityMode
           : mode(body.eligibilityMode, ['automatic', 'manual']),
       minContributions:
         body.minContributions === undefined
-          ? tower.minContributions
+          ? room.minContributions
           : integer(body.minContributions, 1, 1000, 'Contribuições mínimas'),
     }
     if (Object.entries(before).every(([key, value]) => after[key as keyof typeof after] === value))
       fail(400, 'Escolha ao menos uma alteração.')
-    Object.assign(tower, after)
-    if (tower.eligibilityMode === 'automatic')
-      for (const participant of Object.values(tower.members))
+    Object.assign(room, after)
+    if (room.eligibilityMode === 'automatic')
+      for (const participant of Object.values(room.members))
         participant.eligible =
-          participant.id === tower.creatorId ||
-          participant.contributions >= tower.minContributions
-    this.history.event(tower, 'settings', user.id, { before, after, reason })
-    return { tower: this.publicTower(tower) }
+          participant.id === room.creatorId ||
+          participant.contributions >= room.minContributions
+    this.history.event(room, 'settings', user.id, { before, after, reason })
+    return { room: this.publicRoom(room) }
   }
-  place(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
-    const match = this.editable(tower)
+  place(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(room)
     const raw = body.cells
     if (!Array.isArray(raw) || raw.length === 0 || raw.length > 64)
       fail(400, 'Informe as células da esteira.')
     const cells = raw.map((cell) => this.stroke(cell, match.width, match.height))
     const error = match.place(cells, { id: user.id, nickname: user.nickname })
     if (error) fail(409, error)
-    return this.commit(tower, user, participant, match, 'place')
+    return this.commit(room, user, participant, match, 'place')
   }
-  removeBelt(tower: Tower, user: User, participant: Member, body: Record<string, unknown>) {
-    const match = this.editable(tower)
+  removeBelt(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(room)
     const error = match.remove(
       {
         x: integer(body.x, 0, match.width - 1, 'X'),
@@ -195,21 +193,20 @@ export class TowerService {
       { id: user.id, nickname: user.nickname },
     )
     if (error) fail(409, error)
-    return this.commit(tower, user, participant, match, 'remove')
+    return this.commit(room, user, participant, match, 'remove')
   }
-  join(tower: Tower, user: User) {
-    const match = this.editable(tower)
+  join(room: Room, user: User) {
+    const match = this.editable(room)
     match.noteCollaborator({ id: user.id, nickname: user.nickname })
-    tower.frame = match.toFrame()
-    this.member(tower, user)
-    this.runtime.afterAction(tower)
-    return { frame: tower.frame }
+    room.frame = match.toFrame()
+    this.member(room, user)
+    this.runtime.afterAction(room)
+    return { frame: room.frame }
   }
-  private editable(tower: Tower) {
-    if (!isPipelineFrame(tower.frame))
+  private editable(room: Room) {
+    if (!isPipelineFrame(room.frame))
       fail(409, 'Esta sala é de uma versão anterior.')
-    if (tower.frame.crashed) fail(409, 'O sistema já caiu.')
-    return Match.fromFrame(tower.frame, this.rules.pipeline)
+    return Match.fromFrame(room.frame, this.rules.pipeline)
   }
   private stroke(cell: unknown, width: number, height: number) {
     if (!cell || typeof cell !== 'object') fail(400, 'Célula inválida.')
@@ -221,35 +218,35 @@ export class TowerService {
       direction: record.direction,
     }
   }
-  private commit(tower: Tower, user: User, participant: Member, match: Match, eventType: string) {
-    tower.frame = match.toFrame()
+  private commit(room: Room, user: User, participant: Member, match: Match, eventType: string) {
+    room.frame = match.toFrame()
     participant.contributions++
-    tower.actionCount++
-    tower.lastActorId = user.id
-    tower.segmentCount = tower.frame.belts.length
+    room.actionCount++
+    room.lastActorId = user.id
+    room.beltCount = room.frame.belts.length
     if (
-      tower.eligibilityMode === 'automatic' &&
-      participant.contributions >= tower.minContributions
+      room.eligibilityMode === 'automatic' &&
+      participant.contributions >= room.minContributions
     )
       participant.eligible = true
-    this.history.event(tower, eventType, user.id, { belts: tower.segmentCount })
-    this.runtime.afterAction(tower)
-    return { frame: tower.frame }
+    this.history.event(room, eventType, user.id, { belts: room.beltCount })
+    this.runtime.afterAction(room)
+    return { frame: room.frame }
   }
   eligibility(
-    tower: Tower,
+    room: Room,
     user: User,
     targetId: string,
     body: Record<string, unknown>,
   ) {
-    if (user.id !== tower.creatorId || tower.eligibilityMode !== 'manual')
+    if (user.id !== room.creatorId || room.eligibilityMode !== 'manual')
       fail(403, 'Apenas o BDFL pode habilitar manualmente.')
-    const target = tower.members[targetId]
+    const target = room.members[targetId]
     if (!target || !target.contributions)
-      fail(400, 'Escolha um contribuidor da árvore.')
+      fail(400, 'Escolha um contribuidor da sala.')
     if (typeof body.eligible !== 'boolean') fail(400, 'Habilitação inválida.')
     target.eligible = body.eligible
-    this.history.event(tower, 'eligibility', user.id, {
+    this.history.event(room, 'eligibility', user.id, {
       targetId: target.id,
       eligible: target.eligible,
     })

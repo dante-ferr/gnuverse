@@ -9,7 +9,7 @@
 
 # 1. Core Concept & Hard Victory Limit
 Build a real-time cooperative multiplayer top-down grid logistics web game ("Open Pipeline") serving as an interactive analogy to Free and Open-Source Software (FOSS). Players collaborate on a shared grid from mobile and desktop browsers to route, combine, and scale geometric data packets into a growing federation of Cores.
-- **Finite End Condition (9 Cores):** Although the system scales progressively through version milestones, it has a defined victory condition: **stabilizing the 9th Core** (1 Central Core + 8 Satellite Cores) and meeting its final delivery target. Upon completion, display a victory screen summarizing contributor stats and allowing players to export/download the final network map before resetting.
+- **Finite End Condition (9 Cores):** Although the system scales progressively through version milestones, it has a defined victory condition: meeting the **9th Core** delivery target (1 Central Core + 8 Satellite Cores). There is **no game-over / crash fail state**. Upon completion, display a victory screen summarizing contributor stats and allowing players to export/download the final network map before resetting.
 
 ---
 
@@ -33,10 +33,10 @@ Instead of punitive timers or scarce currencies, building is cheap and immediate
 # 4. Federated Cores & Cumulative Demand
 - **Central Core (`3x3` Grid Footprint):** Positioned at the center of the map with **12 perimeter faces**. It starts with only **2 open input ports** and unlocks additional ports as version milestones advance, keeping all previous demands active (retrocompatibility).
 - **Satellite Cores (`2x2` Grid Footprint, 8 Ports Each):** As the map expands outward past `v1.0`, new Satellite Cores spawn in outer sectors (up to **9 total cores**). Satellite Cores decentralize traffic so distant sources do not have to route all the way to the center.
-- **Agnostic Ports & Shared Global Stability:**
+- **Agnostic Ports & Cumulative Demand (no crash):**
   - Any open port on any active Core accepts **any** currently demanded packet type (preventing accidental griefing from misrouted belts).
-  - All Cores feed a single **Global Stability Bar**. Each demanded packet type requires a steady delivery rate; if any demanded type is starved, stability drains toward a System Crash (Game Over).
-  - Higher-tier composite packets restore significantly more stability per delivery than basic shapes.
+  - There is **no Global Stability Bar** and **no System Crash**. Matches do not end from starvation.
+  - **Retrocompatibility:** every prior demanded packet type stays required. Leveling up (version unlock) needs the delivery milestone for **all** currently demanded types at once. Dropping an older supply does not punish the room with game over — it **blocks progression**, because the next tier is impossible without those inputs.
 
 ---
 
@@ -50,7 +50,7 @@ To guarantee crisp legibility on small mobile screens, use only **4 base shapes*
 5. **Tunnels (Player-Built):** Allow an underground belt segment to pass cleanly beneath perpendicular surface belts without mixing packets. *(Use Tunnels only—no Bridges).*
 6. **Combiners (Fixed on Map):** Accept 2 distinct shapes on marked input ports and output a single concentric nested shape (e.g., `Triangle` inside `Circle`).
 7. **State Modifiers (Fixed on Map):** Toggle a packet's fill (`Solid` $\leftrightarrow$ `Hollow`) or color polarity as it passes through.
-8. **Bugs — Linus's Law (Active Free Action):** Periodically spawn as pulsing red glitch packets. Reaching a Core temporarily disrupts stability/throughput; any player can double-tap/double-click directly on a moving Bug to squash it for free.
+8. **Bugs — Linus's Law (Active Free Action):** Periodically spawn as pulsing red glitch packets. Reaching a Core temporarily disrupts throughput; any player can double-tap/double-click directly on a moving Bug to squash it for free.
 9. **Legacy Slowdown Zones:** Periodic hatched grid sectors that reduce belt speed by 50%, encouraging parallel bypass routes (*forks*).
 10. **Visual Git Blame:** Store the anonymous contributor alias on every player-placed tile and display it on hover (desktop) or tap/long-press (mobile).
 

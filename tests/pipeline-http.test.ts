@@ -14,7 +14,7 @@ test('a signed-in player can belt a circle into the core and a guest cannot', as
     identityProvider,
     dbPath: join(folder, 'game.sqlite'),
     now: () => time,
-    rules: { pipeline: { stabilityGraceTicks: 80, tickMs: 250 } },
+    rules: { pipeline: { tickMs: 250 } },
   })
   const base = await game.listen()
   try {
@@ -35,8 +35,8 @@ test('a signed-in player can belt a circle into the core and a guest cannot', as
       body: JSON.stringify({ name: 'Núcleo' }),
     })
     assert.equal(created.status, 201)
-    const { tower } = (await created.json()) as { tower: { id: string } }
-    const detail = await fetch(`${base}/api/towers/${tower.id}`)
+    const { room } = (await created.json()) as { room: { id: string } }
+    const detail = await fetch(`${base}/api/towers/${room.id}`)
     const state = (await detail.json()) as {
       frame: {
         source: { x: number; y: number }
@@ -44,32 +44,32 @@ test('a signed-in player can belt a circle into the core and a guest cannot', as
         collaborators: { id: string }[]
       }
     }
-    const guest = await fetch(`${base}/api/towers/${tower.id}/place`, {
+    const guest = await fetch(`${base}/api/towers/${room.id}/place`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cells: [{ x: 0, y: 0, direction: 'east' }] }),
     })
     assert.equal(guest.status, 401)
-    const y = state.frame.source.y
+    const { source, core } = state.frame
+    const y = source.y + 1
     const cells = []
-    for (let x = state.frame.source.x + 1; x < state.frame.core.x; x++)
-      cells.push({ x, y, direction: 'east' })
-    const placed = await fetch(`${base}/api/towers/${tower.id}/place`, {
+    for (let x = source.x + 3; x < core.x; x++) cells.push({ x, y, direction: 'east' })
+    const placed = await fetch(`${base}/api/towers/${room.id}/place`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ cells }),
     })
     assert.equal(placed.status, 200)
-    const joined = await fetch(`${base}/api/towers/${tower.id}/join`, {
+    const joined = await fetch(`${base}/api/towers/${room.id}/join`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: '{}',
     })
     const body = (await joined.json()) as { frame: { collaborators: { nickname: string }[]; belts: unknown[] } }
     assert.equal(body.frame.collaborators[0]?.nickname, 'ada')
-    assert.ok(body.frame.belts.length >= 3)
+    assert.ok(body.frame.belts.length >= 2)
     await new Promise((resolve) => setTimeout(resolve, 1200))
-    const later = await fetch(`${base}/api/towers/${tower.id}`)
+    const later = await fetch(`${base}/api/towers/${room.id}`)
     const after = (await later.json()) as { frame: { deliveries: number } }
     assert.ok(after.frame.deliveries > 0)
   } finally {

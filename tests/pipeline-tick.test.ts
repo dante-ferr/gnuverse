@@ -11,31 +11,22 @@ const rules: PipelineRules = {
   gridHeight: 24,
   tileCap: 25,
   sourcePeriodTicks: 4,
-  stabilityCapacity: 100,
-  stabilityInitial: 80,
-  stabilityWindowTicks: 4,
-  stabilityRequiredDeliveries: 1,
-  stabilityDrain: 5,
-  stabilityRestore: 3,
-  stabilityGraceTicks: 0,
   colorBackground: '#f4f1ea',
   colorGrid: '#d9d3c5',
   colorBelt: '#2c3330',
   colorPacket: '#1f6f5b',
   colorCore: '#243028',
   colorSource: '#243028',
-  colorStability: '#c4552a',
-  colorStabilityOk: '#2f7d4a',
 }
 
 const author = { id: 'ada', nickname: 'Ada' }
 
 function connected() {
   const match = Match.create('seed', rules)
-  const y = match.source.origin.y
+  const output = match.source.outputSlots()[0]!.cell
   const cells = []
-  for (let x = match.source.origin.x + 1; x < match.core.origin.x; x++)
-    cells.push({ x, y, direction: 'east' as const })
+  for (let x = output.x; x < match.core.origin.x; x++)
+    cells.push({ x, y: output.y, direction: 'east' as const })
   assert.equal(match.place(cells, author), null)
   return match
 }
@@ -101,18 +92,4 @@ test('a signed placement cannot cover the core', () => {
     match.place([{ ...cell, direction: 'east' }], author) ?? '',
     /máquina/,
   )
-})
-
-test('starvation drains stability and a delivery restores it', () => {
-  const quiet = Match.create('seed', rules)
-  quiet.tick()
-  assert.equal(quiet.stability.value, 75)
-  const fed = connected()
-  fed.tick()
-  assert.ok(fed.deliveries >= 0)
-  for (let i = 0; i < 20 && fed.deliveries === 0; i++) fed.tick()
-  const drained = fed.stability.value
-  fed.tick()
-  assert.ok(fed.deliveries > 0)
-  assert.ok(fed.stability.value >= drained - rules.stabilityDrain)
 })

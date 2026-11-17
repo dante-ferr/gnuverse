@@ -1,7 +1,7 @@
 # Regras ajustáveis do protótipo local do GNUverse.
 # Durações usam milissegundos, exceto quando o nome explicita outra unidade.
 
-# Carteira e ritmo (árvore: +1 a cada 6s, teto 5, saldo inicial 5)
+# Carteira e ritmo (Open Pipeline: +1 a cada 6s, teto 5, saldo inicial 5)
 balance_cap = 5
 initial_balance = 5
 coin_interval_ms = 6000
@@ -14,106 +14,22 @@ min_contributions = 3
 ban_duration_ms = 600000
 
 # Limites do protótipo
-max_segments = 200
-max_towers = 200
+max_belts = 200
+max_rooms = 200
 session_duration_ms = 604800000
 prototype = true
 bdfl_veto = false
 
-# --- Mundo da árvore na caverna (Matter.js: y cresce para baixo) ---
-world_width = 1600
-world_height = 1200
-exit_x = 720
-exit_y = 0
-exit_width = 160
-exit_height = 80
-root_x = 800
-# Deslocamento vertical da raiz acima da superfície do terreno em root_x
-root_clearance_above_terrain = 60
-
-# Terreno procedural (amplitude máxima acima do ponto mais baixo; terrain_max_slope = Δy/Δx máximo entre amostras)
-terrain_samples = 160
-terrain_amplitude = 48
-terrain_max_slope = 0.12
-terrain_base_y = 1160
-
-# Crescimento e limites
-l_max = 90
-min_ground_clearance = 40
-min_upward_delta = 20
-min_segment_length = 20
-max_secondary_roots = 2
-world_margin = 40
-
-# Energia
-energy_capacity = 100
-energy_initial = 40
-energy_per_leaf = 8
-energy_drain_per_segment = 2
-
-# Vaga-lume
-firefly_radius = 120
-firefly_path_points = 4
-firefly_max_phases = 6
-firefly_x_margin = 120
-firefly_y_low = 200
-firefly_y_start_min = 900
-firefly_y_start_max = 1050
-firefly_step_y_min = 180
-firefly_step_y_max = 260
-firefly_step_x = 80
-
-# Fases e vitória
-action_window_ms = 10000
-physics_phase_ms = 4000
-win_energy_phases = 2
-
-# Custos de ação
-cost_grow = 1
-cost_leaf = 1
-cost_fortify = 2
-cost_prune = 1
-cost_root = 2
-
-# Simulação em tempo real: 1 segundo simulado = 1 segundo de relógio.
-# gravity_scale é a aceleração nas juntas, em unidades de mundo por segundo ao quadrado.
-physics_fps = 60
-physics_substeps = 4
-gravity_scale = 2
-segment_body_width = 8
-stress_threshold_normal = 32
-stress_threshold_fortified = 55
-
-# Apresentação (cliente)
-color_background = "#1a2420"
-color_foreground = "#e8ebe4"
-color_firefly_glow = "#fff6a8"
-color_exit_stroke = "#6a7568"
-camera_pan_speed = 10.0
-click_drag_threshold_px = 6
-segment_hit_padding = 20
-node_hit_radius = 16
-grow_anchor_tolerance = 12
-
-# Open Pipeline v0.1. O núcleo é 5×5 e cada face tem 3 entradas (12 no total).
+# Open Pipeline v0.1. Source is 3×3; core is 5×5 with 3 inputs per face (12 total).
 [pipeline]
 tick_ms = 250
 grid_width = 24
 grid_height = 24
 tile_cap = 25
 source_period_ticks = 4
-stability_capacity = 100
-stability_initial = 80
-stability_window_ticks = 16
-stability_required_deliveries = 2
-stability_drain = 2
-stability_restore = 3
-stability_grace_ticks = 80
 color_background = "#f4f1ea"
 color_grid = "#d9d3c5"
 color_belt = "#2c3330"
 color_packet = "#1f6f5b"
 color_core = "#243028"
 color_source = "#243028"
-color_stability = "#c4552a"
-color_stability_ok = "#2f7d4a"

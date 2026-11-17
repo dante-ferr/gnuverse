@@ -1,5 +1,5 @@
 import type { ServerResponse } from 'node:http'
-import type { Tower } from '../domain/types.ts'
+import type { Room } from '../domain/types.ts'
 import { fail } from '../domain/validation.ts'
 import type { PipelineRules } from '../pipeline/rules.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
@@ -19,31 +19,31 @@ export class SimulationCoordinator {
     this.rules = rules
   }
 
-  publicFrame(tower: Tower) {
-    if (!isPipelineFrame(tower.frame))
+  publicFrame(room: Room) {
+    if (!isPipelineFrame(room.frame))
       fail(409, 'Esta sala é de uma versão anterior.')
-    return tower.frame
+    return room.frame
   }
 
   rollback() {}
 
-  afterAction(tower: Tower) {
-    this.publishChange(tower.id)
+  afterAction(room: Room) {
+    this.publishChange(room.id)
   }
 
-  publishChange(towerId: string) {
-    for (const response of this.streams.get(towerId) ?? [])
+  publishChange(roomId: string) {
+    for (const response of this.streams.get(roomId) ?? [])
       if (response.writableLength < 1024 * 1024)
         response.write('event: change\ndata: {}\n\n')
   }
 
-  remove(towerId: string) {
-    for (const response of this.streams.get(towerId) ?? []) response.end()
-    this.streams.delete(towerId)
+  remove(roomId: string) {
+    for (const response of this.streams.get(roomId) ?? []) response.end()
+    this.streams.delete(roomId)
   }
 
-  subscribe(tower: Tower, response: ServerResponse) {
-    if ((this.streams.get(tower.id)?.size ?? 0) >= 100)
+  subscribe(room: Room, response: ServerResponse) {
+    if ((this.streams.get(room.id)?.size ?? 0) >= 100)
       fail(503, 'Muitos espectadores.')
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -52,21 +52,21 @@ export class SimulationCoordinator {
       'X-Accel-Buffering': 'no',
     })
     response.write(
-      `event: frame\ndata: ${JSON.stringify(this.publicFrame(tower))}\n\n`,
+      `event: frame\ndata: ${JSON.stringify(this.publicFrame(room))}\n\n`,
     )
-    if (!this.streams.has(tower.id)) this.streams.set(tower.id, new Set())
-    this.streams.get(tower.id)!.add(response)
-    response.on('close', () => this.streams.get(tower.id)?.delete(response))
+    if (!this.streams.has(room.id)) this.streams.set(room.id, new Set())
+    this.streams.get(room.id)!.add(response)
+    response.on('close', () => this.streams.get(room.id)?.delete(response))
   }
 
   private step() {
     let needsSave = false
-    for (const tower of Object.values(this.store.state.towers)) {
-      if (!isPipelineFrame(tower.frame) || tower.frame.crashed) continue
-      const match = Match.fromFrame(tower.frame, this.rules)
+    for (const room of Object.values(this.store.state.rooms)) {
+      if (!isPipelineFrame(room.frame)) continue
+      const match = Match.fromFrame(room.frame, this.rules)
       match.tick()
-      tower.frame = match.toFrame()
-      tower.segmentCount = tower.frame.belts.length
+      room.frame = match.toFrame()
+      room.beltCount = room.frame.belts.length
       needsSave = true
     }
     return needsSave
@@ -76,14 +76,14 @@ export class SimulationCoordinator {
     this.timer = setInterval(() => {
       try {
         const needsSave = this.step()
-        for (const tower of Object.values(this.store.state.towers))
-          governance.expireBans(tower)
-        for (const tower of Object.values(this.store.state.towers)) {
-          if (!isPipelineFrame(tower.frame)) continue
-          for (const response of this.streams.get(tower.id) ?? []) {
+        for (const room of Object.values(this.store.state.rooms))
+          governance.expireBans(room)
+        for (const room of Object.values(this.store.state.rooms)) {
+          if (!isPipelineFrame(room.frame)) continue
+          for (const response of this.streams.get(room.id) ?? []) {
             if (response.writableLength > 256 * 1024) continue
             response.write(
-              `event: frame\ndata: ${JSON.stringify(tower.frame)}\n\n`,
+              `event: frame\ndata: ${JSON.stringify(room.frame)}\n\n`,
             )
           }
         }

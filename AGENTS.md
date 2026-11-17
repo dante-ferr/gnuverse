@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Open Pipeline
 
-The playable game is Open Pipeline v0.1, specified in [`docs/open-pipeline-proposal.md`](docs/open-pipeline-proposal.md). Read [`game-server/config/game.config.toml`](game-server/config/game.config.toml) before changing numbers. Later versions (splitters, nested shapes, satellite cores, victory) wait until the current version is reviewed.
+The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipeline-proposal.md`](docs/src/game/open-pipeline-proposal.md). Read [`game-server/config/game.config.toml`](game-server/config/game.config.toml) before changing numbers. Later versions (splitters, nested shapes, satellite cores, victory) wait until the current version is reviewed.
 
 ### Stack and URLs (keep as-is)
 
@@ -21,12 +21,13 @@ The playable game is Open Pipeline v0.1, specified in [`docs/open-pipeline-propo
 
 ### v0.1 rules
 
-- One circle source and a 5×5 central core. Each face has three input slots on the central tiles. Corners are solid, so the core has 12 inputs.
+- One **3×3** circle source and a **5×5** central core. Each core face has three input slots on the central tiles. Corners are solid, so the core has 12 inputs. The source has one output on the center of its facing edge.
 - Players drag unidirectional belts. Each cell holds one packet. The oldest belt past the tile cap is removed.
 - The server moves packets simultaneously. Packets do not swap. An open core slot consumes a circle and counts a delivery.
-- One stability bar for circles. After the grace period, a low delivery rate drains it to a crash. There is no victory screen yet.
+- No stability bar and no crash / game over. Deliveries accumulate; later versions keep prior packet demands active so dropping an older supply blocks leveling up rather than ending the match. There is no victory screen yet.
 - All gameplay and presentation numbers live in the `[pipeline]` table and reach the client on the rules payload. Do not hardcode them in TypeScript.
-- Dynamic grid, belts, and packets are canvas drawings. Static machine art is SVG. In-room copy is Portuguese. Readouts sit on the core, not in a sidebar.
+- Machine bodies and “[” slots are procedural (cell-fit rects + brackets from `Machine`). Decor SVGs are color-agnostic black ink tinted/multiplied from `[pipeline]` colors. Belts and packets stay procedural. In-room copy is Portuguese. Readouts sit on the core, not in a sidebar.
+- **Machine presentation and footprints:** [`docs/src/decisions.md`](docs/src/decisions.md) §9 Open Pipeline machines. **Gameplay loop:** [`docs/src/game/rules.md`](docs/src/game/rules.md).
 
 ### Agent workflow
 

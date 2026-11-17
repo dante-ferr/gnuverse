@@ -28,11 +28,7 @@ export type PipelineFrame = {
   width: number
   height: number
   tick: number
-  crashed: boolean
-  stability: number
   deliveries: number
-  recent: number[]
-  graceRemaining: number
   collaborators: CollaboratorRecord[]
   nextPacketId: number
   nextBeltSeq: number

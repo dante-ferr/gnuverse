@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameApi } from '../../api/game-api'
 import { isPipelineFrame, type PipelineFrame } from '../model/frame'
-import type { Connection } from '../../hooks/use-tower-lobby'
+import type { Connection } from '../../hooks/use-room-lobby'
 
 const emptyFrame = (): PipelineFrame => ({
   kind: 'pipeline',
@@ -12,10 +12,7 @@ const emptyFrame = (): PipelineFrame => ({
   width: 24,
   height: 24,
   tick: 0,
-  crashed: false,
-  stability: 0,
   deliveries: 0,
-  graceRemaining: 0,
   collaborators: [],
   belts: [],
   packets: [],
@@ -24,39 +21,39 @@ const emptyFrame = (): PipelineFrame => ({
 })
 
 /** SSE frames for one pipeline room. */
-export function usePipelineStream(api: GameApi, towerId: string) {
+export function usePipelineStream(api: GameApi, roomId: string) {
   const [frame, setFrame] = useState<PipelineFrame>(emptyFrame)
   const [rules, setRules] = useState<Record<string, unknown> | null>(null)
   const [name, setName] = useState('')
   const [creatorId, setCreatorId] = useState('')
   const [connection, setConnection] = useState<Connection>('connecting')
-  const selected = useRef(towerId)
-  selected.current = towerId
+  const selected = useRef(roomId)
+  selected.current = roomId
   const refresh = useCallback(async () => {
-    if (!towerId) return
+    if (!roomId) return
     const result = await api.request<{
-      tower: { id: string; name: string; creatorId: string }
+      room: { id: string; name: string; creatorId: string }
       frame: PipelineFrame
       rules: Record<string, unknown>
       members: { id: string; banned: boolean }[]
-    }>(`/api/towers/${towerId}`)
-    if (selected.current !== result.tower.id || !isPipelineFrame(result.frame)) return
+    }>(`/api/towers/${roomId}`)
+    if (selected.current !== result.room.id || !isPipelineFrame(result.frame)) return
     setFrame((current) => (result.frame.tick >= current.tick ? result.frame : current))
     setRules(result.rules)
-    setName(result.tower.name)
-    setCreatorId(result.tower.creatorId)
-  }, [api, towerId])
+    setName(result.room.name)
+    setCreatorId(result.room.creatorId)
+  }, [api, roomId])
   useEffect(() => {
     setFrame(emptyFrame())
     setConnection('connecting')
-    if (!towerId) return
+    if (!roomId) return
     let active = true
     const update = () =>
       refresh().catch(() => {
         if (active) setConnection('offline')
       })
     void update()
-    const stream = api.stream(towerId)
+    const stream = api.stream(roomId)
     stream.onopen = () => {
       if (active) setConnection('live')
     }
@@ -82,6 +79,6 @@ export function usePipelineStream(api: GameApi, towerId: string) {
       active = false
       stream.close()
     }
-  }, [api, towerId, refresh])
+  }, [api, roomId, refresh])
   return { frame, rules, name, creatorId, connection, refresh }
 }

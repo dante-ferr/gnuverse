@@ -33,12 +33,12 @@ Two experiences; coins, BDFL/voting, 14 posts, external approval.
 Design documentation; side-view towers with Matter.js later landed in `game-server/` as an early prototype.
 
 ### Decision
-**Superseded** as the playable product by Open Pipeline (see below). Lobby URLs and `/api/towers` naming remain. Orphaned tree/tower UI and Matter paths are debt tracked in [`open-pipeline-wip.md`](../../open-pipeline-wip.md).
+**Superseded** as the playable product by Open Pipeline (see below). Lobby URLs (`/jogo/torre/`) and `/api/towers` naming **remain by decision**. Dead Matter/tree tower code and orphan UI were **removed** from the repo; operational gaps (migrations, governance UI) stay in [`open-pipeline-wip.md`](../../open-pipeline-wip.md).
 
 ## Open Pipeline (current playable game)
 
 ### Setup
-Top-down cooperative logistics: belts, circle packets, 5×5 core, stability crash. Server sim in `game-server/pipeline/`; canvas client in `src/components/game/pipeline/`. Spec and handoff: [`open-pipeline-proposal.md`](../../open-pipeline-proposal.md), [`open-pipeline-wip.md`](../../open-pipeline-wip.md).
+Top-down cooperative logistics: belts, circle packets, 5×5 core; no stability crash. Server sim in `game-server/pipeline/`; canvas client in `src/components/game/pipeline/`. Spec and handoff: [`open-pipeline-proposal.md`](../../open-pipeline-proposal.md), [`open-pipeline-wip.md`](../../open-pipeline-wip.md).
 
 ### Result
 v0.1 playable slice on `feat/game` (under review). CMS login required to place or remove belts.

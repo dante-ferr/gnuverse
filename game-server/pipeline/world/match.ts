@@ -10,7 +10,6 @@ import { BeltEditor } from './belt-editor.ts'
 import { Emission } from './emission.ts'
 import type { CollaboratorRecord, PipelineFrame } from './frame.ts'
 import { Movement } from './movement.ts'
-import { StabilityMeter } from './stability-meter.ts'
 
 /** One Open Pipeline match. The server tick is the only writer. */
 export class Match {
@@ -18,18 +17,15 @@ export class Match {
   packets: Packet[] = []
   collaborators: CollaboratorRecord[] = []
   tickIndex = 0
-  crashed = false
   deliveries = 0
   nextPacketId = 1
   nextBeltSeq = 1
-  graceRemaining: number
   readonly rules: PipelineRules
   readonly seed: string
   readonly width: number
   readonly height: number
   readonly source: SourceMachine
   readonly core: CoreMachine
-  readonly stability: StabilityMeter
 
   constructor(
     rules: PipelineRules,
@@ -38,7 +34,6 @@ export class Match {
     height: number,
     source: SourceMachine,
     core: CoreMachine,
-    stability?: StabilityMeter,
   ) {
     this.rules = rules
     this.seed = seed
@@ -46,8 +41,6 @@ export class Match {
     this.height = height
     this.source = source
     this.core = core
-    this.stability = stability ?? new StabilityMeter(rules)
-    this.graceRemaining = rules.stabilityGraceTicks
   }
 
   static create(seed: string, rules: PipelineRules) {
@@ -55,7 +48,10 @@ export class Match {
       x: Math.floor((rules.gridWidth - CoreMachine.size) / 2),
       y: Math.floor((rules.gridHeight - CoreMachine.size) / 2),
     }
-    const sourceOrigin = { x: coreOrigin.x - 4, y: coreOrigin.y + 2 }
+    const sourceOrigin = {
+      x: coreOrigin.x - SourceMachine.size - 2,
+      y: coreOrigin.y + Math.floor((CoreMachine.size - SourceMachine.size) / 2),
+    }
     return new Match(
       rules,
       seed,
@@ -89,19 +85,13 @@ export class Match {
   }
 
   tick() {
-    if (this.crashed) return
     const delivered = new Movement(this).resolve()
     this.deliveries += delivered
     new Emission(this).emit()
-    const grace = this.graceRemaining
-    this.stability.record(delivered, grace)
-    if (this.graceRemaining > 0) this.graceRemaining -= 1
-    if (this.stability.value <= 0) this.crashed = true
     this.tickIndex += 1
   }
 
   toFrame(): PipelineFrame {
-    const meter = this.stability.snapshot()
     return {
       kind: 'pipeline',
       version: '0.1',
@@ -109,11 +99,7 @@ export class Match {
       width: this.width,
       height: this.height,
       tick: this.tickIndex,
-      crashed: this.crashed,
-      stability: meter.value,
       deliveries: this.deliveries,
-      recent: meter.recent,
-      graceRemaining: this.graceRemaining,
       collaborators: this.collaborators.map((person) => ({ ...person })),
       nextPacketId: this.nextPacketId,
       nextBeltSeq: this.nextBeltSeq,
@@ -159,12 +145,9 @@ export class Match {
         frame.source.cooldown,
       ),
       new CoreMachine(frame.core.id, { x: frame.core.x, y: frame.core.y }),
-      new StabilityMeter(rules, frame.stability, frame.recent),
     )
     match.tickIndex = frame.tick
-    match.crashed = frame.crashed
     match.deliveries = frame.deliveries
-    match.graceRemaining = frame.graceRemaining
     match.collaborators = frame.collaborators.map((person) => ({ ...person }))
     match.nextPacketId = frame.nextPacketId
     match.nextBeltSeq = frame.nextBeltSeq

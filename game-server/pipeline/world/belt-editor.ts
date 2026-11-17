@@ -15,7 +15,6 @@ export class BeltEditor {
   }
 
   place(cells: Stroke[], author: Author) {
-    if (this.match.crashed) return 'O sistema já caiu.'
     if (cells.length === 0) return 'Escolha ao menos uma célula.'
     for (const cell of cells) {
       const error = this.validate(cell, author)
@@ -28,7 +27,6 @@ export class BeltEditor {
   }
 
   remove(cell: { x: number; y: number }, author: Author) {
-    if (this.match.crashed) return 'O sistema já caiu.'
     const belt = this.match.beltAt(cell)
     if (!belt) return 'Não há esteira nessa célula.'
     if (belt.authorId !== author.id) return 'Essa esteira é de outra pessoa.'
