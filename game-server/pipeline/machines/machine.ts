@@ -1,7 +1,33 @@
 import type { Cell } from '../geometry/cell.ts'
 import { sameCell } from '../geometry/cell.ts'
 import { ahead, opposite, type Direction } from '../geometry/direction.ts'
+import type { PipelineRules } from '../rules.ts'
 import { Slot } from './slot.ts'
+
+/** Per-role “[” bracket size as percent of one grid cell (see `[pipeline]` TOML). */
+export type SlotBracketStyle = {
+  inputDepthPercent: number
+  outputDepthPercent: number
+  thickPercent: number
+  /** Chevron tip depth along travel, baked into the spine (percent of one cell). */
+  flowMarkDepthPercent: number
+}
+
+export const defaultSlotBracketStyle: SlotBracketStyle = {
+  inputDepthPercent: 22,
+  outputDepthPercent: 34,
+  thickPercent: 18,
+  flowMarkDepthPercent: 12,
+}
+
+export function slotBracketStyleFromRules(rules: PipelineRules): SlotBracketStyle {
+  return {
+    inputDepthPercent: rules.slotInputDepthPercent,
+    outputDepthPercent: rules.slotOutputDepthPercent,
+    thickPercent: rules.slotBracketThickPercent,
+    flowMarkDepthPercent: rules.slotFlowMarkDepthPercent,
+  }
+}
 
 /** A structure with a footprint and named input or output slots. */
 export abstract class Machine {
@@ -48,11 +74,17 @@ export abstract class Machine {
   /**
    * Closed “[”-shaped polygon in world pixels.
    * Opens outward (inputs: opposite travel; outputs: travel).
+   * Output spines include a chevron tip along `slot.travel`; inputs are plain brackets.
    * Spans one cell; may protrude past the machine body.
    */
-  slotBracket(slot: Slot, cellPx: number): { x: number; y: number }[] {
-    const depth = 0.28 * cellPx
-    const thick = 0.18 * cellPx
+  slotBracket(
+    slot: Slot,
+    cellPx: number,
+    style: SlotBracketStyle = defaultSlotBracketStyle,
+  ): { x: number; y: number }[] {
+    const depthPct = slot.role === 'input' ? style.inputDepthPercent : style.outputDepthPercent
+    const depth = (depthPct / 100) * cellPx
+    const thick = (style.thickPercent / 100) * cellPx
     const open: Direction = slot.role === 'input' ? opposite(slot.travel) : slot.travel
     const left = slot.cell.x * cellPx
     const top = slot.cell.y * cellPx
@@ -62,40 +94,55 @@ export abstract class Machine {
     // Outputs: back on the shared edge with the machine (inner side of the exterior cell).
     const fromOutside = slot.role === 'output'
 
-    if (open === 'east') {
-      const back = fromOutside ? left : right
+    if (slot.role === 'input') {
+      if (open === 'east') {
+        const back = right
+        const tip = back + depth
+        const spine = back + thick
+        return [
+          { x: back, y: top },
+          { x: tip, y: top },
+          { x: tip, y: top + thick },
+          { x: spine, y: top + thick },
+          { x: spine, y: bottom - thick },
+          { x: tip, y: bottom - thick },
+          { x: tip, y: bottom },
+          { x: back, y: bottom },
+        ]
+      }
+      if (open === 'west') {
+        const back = left
+        const tip = back - depth
+        const spine = back - thick
+        return [
+          { x: back, y: top },
+          { x: tip, y: top },
+          { x: tip, y: top + thick },
+          { x: spine, y: top + thick },
+          { x: spine, y: bottom - thick },
+          { x: tip, y: bottom - thick },
+          { x: tip, y: bottom },
+          { x: back, y: bottom },
+        ]
+      }
+      if (open === 'north') {
+        const back = top
+        const tip = back - depth
+        const spine = back - thick
+        return [
+          { x: left, y: back },
+          { x: left, y: tip },
+          { x: left + thick, y: tip },
+          { x: left + thick, y: spine },
+          { x: right - thick, y: spine },
+          { x: right - thick, y: tip },
+          { x: right, y: tip },
+          { x: right, y: back },
+        ]
+      }
+      const back = bottom
       const tip = back + depth
       const spine = back + thick
-      return [
-        { x: back, y: top },
-        { x: tip, y: top },
-        { x: tip, y: top + thick },
-        { x: spine, y: top + thick },
-        { x: spine, y: bottom - thick },
-        { x: tip, y: bottom - thick },
-        { x: tip, y: bottom },
-        { x: back, y: bottom },
-      ]
-    }
-    if (open === 'west') {
-      const back = fromOutside ? right : left
-      const tip = back - depth
-      const spine = back - thick
-      return [
-        { x: back, y: top },
-        { x: tip, y: top },
-        { x: tip, y: top + thick },
-        { x: spine, y: top + thick },
-        { x: spine, y: bottom - thick },
-        { x: tip, y: bottom - thick },
-        { x: tip, y: bottom },
-        { x: back, y: bottom },
-      ]
-    }
-    if (open === 'north') {
-      const back = fromOutside ? bottom : top
-      const tip = back - depth
-      const spine = back - thick
       return [
         { x: left, y: back },
         { x: left, y: tip },
@@ -107,14 +154,92 @@ export abstract class Machine {
         { x: right, y: back },
       ]
     }
+
+    const flow = (style.flowMarkDepthPercent / 100) * cellPx
+    const midX = left + cellPx / 2
+    const midY = top + cellPx / 2
+    const half = thick * 0.9
+
+    if (open === 'east') {
+      const back = fromOutside ? left : right
+      const tip = back + depth
+      const spine = back + thick
+      const towardTip = Math.min(flow, Math.max(0, tip - spine - 1))
+      const towardBack = Math.min(flow, Math.max(0, Math.abs(spine - back) - 1))
+      const tipX =
+        slot.travel === 'east' ? spine + towardTip : spine - towardBack
+      return [
+        { x: back, y: top },
+        { x: tip, y: top },
+        { x: tip, y: top + thick },
+        { x: spine, y: top + thick },
+        { x: spine, y: midY - half },
+        { x: tipX, y: midY },
+        { x: spine, y: midY + half },
+        { x: spine, y: bottom - thick },
+        { x: tip, y: bottom - thick },
+        { x: tip, y: bottom },
+        { x: back, y: bottom },
+      ]
+    }
+    if (open === 'west') {
+      const back = fromOutside ? right : left
+      const tip = back - depth
+      const spine = back - thick
+      const towardTip = Math.min(flow, Math.max(0, spine - tip - 1))
+      const towardBack = Math.min(flow, Math.max(0, Math.abs(back - spine) - 1))
+      const tipX =
+        slot.travel === 'west' ? spine - towardTip : spine + towardBack
+      return [
+        { x: back, y: top },
+        { x: tip, y: top },
+        { x: tip, y: top + thick },
+        { x: spine, y: top + thick },
+        { x: spine, y: midY - half },
+        { x: tipX, y: midY },
+        { x: spine, y: midY + half },
+        { x: spine, y: bottom - thick },
+        { x: tip, y: bottom - thick },
+        { x: tip, y: bottom },
+        { x: back, y: bottom },
+      ]
+    }
+    if (open === 'north') {
+      const back = fromOutside ? bottom : top
+      const tip = back - depth
+      const spine = back - thick
+      const towardTip = Math.min(flow, Math.max(0, spine - tip - 1))
+      const towardBack = Math.min(flow, Math.max(0, Math.abs(back - spine) - 1))
+      const tipY =
+        slot.travel === 'north' ? spine - towardTip : spine + towardBack
+      return [
+        { x: left, y: back },
+        { x: left, y: tip },
+        { x: left + thick, y: tip },
+        { x: left + thick, y: spine },
+        { x: midX - half, y: spine },
+        { x: midX, y: tipY },
+        { x: midX + half, y: spine },
+        { x: right - thick, y: spine },
+        { x: right - thick, y: tip },
+        { x: right, y: tip },
+        { x: right, y: back },
+      ]
+    }
     const back = fromOutside ? top : bottom
     const tip = back + depth
     const spine = back + thick
+    const towardTip = Math.min(flow, Math.max(0, tip - spine - 1))
+    const towardBack = Math.min(flow, Math.max(0, Math.abs(spine - back) - 1))
+    const tipY = slot.travel === 'south' ? spine + towardTip : spine - towardBack
     return [
       { x: left, y: back },
       { x: left, y: tip },
       { x: left + thick, y: tip },
       { x: left + thick, y: spine },
+      { x: midX - half, y: spine },
+      { x: midX, y: tipY },
+      { x: midX + half, y: spine },
       { x: right - thick, y: spine },
       { x: right - thick, y: tip },
       { x: right, y: tip },

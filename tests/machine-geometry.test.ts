@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CoreMachine } from '../game-server/pipeline/machines/core-machine.ts'
-import { Machine } from '../game-server/pipeline/machines/machine.ts'
+import { defaultSlotBracketStyle, Machine } from '../game-server/pipeline/machines/machine.ts'
 import { Slot } from '../game-server/pipeline/machines/slot.ts'
 import { SourceMachine } from '../game-server/pipeline/machines/source-machine.ts'
 
@@ -55,4 +55,43 @@ test('slotBracket spans one cell and returns a closed polygon', () => {
   assert.equal(Math.max(...xs), 3 * 48)
   assert.ok(Math.min(...ys) < 0)
   assert.equal(Math.max(...ys), 0)
+})
+
+test('slotBracket uses shallower input depth and deeper output depth', () => {
+  const cellPx = 100
+  const core = new CoreMachine('core', { x: 0, y: 0 })
+  const input = core.slotAt({ x: 2, y: 0 }, 'input')
+  assert.ok(input)
+  const inPath = core.slotBracket(input, cellPx)
+  const inputProtrusion = 0 - Math.min(...inPath.map((point) => point.y))
+  assert.equal(
+    inputProtrusion,
+    (defaultSlotBracketStyle.inputDepthPercent / 100) * cellPx,
+  )
+
+  const source = new SourceMachine('source', { x: 0, y: 0 }, 'east', 'circle', 4)
+  const output = source.outputSlots()[0]!
+  const outPath = source.slotBracket(output, cellPx)
+  const outputProtrusion =
+    Math.max(...outPath.map((point) => point.x)) - output.cell.x * cellPx
+  assert.equal(
+    outputProtrusion,
+    (defaultSlotBracketStyle.outputDepthPercent / 100) * cellPx,
+  )
+  assert.ok(outputProtrusion > inputProtrusion)
+})
+
+test('output slotBracket spine chevron points along slot travel', () => {
+  const cellPx = 100
+  const source = new SourceMachine('source', { x: 0, y: 0 }, 'east', 'circle', 4)
+  const output = source.outputSlots()[0]!
+  const outPath = source.slotBracket(output, cellPx)
+  const outSpineX = output.cell.x * cellPx + (defaultSlotBracketStyle.thickPercent / 100) * cellPx
+  const outTip = outPath.find(
+    (point) =>
+      Math.abs(point.y - (output.cell.y * cellPx + cellPx / 2)) < 0.01 &&
+      point.x > outSpineX,
+  )
+  assert.ok(outTip)
+  assert.ok(outTip.x > outSpineX)
 })

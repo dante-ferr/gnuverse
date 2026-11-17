@@ -48,4 +48,14 @@ export type PipelineRules = {
   coreClearanceExtra: number
   /** v0.1 milestone: circle deliveries required before the next tier. */
   coreDemandCircle: number
+  /** Unique collaborators required alongside delivery milestones to unlock the next version. */
+  unlockCollaborators: number
+  /** Input “[” bracket protrusion as percent of one cell (shallower = recess). */
+  slotInputDepthPercent: number
+  /** Output bracket protrusion as percent of one cell (deeper = nozzle). */
+  slotOutputDepthPercent: number
+  /** Shared bracket spine thickness as percent of one cell. */
+  slotBracketThickPercent: number
+  /** Chevron tip depth along travel, baked into the bracket spine (percent of one cell). */
+  slotFlowMarkDepthPercent: number
 }

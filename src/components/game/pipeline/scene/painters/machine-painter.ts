@@ -1,4 +1,8 @@
 import { CoreMachine } from '../../../../../../game-server/pipeline/machines/core-machine.ts'
+import {
+  slotBracketStyleFromRules,
+  type SlotBracketStyle,
+} from '../../../../../../game-server/pipeline/machines/machine.ts'
 import { SourceMachine } from '../../../../../../game-server/pipeline/machines/source-machine.ts'
 import type { Machine } from '../../../../../../game-server/pipeline/machines/machine.ts'
 import type { PacketShape } from '../../../../../../game-server/pipeline/packets/packet.ts'
@@ -38,8 +42,9 @@ export class MachinePainter {
       frame.source.shape,
       1,
     )
-    this.machine(ctx, core, rules.colorCore, this.images.core, rules)
-    this.machine(ctx, source, rules.colorSource, this.images.source, rules)
+    const bracketStyle = slotBracketStyleFromRules(rules)
+    this.machine(ctx, core, rules.colorCore, this.images.core, rules, bracketStyle)
+    this.machine(ctx, source, rules.colorSource, this.images.source, rules, bracketStyle)
     this.drawOrbitingResourceGlyph(ctx, source, frame.source.shape, rules, cameraZoom, timeMs)
   }
 
@@ -49,6 +54,7 @@ export class MachinePainter {
     bodyColor: string,
     decor: HTMLImageElement | null,
     rules: PipelineRules,
+    bracketStyle: SlotBracketStyle,
   ) {
     const px = machine.origin.x * cellSize
     const py = machine.origin.y * cellSize
@@ -60,7 +66,7 @@ export class MachinePainter {
     ctx.lineWidth = rules.outlineWidthPx
     ctx.strokeRect(px, py, width, height)
     for (const slot of machine.slots) {
-      const path = machine.slotBracket(slot, cellSize)
+      const path = machine.slotBracket(slot, cellSize, bracketStyle)
       ctx.beginPath()
       ctx.moveTo(path[0]!.x, path[0]!.y)
       for (let i = 1; i < path.length; i++) ctx.lineTo(path[i]!.x, path[i]!.y)

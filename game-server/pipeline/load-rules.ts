@@ -33,6 +33,11 @@ const defaults = {
   machine_clearance_min: 1,
   core_clearance_extra: 2,
   core_demand_circle: 20,
+  unlock_collaborators: 2,
+  slot_input_depth_percent: 22,
+  slot_output_depth_percent: 34,
+  slot_bracket_thick_percent: 18,
+  slot_flow_mark_depth_percent: 12,
 } as const
 
 const integers = {
@@ -52,6 +57,11 @@ const integers = {
   machine_clearance_min: [1, 8],
   core_clearance_extra: [0, 8],
   core_demand_circle: [1, 999_999],
+  unlock_collaborators: [2, 64],
+  slot_input_depth_percent: [5, 45],
+  slot_output_depth_percent: [5, 45],
+  slot_bracket_thick_percent: [5, 35],
+  slot_flow_mark_depth_percent: [4, 20],
 } as const
 
 const mappings = {
@@ -86,6 +96,11 @@ const mappings = {
   machine_clearance_min: 'machineClearanceMin',
   core_clearance_extra: 'coreClearanceExtra',
   core_demand_circle: 'coreDemandCircle',
+  unlock_collaborators: 'unlockCollaborators',
+  slot_input_depth_percent: 'slotInputDepthPercent',
+  slot_output_depth_percent: 'slotOutputDepthPercent',
+  slot_bracket_thick_percent: 'slotBracketThickPercent',
+  slot_flow_mark_depth_percent: 'slotFlowMarkDepthPercent',
 } as const
 
 /** Reads the `[pipeline]` table. Missing keys use the v0.1 defaults. */

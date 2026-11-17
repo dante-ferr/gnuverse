@@ -6,6 +6,7 @@ import { CoreMachine } from '../game-server/pipeline/machines/core-machine.ts'
 import { Packet } from '../game-server/pipeline/packets/packet.ts'
 import type { PipelineRules } from '../game-server/pipeline/rules.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
+import { forceAdvance } from '../game-server/pipeline/world/unlock.ts'
 
 const rules: PipelineRules = {
   tickMs: 250,
@@ -39,6 +40,11 @@ const rules: PipelineRules = {
   machineClearanceMin: 1,
   coreClearanceExtra: 2,
   coreDemandCircle: 20,
+  unlockCollaborators: 2,
+  slotInputDepthPercent: 22,
+  slotOutputDepthPercent: 34,
+  slotBracketThickPercent: 18,
+  slotFlowMarkDepthPercent: 12,
 }
 
 const author = { id: 'ada', nickname: 'Ada' }
@@ -167,6 +173,28 @@ test('the oldest belt is recycled past the tile cap', () => {
   assert.equal(match.belts.length, 2)
   assert.equal(match.beltAt({ x: 0, y }), undefined)
   assert.ok(match.beltAt({ x: 2, y }))
+})
+
+test('auto unlock bumps 0.1 to 0.2 when deliveries and collaborators gates are met', () => {
+  const match = connected({ ...rules, coreDemandCircle: 3 })
+  match.deliveryByShape = { circle: 3 }
+  match.deliveries = 3
+  match.collaborators.push(
+    { id: 'ada', nickname: 'Ada' },
+    { id: 'bob', nickname: 'Bob' },
+  )
+  assert.equal(match.version, '0.1')
+  match.tick()
+  assert.equal(match.version, '0.2')
+  match.tick()
+  assert.equal(match.version, '0.2')
+})
+
+test('forceAdvance can bump beyond 0.2', () => {
+  const match = Match.create('seed', rules)
+  match.version = '0.2'
+  forceAdvance(match)
+  assert.equal(match.version, '0.3')
 })
 
 test('a signed placement cannot cover the core', () => {

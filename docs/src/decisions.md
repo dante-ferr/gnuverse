@@ -43,7 +43,7 @@ Locked presentation and footprints for v0.1 (enforced on `Machine` in `game-serv
 | Choice | Rule |
 | :--- | :--- |
 | Body | Axis-aligned rectangle that **exactly** fills `width × height` cells |
-| Slots | “[”-shaped protuberances from `Machine.slotBracket`; may stick slightly past the body; **one cell** wide along the face |
+| Slots | “[”-shaped protuberances from `Machine.slotBracket`; may stick slightly past the body; **one cell** wide along the face. **Inputs** use a shallower protrusion (`slot_input_depth_percent`) and a plain bracket. **Outputs** use a deeper one (`slot_output_depth_percent`); output spines include a chevron tip along `slot.travel` (`slot_flow_mark_depth_percent`), same fill and outline as the bracket |
 | Core | **5×5**; 12 inputs (three central tiles per face; corners solid) |
 | Source | **3×3**; single output on the **center cell of the facing edge**, one step outside along `direction` |
 | Decor SVG | Black ink (`#000000`) on transparent under `public/pipeline/`. **New or replacement machine decor must be generated with QuiverAI** (do not hand-draw substitutes unless the user asks). Thick strokes use `[pipeline] decor_stroke_width` (512 viewBox) with thinner companion strokes (6 or 8) for detail. At draw time each machine tints its decor to a **darker tone of that machine’s body color** via `darkenHex(body, decor_darken_percent)`. Core uses `core-decor.svg`; source body uses `source-decor.svg` (no resource glyph on the body) |

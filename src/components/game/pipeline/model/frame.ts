@@ -32,6 +32,11 @@ export type PipelineRules = {
   machineClearanceMin: number
   coreClearanceExtra: number
   coreDemandCircle: number
+  unlockCollaborators: number
+  slotInputDepthPercent: number
+  slotOutputDepthPercent: number
+  slotBracketThickPercent: number
+  slotFlowMarkDepthPercent: number
 }
 
 export type CoreDemandRecord = {
@@ -52,7 +57,7 @@ export type BeltRecord = {
 
 export type PipelineFrame = {
   kind: 'pipeline'
-  version: '0.1'
+  version: string
   seed: string
   width: number
   height: number

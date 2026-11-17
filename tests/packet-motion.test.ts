@@ -39,6 +39,11 @@ const rules: PipelineRules = {
   machineClearanceMin: 1,
   coreClearanceExtra: 2,
   coreDemandCircle: 5,
+  unlockCollaborators: 2,
+  slotInputDepthPercent: 22,
+  slotOutputDepthPercent: 34,
+  slotBracketThickPercent: 18,
+  slotFlowMarkDepthPercent: 12,
 }
 
 function frame(tick: number, packets: PipelineFrame['packets']): PipelineFrame {

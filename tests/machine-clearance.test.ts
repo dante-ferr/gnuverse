@@ -48,6 +48,11 @@ const rules: PipelineRules = {
   machineClearanceMin: 1,
   coreClearanceExtra: 2,
   coreDemandCircle: 20,
+  unlockCollaborators: 2,
+  slotInputDepthPercent: 22,
+  slotOutputDepthPercent: 34,
+  slotBracketThickPercent: 18,
+  slotFlowMarkDepthPercent: 12,
 }
 
 const author = { id: 'ada', nickname: 'Ada' }

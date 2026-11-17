@@ -1,5 +1,6 @@
 import type { BeltRecord, Direction, PipelineRules } from '../../model/frame.ts'
 import { ahead } from '../grid-math.ts'
+import { drawFlowChevron } from './flow-chevron.ts'
 import { cellSize } from './grid-painter.ts'
 
 /** Draws each belt cell as a square-ended track with chevrons clipped to that cell. */
@@ -77,7 +78,15 @@ function chevrons(ctx: CanvasRenderingContext2D, belt: BeltRecord, rules: Pipeli
     const coord = n * step + travel
     const x = alongAxis ? coord : cross
     const y = alongAxis ? cross : coord
-    chevronAt(ctx, x, y, belt.direction, rules)
+    drawFlowChevron(
+      ctx,
+      x,
+      y,
+      belt.direction,
+      cellSize * 0.14,
+      rules.beltChevronStrokePx,
+      rules.colorBackground,
+    )
   }
   ctx.restore()
 }
@@ -87,28 +96,4 @@ function directionDelta(direction: Direction) {
   if (direction === 'west') return { dx: -1, dy: 0 }
   if (direction === 'south') return { dx: 0, dy: 1 }
   return { dx: 0, dy: -1 }
-}
-
-function chevronAt(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  direction: Direction,
-  rules: PipelineRules,
-) {
-  const angle = { east: 0, south: Math.PI / 2, west: Math.PI, north: -Math.PI / 2 }[direction]
-  const arm = cellSize * 0.14
-  ctx.save()
-  ctx.translate(x, y)
-  ctx.rotate(angle)
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-  ctx.beginPath()
-  ctx.moveTo(-arm, -arm * 0.85)
-  ctx.lineTo(arm * 0.35, 0)
-  ctx.lineTo(-arm, arm * 0.85)
-  ctx.strokeStyle = rules.colorBackground
-  ctx.lineWidth = rules.beltChevronStrokePx
-  ctx.stroke()
-  ctx.restore()
 }
