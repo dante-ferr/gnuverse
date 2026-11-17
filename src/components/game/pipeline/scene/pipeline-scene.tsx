@@ -8,7 +8,9 @@ import { GridCamera } from './grid-camera.ts'
 import { BeltPainter } from './painters/belt-painter.ts'
 import { cellSize, GridPainter } from './painters/grid-painter.ts'
 import { loadMachineDecor, MachinePainter } from './painters/machine-painter.ts'
+import { PacketPainter } from './painters/packet-painter.ts'
 import { ReadoutPainter } from './painters/readout-painter.ts'
+import { createPacketMotionState, syncPacketMotion } from './packet-motion.ts'
 import styles from '../../game-shell.module.css'
 
 type Props = {
@@ -28,7 +30,9 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
   const machinePainter = useRef(new MachinePainter(images.current))
   const gridPainter = useRef(new GridPainter())
   const beltPainter = useRef(new BeltPainter())
+  const packetPainter = useRef(new PacketPainter())
   const readoutPainter = useRef(new ReadoutPainter())
+  const packetMotion = useRef(createPacketMotionState())
   frameRef.current = frame
   rulesRef.current = rules
 
@@ -79,9 +83,12 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
       authorNickname: '',
       placedAt: index,
     }))
+    const timeMs = performance.now()
+    syncPacketMotion(packetMotion.current, current, timeMs)
     const belts = visibleBelts(current)
-    beltPainter.current.draw(ctx, [...belts, ...(preview ?? [])], palette, performance.now())
-    machinePainter.current.draw(ctx, current, palette, camera.zoom, performance.now())
+    beltPainter.current.draw(ctx, [...belts, ...(preview ?? [])], palette, timeMs)
+    packetPainter.current.draw(ctx, current, belts, palette, packetMotion.current, timeMs)
+    machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs)
     const hover = hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
     readoutPainter.current.draw(ctx, current, palette, hover)
     ctx.restore()

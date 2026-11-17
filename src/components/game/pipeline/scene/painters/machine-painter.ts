@@ -17,7 +17,7 @@ export type MachineDecorImages = {
   resources: Partial<Record<PacketShape, HTMLImageElement | null>>
 }
 
-/** Draws machine bodies (cell-fit rects), “[” slots, tinted decor SVGs, orbiting glyphs, and packets. */
+/** Draws machine bodies (cell-fit rects), “[” slots, tinted decor SVGs, and orbiting glyphs. */
 export class MachinePainter {
   private readonly tintCache = new Map<string, HTMLCanvasElement>()
 
@@ -41,18 +41,6 @@ export class MachinePainter {
     this.machine(ctx, core, rules.colorCore, this.images.core, rules)
     this.machine(ctx, source, rules.colorSource, this.images.source, rules)
     this.drawOrbitingResourceGlyph(ctx, source, frame.source.shape, rules, cameraZoom, timeMs)
-    for (const packet of frame.packets) {
-      const px = (packet.x + 0.5) * cellSize
-      const py = (packet.y + 0.5) * cellSize
-      const radius = cellSize * 0.22
-      ctx.beginPath()
-      ctx.fillStyle = rules.colorPacket
-      ctx.arc(px, py, radius, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = rules.colorOutline
-      ctx.lineWidth = rules.outlineWidthPx
-      ctx.stroke()
-    }
   }
 
   private machine(
