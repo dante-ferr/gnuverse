@@ -30,6 +30,7 @@ function GridIcon() {
       stroke="currentColor"
       strokeWidth="1.5"
       aria-hidden="true"
+      suppressHydrationWarning
     >
       <rect x="2" y="2" width="5" height="5" rx="0.75" />
       <rect x="9" y="2" width="5" height="5" rx="0.75" />
@@ -50,6 +51,7 @@ function ListIcon() {
       strokeWidth="1.5"
       strokeLinecap="round"
       aria-hidden="true"
+      suppressHydrationWarning
     >
       <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
     </svg>
