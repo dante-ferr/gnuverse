@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import { categoryNames, getContent } from '@/lib/articles'
+import { formatArticleDate } from '@/lib/blog-explorer'
 
 type Props = { params: Promise<{ slug: string }> }
 export async function generateStaticParams() {
@@ -26,6 +27,8 @@ export default async function ArticlePage({ params }: Props) {
   const { articles, mode } = await getContent()
   const article = articles.find((entry) => entry.slug === slug)
   if (!article) notFound()
+  const formattedDate = formatArticleDate(article.publishedAt)
+  const hashtags = article.hashtags ?? []
   return (
     <main className="mx-auto min-h-svh max-w-3xl px-6 py-10 sm:px-12">
       <Link
@@ -46,8 +49,29 @@ export default async function ArticlePage({ params }: Props) {
         </p>
         <p className="mt-5 text-sm text-[var(--muted)]">
           Por {article.author}
+          {formattedDate ? (
+            <>
+              {' · '}
+              <time dateTime={article.publishedAt}>{formattedDate}</time>
+            </>
+          ) : null}
           {mode === 'demo' ? ' · Demonstração local' : ''}
         </p>
+        {hashtags.length > 0 && (
+          <ul
+            aria-label="Hashtags do artigo"
+            className="mt-4 flex flex-wrap gap-2"
+          >
+            {hashtags.map((tag) => (
+              <li
+                key={tag}
+                className="rounded-sm border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-xs text-[var(--accent)]"
+              >
+                #{tag}
+              </li>
+            ))}
+          </ul>
+        )}
         {article.cover && (
           <figure className="mt-10">
             {/* A capa é copiada no build: nenhuma consulta ao CMS no navegador. */}
