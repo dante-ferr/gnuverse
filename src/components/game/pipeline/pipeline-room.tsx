@@ -1,25 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { canManageTower } from '../../../../core/authz/policy'
-import { createTowerFromForm } from '../api/create-tower'
+import { canManageRoom } from '../../../../core/authz/policy'
+import { createRoomFromForm } from '../api/create-room'
 import { AccountBanner } from '../account/account-banner'
-import { CreateTowerPanel } from '../construction/create-tower-panel'
-import { TowerToolbar } from '../construction/tower-toolbar'
+import { CreateRoomPanel } from '../construction/create-room-panel'
+import { RoomToolbar } from '../construction/room-toolbar'
 import { useActionFeedback } from '../hooks/use-action-feedback'
 import { useGameSession } from '../hooks/use-game-session'
-import { useTowerLobby } from '../hooks/use-tower-lobby'
+import { useRoomLobby } from '../hooks/use-room-lobby'
 import { pipelineRulesFrom } from './model/frame'
 import { usePipelineStream } from './hooks/use-pipeline-stream'
 import { PipelineScene } from './scene/pipeline-scene'
-import styles from '../tower-game.module.css'
+import styles from '../game-shell.module.css'
 
 /** Room chrome plus the grid. Game numbers stay on the canvas. */
 export function PipelineRoom() {
   const session = useGameSession()
-  const lobby = useTowerLobby(session.api)
-  const live = usePipelineStream(session.api, lobby.towerId)
+  const lobby = useRoomLobby(session.api)
+  const live = usePipelineStream(session.api, lobby.roomId)
   const feedback = useActionFeedback()
   const router = useRouter()
   const [showCreate, setShowCreate] = useState(false)
@@ -29,40 +29,56 @@ export function PipelineRoom() {
     router.push(`/login/?next=${encodeURIComponent(destination.pathname + destination.search)}`)
   }
   useEffect(() => {
-    if (!session.user || !lobby.towerId) return
-    void session.api.request(`/api/towers/${lobby.towerId}/join`, {}).catch(() => {})
-  }, [session.user, session.api, lobby.towerId])
+    if (!session.user || !lobby.roomId) return
+    void session.api.request(`/api/towers/${lobby.roomId}/join`, {}).catch(() => {})
+  }, [session.user, session.api, lobby.roomId])
   const place = (cells: { x: number; y: number; direction: string }[]) => {
     if (!session.user) {
       feedback.setError('Entre para colocar esteiras.')
       return
     }
     void feedback.run(async () => {
-      await session.api.request(`/api/towers/${lobby.towerId}/place`, { cells })
+      await session.api.request(`/api/towers/${lobby.roomId}/place`, { cells })
       await live.refresh()
     })
   }
-  const remove = (cell: { x: number; y: number }) => {
+  const removeRefresh = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const remove = (cells: { x: number; y: number }[]) => {
+    if (cells.length === 0) return
     if (!session.user) {
       feedback.setError('Entre para remover esteiras.')
       return
     }
-    void feedback.run(async () => {
-      await session.api.request(`/api/towers/${lobby.towerId}/remove`, cell)
-      await live.refresh()
-    })
+    for (const cell of cells) {
+      void session.api
+        .request(`/api/towers/${lobby.roomId}/remove`, cell)
+        .catch((cause) => {
+          feedback.setError(
+            cause instanceof Error
+              ? cause.message
+              : 'O servidor não respondeu. Confira a conexão.',
+          )
+        })
+        .finally(() => {
+          if (removeRefresh.current) clearTimeout(removeRefresh.current)
+          removeRefresh.current = setTimeout(() => {
+            removeRefresh.current = null
+            void live.refresh()
+          }, 60)
+        })
+    }
   }
   return (
     <main className={styles.gameShell}>
       <header className={styles.gameTopBar}>
-        <TowerToolbar
-          connection={lobby.towerId ? live.connection : lobby.connection}
-          towerName={live.name}
+        <RoomToolbar
+          connection={lobby.roomId ? live.connection : lobby.connection}
+          roomName={live.name}
           onCreate={() => setShowCreate(true)}
           canDelete={Boolean(
             session.user &&
               live.creatorId &&
-              canManageTower(
+              canManageRoom(
                 { ...session.user, roles: session.user.roles ?? [] },
                 'delete',
                 live.creatorId,
@@ -70,8 +86,8 @@ export function PipelineRoom() {
           )}
           onDelete={() =>
             feedback.run(async () => {
-              await session.api.request(`/api/towers/${lobby.towerId}`, undefined, 'DELETE')
-              lobby.setTowerId('')
+              await session.api.request(`/api/towers/${lobby.roomId}`, undefined, 'DELETE')
+              lobby.setRoomId('')
             })
           }
         />
@@ -90,7 +106,7 @@ export function PipelineRoom() {
         </div>
       )}
       {showCreate && (
-        <CreateTowerPanel
+        <CreateRoomPanel
           busy={feedback.busy}
           error={feedback.error}
           loading={!lobby.rules}
@@ -103,16 +119,16 @@ export function PipelineRoom() {
           defaultCost={Number(lobby.rules?.defaultCost ?? 0)}
           minContributions={Number(lobby.rules?.minContributions ?? 1)}
           onClose={() => setShowCreate(false)}
-          onCreateTower={(form) =>
+          onCreateRoom={(form) =>
             feedback.run(async () => {
-              const result = await createTowerFromForm(session.api, form)
+              const result = await createRoomFromForm(session.api, form)
               setShowCreate(false)
-              lobby.setTowerId(result.tower.id)
+              lobby.setRoomId(result.room.id)
             })
           }
         />
       )}
-      {lobby.towerId ? (
+      {lobby.roomId ? (
         <PipelineScene frame={live.frame.seed ? live.frame : null} rules={rules} onPlace={place} onRemove={remove} />
       ) : (
         <p className={styles.message} role="status">

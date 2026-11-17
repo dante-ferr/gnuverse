@@ -2,19 +2,20 @@
 
 import { useEffect, useRef } from 'react'
 import type { PipelineFrame, PipelineRules } from '../model/frame.ts'
+import { BeltEraseStroke } from './belt-erase-stroke.ts'
 import { BeltStroke } from './belt-stroke.ts'
 import { GridCamera } from './grid-camera.ts'
 import { BeltPainter } from './painters/belt-painter.ts'
 import { cellSize, GridPainter } from './painters/grid-painter.ts'
 import { MachinePainter } from './painters/machine-painter.ts'
 import { ReadoutPainter } from './painters/readout-painter.ts'
-import styles from '../../tower-game.module.css'
+import styles from '../../game-shell.module.css'
 
 type Props = {
   frame: PipelineFrame | null
   rules: PipelineRules | null
   onPlace: (cells: BeltStroke['cells']) => void
-  onRemove: (cell: { x: number; y: number }) => void
+  onRemove: (cells: { x: number; y: number }[]) => void
 }
 
 /** Full-viewport grid. Readouts are painted on the core, not in a sidebar. */
@@ -33,8 +34,8 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
   useEffect(() => {
     const core = new Image()
     const source = new Image()
-    core.src = '/pipeline/core.svg'
-    source.src = '/pipeline/source.svg'
+    core.src = '/pipeline/core-decor.svg'
+    source.src = '/pipeline/source-decor.svg'
     const redraw = () => paint()
     core.onload = redraw
     source.onload = redraw
@@ -69,17 +70,60 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
       authorNickname: '',
       placedAt: index,
     }))
-    new BeltPainter().draw(ctx, [...current.belts, ...(preview ?? [])], palette)
+    const belts = visibleBelts(current)
+    new BeltPainter().draw(ctx, [...belts, ...(preview ?? [])], palette)
     new MachinePainter(images.current.core, images.current.source).draw(ctx, current, palette)
-    const hover = hoverLabel(current, camera, lastPointer.current)
+    const hover = hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
     new ReadoutPainter().draw(ctx, current, palette, hover)
     ctx.restore()
   }
 
   const lastPointer = useRef<{ x: number; y: number } | null>(null)
   const stroke = useRef<BeltStroke | null>(null)
+  const eraseStroke = useRef<BeltEraseStroke | null>(null)
+  const hiddenBelts = useRef(new Set<string>())
   const pan = useRef<{ x: number; y: number } | null>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
+
+  const visibleBelts = (current: PipelineFrame) =>
+    current.belts.filter((belt) => !hiddenBelts.current.has(cellKey(belt)))
+
+  const tryEraseCell = (cell: { x: number; y: number }) => {
+    const current = frameRef.current
+    if (!current) return
+    const key = cellKey(cell)
+    if (hiddenBelts.current.has(key)) return
+    if (!current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y)) return
+    hiddenBelts.current.add(key)
+    onRemove([cell])
+    paint()
+  }
+
+  const syncHiddenBelts = () => {
+    const current = frameRef.current
+    if (!current) return
+    for (const key of [...hiddenBelts.current]) {
+      const cell = parseCellKey(key)
+      if (!cell) continue
+      if (!current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y)) hiddenBelts.current.delete(key)
+    }
+  }
+
+  const revertPendingRemovals = () => {
+    const current = frameRef.current
+    if (!current) return
+    for (const key of [...hiddenBelts.current]) {
+      const cell = parseCellKey(key)
+      if (!cell) continue
+      if (current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y)) hiddenBelts.current.delete(key)
+    }
+    paint()
+  }
+
+  useEffect(() => {
+    syncHiddenBelts()
+    paint()
+  }, [frame])
 
   useEffect(() => {
     paint()
@@ -95,32 +139,47 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
     return cell
   }
 
+  const trackEraseCell = (cell: { x: number; y: number }) => {
+    if (!eraseStroke.current?.push(cell)) return
+    tryEraseCell(cell)
+  }
+
   return (
     <canvas
       ref={canvasRef}
       className={styles.pipelineCanvas}
       onContextMenu={(event) => {
         event.preventDefault()
-        const cell = localCell(event)
-        if (cell) onRemove(cell)
       }}
       onDoubleClick={(event) => {
         const cell = localCell(event)
-        if (cell) onRemove(cell)
+        if (cell) tryEraseCell(cell)
       }}
       onPointerDown={(event) => {
         pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
         if (event.button === 1 || event.shiftKey || pointers.current.size > 1) {
           pan.current = { x: event.clientX, y: event.clientY }
           stroke.current = null
+          eraseStroke.current = null
+          return
+        }
+        const cell = localCell(event)
+        if (event.button === 2) {
+          if (!cell) return
+          event.preventDefault()
+          canvasRef.current?.setPointerCapture(event.pointerId)
+          const next = new BeltEraseStroke()
+          eraseStroke.current = next
+          trackEraseCell(cell)
+          stroke.current = null
           return
         }
         if (event.button !== 0) return
-        const cell = localCell(event)
         if (!cell) return
         const next = new BeltStroke()
         next.push(cell)
         stroke.current = next
+        eraseStroke.current = null
       }}
       onPointerMove={(event) => {
         lastPointer.current = { x: event.clientX, y: event.clientY }
@@ -145,18 +204,27 @@ export function PipelineScene({ frame, rules, onPlace, onRemove }: Props) {
           return
         }
         const cell = localCell(event)
-        if (cell && stroke.current) stroke.current.push(cell)
+        if (cell && eraseStroke.current) trackEraseCell(cell)
+        else if (cell && stroke.current) stroke.current.push(cell)
         paint()
       }}
       onPointerUp={(event) => {
+        if (eraseStroke.current) canvasRef.current?.releasePointerCapture(event.pointerId)
         pointers.current.delete(event.pointerId)
         pinchDistance.current = null
         pan.current = null
+        eraseStroke.current = null
+        revertPendingRemovals()
         const done = stroke.current
         stroke.current = null
         if (done && done.cells.length > 0) onPlace(done.cells)
       }}
-      onPointerLeave={() => {
+      onPointerLeave={(event) => {
+        if (eraseStroke.current) {
+          canvasRef.current?.releasePointerCapture(event.pointerId)
+          eraseStroke.current = null
+          revertPendingRemovals()
+        }
         lastPointer.current = null
         paint()
       }}
@@ -179,10 +247,25 @@ function hoverLabel(
   frame: PipelineFrame,
   camera: GridCamera,
   pointer: { x: number; y: number } | null,
+  hidden: Set<string>,
 ) {
   if (!pointer) return null
   const cell = camera.cellAt(pointer.x, pointer.y, cellSize)
-  const belt = frame.belts.find((item) => item.x === cell.x && item.y === cell.y)
+  const belt = frame.belts.find(
+    (item) => item.x === cell.x && item.y === cell.y && !hidden.has(cellKey(item)),
+  )
   if (!belt) return null
   return { x: belt.x, y: belt.y, nickname: belt.authorNickname }
+}
+
+function cellKey(cell: { x: number; y: number }) {
+  return `${cell.x},${cell.y}`
+}
+
+function parseCellKey(key: string) {
+  const [xs, ys] = key.split(',')
+  const x = Number(xs)
+  const y = Number(ys)
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+  return { x, y }
 }
