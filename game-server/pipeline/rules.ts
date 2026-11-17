@@ -10,8 +10,26 @@ export type PipelineRules = {
   colorPacket: string
   colorCore: string
   colorSource: string
-  /** GNUverse accent; site teal (legacy palette key; decor ink uses colorBackground). */
+  /** GNUverse accent; site teal (legacy palette key). */
   colorAccent: string
+  /** Dark decor ink; SVGs tint to this at draw time (darker than machine body fills). */
+  colorDecor: string
+  /** Global stroke width (px) for bodies, slots, packets, glyphs. */
+  outlineWidthPx: number
+  /** Near-black outline color. */
+  colorOutline: string
+  /** Raised dark surface (site `--surface-raised`). */
+  colorSurface: string
+  /** Muted UI / secondary labels. */
+  colorMuted: string
+  /** Lighter teal hover / highlight. */
+  colorHighlight: string
+  /** Secondary coral accent (site `--secondary`). */
+  colorWarning: string
+  /** Soft success green sibling to accent teal. */
+  colorSuccess: string
+  /** Mid slate ink for future HUD copy on the scene. */
+  colorInk: string
   /** SVG stroke width in artboard units (512 viewBox); keep in sync with public/pipeline/*.svg. */
   decorStrokeWidth: number
   /** Screen-space resource glyph diameter (px). */
@@ -20,6 +38,12 @@ export type PipelineRules = {
   resourceGlyphOrbitPx: number
   /** Full orbit period (ms). */
   resourceGlyphOrbitMs: number
+  /** Belt chevron stroke width (px, zoomed with the grid). */
+  beltChevronStrokePx: number
+  /** Ms for chevrons to drift one grid cell along the belt. */
+  beltChevronFlowMs: number
   machineClearanceMin: number
   coreClearanceExtra: number
+  /** v0.1 milestone: circle deliveries required before the next tier. */
+  coreDemandCircle: number
 }

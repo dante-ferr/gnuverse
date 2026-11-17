@@ -1,6 +1,7 @@
 import { cellKey } from '../geometry/cell.ts'
-import type { BeltMachine } from '../machines/belt-machine.ts'
+import type { PacketShape } from '../packets/packet.ts'
 import type { Packet } from '../packets/packet.ts'
+import { remainingDemand } from './demands.ts'
 import type { Match } from './match.ts'
 
 type Move = { packet: Packet; from: string; to: string }
@@ -25,7 +26,7 @@ export class Movement {
       moves.push({
         packet,
         from: cellKey(belt.origin),
-        to: this.destination(output.cell),
+        to: this.destination(output.cell, packet.shape),
       })
     }
     const allowed = this.allowed(moves, occupied)
@@ -33,6 +34,7 @@ export class Movement {
     for (const move of allowed) {
       if (move.to === 'deliver') {
         deliveredIds.add(move.packet.id)
+        this.match.recordDelivery(move.packet.shape)
         continue
       }
       const [x, y] = move.to.split(',').map(Number)
@@ -43,14 +45,41 @@ export class Movement {
     return deliveredIds.size
   }
 
-  private destination(cell: { x: number; y: number }) {
-    if (this.match.core.slotAt(cell, 'input')) return 'deliver'
+  private destination(cell: { x: number; y: number }, shape: PacketShape) {
+    if (this.match.core.slotAt(cell, 'input')) {
+      if (!this.match.acceptsDelivery(shape)) return 'blocked'
+      return 'deliver'
+    }
     if (!this.match.inBounds(cell) || !this.match.beltAt(cell)) return 'blocked'
     return cellKey(cell)
   }
 
+  /** Extra packets past the remaining quota stay on their belt cell. */
+  private capDeliveries(moves: Move[]) {
+    const budget = new Map<PacketShape, number>()
+    const kept: Move[] = []
+    for (const move of moves) {
+      if (move.to !== 'deliver') {
+        kept.push(move)
+        continue
+      }
+      const shape = move.packet.shape
+      if (!budget.has(shape)) {
+        budget.set(
+          shape,
+          remainingDemand(this.match.rules, '0.1', shape, this.match.deliveryByShape),
+        )
+      }
+      const left = budget.get(shape) ?? 0
+      if (left <= 0) continue
+      budget.set(shape, left - 1)
+      kept.push(move)
+    }
+    return kept
+  }
+
   private allowed(moves: Move[], occupied: Map<string, Packet>) {
-    let active = moves.filter((move) => move.to !== 'blocked')
+    let active = this.capDeliveries(moves.filter((move) => move.to !== 'blocked'))
     let changed = true
     while (changed) {
       changed = false

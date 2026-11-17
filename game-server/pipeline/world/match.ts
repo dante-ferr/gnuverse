@@ -9,6 +9,8 @@ import type { PipelineRules } from '../rules.ts'
 import { layoutInitialMachines } from './map-layout.ts'
 import { BeltEditor } from './belt-editor.ts'
 import { Emission } from './emission.ts'
+import type { PacketShape } from '../packets/packet.ts'
+import { coreAcceptsShape, coreDemands } from './demands.ts'
 import type { CollaboratorRecord, PipelineFrame } from './frame.ts'
 import { Movement } from './movement.ts'
 
@@ -19,6 +21,7 @@ export class Match {
   collaborators: CollaboratorRecord[] = []
   tickIndex = 0
   deliveries = 0
+  deliveryByShape: Partial<Record<PacketShape, number>> = {}
   nextPacketId = 1
   nextBeltSeq = 1
   readonly rules: PipelineRules
@@ -78,9 +81,18 @@ export class Match {
     return new BeltEditor(this).remove(cell, author)
   }
 
+  acceptsDelivery(shape: PacketShape) {
+    return coreAcceptsShape(this.rules, '0.1', shape, this.deliveryByShape)
+  }
+
+  recordDelivery(shape: PacketShape) {
+    if (!this.acceptsDelivery(shape)) return
+    this.deliveries += 1
+    this.deliveryByShape[shape] = (this.deliveryByShape[shape] ?? 0) + 1
+  }
+
   tick() {
-    const delivered = new Movement(this).resolve()
-    this.deliveries += delivered
+    new Movement(this).resolve()
     new Emission(this).emit()
     this.tickIndex += 1
   }
@@ -94,6 +106,8 @@ export class Match {
       height: this.height,
       tick: this.tickIndex,
       deliveries: this.deliveries,
+      deliveryByShape: { ...this.deliveryByShape },
+      demands: coreDemands(this.rules, '0.1', this.deliveryByShape),
       collaborators: this.collaborators.map((person) => ({ ...person })),
       nextPacketId: this.nextPacketId,
       nextBeltSeq: this.nextBeltSeq,
@@ -142,6 +156,9 @@ export class Match {
     )
     match.tickIndex = frame.tick
     match.deliveries = frame.deliveries
+    match.deliveryByShape = frame.deliveryByShape
+      ? { ...frame.deliveryByShape }
+      : { circle: frame.deliveries }
     match.collaborators = frame.collaborators.map((person) => ({ ...person }))
     match.nextPacketId = frame.nextPacketId
     match.nextBeltSeq = frame.nextBeltSeq

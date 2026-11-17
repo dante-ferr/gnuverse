@@ -1138,14 +1138,48 @@
   color: var(--ink);
   text-align: right;
 }
-.coreRequirementShapes {
+.coreRequirementsLegend {
+  margin: 14px 0 8px;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.coreRequirementGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 8px;
+}
+.coreRequirementCell {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 .coreRequirementShapeGlyph {
   display: block;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  background-color: var(--muted);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+.coreRequirementCount {
+  font-family: var(--display-font);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.2;
+  text-align: center;
 }
 .gameShell {
   height: 100%;

@@ -13,6 +13,8 @@ const emptyFrame = (): PipelineFrame => ({
   height: 24,
   tick: 0,
   deliveries: 0,
+  deliveryByShape: {},
+  demands: [{ shape: 'circle', received: 0, required: 0 }],
   collaborators: [],
   belts: [],
   packets: [],

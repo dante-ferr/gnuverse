@@ -13,12 +13,30 @@ export type PipelineRules = {
   colorCore: string
   colorSource: string
   colorAccent: string
+  colorDecor: string
+  outlineWidthPx: number
+  colorOutline: string
+  colorSurface: string
+  colorMuted: string
+  colorHighlight: string
+  colorWarning: string
+  colorSuccess: string
+  colorInk: string
   decorStrokeWidth: number
   resourceGlyphSizePx: number
   resourceGlyphOrbitPx: number
   resourceGlyphOrbitMs: number
+  beltChevronStrokePx: number
+  beltChevronFlowMs: number
   machineClearanceMin: number
   coreClearanceExtra: number
+  coreDemandCircle: number
+}
+
+export type CoreDemandRecord = {
+  shape: 'circle'
+  received: number
+  required: number
 }
 
 export type BeltRecord = {
@@ -39,6 +57,8 @@ export type PipelineFrame = {
   height: number
   tick: number
   deliveries: number
+  deliveryByShape: Partial<Record<'circle', number>>
+  demands: CoreDemandRecord[]
   collaborators: { id: string; nickname: string }[]
   belts: BeltRecord[]
   packets: { id: string; x: number; y: number; shape: 'circle' }[]

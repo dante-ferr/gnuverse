@@ -1,5 +1,6 @@
 import type { Direction } from '../geometry/direction.ts'
 import type { PacketShape } from '../packets/packet.ts'
+import type { CoreDemandRecord } from './demands.ts'
 
 export type BeltRecord = {
   id: string
@@ -28,7 +29,10 @@ export type PipelineFrame = {
   width: number
   height: number
   tick: number
+  /** Sum of all shape deliveries (legacy aggregate; mirrors deliveryByShape). */
   deliveries: number
+  deliveryByShape: Partial<Record<PacketShape, number>>
+  demands: CoreDemandRecord[]
   collaborators: CollaboratorRecord[]
   nextPacketId: number
   nextBeltSeq: number

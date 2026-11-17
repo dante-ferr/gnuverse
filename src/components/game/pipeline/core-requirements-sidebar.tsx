@@ -23,7 +23,6 @@ export function CoreRequirementsSidebar({ frame }: Props) {
     frame.collaborators.length === 1
       ? '1 colaborador'
       : `${frame.collaborators.length} colaboradores`
-  const demandedShapes: PipelineFrame['source']['shape'][] = [frame.source.shape]
 
   return (
     <aside className={styles.gameSidebar} aria-label="Requisitos do núcleo">
@@ -37,29 +36,31 @@ export function CoreRequirementsSidebar({ frame }: Props) {
           <dd>v{frame.version}</dd>
         </div>
         <div>
-          <dt>Entregas</dt>
-          <dd>{frame.deliveries}</dd>
-        </div>
-        <div>
           <dt>Colaboradores</dt>
           <dd>{collaborators}</dd>
         </div>
-        <div>
-          <dt>Formas exigidas</dt>
-          <dd className={styles.coreRequirementShapes}>
-            {demandedShapes.map((shape) => (
-              <img
-                key={shape}
-                className={styles.coreRequirementShapeGlyph}
-                src={resourceGlyph[shape]}
-                alt=""
-                width={28}
-                height={28}
-              />
-            ))}
-          </dd>
-        </div>
       </dl>
+      <p className={styles.coreRequirementsLegend}>Formas exigidas</p>
+      <ul className={styles.coreRequirementGrid}>
+        {frame.demands.map((demand) => {
+          const glyph = resourceGlyph[demand.shape]
+          return (
+            <li key={demand.shape} className={styles.coreRequirementCell}>
+              <span
+                className={styles.coreRequirementShapeGlyph}
+                style={{
+                  maskImage: `url(${glyph})`,
+                  WebkitMaskImage: `url(${glyph})`,
+                }}
+                aria-hidden
+              />
+              <span className={styles.coreRequirementCount}>
+                {demand.received} / {demand.required}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
     </aside>
   )
 }

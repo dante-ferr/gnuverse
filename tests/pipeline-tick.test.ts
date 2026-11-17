@@ -20,12 +20,24 @@ const rules: PipelineRules = {
   colorCore: '#ffffff',
   colorSource: '#52d6c9',
   colorAccent: '#52d6c9',
+  colorDecor: '#1a4542',
+  outlineWidthPx: 3,
+  colorOutline: '#0a1014',
+  colorSurface: '#17252c',
+  colorMuted: '#6a7b83',
+  colorHighlight: '#86e7dd',
+  colorWarning: '#ff8b7d',
+  colorSuccess: '#5ed4b0',
+  colorInk: '#293c45',
   decorStrokeWidth: 28,
   resourceGlyphSizePx: 28,
-  resourceGlyphOrbitPx: 10,
-  resourceGlyphOrbitMs: 3200,
+  resourceGlyphOrbitPx: 4,
+  resourceGlyphOrbitMs: 4000,
+  beltChevronStrokePx: 6,
+  beltChevronFlowMs: 900,
   machineClearanceMin: 1,
   coreClearanceExtra: 2,
+  coreDemandCircle: 20,
 }
 
 const author = { id: 'ada', nickname: 'Ada' }
@@ -54,8 +66,8 @@ function manhattanBelts(from: Cell, to: Cell, finalDirection: Direction) {
   }))
 }
 
-function connected() {
-  const match = Match.create('seed', rules)
+function connected(matchRules: PipelineRules = rules) {
+  const match = Match.create('seed', matchRules)
   const output = match.source.outputSlots()[0]!.cell
   const facing = match.source.direction
   const slots = match.core
@@ -89,6 +101,33 @@ test('a belt line carries a circle into the facing core slot', () => {
   for (let i = 0; i < 30; i++) match.tick()
   assert.ok(match.deliveries > before)
   assert.equal(match.packets.every((packet) => packet.shape === 'circle'), true)
+})
+
+test('deliveries count per shape and surface on frame demands', () => {
+  const match = connected()
+  for (let i = 0; i < 30; i++) match.tick()
+  const circles = match.deliveryByShape.circle ?? 0
+  assert.ok(circles > 0)
+  assert.equal(match.deliveries, circles)
+  const frame = match.toFrame()
+  assert.deepEqual(frame.demands, [{ shape: 'circle', received: circles, required: rules.coreDemandCircle }])
+})
+
+test('core stops accepting a shape once its requirement is met', () => {
+  const match = connected({ ...rules, coreDemandCircle: 1 })
+  for (let i = 0; i < 40; i++) match.tick()
+  assert.equal(match.deliveryByShape.circle, 1)
+  assert.equal(match.deliveries, 1)
+  assert.ok(match.packets.length > 0, 'overflow circles should stay on belts')
+  for (let i = 0; i < 8; i++) match.tick()
+  assert.equal(match.deliveryByShape.circle, 1)
+  assert.equal(match.deliveries, 1)
+  const beltCells = new Set(match.belts.map((belt) => `${belt.origin.x},${belt.origin.y}`))
+  const onBelts = match.packets.filter((packet) => beltCells.has(`${packet.cell.x},${packet.cell.y}`))
+  assert.equal(onBelts.length, match.packets.length)
+  const occupied = new Set(onBelts.map((packet) => `${packet.cell.x},${packet.cell.y}`))
+  assert.equal(occupied.size, onBelts.length, 'each belt cell holds at most one packet')
+  assert.ok(onBelts.length > 1, 'the line backs up instead of collapsing onto the core')
 })
 
 test('two packets do not swap and a blocked belt holds its packet', () => {
