@@ -139,6 +139,7 @@ async function main() {
             name: account.name,
             role: account.role,
             password: DEMO_PASSWORD,
+            _verified: true,
           },
         })
         usersByEmail.set(account.email, {
@@ -151,11 +152,13 @@ async function main() {
         const created = await payload.create({
           collection: 'users',
           overrideAccess: true,
+          disableVerificationEmail: true,
           data: {
             email: account.email,
             name: account.name,
             role: account.role,
             password: DEMO_PASSWORD,
+            _verified: true,
           },
         })
         usersByEmail.set(account.email, {

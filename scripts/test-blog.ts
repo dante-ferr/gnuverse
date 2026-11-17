@@ -499,7 +499,20 @@ async function runE2ETests() {
     assert.equal(loginRes.status, 200, 'GET /login/ deve retornar HTTP 200')
     const registerRes = await fetch(`${siteURL}/cadastro/`)
     assert.equal(registerRes.status, 200, 'GET /cadastro/ deve retornar HTTP 200')
-    console.log('[PASS] [11/11] GET /blog/pagina/2/, /login/ e /cadastro/ retornam HTTP 200.')
+
+    const sharedLoginRes = await fetch(`${config.gameURL}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'autora@gnuverse.local', password: DEMO_PASSWORD }),
+    })
+    assert.equal(sharedLoginRes.status, 200, 'POST /api/login no servidor do jogo deve autenticar conta do CMS')
+    const sharedLoginData = (await sharedLoginRes.json()) as { token?: string }
+    assert.equal(typeof sharedLoginData.token, 'string', 'POST /api/login deve retornar token compartilhado')
+    const cmsMeRes = await fetch(`${cmsURL}/api/users/me`, {
+      headers: { Authorization: `Bearer ${sharedLoginData.token}` },
+    })
+    assert.equal(cmsMeRes.status, 200, 'Token compartilhado do jogo deve autenticar em GET /api/users/me no CMS')
+    console.log('[PASS] [11/11] GET /blog/pagina/2/, /login/, /cadastro/ e login compartilhado jogo+CMS funcionam.')
   }
 }
 
@@ -534,6 +547,7 @@ function openBrowser(urls: string[]) {
 
 try {
   await assertPortAvailable(cmsPort, 'CMS_PORT')
+  await assertPortAvailable(config.gamePort, 'GAME_PORT')
   await assertPortAvailable(config.sitePort, 'SITE_PORT')
 
   console.log('Populando banco de demonstração (seed-blog-demo.ts)...')
@@ -547,15 +561,26 @@ try {
     },
   )
 
-  console.log(`Iniciando servidor CMS em ${cmsURL}...`)
+  console.log(`Iniciando servidor CMS em ${cmsURL} e jogo em ${config.gameURL}...`)
   startServer(['run', 'cms:dev'], 'CMS', {
     CMS_ALLOWED_ORIGINS: config.allowedOrigins,
   })
-
-  await waitForHTTP(`${cmsURL}/api/articles?limit=1`, 'CMS', async (res) => {
-    const body = (await res.json()) as Record<string, unknown>
-    return Array.isArray(body.docs)
+  startServer(['run', 'game:dev'], 'Jogo', {
+    GAME_PORT: config.gamePort,
+    GAME_ALLOWED_ORIGINS: config.allowedOrigins,
+    CMS_URL: cmsURL,
   })
+
+  await Promise.all([
+    waitForHTTP(`${cmsURL}/api/articles?limit=1`, 'CMS', async (res) => {
+      const body = (await res.json()) as Record<string, unknown>
+      return Array.isArray(body.docs)
+    }),
+    waitForHTTP(`${config.gameURL}/api/health`, 'Jogo', async (res) => {
+      const body = (await res.json()) as Record<string, unknown>
+      return body.ok === true
+    }),
+  ])
 
   console.log('Sincronizando artigos publicados e capas do CMS para o site...')
   execFileSync(process.execPath, [path.join(root, 'scripts/sync-content.mjs')], {
