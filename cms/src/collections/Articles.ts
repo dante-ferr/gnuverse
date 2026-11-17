@@ -22,6 +22,7 @@ function isSafeBodyHref(value: unknown): boolean {
   if (typeof value !== 'string') return false
   const trimmed = value.trim()
   if (!trimmed) return false
+  if (trimmed.startsWith('/\\') || trimmed.startsWith('\\')) return false
   if ((trimmed.startsWith('/') && !trimmed.startsWith('//')) || trimmed.startsWith('#')) {
     return true
   }
@@ -140,7 +141,7 @@ export const Articles: CollectionConfig = {
       },
     ],
     beforeChange: [
-      ({ data, operation, originalDoc, req }) => {
+      async ({ data, operation, originalDoc, req }) => {
         if (data.body && typeof data.body === 'object' && 'root' in data.body) {
           assertSafeLexicalNode((data.body as { root?: unknown }).root)
         }
@@ -156,7 +157,21 @@ export const Articles: CollectionConfig = {
           if (req.context.submittedStatus === 'published') {
             throw new APIError('Autores não podem publicar artigos diretamente. Envie para revisão.', 403)
           }
-          if (operation === 'update' && originalDoc?._status === 'published' && !req.context.isDraftArg) {
+          // `originalDoc` em updates de rascunho vem da última versão em `_articles_v`, não da linha principal em `articles`.
+          let persistedStatus = originalDoc?._status
+          if (operation === 'update' && originalDoc?.id) {
+            const persistedDoc = await req.payload.findByID({
+              collection: 'articles',
+              id: originalDoc.id,
+              draft: false,
+              depth: 0,
+              overrideAccess: true,
+              req,
+            })
+            persistedStatus = persistedDoc?._status
+          }
+
+          if (operation === 'update' && persistedStatus === 'published' && !req.context.isDraftArg) {
             throw new APIError('Artigos já publicados só podem receber novas versões como rascunho para revisão.', 403)
           }
           if (data._status === 'published') {
@@ -164,7 +179,7 @@ export const Articles: CollectionConfig = {
           }
 
           const isDraftOverPublished =
-            operation === 'update' && originalDoc?._status === 'published' && Boolean(req.context.isDraftArg)
+            operation === 'update' && persistedStatus === 'published' && Boolean(req.context.isDraftArg)
 
           if (isDraftOverPublished && data.reviewStatus === 'approved') {
             // Nova revisão em rascunho de artigo já publicado precisa de nova aprovação editorial.
@@ -255,6 +270,7 @@ export const Articles: CollectionConfig = {
       label: 'Data de publicação',
       type: 'date',
       admin: { position: 'sidebar' },
+      access: { create: isReviewerField, update: isReviewerField },
     },
     {
       name: 'hashtags',

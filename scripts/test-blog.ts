@@ -487,14 +487,19 @@ async function runE2ETests() {
     console.log('[PASS] [10/11] GET /artigos/autonomia-digital-e-software-livre/ renderiza título, autoria, capa e referências.')
   }
 
-  // [11/11] GET /blog/pagina/2/ retorna HTTP 200 e renderiza artigos paginados
+  // [11/11] GET /blog/pagina/2/, /login/ e /cadastro/ retornam HTTP 200
   {
     const res = await fetch(`${siteURL}/blog/pagina/2/`)
     assert.equal(res.status, 200, 'GET /blog/pagina/2/ deve retornar HTTP 200')
     const html = await res.text()
     assert.ok(html.includes('<article'), 'GET /blog/pagina/2/ deve renderizar cards de artigos paginados')
     assert.ok(html.includes('/blog/'), 'GET /blog/pagina/2/ deve incluir link de paginação para /blog/')
-    console.log('[PASS] [11/11] GET /blog/pagina/2/ retorna HTTP 200 com artigos paginados.')
+
+    const loginRes = await fetch(`${siteURL}/login/`)
+    assert.equal(loginRes.status, 200, 'GET /login/ deve retornar HTTP 200')
+    const registerRes = await fetch(`${siteURL}/cadastro/`)
+    assert.equal(registerRes.status, 200, 'GET /cadastro/ deve retornar HTTP 200')
+    console.log('[PASS] [11/11] GET /blog/pagina/2/, /login/ e /cadastro/ retornam HTTP 200.')
   }
 }
 

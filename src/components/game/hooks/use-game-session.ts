@@ -95,20 +95,40 @@ function useSessionState() {
     setNotice('')
     return { verificationRequired: false }
   }
+  const setSessionToken = useCallback((nextToken: string) => {
+    try {
+      if (nextToken) sessionStorage.setItem(SESSION_KEY, nextToken)
+      else sessionStorage.removeItem(SESSION_KEY)
+    } catch {
+      /* Keep session in memory. */
+    }
+    setToken(nextToken)
+    if (!nextToken) {
+      setUser(null)
+      setWallet(null)
+    }
+    setNotice('')
+  }, [])
+
   async function logout() {
-    await api.request('/api/logout', {})
-    clear()
+    try {
+      await api.request('/api/logout', {})
+    } finally {
+      clear()
+    }
   }
   const secondsToCoin = wallet?.nextCoinAt
     ? Math.max(0, Math.ceil((wallet.nextCoinAt - now) / 1000))
     : 0
   return {
     api,
+    token,
     user,
     wallet,
     notice,
     secondsToCoin,
     authenticate,
+    setSessionToken,
     logout,
     setWallet,
   }

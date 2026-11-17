@@ -1,14 +1,14 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { CollectionConfig } from 'payload'
-import { canCreateArticle, isAdmin, isReviewer } from '../access'
+import { deleteMedia, manageMedia } from '../access'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export const Media: CollectionConfig = {
   slug: 'media',
   labels: { singular: 'Imagem', plural: 'Imagens' },
-  access: { read: () => true, create: canCreateArticle, update: isReviewer, delete: isAdmin },
+  access: { read: () => true, create: manageMedia, update: manageMedia, delete: deleteMedia },
   upload: {
     staticDir: process.env.MEDIA_DIR
       ? path.resolve(process.env.MEDIA_DIR)

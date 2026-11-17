@@ -22,6 +22,7 @@ export function formatArticleDate(value?: string): string {
   if (Number.isNaN(date.getTime())) return ''
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'medium',
+    timeZone: 'America/Sao_Paulo',
   }).format(date)
 }
 

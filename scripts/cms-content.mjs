@@ -2,6 +2,7 @@ function isSafeBodyHref(value) {
   if (typeof value !== 'string') return false
   const trimmed = value.trim()
   if (!trimmed) return false
+  if (trimmed.startsWith('/\\') || trimmed.startsWith('\\')) return false
   if ((trimmed.startsWith('/') && !trimmed.startsWith('//')) || trimmed.startsWith('#')) {
     return true
   }

@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { EditorialHeader } from '@/components/blog/editorial-header'
+import { useGameSession } from '@/components/game/hooks/use-game-session'
 import { categoryNames, type ArticleReference } from '@/lib/article-meta'
 import {
   canAuthorEditSubmission,
@@ -22,7 +23,6 @@ const CMS_URL = (
   process.env.NEXT_PUBLIC_CMS_URL || 'http://localhost:3001'
 ).replace(/\/$/, '')
 
-const SESSION_KEY = 'gnuverse-blog-session'
 const REQUEST_TIMEOUT_MS = 120000
 
 // Flag de compilação (equivalente a #ifdef BLOG_TEST_UI em C):
@@ -33,6 +33,7 @@ const BLOG_TEST_UI = process.env.NEXT_PUBLIC_BLOG_TEST_UI === '1'
 type CmsUser = {
   id: string | number
   name?: string
+  nickname?: string
   email: string
   role?: string
 }
@@ -42,13 +43,12 @@ type BlogSession = {
   user: CmsUser
 }
 
-type AuthMode = 'login' | 'register'
-
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
   reviewer: 'Revisor',
   author: 'Autor',
   editor: 'Editor',
+  member: 'Participante',
 }
 
 const SAMPLE_ARTICLE = {
@@ -98,35 +98,6 @@ function pickUniqueSampleSlug(docs: SubmissionArticle[]): string {
   return `${SAMPLE_ARTICLE.baseSlug}-${counter}`
 }
 
-function readStoredSession(): BlogSession | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<BlogSession>
-    if (
-      typeof parsed?.token === 'string' &&
-      parsed.token &&
-      parsed.user &&
-      (typeof parsed.user.id === 'string' || typeof parsed.user.id === 'number') &&
-      typeof parsed.user.email === 'string'
-    ) {
-      return { token: parsed.token, user: parsed.user }
-    }
-  } catch {
-    /* sessionStorage pode estar indisponível ou corrompido. */
-  }
-  return null
-}
-
-function writeStoredSession(session: BlogSession | null) {
-  try {
-    if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
-    else sessionStorage.removeItem(SESSION_KEY)
-  } catch {
-    /* Mantém sessão apenas na memória da aba se sessionStorage falhar. */
-  }
-}
-
 function reviewBadgeClass(status?: ReviewStatus): string {
   switch (status) {
     case 'approved':
@@ -155,17 +126,11 @@ export function SubmissionPanel({
 }: {
   mode?: 'demo' | 'live'
 }) {
+  const { token, setSessionToken, logout, user: gameUser } = useGameSession()
   const [isOpen, setIsOpen] = useState(false)
   const [session, setSession] = useState<BlogSession | null>(null)
-  const [authMode, setAuthMode] = useState<AuthMode>('login')
-
-  // Formulário de autenticação
-  const [authName, setAuthName] = useState('')
-  const [authEmail, setAuthEmail] = useState('')
-  const [authPassword, setAuthPassword] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
   const [authError, setAuthError] = useState('')
-  const [authSlowHint, setAuthSlowHint] = useState(false)
 
   // Formulário de artigo
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -189,6 +154,7 @@ export function SubmissionPanel({
   const [listError, setListError] = useState('')
   const titleInputRef = useRef<HTMLInputElement>(null)
   const sectionRef = useRef<HTMLElement>(null)
+  const autotestInitializedRef = useRef(false)
 
   const applySampleDraft = useCallback(
     (defaultAuthor: string, docs: SubmissionArticle[]) => {
@@ -224,11 +190,11 @@ export function SubmissionPanel({
   )
 
   const handleSessionExpired = useCallback(() => {
-    writeStoredSession(null)
+    setSessionToken('')
     setSession(null)
     setMyArticles([])
-    setAuthError('Sua sessão expirou. Entre novamente para continuar.')
-  }, [])
+    setAuthError('Sua sessão expirou. Entre novamente em /login para continuar.')
+  }, [setSessionToken])
 
   const loadMyArticles = useCallback(
     async (activeSession: BlogSession): Promise<SubmissionArticle[]> => {
@@ -280,29 +246,53 @@ export function SubmissionPanel({
   )
 
   useEffect(() => {
-    const stored = readStoredSession()
-    if (!BLOG_TEST_UI) {
-      if (stored) {
-        setSession(stored)
-        setAuthor((current) => current || stored.user.name || '')
-      }
+    if (!token) {
+      setSession(null)
+      setMyArticles([])
       return
     }
+    let active = true
+    void (async () => {
+      try {
+        const response = await fetch(`${CMS_URL}/api/users/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        })
+        const data = await response.json().catch(() => null)
+        if (!active) return
+        if (!response.ok || !data?.user) {
+          if (response.status === 401 || response.ok) {
+            handleSessionExpired()
+          }
+          return
+        }
+        const cmsUser = data.user as CmsUser
+        setSession({ token, user: cmsUser })
+        setAuthor(
+          (current) => current || cmsUser.name || cmsUser.nickname || '',
+        )
+        setAuthError('')
+      } catch {
+        /* Mantém estado atual caso o CMS esteja temporariamente indisponível. */
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [token, handleSessionExpired])
+
+  useEffect(() => {
+    if (!BLOG_TEST_UI || autotestInitializedRef.current) return
 
     const params = new URLSearchParams(window.location.search)
     const isAutotest = params.get('autotest') === '1'
-    if (isAutotest) {
-      setIsOpen(true)
-    }
+    if (!isAutotest) return
 
-    if (stored) {
-      setSession(stored)
-      setAuthor((current) => current || stored.user.name || '')
-      if (isAutotest) {
-        applySampleDraft(stored.user.name || 'Ana Autora', [])
-      }
-    } else if (isAutotest) {
-      applySampleDraft('Ana Autora', [])
+    autotestInitializedRef.current = true
+    setIsOpen(true)
+    applySampleDraft(gameUser?.nickname || 'Ana Autora', [])
+
+    if (!token) {
       void (async () => {
         try {
           const response = await fetch(`${CMS_URL}/api/users/login`, {
@@ -316,13 +306,10 @@ export function SubmissionPanel({
           })
           const data = await response.json().catch(() => null)
           if (response.ok && typeof data?.token === 'string' && data?.user) {
-            const nextSession: BlogSession = {
-              token: data.token,
-              user: data.user as CmsUser,
-            }
-            writeStoredSession(nextSession)
-            setSession(nextSession)
-            setAuthor(nextSession.user.name || 'Ana Autora')
+            const cmsUser = data.user as CmsUser
+            setSessionToken(data.token)
+            setSession({ token: data.token, user: cmsUser })
+            setAuthor(cmsUser.name || cmsUser.nickname || 'Ana Autora')
           }
         } catch {
           /* Silencioso caso a conta de demonstração ainda não exista no banco local. */
@@ -330,16 +317,14 @@ export function SubmissionPanel({
       })()
     }
 
-    if (isAutotest) {
-      const scrollTimer = setTimeout(() => {
-        sectionRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        })
-      }, 150)
-      return () => clearTimeout(scrollTimer)
-    }
-  }, [applySampleDraft])
+    const scrollTimer = setTimeout(() => {
+      sectionRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    }, 150)
+    return () => clearTimeout(scrollTimer)
+  }, [applySampleDraft, gameUser?.nickname, setSessionToken, token])
 
   useEffect(() => {
     if (isOpen && session) {
@@ -361,67 +346,6 @@ export function SubmissionPanel({
     return { token: data.token, user: data.user as CmsUser }
   }
 
-  async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setAuthError('')
-    setAuthBusy(true)
-    setAuthSlowHint(false)
-    const slowTimer = setTimeout(() => setAuthSlowHint(true), 4000)
-
-    try {
-      const email = authEmail.trim()
-      const password = authPassword
-      let nextSession: BlogSession
-
-      if (authMode === 'register') {
-        const name = authName.trim()
-        if (!name) {
-          setAuthError('Informe seu nome para criar a conta de autor.')
-          return
-        }
-        const registerResponse = await fetch(`${CMS_URL}/api/users`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password }),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        })
-        const registerData = await registerResponse.json().catch(() => null)
-        if (!registerResponse.ok) {
-          throw new Error(
-            extractCmsErrorMessage(registerData, registerResponse.status),
-          )
-        }
-        if (
-          typeof registerData?.token === 'string' &&
-          registerData.token &&
-          registerData.user
-        ) {
-          nextSession = {
-            token: registerData.token,
-            user: registerData.user as CmsUser,
-          }
-        } else {
-          nextSession = await loginWithCredentials(email, password)
-        }
-      } else {
-        nextSession = await loginWithCredentials(email, password)
-      }
-
-      writeStoredSession(nextSession)
-      setSession(nextSession)
-      setAuthPassword('')
-      setAuthor((current) => current || nextSession.user.name || '')
-      setSubmitError('')
-      setSubmitSuccess('')
-    } catch (cause) {
-      setAuthError(formatRequestFailure(cause))
-    } finally {
-      clearTimeout(slowTimer)
-      setAuthSlowHint(false)
-      setAuthBusy(false)
-    }
-  }
-
   async function handleQuickLogin(email: string, defaultName: string) {
     setAuthError('')
     setSubmitError('')
@@ -429,9 +353,9 @@ export function SubmissionPanel({
     setAuthBusy(true)
     try {
       const nextSession = await loginWithCredentials(email, 'gnuverse123')
-      writeStoredSession(nextSession)
+      setSessionToken(nextSession.token)
       setSession(nextSession)
-      setAuthor(nextSession.user.name || defaultName)
+      setAuthor(nextSession.user.name || nextSession.user.nickname || defaultName)
       await loadMyArticles(nextSession)
     } catch (cause) {
       setAuthError(formatRequestFailure(cause))
@@ -448,18 +372,25 @@ export function SubmissionPanel({
   }
 
   async function handleLogout() {
-    if (session) {
+    const activeToken = session?.token || token
+    let loggedOutViaGameServer = false
+    try {
+      await logout()
+      loggedOutViaGameServer = true
+    } catch {
+      setSessionToken('')
+    }
+    if (!loggedOutViaGameServer && activeToken) {
       try {
         await fetch(`${CMS_URL}/api/users/logout`, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${session.token}` },
+          headers: { Authorization: `Bearer ${activeToken}` },
           signal: AbortSignal.timeout(10000),
         })
       } catch {
         /* Encerramento local da sessão continua garantido. */
       }
     }
-    writeStoredSession(null)
     setSession(null)
     setMyArticles([])
     setSubmitError('')
@@ -690,129 +621,34 @@ export function SubmissionPanel({
           </p>
 
           {!session ? (
-            <div className="mt-6 max-w-lg">
-              <div
-                role="tablist"
-                aria-label="Modo de acesso ao envio de artigos"
-                className="flex gap-2"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={authMode === 'login'}
-                  onClick={() => {
-                    setAuthMode('login')
-                    setAuthError('')
-                  }}
-                  className={`cursor-pointer rounded-sm border px-3.5 py-2 text-sm transition ${
-                    authMode === 'login'
-                      ? 'border-[var(--accent)] bg-[var(--accent)] font-medium text-[var(--on-accent)]'
-                      : 'border-[var(--line)] bg-[var(--background)] text-[var(--muted)] hover:text-[var(--ink)]'
-                  }`}
-                >
-                  Entrar
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={authMode === 'register'}
-                  onClick={() => {
-                    setAuthMode('register')
-                    setAuthError('')
-                  }}
-                  className={`cursor-pointer rounded-sm border px-3.5 py-2 text-sm transition ${
-                    authMode === 'register'
-                      ? 'border-[var(--accent)] bg-[var(--accent)] font-medium text-[var(--on-accent)]'
-                      : 'border-[var(--line)] bg-[var(--background)] text-[var(--muted)] hover:text-[var(--ink)]'
-                  }`}
-                >
-                  Criar conta de autor
-                </button>
-              </div>
-
-              <form onSubmit={handleAuthSubmit} className="mt-5 space-y-4">
-                {authMode === 'register' && (
-                  <label className="block text-sm text-[var(--ink)]">
-                    Nome completo
-                    <input
-                      type="text"
-                      required
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                      autoComplete="name"
-                      placeholder="Ex.: Maria Silva"
-                      className={inputClass}
-                    />
-                  </label>
-                )}
-
-                <label className="block text-sm text-[var(--ink)]">
-                  E-mail
-                  <input
-                    type="email"
-                    required
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    autoComplete="email"
-                    placeholder="voce@exemplo.org"
-                    className={inputClass}
-                  />
-                </label>
-
-                <label className="block text-sm text-[var(--ink)]">
-                  Senha
-                  <input
-                    type="password"
-                    required
-                    minLength={8}
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    autoComplete={
-                      authMode === 'register'
-                        ? 'new-password'
-                        : 'current-password'
-                    }
-                    placeholder="Mínimo de 8 caracteres"
-                    className={inputClass}
-                  />
-                </label>
-
-                {authError && (
-                  <p
-                    role="alert"
-                    className="rounded-sm border border-[var(--secondary)] bg-[var(--secondary-soft)] p-3 text-sm text-[var(--ink)]"
-                  >
-                    {authError}
-                  </p>
-                )}
-
-                {authSlowHint && (
-                  <p className="text-xs text-[var(--accent)]">
-                    Aguardando resposta do CMS… Se o servidor no Render Free
-                    estava suspenso, o despertar inicial pode levar até ~1
-                    minuto.
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={authBusy}
-                  className="cursor-pointer rounded-sm border border-[var(--accent)] bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {authBusy
-                    ? 'Conectando…'
-                    : authMode === 'register'
-                      ? 'Criar conta e entrar'
-                      : 'Entrar'}
-                </button>
-              </form>
-
-              <p className="mt-4 text-xs leading-relaxed text-[var(--muted)]">
-                Novas contas recebem o papel de autor (enviam rascunhos para
-                revisão e não publicam diretamente). A recuperação automática
-                de senha por e-mail ainda não está ativada; guarde sua senha em
-                local seguro.
+            <div className="mt-6 rounded-sm border border-[var(--line)] bg-[var(--background)] p-5">
+              <p className="text-sm leading-relaxed text-[var(--ink)]">
+                Para enviar artigos para revisão editorial e acompanhar suas
+                submissões, entre na sua conta em <code>/login</code> ou crie um
+                cadastro em <code>/cadastro</code>.
               </p>
+              {authError && (
+                <p
+                  role="alert"
+                  className="mt-3 rounded-sm border border-[var(--secondary)] bg-[var(--secondary-soft)] p-3 text-sm text-[var(--ink)]"
+                >
+                  {authError}
+                </p>
+              )}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Link
+                  href="/login/?next=/blog/"
+                  className="rounded-sm border border-[var(--accent)] bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)]"
+                >
+                  Entrar em /login
+                </Link>
+                <Link
+                  href="/cadastro/?next=/blog/"
+                  className="rounded-sm border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                >
+                  Criar conta em /cadastro
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="mt-6 space-y-10">

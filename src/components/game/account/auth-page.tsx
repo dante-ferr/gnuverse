@@ -16,16 +16,26 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
-    const next = new URLSearchParams(window.location.search).get('next')
-    if (new URLSearchParams(window.location.search).get('notice') === 'login-required') {
-      setNotice('Entre na sua conta para criar uma torre. Depois do login, você voltará para a criação.')
+    const search = new URLSearchParams(window.location.search)
+    const next = search.get('next')
+    if (search.get('notice') === 'login-required') {
+      setNotice(
+        next?.startsWith('/blog')
+          ? 'Entre na sua conta para contribuir com um artigo. Depois do login, você voltará ao blog.'
+          : 'Entre na sua conta para criar uma torre. Depois do login, você voltará para a criação.',
+      )
     }
     if (!next) return
     try {
       const destination = new URL(next, window.location.origin)
       if (
         destination.origin === window.location.origin &&
-        (destination.pathname === '/jogo' || destination.pathname.startsWith('/jogo/'))
+        (destination.pathname === '/jogo' ||
+          destination.pathname.startsWith('/jogo/') ||
+          destination.pathname === '/blog' ||
+          destination.pathname.startsWith('/blog/') ||
+          destination.pathname === '/artigos' ||
+          destination.pathname.startsWith('/artigos/'))
       ) {
         setReturnTo(destination.pathname + destination.search + destination.hash)
       }

@@ -141,11 +141,21 @@ try {
     )
   }
 
-  // 5. Upload de mídia permitido para autores; exclusão restrita a admins.
+  // 5. Upload/gestão de mídia restritos a equipe editorial (/admin -> Imagens); exclusão restrita a admins.
   const image = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#7c3aed' } }).png().toBuffer()
+  await assert.rejects(
+    payload.create({
+      collection: 'media',
+      user: author1,
+      overrideAccess: false,
+      data: { alt: 'Bloqueada para autor', credit: 'Teste' },
+      file: { data: image, mimetype: 'image/png', name: `blocked-${randomBytes(6).toString('hex')}.png`, size: image.length },
+    }),
+    'Autor não pode enviar mídia fora da equipe editorial',
+  )
   const media = await payload.create({
     collection: 'media',
-    user: author1,
+    user: reviewer,
     overrideAccess: false,
     data: { alt: 'Quadrado violeta de teste', credit: 'Fixture de teste GNUverse' },
     file: { data: image, mimetype: 'image/png', name: `test-${randomBytes(6).toString('hex')}.png`, size: image.length },
@@ -154,6 +164,10 @@ try {
   await assert.rejects(
     payload.delete({ collection: 'media', id: media.id, user: author1, overrideAccess: false }),
     'Autor não pode apagar mídia',
+  )
+  await assert.rejects(
+    payload.delete({ collection: 'media', id: media.id, user: reviewer, overrideAccess: false }),
+    'Revisor não pode apagar mídia',
   )
 
   // 6. Criação de rascunho por autor e isolamento entre autores distintos.
@@ -433,6 +447,28 @@ try {
   assert.equal(publicArticle.title, example.title, 'Novo rascunho não pode vazar para leitura pública')
 
   await assert.rejects(
+    payload.update({
+      collection: 'articles',
+      id: article.id,
+      user: author1,
+      overrideAccess: false,
+      draft: false,
+      data: { title: 'Bypass após rascunho proibido' },
+    }),
+    'Autora não pode despublicar artigo publicado via update sem draft: true após salvar rascunho',
+  )
+  await assert.rejects(
+    payload.update({
+      collection: 'articles',
+      id: article.id,
+      user: author1,
+      overrideAccess: false,
+      data: { title: 'Bypass implícito após rascunho proibido' },
+    }),
+    'Autora não pode despublicar artigo publicado via update implícito após salvar rascunho',
+  )
+
+  await assert.rejects(
     payload.delete({ collection: 'articles', id: article.id, user: author1, overrideAccess: false }),
     'Autora continua impedida de apagar artigo publicado mesmo após salvar rascunho de revisão',
   )
@@ -510,6 +546,41 @@ try {
   assert.equal(removed.status, 200)
   assert.ok(await payload.findByID({ collection: 'users', id: editor.id }), 'Remover vínculo não exclui a conta')
   await verifySharedIdentity(payload, directory, admin.email, adminPassword)
+
+  // Conta member (cadastrada via /cadastro/) pode enviar rascunho para revisão, mas não publicar diretamente.
+  const member = await payload.create({
+    collection: 'users',
+    user: admin,
+    overrideAccess: false,
+    data: {
+      name: 'Participante Blog',
+      nickname: 'participante_blog',
+      email: 'member-blog@example.test',
+      password: randomBytes(24).toString('hex'),
+      role: 'member',
+    },
+  })
+  const memberDraft = await payload.create({
+    collection: 'articles',
+    user: member,
+    overrideAccess: false,
+    draft: true,
+    data: { ...example, slug: 'rascunho-participante', reviewStatus: 'in_review', _status: 'draft' },
+  })
+  assert.equal(memberDraft._status, 'draft')
+  assert.equal(memberDraft.reviewStatus, 'in_review')
+  await assert.rejects(
+    payload.update({
+      collection: 'articles',
+      id: memberDraft.id,
+      user: member,
+      overrideAccess: false,
+      data: { _status: 'published' },
+    }),
+    'Participante não pode publicar diretamente sem aprovação editorial',
+  )
+  await payload.delete({ collection: 'articles', id: memberDraft.id, user: reviewer, overrideAccess: false })
+
   console.log(
     'CMS verificado: bootstrap admin, auto-registro author, bloqueio de escalada, isolamento entre autores, fluxo editorial de revisão/aprovação, proteção contra sobrescrita de publicado e sigilo de reviewNotes.',
   )
