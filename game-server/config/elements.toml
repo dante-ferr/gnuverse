@@ -7,6 +7,52 @@
 
 max_tier = 5
 
+# Core demand chapters. Earlier chapters stay required.
+# A crafted demand may only use inputs from this chapter or earlier.
+# After chapter 1, each chapter introduces at most one new tier-1 base.
+# Orphan basics (nothing else needs them) wait until a late chapter.
+
+[[chapters]]
+id = 1
+name_pt = "Ignição"
+summary_pt = "Duas fontes e uma fórmula. O núcleo só pede água, fogo e vapor."
+
+[[chapters]]
+id = 2
+name_pt = "Canteiro"
+summary_pt = "Entra a grama. Uma fórmula nova (musgo), sem abrir a terra ainda."
+
+[[chapters]]
+id = 3
+name_pt = "Solo"
+summary_pt = "Entra a terra. A linha verde sobe até o broto e para por aí."
+
+[[chapters]]
+id = 4
+name_pt = "Vento"
+summary_pt = "Entra o vento. Névoa, brasa, poeira e nuvem — o resto do tier 2 fica para depois."
+
+[[chapters]]
+id = 5
+name_pt = "Temporal"
+summary_pt = "A cinza só entra agora, porque a tempestade precisa dela."
+
+[[chapters]]
+id = 6
+name_pt = "Forno"
+summary_pt = "Lama, lava e a linha de barro até a fornalha. Nenhuma base nova."
+
+[[chapters]]
+id = 7
+name_pt = "Mina"
+summary_pt = "A última base é o minério. Cristal, liga e as máquinas de tier 4 dessa linha."
+
+[[chapters]]
+id = 8
+name_pt = "Federação"
+summary_pt = "O que sobrou: pólen e jardim (fórmulas antigas) mais os dois pares de tier 5."
+
+
 # --- Tier 1: bases (sources) — 6 ---------------------------------------------
 
 [[elements]]
@@ -14,30 +60,35 @@ id = "water"
 name_pt = "Água"
 tier = 1
 color = "#4aa8ff"
+demand_chapter = 1
 
 [[elements]]
 id = "fire"
 name_pt = "Fogo"
 tier = 1
 color = "#ff6b3d"
+demand_chapter = 1
 
 [[elements]]
 id = "grass"
 name_pt = "Grama"
 tier = 1
 color = "#5ecf6a"
+demand_chapter = 2
 
 [[elements]]
 id = "earth"
 name_pt = "Terra"
 tier = 1
 color = "#c4a574"
+demand_chapter = 3
 
 [[elements]]
 id = "wind"
 name_pt = "Vento"
 tier = 1
 color = "#9ec9d9"
+demand_chapter = 4
 
 [[elements]]
 id = "ore"
@@ -46,6 +97,7 @@ tier = 1
 color = "#8a7f8f"
 
 # --- Tier 2: 2 inputs → 1 output — 12 ----------------------------------------
+demand_chapter = 7
 
 [[elements]]
 id = "steam"
@@ -53,6 +105,7 @@ name_pt = "Vapor"
 tier = 2
 color = "#b8d4e8"
 inputs = ["water", "fire"]
+demand_chapter = 1
 
 [[elements]]
 id = "moss"
@@ -60,6 +113,7 @@ name_pt = "Musgo"
 tier = 2
 color = "#3d8f5a"
 inputs = ["water", "grass"]
+demand_chapter = 2
 
 [[elements]]
 id = "mud"
@@ -67,6 +121,7 @@ name_pt = "Lama"
 tier = 2
 color = "#8b6914"
 inputs = ["water", "earth"]
+demand_chapter = 6
 
 [[elements]]
 id = "mist"
@@ -74,6 +129,7 @@ name_pt = "Névoa"
 tier = 2
 color = "#c5dde8"
 inputs = ["water", "wind"]
+demand_chapter = 4
 
 [[elements]]
 id = "brine"
@@ -81,6 +137,7 @@ name_pt = "Salmoura"
 tier = 2
 color = "#6aa6c1"
 inputs = ["water", "ore"]
+demand_chapter = 7
 
 [[elements]]
 id = "ash"
@@ -88,6 +145,7 @@ name_pt = "Cinza"
 tier = 2
 color = "#9aa0a6"
 inputs = ["fire", "grass"]
+demand_chapter = 5
 
 [[elements]]
 id = "lava"
@@ -95,6 +153,7 @@ name_pt = "Lava"
 tier = 2
 color = "#e85d04"
 inputs = ["fire", "earth"]
+demand_chapter = 6
 
 [[elements]]
 id = "ember"
@@ -102,6 +161,7 @@ name_pt = "Brasa"
 tier = 2
 color = "#ff8b4a"
 inputs = ["fire", "wind"]
+demand_chapter = 4
 
 [[elements]]
 id = "slag"
@@ -109,6 +169,7 @@ name_pt = "Escória"
 tier = 2
 color = "#6b5344"
 inputs = ["fire", "ore"]
+demand_chapter = 7
 
 [[elements]]
 id = "seed"
@@ -116,6 +177,7 @@ name_pt = "Semente"
 tier = 2
 color = "#8fbc5a"
 inputs = ["grass", "earth"]
+demand_chapter = 3
 
 [[elements]]
 id = "pollen"
@@ -123,6 +185,7 @@ name_pt = "Pólen"
 tier = 2
 color = "#e6d35a"
 inputs = ["grass", "wind"]
+demand_chapter = 8
 
 [[elements]]
 id = "dust"
@@ -132,6 +195,7 @@ color = "#cbb89a"
 inputs = ["earth", "wind"]
 
 # --- Tier 3: 2 inputs → 1 output — 8 -----------------------------------------
+demand_chapter = 4
 
 [[elements]]
 id = "cloud"
@@ -139,6 +203,7 @@ name_pt = "Nuvem"
 tier = 3
 color = "#dce6f0"
 inputs = ["steam", "mist"]
+demand_chapter = 4
 
 [[elements]]
 id = "brick"
@@ -146,6 +211,7 @@ name_pt = "Tijolo"
 tier = 3
 color = "#c45c26"
 inputs = ["mud", "ash"]
+demand_chapter = 6
 
 [[elements]]
 id = "sprout"
@@ -153,6 +219,7 @@ name_pt = "Broto"
 tier = 3
 color = "#7dcf4a"
 inputs = ["seed", "water"]
+demand_chapter = 3
 
 [[elements]]
 id = "glass"
@@ -160,6 +227,7 @@ name_pt = "Vidro"
 tier = 3
 color = "#a8d5e5"
 inputs = ["lava", "dust"]
+demand_chapter = 6
 
 [[elements]]
 id = "charcoal"
@@ -167,6 +235,7 @@ name_pt = "Carvão"
 tier = 3
 color = "#3a3a3a"
 inputs = ["ash", "earth"]
+demand_chapter = 6
 
 [[elements]]
 id = "clay"
@@ -174,6 +243,7 @@ name_pt = "Argila"
 tier = 3
 color = "#b08968"
 inputs = ["mud", "moss"]
+demand_chapter = 6
 
 [[elements]]
 id = "crystal"
@@ -181,6 +251,7 @@ name_pt = "Cristal"
 tier = 3
 color = "#9b7ed9"
 inputs = ["brine", "ember"]
+demand_chapter = 7
 
 [[elements]]
 id = "alloy"
@@ -188,6 +259,7 @@ name_pt = "Liga"
 tier = 3
 color = "#a0a8b4"
 inputs = ["slag", "ore"]
+demand_chapter = 7
 
 # --- Tier 4: 3 inputs → 1 output — 6 -----------------------------------------
 
@@ -197,6 +269,7 @@ name_pt = "Tempestade"
 tier = 4
 color = "#5b6abf"
 inputs = ["cloud", "ash", "wind"]
+demand_chapter = 5
 
 [[elements]]
 id = "forge"
@@ -204,6 +277,7 @@ name_pt = "Forja"
 tier = 4
 color = "#d9480f"
 inputs = ["brick", "lava", "slag"]
+demand_chapter = 7
 
 [[elements]]
 id = "garden"
@@ -211,6 +285,7 @@ name_pt = "Jardim"
 tier = 4
 color = "#4caf70"
 inputs = ["sprout", "moss", "seed"]
+demand_chapter = 8
 
 [[elements]]
 id = "battery"
@@ -218,6 +293,7 @@ name_pt = "Bateria"
 tier = 4
 color = "#6c63c7"
 inputs = ["crystal", "ember", "brine"]
+demand_chapter = 7
 
 [[elements]]
 id = "kiln"
@@ -225,6 +301,7 @@ name_pt = "Fornalha"
 tier = 4
 color = "#b35c38"
 inputs = ["clay", "charcoal", "fire"]
+demand_chapter = 6
 
 [[elements]]
 id = "lens"
@@ -234,6 +311,7 @@ color = "#8ecae6"
 inputs = ["glass", "crystal", "dust"]
 
 # --- Tier 5: 3 inputs → 2 outputs — 2 recipes / 4 elements -------------------
+demand_chapter = 7
 
 [[elements]]
 id = "tempest"
@@ -242,6 +320,7 @@ tier = 5
 color = "#3d4f9c"
 inputs = ["storm", "ember", "cloud"]
 outputs = ["tempest", "lightning"]
+demand_chapter = 8
 
 [[elements]]
 id = "lightning"
@@ -249,6 +328,7 @@ name_pt = "Raio"
 tier = 5
 color = "#f4e285"
 coproduct_of = "tempest"
+demand_chapter = 8
 
 [[elements]]
 id = "foundry"
@@ -257,6 +337,7 @@ tier = 5
 color = "#9c2f1a"
 inputs = ["forge", "alloy", "ore"]
 outputs = ["foundry", "scrap"]
+demand_chapter = 8
 
 [[elements]]
 id = "scrap"
@@ -264,3 +345,5 @@ name_pt = "Sucata"
 tier = 5
 color = "#7a6f66"
 coproduct_of = "foundry"
+demand_chapter = 8
+

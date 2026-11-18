@@ -9,6 +9,7 @@ Open Pipeline packets are **elements** defined in TOML under `game-server/config
 - Crafted rows: `inputs` length **2 or 3**; `outputs` defaults to `[id]`, or two ids for dual products
 - Co-products: `coproduct_of = "primary_id"` (no `inputs`); must appear in the primary `outputs`
 - Tier rule: `tier = 1 + max(tier(inputs))`
+- `demand_chapter` assigns when the core starts requiring that element. Inputs must come from the same chapter or an earlier one. After chapter 1, at most one new tier-1 base per chapter.
 - Preview rebuilds from TOML on every request
 
 ```bash
@@ -30,9 +31,9 @@ Status: **TOML catalog + preview layout updated** (2026-11-18). In-game combiner
 | Distinct resources | **36** | Authored in `elements.toml` |
 | Parallel colors | Up to **3** color families | Approx. cool / warm / green-earth in draft colors |
 | Max tier | **5** | Authored |
-| Core quota | Across match progression, **every** element appears in core demand at least once | Not implemented in sim |
+| Core quota | Across match progression, **every** element appears in core demand at least once | Chapter schedule authored in TOML; sim not wired yet |
 
-Procedural match setup may still pick *which* demands are active early, but the authored book and late-game milestones must cover the full set so nothing is ornamental forever.
+The core does **not** demand the whole low-tier book at match start. Chapter 1 asks only for water, fire, and steam. Later chapters add one branch at a time (at most one new base after chapter 1). Older demands stay active. Basics that no later recipe needs (pollen) and payoffs whose inputs have been around for a while (garden) wait until chapter 8, so early play is not a grind of every tier-2 formula. The recipe page lists each chapter under **Quando o núcleo pede cada elemento**.
 
 ### Crafting by tier (planned)
 

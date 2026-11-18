@@ -22,10 +22,13 @@ import { parse } from 'smol-toml'
  *   inputs: string[],
  *   outputs: string[],
  *   coproduct_of: string | null,
+ *   demand_chapter: number,
  *   sourceFile: string,
  * }} Element
+ * @typedef {{ id: number, name_pt: string, summary_pt: string }} Chapter
  * @typedef {{
  *   maxTier: number,
+ *   chapters: Chapter[],
  *   elements: Element[],
  *   byId: Map<string, Element>,
  *   recipes: Element[],
@@ -44,12 +47,16 @@ export function loadElementCatalog(configDir) {
   }
 
   let maxTier = 5
+  /** @type {Chapter[]} */
+  const chapters = []
   /** @type {Element[]} */
   const elements = []
 
   for (const filePath of files) {
     const raw = parse(readFileSync(filePath, 'utf8'))
     if (raw.max_tier != null) maxTier = Number(raw.max_tier)
+    const chapterRows = Array.isArray(raw.chapters) ? raw.chapters : []
+    for (const row of chapterRows) chapters.push(normalizeChapter(row, filePath))
     const rows = Array.isArray(raw.elements) ? raw.elements : []
     for (const row of rows) {
       elements.push(normalizeElement(row, filePath, maxTier))
@@ -69,6 +76,7 @@ export function loadElementCatalog(configDir) {
     validateElementLinks(el, byId, maxTier)
   }
 
+  const orderedChapters = validateChapters(chapters, byId)
   assertAcyclic(byId)
 
   const recipeKeys = new Set()
@@ -86,11 +94,92 @@ export function loadElementCatalog(configDir) {
 
   return {
     maxTier,
+    chapters: orderedChapters,
     elements: sorted,
     byId,
     recipes,
     sources: files,
   }
+}
+
+/**
+ * @param {Record<string, unknown>} row
+ * @param {string} sourceFile
+ * @returns {Chapter}
+ */
+function normalizeChapter(row, sourceFile) {
+  const id = Number(row.id)
+  if (!Number.isInteger(id) || id < 1) fail(`Chapter id must be a positive integer in ${sourceFile}.`)
+  const name = String(row.name_pt ?? '').trim()
+  if (!name) fail(`Chapter ${id} missing name_pt.`)
+  return {
+    id,
+    name_pt: name,
+    summary_pt: String(row.summary_pt ?? '').trim(),
+  }
+}
+
+/**
+ * @param {Chapter[]} chapters
+ * @param {Map<string, Element>} byId
+ * @returns {Chapter[]}
+ */
+function validateChapters(chapters, byId) {
+  if (chapters.length === 0) fail('No [[chapters]] entries. Each element needs a demand chapter.')
+  const byChapterId = new Map()
+  for (const chapter of chapters) {
+    if (byChapterId.has(chapter.id)) fail(`Duplicate chapter id ${chapter.id}.`)
+    byChapterId.set(chapter.id, chapter)
+  }
+  const ordered = [...byChapterId.values()].sort((a, b) => a.id - b.id)
+  ordered.forEach((chapter, index) => {
+    if (chapter.id !== index + 1) {
+      fail(`Chapters must be contiguous from 1. Missing ${index + 1}.`)
+    }
+  })
+
+  for (const el of byId.values()) {
+    if (!Number.isInteger(el.demand_chapter) || !byChapterId.has(el.demand_chapter)) {
+      fail(`Element ${el.id}: demand_chapter ${el.demand_chapter} is not a defined chapter.`)
+    }
+  }
+
+  for (const el of byId.values()) {
+    if (el.coproduct_of) {
+      const primary = byId.get(el.coproduct_of)
+      if (primary.demand_chapter !== el.demand_chapter) {
+        fail(`Element ${el.id}: co-product chapter must match ${primary.id}.`)
+      }
+      continue
+    }
+    for (const inputId of el.inputs) {
+      const input = byId.get(inputId)
+      if (input.demand_chapter > el.demand_chapter) {
+        fail(
+          `Element ${el.id}: input "${inputId}" is demanded in chapter ${input.demand_chapter}, after chapter ${el.demand_chapter}.`,
+        )
+      }
+    }
+  }
+
+  /** @type {Map<number, string[]>} */
+  const newBases = new Map()
+  for (const el of byId.values()) {
+    if (el.tier !== 1) continue
+    const list = newBases.get(el.demand_chapter) ?? []
+    list.push(el.id)
+    newBases.set(el.demand_chapter, list)
+  }
+  for (const [chapterId, ids] of newBases) {
+    const limit = chapterId === 1 ? 2 : 1
+    if (ids.length > limit) {
+      fail(
+        `Chapter ${chapterId} introduces ${ids.length} bases (${ids.join(', ')}). Limit is ${limit}.`,
+      )
+    }
+  }
+
+  return ordered
 }
 
 /** @param {string} configDir */
@@ -168,6 +257,7 @@ function normalizeElement(row, sourceFile, maxTier) {
     inputs,
     outputs,
     coproduct_of: coproductOf,
+    demand_chapter: Number(row.demand_chapter),
     sourceFile,
   }
 }

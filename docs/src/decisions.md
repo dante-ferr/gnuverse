@@ -83,7 +83,7 @@ Full detail: [Element recipes](game/elements.md#planned-graph-machines-and-core-
 | Tier 5 | **3-input → 2 outputs** (`outputs` + `coproduct_of`) | TOML authored; tick rules TBD |
 | 3-in machine I/O | Always **3 in + 2 out ports**. Dual recipe → different packets per port. Single recipe → same packet on both ports; using both **halves** productivity | Design only |
 | Coupled dual output | Dual recipe ports eject together; one blocked belt stalls both | Design only |
-| Core demands | Full catalog required across progression | Design only |
+| Core demands | Full catalog required by the **last** chapter, not at match start. `demand_chapter` in TOML; inputs cannot be demanded later than the craft. After chapter 1, at most one new base per chapter | Schedule authored; sim TBD |
 | Preview graphs | Orthogonal gap routing + highway for long spans; no edges through balloons | Preview tooling updated |
 
 Recipe book and visualizer: [Element recipes](game/elements.md). Edit TOML under `game-server/config/` (`elements.toml` and optional `elements/**/*.toml`), then `make elements-serve` (http://127.0.0.1:3010).

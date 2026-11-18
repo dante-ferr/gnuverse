@@ -41,7 +41,7 @@ ${cards}
       <span class="swatch" aria-hidden="true"></span>
       <strong>${escapeHtml(el.name_pt)}</strong>
       <code>${escapeHtml(el.id)}</code>
-      <span class="muted">T${el.tier}</span>
+      <span class="muted">T${el.tier} · cap. ${el.demand_chapter}</span>
     </li>`,
     )
     .join('\n')
@@ -49,6 +49,7 @@ ${cards}
   const sourceList = catalog.sources
     .map((path) => `<li><code>${escapeHtml(displayPath(path, rootLabel))}</code></li>`)
     .join('\n')
+  const progression = renderProgression(catalog)
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -67,8 +68,10 @@ ${PAGE_CSS}
     <p class="lede">
       ${catalog.elements.length} elementos ·
       ${catalog.recipes.length} receitas ·
-      tier máximo ${catalog.maxTier}.
-      Gerado automaticamente a partir dos TOML em <code>${escapeHtml(rootLabel)}</code>.
+      tier máximo ${catalog.maxTier} ·
+      ${catalog.chapters.length} capítulos de demanda.
+      O núcleo começa só com o capítulo 1. Capítulos anteriores continuam ativos.
+      Gerado a partir dos TOML em <code>${escapeHtml(rootLabel)}</code>.
     </p>
     <div class="toolbar">
       <button type="button" id="expand-all">Abrir todas as receitas</button>
@@ -77,6 +80,8 @@ ${PAGE_CSS}
     </div>
   </header>
 
+  ${progression}
+
   <section class="panel">
     <h2>Fontes TOML</h2>
     <ul class="sources">${sourceList}</ul>
@@ -84,6 +89,7 @@ ${PAGE_CSS}
 
   <section class="panel">
     <h2>Bases (tier 1)</h2>
+    <p class="chart-caption">Cada base entra no capítulo indicado. O jogo não pede as seis no começo.</p>
     <ul class="bases">${baseList}</ul>
   </section>
 
@@ -116,14 +122,69 @@ function groupRecipesByTier(catalog) {
  * @param {import('./load.mjs').Element} output
  * @param {Map<string, import('./load.mjs').Element>} byId
  */
+/**
+ * @param {import('./load.mjs').ElementCatalog} catalog
+ */
+function renderProgression(catalog) {
+  const cards = catalog.chapters
+    .map((chapter) => {
+      const added = catalog.elements
+        .filter((el) => el.demand_chapter === chapter.id)
+        .sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id))
+      const newBases = added.filter((el) => el.tier === 1)
+      const items = added
+        .map((el) => {
+          const kind = el.tier === 1 ? 'base nova' : el.coproduct_of ? '2ª saída' : `T${el.tier}`
+          const recipe = el.coproduct_of
+            ? `sai com ${escapeHtml(catalog.byId.get(el.coproduct_of).name_pt)}`
+            : el.inputs.length
+              ? escapeHtml(el.inputs.map((id) => catalog.byId.get(id).name_pt).join(' + '))
+              : 'fonte'
+          return `<li class="demand" style="--swatch:${escapeAttr(el.color)}">
+            <span class="swatch" aria-hidden="true"></span>
+            <span class="demand-name">${escapeHtml(el.name_pt)}</span>
+            <span class="badge">${escapeHtml(kind)}</span>
+            <span class="muted">${recipe}</span>
+          </li>`
+        })
+        .join('\n')
+      const baseNote =
+        newBases.length === 0
+          ? 'Nenhuma base nova — só fórmulas de fontes que já estão no jogo.'
+          : `Base nova: ${newBases.map((el) => escapeHtml(el.name_pt)).join(', ')}.`
+      return `<article class="chapter" id="chapter-${chapter.id}">
+        <header class="chapter-head">
+          <p class="eyebrow">Capítulo ${chapter.id}</p>
+          <h3>${escapeHtml(chapter.name_pt)}</h3>
+          <p>${escapeHtml(chapter.summary_pt)}</p>
+          <p class="chapter-rule">${baseNote} ${added.length} demanda${added.length === 1 ? '' : 's'} nova${added.length === 1 ? '' : 's'}.</p>
+        </header>
+        <ul class="demands">${items}</ul>
+      </article>`
+    })
+    .join('\n')
+
+  return `<section class="panel progression">
+    <h2>Quando o núcleo pede cada elemento</h2>
+    <p class="lede">
+      O capítulo 1 é o começo da partida. Cada capítulo seguinte soma poucas demandas
+      e mantém as anteriores. Uma fórmula só entra quando todos os ingredientes
+      já foram pedidos antes (ou no mesmo capítulo). Bases novas entram uma por capítulo
+      depois da ignição, e fórmulas básicas que ninguém mais usa esperam o fim.
+    </p>
+    <div class="chapters">${cards}</div>
+  </section>`
+}
+
 function renderRecipeDetails(output, byId) {
   const inputs = output.inputs.map((id) => byId.get(id))
   const outputs = output.outputs.map((id) => byId.get(id))
   const outLabel = outputs.map((el) => el.name_pt).join(' + ')
   return `
-<details class="recipe" data-tier="${output.tier}" data-id="${escapeAttr(output.id)}">
+<details class="recipe" data-tier="${output.tier}" data-chapter="${output.demand_chapter}" data-id="${escapeAttr(output.id)}">
   <summary>
     <span class="badge">T${output.tier}</span>
+    <span class="badge">Cap. ${output.demand_chapter}</span>
     <span class="summary-title">${escapeHtml(inputs.map((el) => el.name_pt).join(' + '))} → ${escapeHtml(outLabel)}</span>
     <code>${escapeHtml(output.outputs.join(', '))}</code>
   </summary>
@@ -136,6 +197,7 @@ function renderRecipeDetails(output, byId) {
       <div><dt>Entradas</dt><dd>${inputs
         .map((el) => `<code>${escapeHtml(el.id)}</code> (${escapeHtml(el.name_pt)}, T${el.tier})`)
         .join(' + ')}</dd></div>
+      <div><dt>Capítulo</dt><dd>${output.demand_chapter}</dd></div>
       <div><dt>Saídas</dt><dd>${outputs
         .map((el) => `<code>${escapeHtml(el.id)}</code> (${escapeHtml(el.name_pt)}, T${el.tier})`)
         .join(' + ')}</dd></div>
@@ -599,7 +661,7 @@ button {
   cursor: pointer;
 }
 button:hover { border-color: var(--accent); }
-.panel, .tier {
+.panel, .tier, .chapter {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -607,6 +669,30 @@ button:hover { border-color: var(--accent); }
   margin-bottom: 1rem;
   max-width: 960px;
 }
+.progression { max-width: 960px; }
+.chapters { display: grid; gap: 0.75rem; }
+.chapter { margin-bottom: 0; }
+.chapter-head h3 { margin: 0.15rem 0 0.35rem; font-size: 1.2rem; }
+.chapter-head p { margin: 0.2rem 0; color: var(--muted); }
+.chapter-rule { font-size: 0.88rem; }
+.demands { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.4rem; }
+.demand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+}
+.demand .swatch {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: var(--swatch);
+  border: 2px solid #0a1014;
+}
+.demand-name { font-weight: 650; }
 .sources, .bases { list-style: none; margin: 0.75rem 0 0; padding: 0; }
 .sources li { margin: 0.25rem 0; }
 .bases {
