@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev cms site sync build preview check test typecheck mailpit cms-reset cms-seed cms-fresh cms-set-host-admin test-blog test-blog-ci docs-serve
+.PHONY: help setup dev cms site sync build preview check test typecheck mailpit cms-reset cms-seed cms-fresh cms-set-host-admin test-blog test-blog-ci docs-serve elements-serve
 
 help:
 	@printf '%s\n' 'GNUverse — commands' '' \
@@ -18,7 +18,8 @@ help:
 		'  make build       Build the static site into out/' \
 		'  make preview     Serve the static site without the CMS' \
 		'  make check       Run tests and TypeScript checks' \
-		'  make docs-serve  Serve the method book (mdBook) at http://localhost:3003' ''
+		'  make docs-serve  Serve the method book (mdBook) at http://localhost:3003' \
+		'  make elements-serve  Element recipe page at http://127.0.0.1:3010 (reload TOML on refresh)' ''
 
 setup:
 	npm ci
@@ -91,3 +92,6 @@ docs-serve:
 	@which mdbook > /dev/null || (echo "mdBook is not installed. Install from https://github.com/rust-lang/mdBook/releases or with cargo install mdbook" && exit 1)
 	@echo "Documentation server at http://localhost:3003"
 	mdbook serve docs -p 3003
+
+elements-serve:
+	npm run elements:serve

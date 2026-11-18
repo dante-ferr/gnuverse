@@ -17,6 +17,7 @@
 # Game
 - [How the game works](game/index.md)
   - [Rules and design](game/rules.md)
+  - [Element recipes](game/elements.md)
   - [Code map](game/map.md)
   - [Local testing](game/local.md)
   - [Production](game/production.md)

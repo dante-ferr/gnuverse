@@ -5,6 +5,7 @@ The playable game is **Open Pipeline** v0.1: a top-down cooperative logistics ro
 | Chapter | Question |
 | :--- | :--- |
 | [Rules and design](rules.md) | What is locked for v0.1? |
+| [Element recipes](elements.md) | Element TOML book and local recipe preview |
 | [Code map](map.md) | Where do frontend, backend, and config live? |
 | [Local testing](local.md) | How do you run and try it? |
 | [Production](production.md) | What does hosting require? |

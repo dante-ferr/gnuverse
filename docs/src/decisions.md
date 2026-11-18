@@ -71,7 +71,7 @@ Locked design direction (2026-11-18). Packets are **elements**, not nested geome
 | Demands | Which bases spawn and which elements the core asks for can be **procedural** per match, constrained to a reachable subgraph of this book; the recipe book itself stays authored in TOML |
 | Metaphor | FOSS analogy stays in the logistics / collaboration format; element flavor does not need a strict software metaphor |
 
-Recipe book and visualizer: [Element recipes](game/elements.md). Edit `elements.toml`, then `npm run elements:graph`.
+Recipe book and visualizer: [Element recipes](game/elements.md). Edit TOML under `game-server/config/` (`elements.toml` and optional `elements/**/*.toml`), then `make elements-serve` (http://127.0.0.1:3010).
 
 ## Still open
 

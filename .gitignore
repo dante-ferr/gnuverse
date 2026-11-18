@@ -15,3 +15,5 @@ cms/media/
 *.log
 local/
 docs/book/
+game-server/config/elements-graph.html
+game-server/config/elements-graph.mmd

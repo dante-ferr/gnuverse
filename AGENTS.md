@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Make-centric workflow
+
+This repo is **make-centric**. Prefer `make <target>` over raw `npm run` for day-to-day commands (`make help` lists them). When you add a new local tool or long-running preview, wire a Makefile target and document that `make` name — do not leave npm-only instructions as the primary path.
+
 ## Open Pipeline
 
 The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipeline-proposal.md`](docs/src/game/open-pipeline-proposal.md). Read [`game-server/config/game.config.toml`](game-server/config/game.config.toml) before changing numbers. Later versions (splitters, nested shapes, satellite cores, victory) wait until the current version is reviewed.
@@ -16,7 +20,7 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 
 - Static lobby at `/jogo/`, room URL `/jogo/torre/?id=<uuid>`, CMS login, separate Node **game-server**, SQLite, server-authoritative state over **SSE**. The grid tick does not use Matter.js.
 - Do **not** rename `/jogo/torre/` or `/api/towers`. Do **not** add a Rust service, WebSockets, or an in-memory-only store.
-- `npm run game:dev` = game API; `npm run dev` = Next. Do **not** start a second `npm run game:dev` while one is running (SQLite: "Já existe uma instância do jogo usando este banco.").
+- Prefer `make dev` / `make cms` / `make site` over starting processes by hand. Game API alone is still `npm run game:dev` when needed. Do **not** start a second game API while one is running (SQLite: "Já existe uma instância do jogo usando este banco.").
 - Login uses the real CMS identity provider. Only a signed-in account can place or delete belts. The test identity provider is for unit tests only.
 
 ### v0.1 rules
