@@ -17,6 +17,11 @@ process.env.STORAGE_ADAPTER = 'local'
 process.env.MEDIA_DIR = path.join(directory, 'media')
 process.env.SITE_DEPLOY_HOOK_URL = ''
 process.env.GNUVERSE_DATA_DIR = directory
+const adminPassword = 'abc' // Fixture: existing Payload passwords must not be rejected by a second policy.
+process.env.HOST_ADMIN_EMAIL = 'admin@example.test'
+process.env.HOST_ADMIN_PASSWORD = adminPassword
+process.env.HOST_ADMIN_NAME = 'Admin de teste'
+process.env.HOST_ADMIN_USERNAME = 'admin_teste'
 delete process.env.GNUVERSE_AUTHZ_FILE
 const { default: configPromise } = await import('../src/payload.config')
 const config = await configPromise
@@ -33,18 +38,28 @@ function ownerIdOf(owner: unknown): number | string | undefined {
 }
 
 try {
-  // 1. Primeiro usuário vira admin mesmo se outro papel for enviado no bootstrap.
-  const adminPassword = 'abc' // Fixture: existing Payload passwords must not be rejected by a second policy.
+  // 1. Conta HOST_ADMIN_* criada no onInit; sem usuários, create força papel admin.
+  const bootstrapped = await payload.find({
+    collection: 'users',
+    overrideAccess: true,
+    limit: 1,
+    where: { email: { equals: 'admin@example.test' } },
+  })
+  assert.equal(bootstrapped.totalDocs, 1, 'HOST_ADMIN_* precisa criar o administrador na inicialização')
+  assert.equal(bootstrapped.docs[0].role, 'admin', 'Conta HOST_ADMIN precisa ser administrador')
+
+  await payload.delete({ collection: 'users', id: bootstrapped.docs[0].id, overrideAccess: true })
   const admin = await payload.create({
     collection: 'users',
     data: {
       name: 'Admin de teste',
+      username: 'admin_teste',
       email: 'admin@example.test',
       password: adminPassword,
       role: 'editor',
     },
   })
-  assert.equal(admin.role, 'admin', 'Primeiro usuário precisa ser administrador')
+  assert.equal(admin.role, 'admin', 'Primeiro usuário precisa ser administrador mesmo se outro papel for enviado')
 
   const reviewer = await payload.create({
     collection: 'users',
@@ -52,6 +67,7 @@ try {
     overrideAccess: false,
     data: {
       name: 'Revisor de teste',
+      username: 'revisor_teste',
       email: 'reviewer@example.test',
       password: randomBytes(24).toString('hex'),
       role: 'reviewer',
@@ -65,6 +81,7 @@ try {
     overrideAccess: false,
     data: {
       name: 'Editor legado de teste',
+      username: 'editor_legado',
       email: 'editor@example.test',
       password: randomBytes(24).toString('hex'),
       role: 'editor',
@@ -79,6 +96,7 @@ try {
     // Simula cadastro sem enviar `role` para validar defaultValue: 'author'.
     data: {
       name: 'Autora Um',
+      username: 'autora_um',
       email: 'author1@example.test',
       password: randomBytes(24).toString('hex'),
     } as RequiredDataFromCollectionSlug<'users'>,
@@ -90,6 +108,7 @@ try {
     overrideAccess: false,
     data: {
       name: 'Autor Dois',
+      username: 'autor_dois',
       email: 'author2@example.test',
       password: randomBytes(24).toString('hex'),
       role: 'author',
@@ -105,6 +124,7 @@ try {
         overrideAccess: false,
         data: {
           name: `Visitante ${privilegedRole}`,
+          username: `visitante_${privilegedRole}`,
           email: `visitor-${privilegedRole}@example.test`,
           password: 'test-password-123',
           role: privilegedRole,
@@ -132,6 +152,7 @@ try {
         overrideAccess: false,
         data: {
           name: 'Outro usuário',
+          username: `outro_${nonAdmin.role}`,
           email: `unauthorized-${nonAdmin.role}@example.test`,
           password: 'test-password-123',
           role: 'author',
@@ -554,7 +575,7 @@ try {
     overrideAccess: false,
     data: {
       name: 'Participante Blog',
-      nickname: 'participante_blog',
+      username: 'participante_blog',
       email: 'member-blog@example.test',
       password: randomBytes(24).toString('hex'),
       role: 'member',

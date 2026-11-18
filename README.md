@@ -14,8 +14,6 @@ UI copy is Portuguese; code and documentation are English (`AGENTS.md`).
 
 ## Experience
 
-Two independent areas:
-
 - **Collaborative towers** (`/jogo/`): local multiplayer with physics, coins, votes, and BDFL. Backend in `game-server/`; production hosting still open.
 - **Authorial blog** (`/blog/`, `/artigos/`): team and visitor posts with approval. `author` / `reviewer` / `admin` flow and submission panel are in code; 14 posts and cloud setup are still pending.
 
@@ -23,29 +21,32 @@ Single account in Payload; roles in `core/authz/` and **People and access** on t
 
 ## Architecture
 
-- Static site (Cloudflare Pages) + Payload (`cms/`, Render Free) + `game-server/` (always on + disk).
-- Content in database/storage; publish triggers a deploy hook; readers do not wait for the CMS to wake.
+Static site (Cloudflare Pages) + Payload (`cms/`, Render Free) + `game-server/` (always on + disk). Content lives in database/storage; publish triggers a deploy hook; readers do not wait for the CMS to wake.
 
-## Local testing
+## Local setup
 
-Node.js 22.18+, npm, GNU Make.
+Requires Node.js 22.18+, npm, and GNU Make.
 
 ```bash
 make setup
 make dev
 ```
 
-Ctrl+C stops CMS, game, and site. Shortcuts: `make test-blog`, `make check`, `make build`, `make preview`, `make help`.
+`make setup` installs dependencies, copies `cms/.env.example` to `cms/.env` when missing (fills `PAYLOAD_SECRET`), prepares `.env.local` for a live CMS, and bootstraps the local CMS database when it is missing (creates the `HOST_ADMIN_*` account and demo seed).
 
-Default ports: site `3000`, CMS `3001`, game `3002`. Alternatives: `CMS_PORT=3011 SITE_PORT=3010 GAME_PORT=3012 make dev`.
+`make dev` (or `make cms`) starts the CMS. Defaults for the host admin in `cms/.env.example`:
 
-## Layout
-
-| Folder | Role |
+| Variable | Default |
 | :--- | :--- |
-| `src/` | Site (blog, articles, game) |
-| `cms/` | Payload, users, media, migrations |
-| `game-server/` | API, physics, game SQLite |
-| `core/` | Pure authz/authn |
-| `scripts/` | Dev, sync, E2E tests |
-| `docs/` | mdBook + `references/` |
+| `HOST_ADMIN_EMAIL` | `admin@gnuverse.local` |
+| `HOST_ADMIN_PASSWORD` | `gnuverse123` |
+| `HOST_ADMIN_NAME` | `Administrador` |
+| `HOST_ADMIN_USERNAME` | `admin` |
+
+Sign in at `/admin` or `/login` with those credentials. Change them in `cms/.env` before production use.
+
+`make cms-reset` wipes the local SQLite DB and media, then applies the demo seed. If the CMS is still running, stop and restart it so it opens the new database file.
+
+Ctrl+C stops CMS, game, and site. Useful commands: `make test-blog`, `make check`, `make build`, `make preview`, `make cms-reset`, `make help`.
+
+Default ports: site `3000`, CMS `3001`, game `3002`. Override per run: `CMS_PORT=3011 SITE_PORT=3010 GAME_PORT=3012 make dev`.

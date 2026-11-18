@@ -3,22 +3,32 @@ import { adminField, canAccessCMS, isAdmin } from '../access'
 import { readRoleRegistry } from '../../../core/authz/manage-role-store.ts'
 import { emailVerificationEnabled } from '../email/settings'
 import { forgotPasswordEmailHTML, verificationEmailHTML } from '../email/auth-messages'
+import { USERNAME_PATTERN } from '../identity/username'
+
+const authExtras = emailVerificationEnabled
+  ? {
+      verify: {
+        generateEmailHTML: verificationEmailHTML,
+        generateEmailSubject: () => 'Confirme seu e-mail no GNUverse',
+      },
+      forgotPassword: {
+        generateEmailHTML: forgotPasswordEmailHTML,
+        generateEmailSubject: () => 'Redefina sua senha no GNUverse',
+      },
+    }
+  : {}
 
 export const Users: CollectionConfig = {
   slug: 'users',
   labels: { singular: 'Integrante', plural: 'Integrantes' },
-  auth: emailVerificationEnabled
-    ? {
-        verify: {
-          generateEmailHTML: verificationEmailHTML,
-          generateEmailSubject: () => 'Confirme seu e-mail no GNUverse',
-        },
-        forgotPassword: {
-          generateEmailHTML: forgotPasswordEmailHTML,
-          generateEmailSubject: () => 'Redefina sua senha no GNUverse',
-        },
-      }
-    : true,
+  auth: {
+    loginWithUsername: {
+      allowEmailLogin: true,
+      requireEmail: true,
+      requireUsername: true,
+    },
+    ...authExtras,
+  },
   admin: { useAsTitle: 'name' },
   access: {
     admin: canAccessCMS,
@@ -39,6 +49,7 @@ export const Users: CollectionConfig = {
       if (operation === 'create' && !req.user) {
         const existing = await req.payload.count({ collection: 'users', overrideAccess: true, req })
         if (existing.totalDocs === 0) {
+          // Empty DB: HOST_ADMIN_* create on init, or a rare race before that finishes.
           if (req.context.publicRegistration) throw new APIError('O administrador precisa configurar o site antes do cadastro de participantes.', 409)
           data.role = 'admin'
           if (emailVerificationEnabled) data._verified = true
@@ -52,9 +63,22 @@ export const Users: CollectionConfig = {
   },
   fields: [
     { name: 'name', label: 'Nome', type: 'text', required: true },
-    { name: 'nickname', label: 'Apelido público', type: 'text', unique: true, maxLength: 32,
-      hooks: { beforeValidate: [({ value }) => typeof value === 'string' && value ? value.toLowerCase() : value || null] },
-      validate: (value: unknown) => value == null || value === '' || (typeof value === 'string' && /^[\p{L}\p{N}_-]{3,32}$/u.test(value)) || 'Use de 3 a 32 letras, números, _ ou -.' },
+    {
+      // Merges into Payload's auth username field (unique, required for login).
+      name: 'username',
+      label: 'Apelido público',
+      type: 'text',
+      required: true,
+      unique: true,
+      maxLength: 32,
+      hooks: {
+        beforeValidate: [({ value }) =>
+          typeof value === 'string' && value ? value.toLowerCase().trim() : value],
+      },
+      validate: (value: unknown) =>
+        (typeof value === 'string' && USERNAME_PATTERN.test(value))
+        || 'Use de 3 a 32 letras, números, _ ou -.',
+    },
     {
       name: 'role', label: 'Papel', type: 'select', required: true, defaultValue: 'author',
       admin: { description: 'Papel editorial do blog. Com a gestão compartilhada ativa, use Pessoas e acessos para papéis válidos em todo o site. Participante (member) é o cadastro público do jogo.' },

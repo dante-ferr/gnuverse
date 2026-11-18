@@ -13,6 +13,7 @@ import { Media } from './collections/Media'
 import { accessManagementEndpoints } from './access-management/endpoints'
 import { chatModerationEndpoints } from './chat-moderation/endpoints'
 import { identityEndpoints } from './identity/endpoints'
+import { ensureHostAdmin } from './identity/ensure-host-admin'
 import { markLegacyAccountsVerified } from './identity/legacy-verification'
 import { getLocalCMSURL, loadLocalEnvironment } from '../scripts/local-config.mjs'
 import { buildEmailAdapter } from './email/adapter'
@@ -20,7 +21,11 @@ import { buildEmailAdapter } from './email/adapter'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const postgres = process.env.DATABASE_ADAPTER === 'postgres'
 const s3 = process.env.STORAGE_ADAPTER === 's3'
-if (process.env.NODE_ENV !== 'production') loadLocalEnvironment()
+if (process.env.NODE_ENV !== 'production') {
+  loadLocalEnvironment()
+  // Root .env.local has CMS_PORT; cms/.env has PAYLOAD_SECRET and HOST_ADMIN_*.
+  loadLocalEnvironment(path.resolve(dirname, '..'))
+}
 // Both local services use the repository's private data directory by default.
 process.env.GNUVERSE_DATA_DIR ||= path.resolve(dirname, '../../.content')
 const serverURL = process.env.NODE_ENV === 'production'
@@ -69,7 +74,10 @@ export default buildConfig({
   endpoints: [...accessManagementEndpoints, ...chatModerationEndpoints, ...identityEndpoints],
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },
   collections: [Users, Articles, Media],
-  onInit: markLegacyAccountsVerified,
+  onInit: async (payload) => {
+    await ensureHostAdmin(payload)
+    await markLegacyAccountsVerified(payload)
+  },
   editor: lexicalEditor({ features: ({ defaultFeatures }) => [
     ...defaultFeatures.filter((feature) => !['link', 'upload', 'relationship'].includes(feature.key)),
     // Apenas links externos e capa: nenhuma mídia do corpo dependerá do CMS no navegador.

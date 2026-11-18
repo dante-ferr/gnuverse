@@ -18,7 +18,7 @@ Do not start a second `npm run game:dev` while one is running (SQLite: "Já exis
 
 ## Accounts
 
-Use the panel account or register through the site auth pages (email, password, public nickname). Sign-in and registration use dedicated pages — not inline forms in the lobby or room. Test with two sessions (private window) in the same room.
+Use the panel account or register through the site auth pages (email, password, unique public nickname). Sign-in accepts email or nickname plus password. Sign-in and registration use dedicated pages — not inline forms in the lobby or room. Test with two sessions (private window) in the same room.
 
 For local confirmation and password-recovery email, run `make mailpit` and open `http://127.0.0.1:8025`.
 

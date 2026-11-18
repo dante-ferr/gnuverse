@@ -25,9 +25,9 @@ In production, `cms/src/payload.config.ts` aborts if `DATABASE_ADAPTER=postgres`
 - Node 22+, Free
 - Build: `npm ci && npm run generate:importmap && npm run build`
 - Start: `npm run migrate && npm start` (`push: false` — schema only via versioned migrations)
-- Env: `NODE_ENV=production`, stable `PAYLOAD_SECRET`, `CMS_SERVER_URL` (HTTPS without `/admin`), Postgres/S3, then `SITE_DEPLOY_HOOK_URL` and `CMS_ALLOWED_ORIGINS` (Pages URL, no trailing slash)
+- Env: `NODE_ENV=production`, stable `PAYLOAD_SECRET`, `HOST_ADMIN_EMAIL` / `HOST_ADMIN_PASSWORD` / `HOST_ADMIN_NAME` (unique production password), `CMS_SERVER_URL` (HTTPS without `/admin`), Postgres/S3, then `SITE_DEPLOY_HOOK_URL` and `CMS_ALLOWED_ORIGINS` (Pages URL, no trailing slash)
 
-Create the `admin` **before** sharing the URL.
+On first start with an empty database, the CMS creates the host `admin` from `HOST_ADMIN_*`. Set those variables **before** sharing the URL.
 
 ## 3. Cloudflare Pages
 

@@ -34,7 +34,7 @@ export function AuthPanel({
           {mode === 'register' ? 'Criar conta' : 'Entrar'}
         </h1>
       </div>
-      <p>{mode === 'register' ? 'Crie sua conta do GNUverse. Se você já tem uma conta no painel, use Entrar.' : 'Use sua conta do GNUverse. Se você já criou uma conta no painel, entre com o mesmo e-mail e senha.'}</p>
+      <p>{mode === 'register' ? 'Crie sua conta do GNUverse. Se você já tem uma conta no painel, use Entrar.' : 'Use sua conta do GNUverse. Entre com o e-mail ou o apelido público e a senha.'}</p>
       {error && <p className={styles.error} role="alert">{error}</p>}
       <form className={`${styles.form} ${authStyles.form}`} onSubmit={handleSubmit} aria-busy={busy}>
         {mode === 'register' && (
@@ -47,18 +47,19 @@ export function AuthPanel({
               maxLength={32}
               pattern="[\p{L}\p{N}_\-]+"
               title="Use letras, números, _ ou -"
-              autoComplete="nickname"
+              autoComplete="username"
             />
           </label>
         )}
         <label>
-          E-mail
+          {mode === 'register' ? 'E-mail' : 'E-mail ou apelido'}
           <input
             name="email"
-            type="email"
+            type={mode === 'register' ? 'email' : 'text'}
             required
+            minLength={mode === 'register' ? undefined : 3}
             maxLength={254}
-            autoComplete="email"
+            autoComplete={mode === 'register' ? 'email' : 'username'}
           />
         </label>
         <label>

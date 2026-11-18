@@ -4,14 +4,14 @@
 
 help:
 	@printf '%s\n' 'GNUverse — commands' '' \
-		'  make setup       Install dependencies and prepare local environments' \
+		'  make setup       Install deps, prepare env files, bootstrap+seed CMS DB if missing' \
 		'  make dev         Start CMS + game + site; Ctrl+C stops all three' \
 		'  make test-blog   Seed demo data, run E2E tests, open the browser' \
 		'  make cms         Start only the CMS on CMS_PORT' \
 		'  make mailpit     Start local Mailpit (SMTP 1025, UI 8025)' \
-		'  make cms-reset   Wipe the local CMS SQLite DB and media' \
-		'  make cms-seed    Apply the local CMS demo seed (users, covers, articles)' \
-		'  make cms-fresh   Wipe the local CMS DB/media, then apply the demo seed' \
+		'  make cms-reset   Wipe the local CMS SQLite DB/media, then apply the demo seed' \
+		'  make cms-seed    Re-apply the local CMS demo seed without wiping' \
+		'  make cms-fresh   Alias of cms-reset (wipe, then seed)' \
 		'  make site        Start only the site' \
 		'  make sync        Refresh local content from the CMS' \
 		'  make build       Build the static site into out/' \
@@ -24,6 +24,7 @@ setup:
 	npm ci --prefix cms
 	npm run cms:setup
 	node scripts/setup-site.mjs
+	npm run cms:bootstrap
 
 dev:
 	node scripts/dev.ts
@@ -36,11 +37,12 @@ mailpit:
 
 cms-reset:
 	npm run cms:reset-db
+	npm run cms:seed
 
 cms-seed:
 	npm run cms:seed
 
-cms-fresh: cms-reset cms-seed
+cms-fresh: cms-reset
 
 site:
 	npm run dev -- --webpack

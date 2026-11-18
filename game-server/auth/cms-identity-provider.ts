@@ -27,7 +27,7 @@ export class CMSIdentityProvider implements IdentityProvider {
       const message = typeof result.message === 'string' ? result.message : 'Confirme seu e-mail antes de entrar.'
       fail(403, message)
     }
-    if (response.status === 401 || response.status === 403) fail(401, token ? sessionError : 'E-mail ou senha incorretos.')
+    if (response.status === 401 || response.status === 403) fail(401, token ? sessionError : 'E-mail, apelido ou senha incorretos.')
     if (response.status === 429) fail(429, 'Muitas tentativas. Aguarde um minuto.')
     if (!response.ok) {
       if (path === '/identity/register' && [400, 409, 422].includes(response.status)) {
@@ -38,8 +38,14 @@ export class CMSIdentityProvider implements IdentityProvider {
     }
     return response.json()
   }
-  async login(email: string, password: string): Promise<IdentitySession> {
-    const result = await this.request('/users/login', undefined, { email, password })
+  async login(identifier: string, password: string): Promise<IdentitySession> {
+    const handle = identifier.toLowerCase().trim()
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handle)
+    const result = await this.request(
+      '/users/login',
+      undefined,
+      isEmail ? { email: handle, password } : { username: handle, password },
+    )
     if (typeof result.token !== 'string') fail(503, 'O serviço de contas não retornou uma sessão válida.')
     return {
       token: result.token,

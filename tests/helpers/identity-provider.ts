@@ -17,11 +17,13 @@ export function createTestIdentityProvider(options: { now?: () => number; roles?
     async forgotPassword() {},
     async resetPassword() {},
     async verifyEmail() {},
-    async login(email, password) {
-      const stored = accounts.get(email)
-      if (!stored || stored.password !== password) fail(401, 'E-mail ou senha incorretos.')
+    async login(identifier, password) {
+      const handle = identifier.toLowerCase()
+      const stored = accounts.get(handle)
+        ?? [...accounts.values()].find((item) => item.account.nickname?.toLowerCase() === handle)
+      if (!stored || stored.password !== password) fail(401, 'E-mail, apelido ou senha incorretos.')
       const token = randomBytes(32).toString('hex')
-      sessions.set(token, { email, expiresAt: now() + 604_800_000 })
+      sessions.set(token, { email: stored.account.email, expiresAt: now() + 604_800_000 })
       return { token, account: await provider.authenticate(token) }
     },
     async authenticate(token) {
