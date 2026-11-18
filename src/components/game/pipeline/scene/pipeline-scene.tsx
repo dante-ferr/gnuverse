@@ -98,7 +98,7 @@ export function PipelineScene({
     gridPainter.current.draw(ctx, current, palette)
     const preview = placement.current?.previewBelts() ?? []
     const timeMs = performance.now()
-    syncPacketMotion(packetMotion.current, current, timeMs)
+    syncPacketMotion(packetMotion.current, current, palette, timeMs, cellSize)
     const belts = visibleBelts(current)
     const previewKeys = new Set(preview.map((belt) => cellKey(belt)))
     const underPreview = belts.filter((belt) => !previewKeys.has(cellKey(belt)))
