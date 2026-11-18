@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { authenticateViaCms, resolveCmsBaseUrl } from '@/lib/cms-client'
 import { AuthPanel, type AuthMode } from './auth-panel'
 import { useGameSession } from '../hooks/use-game-session'
 import { useActionFeedback } from '../hooks/use-action-feedback'
@@ -46,6 +47,30 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
 
   const authenticate = (form: HTMLFormElement) =>
     feedback.run(async () => {
+      const isBlogAuth =
+        returnTo.startsWith('/blog') || returnTo.startsWith('/artigos')
+      if (isBlogAuth) {
+        const cmsUrl = resolveCmsBaseUrl()
+        if (!cmsUrl) {
+          throw new Error(
+            'O servidor editorial (CMS) ainda não foi configurado neste ambiente.',
+          )
+        }
+        const data = new FormData(form)
+        const outcome = await authenticateViaCms(cmsUrl, mode, {
+          email: String(data.get('email') || ''),
+          password: String(data.get('password') || ''),
+          nickname:
+            mode === 'register' ? String(data.get('nickname') || '') : undefined,
+        })
+        if (outcome.verificationRequired) {
+          setNotice(outcome.message)
+          return
+        }
+        session.setSessionToken(outcome.token)
+        router.replace(returnTo)
+        return
+      }
       const outcome = await session.authenticate(mode, form)
       if (!outcome.verificationRequired) router.replace(returnTo)
     })
