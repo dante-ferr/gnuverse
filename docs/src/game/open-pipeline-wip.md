@@ -138,6 +138,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-18 | Design | Planned (docs only): 36 elements, tier 5, 3-in/2-out machines with coupled dual eject + half-rate split; ancestry chart layout known-bad — see `elements.md` / decisions §10 |
 | 2026-11-17 | Ops | CMS Moderação do chat (`/moderacao-chat`) deletes/clears via game admin APIs |
 | 2026-11-17 | UX | Room sidebar chat (`POST …/chat` + SSE `chat`) and compact collaborators block |
 | 2026-11-17 | Progression + UX | Dual unlock (`unlock_collaborators=2`), admin advance, sala ban UI, long-press belt blame |

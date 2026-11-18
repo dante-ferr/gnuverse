@@ -10,8 +10,8 @@ type Props = {
   rules: PipelineRules | null
 }
 
-/** Compact unlock / delivery readouts for the central core. */
-export function CoreRequirementsSidebar({ frame, rules }: Props) {
+/** Delivery readouts for the central core (Jogo page). */
+export function CoreRequirementsSidebar({ frame }: Props) {
   if (!frame?.seed) {
     return (
       <div className={styles.sidebarStats}>
@@ -20,21 +20,13 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
     )
   }
 
-  const unlockTarget = rules?.unlockCollaborators ?? 2
-  const collaboratorCount = frame.collaborators.length
-
   return (
     <div className={styles.sidebarStats}>
+      <h2 className={styles.sidebarSectionTitle}>Requisitos do núcleo</h2>
       <dl className={styles.coreRequirements}>
         <div>
           <dt>Versão</dt>
           <dd>v{frame.version}</dd>
-        </div>
-        <div>
-          <dt>Colaboradores</dt>
-          <dd>
-            {collaboratorCount} / {unlockTarget}
-          </dd>
         </div>
       </dl>
       <ul className={styles.coreRequirementGrid} aria-label="Formas exigidas">

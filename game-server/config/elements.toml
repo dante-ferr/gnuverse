@@ -1,12 +1,13 @@
-# Open Pipeline element recipe book (design source of truth).
-# Replaces nested geometric shapes. Combiners accept 2 distinct inputs → 1 output.
-# Tier 1 elements are spawned only by sources. Highest tier is 4.
-# UI labels use name_pt. Glyph SVGs (thick outline, simple silhouette) come later.
+# Open Pipeline element recipe book (36 resources, max tier 5).
+# Tiers 2–3: 2 inputs → 1 output.
+# Tier 4: 3 inputs → 1 output (machine still has 2 out ports in-game).
+# Tier 5: 3 inputs → 2 outputs (primary owns the recipe; co-product uses coproduct_of).
+# Color families (approx.): cool/blue, warm/red-orange, green/earth-metal.
+# See docs/src/game/elements.md and decisions §10.
 
-max_tier = 4
-combiner_inputs = 2
+max_tier = 5
 
-# --- Tier 1: bases (sources) -------------------------------------------------
+# --- Tier 1: bases (sources) — 6 ---------------------------------------------
 
 [[elements]]
 id = "water"
@@ -32,7 +33,19 @@ name_pt = "Terra"
 tier = 1
 color = "#c4a574"
 
-# --- Tier 2: every unordered pair of bases -----------------------------------
+[[elements]]
+id = "wind"
+name_pt = "Vento"
+tier = 1
+color = "#9ec9d9"
+
+[[elements]]
+id = "ore"
+name_pt = "Minério"
+tier = 1
+color = "#8a7f8f"
+
+# --- Tier 2: 2 inputs → 1 output — 12 ----------------------------------------
 
 [[elements]]
 id = "steam"
@@ -56,6 +69,20 @@ color = "#8b6914"
 inputs = ["water", "earth"]
 
 [[elements]]
+id = "mist"
+name_pt = "Névoa"
+tier = 2
+color = "#c5dde8"
+inputs = ["water", "wind"]
+
+[[elements]]
+id = "brine"
+name_pt = "Salmoura"
+tier = 2
+color = "#6aa6c1"
+inputs = ["water", "ore"]
+
+[[elements]]
 id = "ash"
 name_pt = "Cinza"
 tier = 2
@@ -70,27 +97,55 @@ color = "#e85d04"
 inputs = ["fire", "earth"]
 
 [[elements]]
+id = "ember"
+name_pt = "Brasa"
+tier = 2
+color = "#ff8b4a"
+inputs = ["fire", "wind"]
+
+[[elements]]
+id = "slag"
+name_pt = "Escória"
+tier = 2
+color = "#6b5344"
+inputs = ["fire", "ore"]
+
+[[elements]]
 id = "seed"
 name_pt = "Semente"
 tier = 2
 color = "#8fbc5a"
 inputs = ["grass", "earth"]
 
-# --- Tier 3: curated composites ----------------------------------------------
+[[elements]]
+id = "pollen"
+name_pt = "Pólen"
+tier = 2
+color = "#e6d35a"
+inputs = ["grass", "wind"]
+
+[[elements]]
+id = "dust"
+name_pt = "Poeira"
+tier = 2
+color = "#cbb89a"
+inputs = ["earth", "wind"]
+
+# --- Tier 3: 2 inputs → 1 output — 8 -----------------------------------------
 
 [[elements]]
 id = "cloud"
 name_pt = "Nuvem"
 tier = 3
 color = "#dce6f0"
-inputs = ["steam", "moss"]
+inputs = ["steam", "mist"]
 
 [[elements]]
 id = "brick"
 name_pt = "Tijolo"
 tier = 3
 color = "#c45c26"
-inputs = ["mud", "fire"]
+inputs = ["mud", "ash"]
 
 [[elements]]
 id = "sprout"
@@ -100,11 +155,11 @@ color = "#7dcf4a"
 inputs = ["seed", "water"]
 
 [[elements]]
-id = "obsidian"
-name_pt = "Obsidiana"
+id = "glass"
+name_pt = "Vidro"
 tier = 3
-color = "#2a1f3d"
-inputs = ["lava", "water"]
+color = "#a8d5e5"
+inputs = ["lava", "dust"]
 
 [[elements]]
 id = "charcoal"
@@ -118,27 +173,94 @@ id = "clay"
 name_pt = "Argila"
 tier = 3
 color = "#b08968"
-inputs = ["mud", "ash"]
+inputs = ["mud", "moss"]
 
-# --- Tier 4: capstones (few; slow to unlock) ---------------------------------
+[[elements]]
+id = "crystal"
+name_pt = "Cristal"
+tier = 3
+color = "#9b7ed9"
+inputs = ["brine", "ember"]
+
+[[elements]]
+id = "alloy"
+name_pt = "Liga"
+tier = 3
+color = "#a0a8b4"
+inputs = ["slag", "ore"]
+
+# --- Tier 4: 3 inputs → 1 output — 6 -----------------------------------------
 
 [[elements]]
 id = "storm"
 name_pt = "Tempestade"
 tier = 4
 color = "#5b6abf"
-inputs = ["cloud", "ash"]
-
-[[elements]]
-id = "garden"
-name_pt = "Jardim"
-tier = 4
-color = "#4caf70"
-inputs = ["sprout", "moss"]
+inputs = ["cloud", "ash", "wind"]
 
 [[elements]]
 id = "forge"
 name_pt = "Forja"
 tier = 4
 color = "#d9480f"
-inputs = ["brick", "lava"]
+inputs = ["brick", "lava", "slag"]
+
+[[elements]]
+id = "garden"
+name_pt = "Jardim"
+tier = 4
+color = "#4caf70"
+inputs = ["sprout", "moss", "seed"]
+
+[[elements]]
+id = "battery"
+name_pt = "Bateria"
+tier = 4
+color = "#6c63c7"
+inputs = ["crystal", "ember", "brine"]
+
+[[elements]]
+id = "kiln"
+name_pt = "Fornalha"
+tier = 4
+color = "#b35c38"
+inputs = ["clay", "charcoal", "fire"]
+
+[[elements]]
+id = "lens"
+name_pt = "Lente"
+tier = 4
+color = "#8ecae6"
+inputs = ["glass", "crystal", "dust"]
+
+# --- Tier 5: 3 inputs → 2 outputs — 2 recipes / 4 elements -------------------
+
+[[elements]]
+id = "tempest"
+name_pt = "Temporal"
+tier = 5
+color = "#3d4f9c"
+inputs = ["storm", "ember", "cloud"]
+outputs = ["tempest", "lightning"]
+
+[[elements]]
+id = "lightning"
+name_pt = "Raio"
+tier = 5
+color = "#f4e285"
+coproduct_of = "tempest"
+
+[[elements]]
+id = "foundry"
+name_pt = "Fundição"
+tier = 5
+color = "#9c2f1a"
+inputs = ["forge", "alloy", "ore"]
+outputs = ["foundry", "scrap"]
+
+[[elements]]
+id = "scrap"
+name_pt = "Sucata"
+tier = 5
+color = "#7a6f66"
+coproduct_of = "foundry"

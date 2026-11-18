@@ -1099,6 +1099,12 @@
   touch-action: none;
   cursor: crosshair;
 }
+.pipelineCanvasCreate {
+  cursor: crosshair;
+}
+.pipelineCanvasDelete {
+  cursor: cell;
+}
 .pipelinePlay {
   flex: 1;
   min-height: 0;
@@ -1355,7 +1361,7 @@
 }
 .gameSidebar {
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   border-left: 1px solid var(--line);
   padding: 8px 10px 12px;
   display: flex;
@@ -1371,10 +1377,6 @@
   letter-spacing: -0.02em;
   color: var(--ink);
 }
-.sidebarModeration {
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
-}
 .gameSidebar .collective {
   margin-top: 0;
 }
@@ -1385,12 +1387,96 @@
   font-size: 16px;
 }
 .gameSidebar .tabs {
+  flex: none;
   gap: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
 }
 .gameSidebar .tabs button {
   padding: 4px 0;
   font-size: 10px;
+}
+.sidebarPage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.sidebarPageStack {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.structurePalette {
+  display: grid;
+  gap: 8px;
+}
+.structureList {
+  display: grid;
+  gap: 6px;
+}
+.structureItem {
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.structureItem[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.structureIcon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  background-color: var(--ink);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+.structureItem[aria-pressed='true'] .structureIcon {
+  background-color: var(--accent);
+}
+.structureLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editModeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.editModeButton {
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.editModeButton[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
 }
 .gameSidebar .members > article {
   gap: 8px;
@@ -1415,51 +1501,29 @@
   padding: 10px;
 }
 .sidebarDock {
-  margin-top: auto;
-  flex: 1;
+  flex: none;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
 }
 .sidebarBlock {
   padding-top: 8px;
   border-top: 1px solid var(--line);
   flex-shrink: 0;
 }
-.roomCollaboratorList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.roomCollaboratorItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.roomCollaboratorName {
-  font-size: 11px;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .roomChat {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-height: 0;
-  flex: 1;
 }
 .roomChatLog {
-  flex: 1;
+  flex: none;
   min-height: 72px;
-  max-height: 180px;
+  max-height: 140px;
   overflow-y: auto;
   margin: 0;
   padding: 4px 0;

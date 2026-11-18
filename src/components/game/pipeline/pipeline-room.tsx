@@ -12,11 +12,13 @@ import { useGameSession } from '../hooks/use-game-session'
 import { useRoomLobby } from '../hooks/use-room-lobby'
 import { pipelineRulesFrom } from './model/frame'
 import { usePipelineStream } from './hooks/use-pipeline-stream'
-import { CoreRequirementsSidebar } from './core-requirements-sidebar'
-import { RoomCollaborators } from './room-collaborators'
-import { RoomChat } from './room-chat'
-import { PipelineModerationPanel } from './pipeline-moderation'
-import { PipelineScene } from './scene/pipeline-scene'
+import { RoomSidebar } from './room-sidebar'
+import { PipelineScene, type EditMode } from './scene/pipeline-scene'
+import {
+  defaultStructureId,
+  getStructure,
+  type StructurePlaceRequest,
+} from './structures'
 import styles from '../game-shell.module.css'
 
 function roomLoginHref() {
@@ -32,6 +34,8 @@ export function PipelineRoom() {
   const feedback = useActionFeedback()
   const router = useRouter()
   const [loginHref, setLoginHref] = useState('/login/')
+  const [editMode, setEditMode] = useState<EditMode>('create')
+  const [structureId, setStructureId] = useState(defaultStructureId)
   const chatMaxLength =
     typeof live.rules?.chatMessageMaxLength === 'number' && live.rules.chatMessageMaxLength > 0
       ? live.rules.chatMessageMaxLength
@@ -49,13 +53,21 @@ export function PipelineRoom() {
     if (!session.user || !lobby.roomId) return
     void session.api.request(`/api/towers/${lobby.roomId}/join`, {}).catch(() => {})
   }, [session.user, session.api, lobby.roomId])
-  const place = (cells: { x: number; y: number; direction: string }[]) => {
+  const place = (request: StructurePlaceRequest) => {
+    const structure = getStructure(request.structureId)
+    if (!structure) return
     if (!session.user) {
-      feedback.setError('Entre para colocar esteiras.')
+      feedback.setError(structure.signInMessage)
       return
     }
     void feedback.run(async () => {
-      await session.api.request(`/api/towers/${lobby.roomId}/place`, { cells })
+      await structure.commit(
+        {
+          roomId: lobby.roomId,
+          request: (path, body, method) => session.api.request(path, body, method),
+        },
+        request.payload,
+      )
       await live.refresh()
     })
   }
@@ -170,40 +182,36 @@ export function PipelineRoom() {
             <PipelineScene
               frame={live.frame.seed ? live.frame : null}
               rules={rules}
+              editMode={editMode}
+              structureId={structureId}
               onPlace={place}
               onRemove={remove}
+              onToggleEditMode={() =>
+                setEditMode((current) => (current === 'create' ? 'delete' : 'create'))
+              }
             />
           </div>
-          <aside className={styles.gameSidebar} aria-label="Painel da sala">
-            <CoreRequirementsSidebar
-              frame={live.frame.seed ? live.frame : null}
-              rules={rules}
-            />
-            <PipelineModerationPanel
-              api={session.api}
-              roomId={lobby.roomId}
-              user={session.user}
-              creatorId={live.creatorId}
-              members={live.members}
-              proposals={live.proposals}
-              busy={feedback.busy}
-              onRefresh={live.refresh}
-              onError={feedback.setError}
-            />
-            <div className={styles.sidebarDock}>
-              {live.frame.seed ? (
-                <RoomCollaborators collaborators={live.frame.collaborators} />
-              ) : null}
-              <RoomChat
-                messages={live.chat}
-                user={session.user}
-                loginHref={loginHref}
-                maxLength={chatMaxLength}
-                busy={feedback.busy}
-                onSend={sendChat}
-              />
-            </div>
-          </aside>
+          <RoomSidebar
+            frame={live.frame.seed ? live.frame : null}
+            rules={rules}
+            structureId={structureId}
+            onSelectStructure={setStructureId}
+            editMode={editMode}
+            onEditModeChange={setEditMode}
+            api={session.api}
+            roomId={lobby.roomId}
+            user={session.user}
+            creatorId={live.creatorId}
+            members={live.members}
+            proposals={live.proposals}
+            chat={live.chat}
+            loginHref={loginHref}
+            chatMaxLength={chatMaxLength}
+            busy={feedback.busy}
+            onRefresh={live.refresh}
+            onError={feedback.setError}
+            onSendChat={sendChat}
+          />
         </div>
       ) : (
         <p className={styles.message} role="status">

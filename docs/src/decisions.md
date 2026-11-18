@@ -57,19 +57,34 @@ Gameplay loop detail: [Rules and design](game/rules.md).
 
 ## 10. Open Pipeline elements (replaces nested shapes)
 
-Locked design direction (2026-11-18). Packets are **elements**, not nested geometric shapes. The previous concentric-shape plan (`Circle` / `Triangle` / `Square` / `Diamond`, solid/hollow modifiers) is retired.
+Locked design direction (2026-11-18; **planned expansion recorded 2026-11-18**, not implemented). Packets are **elements**, not nested geometric shapes. The previous concentric-shape plan (`Circle` / `Triangle` / `Square` / `Diamond`, solid/hollow modifiers) is retired.
+
+### Locked now
 
 | Choice | Rule |
 | :--- | :--- |
-| Identity | Each packet has one element `id` from `game-server/config/elements.toml` |
-| Bases | Tier **1** only — spawned by sources. Four bases: `water`, `fire`, `grass`, `earth` |
-| Combiners | Fixed map machines; **2 distinct** inputs → **1** output. Recipes are config-only (no alternate recipes, no cycles) |
-| Tier formula | `tier(output) = 1 + max(tier(inputs))`. Highest tier is **4** (few capstones; slow to reach) |
+| Identity | Each packet has one element `id` from TOML under `game-server/config/` |
 | Discoverability | Every recipe is visible in the room GUI (sidebar / recipe panel). No hidden alchemy |
 | Glyphs | Simple silhouettes with **thick outlines** (SVG). Generate later (Quiver); until then procedural placeholders may stand in |
 | Scope | Ship the element graph **with combiners** (not before). v0.1 may keep the current single circle packet until that slice |
-| Demands | Which bases spawn and which elements the core asks for can be **procedural** per match, constrained to a reachable subgraph of this book; the recipe book itself stays authored in TOML |
 | Metaphor | FOSS analogy stays in the logistics / collaboration format; element flavor does not need a strict software metaphor |
+| Authoring | Recipe book stays TOML-driven; preview via `make elements-serve` |
+
+### Planned / in progress
+
+Full detail: [Element recipes](game/elements.md#planned-graph-machines-and-core-demands). Summary:
+
+| Choice | Rule | Status |
+| :--- | :--- | :--- |
+| Catalog size | **36** distinct resources (up to **3** color families) | TOML authored |
+| Max tier | **5** | TOML authored |
+| Tiers 2–3 | **2-input → 1-output** | TOML authored; in-game combiner TBD |
+| Tier 4 | **3-input → 1-output** | TOML authored; 3-in machine TBD |
+| Tier 5 | **3-input → 2 outputs** (`outputs` + `coproduct_of`) | TOML authored; tick rules TBD |
+| 3-in machine I/O | Always **3 in + 2 out ports**. Dual recipe → different packets per port. Single recipe → same packet on both ports; using both **halves** productivity | Design only |
+| Coupled dual output | Dual recipe ports eject together; one blocked belt stalls both | Design only |
+| Core demands | Full catalog required across progression | Design only |
+| Preview graphs | Orthogonal gap routing + highway for long spans; no edges through balloons | Preview tooling updated |
 
 Recipe book and visualizer: [Element recipes](game/elements.md). Edit TOML under `game-server/config/` (`elements.toml` and optional `elements/**/*.toml`), then `make elements-serve` (http://127.0.0.1:3010).
 

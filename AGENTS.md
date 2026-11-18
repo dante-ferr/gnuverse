@@ -14,7 +14,7 @@ This repo is **make-centric**. Prefer `make <target>` over raw `npm run` for day
 
 ## Open Pipeline
 
-The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipeline-proposal.md`](docs/src/game/open-pipeline-proposal.md). Read [`game-server/config/game.config.toml`](game-server/config/game.config.toml) before changing numbers. Later versions (splitters, nested shapes, satellite cores, victory) wait until the current version is reviewed.
+The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipeline-proposal.md`](docs/src/game/open-pipeline-proposal.md). Read [`game-server/config/game.config.toml`](game-server/config/game.config.toml) before changing numbers. Later versions (splitters, combiners / elements, satellite cores, victory) wait until the current version is reviewed. Element catalog (36 resources, tier 5) is authored in [`game-server/config/elements.toml`](game-server/config/elements.toml); preview with `make elements-serve`. In-game 3-in / dual-out machines and core demand coverage are still design-only — see [`docs/src/game/elements.md`](docs/src/game/elements.md) and [`docs/src/decisions.md`](docs/src/decisions.md) §10 before implementing sim rules.
 
 ### Stack and URLs (keep as-is)
 
@@ -30,7 +30,8 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 - The server moves packets simultaneously. Packets do not swap. An open core slot consumes a circle and counts a delivery.
 - No stability bar and no crash / game over. Deliveries accumulate; later versions keep prior packet demands active so dropping an older supply blocks leveling up rather than ending the match. There is no victory screen yet.
 - All gameplay and presentation numbers live in the `[pipeline]` table and reach the client on the rules payload. Do not hardcode them in TypeScript. `game:dev` watches `game.config.toml` and hot-reloads `[pipeline]` on save (invalid edits keep the previous rules).
-- In-room copy is Portuguese. Core requirements, collaborators, and room chat sit in a room sidebar (stacked under the canvas on mobile). Git blame on belts stays on the canvas hover label.
+- In-room copy is Portuguese. The room sidebar has pages **Jogo**, **Participantes**, and **Decisões**; chat stays docked at the bottom. Git blame on belts stays on the canvas hover label.
+- **Placeable structures:** register each structure in [`src/components/game/pipeline/structures/`](src/components/game/pipeline/structures/) (`registerStructure` + side-effect import from `index.ts`). Registration must drive the Jogo sidebar (label + icon) and create-mode placement/`commit` — do not hardcode structure entries in the palette or scene. Add a black-ink SVG under `public/pipeline/` for the sidebar icon.
 - **Machine presentation and footprints:** [`docs/src/decisions.md`](docs/src/decisions.md) §9 Open Pipeline machines. **Gameplay loop:** [`docs/src/game/rules.md`](docs/src/game/rules.md). When implementing or changing machine art, palette, outlines, belts presentation, or resource glyphs, **read §9 before inventing** — do not invent art rules from memory or this file’s short bullets.
 
 ### Agent workflow

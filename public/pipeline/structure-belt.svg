@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" fill="none" viewBox="0 0 512 512">
+  <!-- Sidebar glyph for the belt structure (black ink on transparent). -->
+  <path
+    fill="#000000"
+    d="M72 196h272v40H72zm0 80h272v40H72z"
+  />
+  <path
+    fill="#000000"
+    d="M344 176l96 80-96 80V176z"
+  />
+</svg>

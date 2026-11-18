@@ -51,7 +51,7 @@ export function RoomChat({ messages, user, loginHref, maxLength, busy, onSend }:
   }
 
   return (
-    <section className={`${styles.roomChat} ${styles.sidebarBlock}`} aria-labelledby="room-chat-heading">
+    <section className={styles.roomChat} aria-labelledby="room-chat-heading">
       <h2 id="room-chat-heading" className={styles.sidebarSectionTitle}>
         Chat
       </h2>
