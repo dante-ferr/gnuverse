@@ -1,14 +1,24 @@
 /** Screen transform for the grid. Pan and zoom stay inside the world. */
+export type CameraZoomLimits = { min: number; max: number }
+
 export class GridCamera {
   x = 0
   y = 0
   zoom = 1
   private fitted = false
+  private zoomMin = 0.08
+  private zoomMax = 3
 
   constructor(
     private columns: number,
     private rows: number,
   ) {}
+
+  setZoomLimits(limits: CameraZoomLimits) {
+    this.zoomMin = limits.min
+    this.zoomMax = limits.max
+    this.zoom = Math.min(this.zoomMax, Math.max(this.zoomMin, this.zoom))
+  }
 
   setWorldSize(columns: number, rows: number) {
     if (columns === this.columns && rows === this.rows) return
@@ -46,7 +56,7 @@ export class GridCamera {
 
   zoomAt(screenX: number, screenY: number, factor: number, cell: number) {
     const before = this.world(screenX, screenY, cell)
-    this.zoom = Math.min(3, Math.max(0.35, this.zoom * factor))
+    this.zoom = Math.min(this.zoomMax, Math.max(this.zoomMin, this.zoom * factor))
     this.x = screenX - before.x * cell * this.zoom
     this.y = screenY - before.y * cell * this.zoom
   }

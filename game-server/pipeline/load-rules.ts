@@ -8,6 +8,9 @@ const defaults = {
   source_period_ticks: 4,
   color_background: '#0e171d',
   color_grid: '#23343c',
+  grid_visible_min_zoom: 1,
+  camera_zoom_min: 0.08,
+  camera_zoom_max: 3,
   color_belt: '#9eb0b7',
   color_belt_chevron: '#6b7d87',
   color_packet: '#52d6c9',
@@ -75,6 +78,12 @@ const integers = {
   slot_flow_mark_depth_percent: [4, 20],
 } as const
 
+const floats = {
+  grid_visible_min_zoom: [0.1, 10],
+  camera_zoom_min: [0.02, 2],
+  camera_zoom_max: [0.5, 10],
+} as const
+
 const mappings = {
   tick_ms: 'tickMs',
   grid_width: 'gridWidth',
@@ -82,6 +91,9 @@ const mappings = {
   source_period_ticks: 'sourcePeriodTicks',
   color_background: 'colorBackground',
   color_grid: 'colorGrid',
+  grid_visible_min_zoom: 'gridVisibleMinZoom',
+  camera_zoom_min: 'cameraZoomMin',
+  camera_zoom_max: 'cameraZoomMax',
   color_belt: 'colorBelt',
   color_belt_chevron: 'colorBeltChevron',
   color_packet: 'colorPacket',
@@ -136,7 +148,12 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
   for (const key of Object.keys(defaults) as (keyof typeof defaults)[]) {
     const value = values[key] ?? defaults[key]
     const range = integers[key as keyof typeof integers]
-    if (range) {
+    const floatRange = floats[key as keyof typeof floats]
+    if (floatRange) {
+      const [min, max] = floatRange
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max)
+        throw new Error(`${key} deve ser número entre ${min} e ${max}`)
+    } else if (range) {
       const [min, max] = range
       if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max)
         throw new Error(`${key} deve ser inteiro entre ${min} e ${max}`)
@@ -146,6 +163,9 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
     result[mappings[key]] = value
   }
   const rules = result as PipelineRules
+  if (rules.cameraZoomMin >= rules.cameraZoomMax) {
+    throw new Error('camera_zoom_min deve ser menor que camera_zoom_max')
+  }
   try {
     layoutMatchFromSeed(rules, 'config-check')
   } catch {

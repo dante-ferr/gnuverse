@@ -7,6 +7,9 @@ export type PipelineRules = {
   sourcePeriodTicks: number
   colorBackground: string
   colorGrid: string
+  gridVisibleMinZoom: number
+  cameraZoomMin: number
+  cameraZoomMax: number
   colorBelt: string
   colorBeltChevron: string
   colorPacket: string

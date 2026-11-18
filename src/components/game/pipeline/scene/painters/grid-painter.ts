@@ -1,4 +1,4 @@
-import type { ChunkCoord } from '../../../../../../game-server/pipeline/world/chunks.ts'
+import type { ChunkCoord } from '../../../../../../game-server/pipeline/world/chunks/coords.ts'
 import type { PipelineFrame, PipelineRules } from '../../model/frame.ts'
 import { darkenHex } from './darken-hex.ts'
 
@@ -41,15 +41,17 @@ export class GridPainter {
   private floorCache: HTMLCanvasElement | null = null
   private floorCacheKey = ''
 
-  draw(ctx: CanvasRenderingContext2D, frame: PipelineFrame, rules: PipelineRules) {
+  draw(ctx: CanvasRenderingContext2D, frame: PipelineFrame, rules: PipelineRules, zoom: number) {
     const worldW = frame.width * cellSize
     const worldH = frame.height * cellSize
+    const showGrid = zoom >= rules.gridVisibleMinZoom
     if (worldW > MAX_FLOOR_CACHE_SIDE_PX || worldH > MAX_FLOOR_CACHE_SIDE_PX) {
-      this.paintFloor(ctx, frame, rules)
+      this.paintFloor(ctx, frame, rules, showGrid)
       return
     }
     const cache = this.ensureFloorCache(frame, rules)
     ctx.drawImage(cache, 0, 0)
+    if (showGrid) this.paintCellGrid(ctx, frame, rules)
   }
 
   drawPreviewOverlay(ctx: CanvasRenderingContext2D, frame: PipelineFrame, rules: PipelineRules) {
@@ -65,13 +67,18 @@ export class GridPainter {
     canvas.height = Math.max(1, frame.height * cellSize)
     const off = canvas.getContext('2d')
     if (!off) return canvas
-    this.paintFloor(off, frame, rules)
+    this.paintFloor(off, frame, rules, false)
     this.floorCache = canvas
     this.floorCacheKey = key
     return canvas
   }
 
-  private paintFloor(ctx: CanvasRenderingContext2D, frame: PipelineFrame, rules: PipelineRules) {
+  private paintFloor(
+    ctx: CanvasRenderingContext2D,
+    frame: PipelineFrame,
+    rules: PipelineRules,
+    showGrid: boolean,
+  ) {
     const { originChunk, owned, preview, chunkSize } = frameChunks(frame, rules)
     const voidFill = darkenHex(rules.colorBackground, 22)
     const worldW = frame.width * cellSize
@@ -88,6 +95,13 @@ export class GridPainter {
       ctx.fillRect(lx * cellSize, ly * cellSize, chunkSize * cellSize, chunkSize * cellSize)
     }
 
+    if (showGrid) this.paintCellGrid(ctx, frame, rules)
+    this.drawChunkBorders(ctx, originChunk, owned, preview, chunkSize, rules)
+  }
+
+  private paintCellGrid(ctx: CanvasRenderingContext2D, frame: PipelineFrame, rules: PipelineRules) {
+    const { originChunk, owned, preview, chunkSize } = frameChunks(frame, rules)
+    const playable = [...owned, ...preview]
     ctx.strokeStyle = rules.colorGrid
     ctx.lineWidth = 1
     ctx.beginPath()
@@ -106,8 +120,6 @@ export class GridPainter {
       }
     }
     ctx.stroke()
-
-    this.drawChunkBorders(ctx, originChunk, owned, preview, chunkSize, rules)
   }
 
   private drawChunkBorders(

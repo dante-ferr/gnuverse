@@ -5,6 +5,12 @@ export type PipelineRules = {
   sourcePeriodTicks: number
   colorBackground: string
   colorGrid: string
+  /** Show per-cell grid strokes when camera zoom is at or above this factor (zoomed in). */
+  gridVisibleMinZoom: number
+  /** Smallest camera zoom factor (zoomed out; see more of the map). */
+  cameraZoomMin: number
+  /** Largest camera zoom factor (zoomed in). */
+  cameraZoomMax: number
   colorBelt: string
   /** Flow arrows stroked on top of belt track fill. */
   colorBeltChevron: string

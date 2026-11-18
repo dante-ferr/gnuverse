@@ -81,12 +81,13 @@ export function PipelineScene({
     }
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
     const camera = cameraRef.current
+    camera.setZoomLimits({ min: palette.cameraZoomMin, max: palette.cameraZoomMax })
     camera.fit(view.width, view.height, cellSize)
     ctx.clearRect(0, 0, view.width, view.height)
     ctx.save()
     ctx.translate(camera.x, camera.y)
     ctx.scale(camera.zoom, camera.zoom)
-    gridPainter.current.draw(ctx, current, palette)
+    gridPainter.current.draw(ctx, current, palette, camera.zoom)
     const preview = placement.current?.previewBelts() ?? []
     const timeMs = performance.now()
     syncPacketMotion(packetMotion.current, current, palette, timeMs, cellSize)
