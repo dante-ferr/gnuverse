@@ -31,7 +31,7 @@ Three distinct processes (no shared memory; they talk over HTTP/JSON and SSE):
 3. Waits for `GET /api/articles?limit=1` and `GET /api/health`.
 4. Starts the site with `CMS_CONTENT_MODE=live`, `CMS_URL`, and `NEXT_PUBLIC_GAME_API_URL`.
 
-`make setup` installs dependencies, writes `cms/.env` (random secret, local SQLite), and creates `.env.local` with `CMS_CONTENT_MODE=live`.
+`make setup` installs dependencies, writes `cms/.env` (random secret, local SQLite, `HOST_ADMIN_*`), creates `.env.local` with `CMS_CONTENT_MODE=live`, and bootstraps the CMS database when it is missing (including the demo seed).
 
 ## Static export caveat
 
@@ -55,9 +55,9 @@ flowchart LR
 ```bash
 make setup          # first time
 make dev            # CMS + game + site
-make cms-seed       # demo users, covers, and articles in the local CMS
-make cms-reset      # wipe local CMS SQLite DB and media
-make cms-fresh      # reset local CMS, then seed
+make cms-reset      # wipe local CMS SQLite DB/media, then seed
+make cms-seed       # re-apply demo seed without wiping
+make cms-fresh      # alias of cms-reset
 make test-blog      # seed + E2E + browser
 make check          # tests + typecheck
 make build          # sync + out/

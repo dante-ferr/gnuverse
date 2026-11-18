@@ -71,17 +71,14 @@ export class AuthService {
     this.attempts.set(key, recent)
   }
   async login(body: Record<string, unknown>, register: boolean) {
-    const email = text(body.email, 3, 254, 'E-mail').toLowerCase()
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'E-mail inválido.')
     const password = body.password
     if (typeof password !== 'string' || password.length < 1 || password.length > 128)
       fail(400, 'Informe uma senha de até 128 caracteres.')
-    let nickname = ''
     if (register) {
-      nickname = text(body.nickname, 3, 32, 'Apelido')
+      const email = text(body.email, 3, 254, 'E-mail').toLowerCase()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'E-mail inválido.')
+      const nickname = text(body.nickname, 3, 32, 'Apelido')
       if (!/^[\p{L}\p{N}_-]+$/u.test(nickname)) fail(400, 'Use letras, números, _ ou - no apelido.')
-    }
-    if (register) {
       const registered = await this.identityProvider.register(email, password, nickname)
       if ('verificationRequired' in registered) {
         return { verificationRequired: true, message: registered.message }
@@ -91,7 +88,13 @@ export class AuthService {
         return { token: registered.token, user: publicUser(user), wallet: this.wallet.read(user) }
       })
     }
-    const session = await this.identityProvider.login(email, password)
+    const raw = body.email ?? body.username ?? body.login
+    const identifier = text(raw, 3, 254, 'E-mail ou apelido').toLowerCase()
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)
+    if (!isEmail && !/^[\p{L}\p{N}_-]{3,32}$/u.test(identifier)) {
+      fail(400, 'Informe um e-mail ou apelido válido.')
+    }
+    const session = await this.identityProvider.login(identifier, password)
     return this.store.atomic(() => {
       const user = this.profile(session.account, password)
       return { token: session.token, user: publicUser(user), wallet: this.wallet.read(user) }

@@ -54,9 +54,13 @@ export async function verifySharedIdentity(payload: Payload, directory: string, 
     assert.deepEqual(registered.data.user.roles, ['member'])
     const member = (await payload.find({ collection: 'users', where: { email: { equals: 'site-member@example.test' } } })).docs[0]
     assert.equal(member.role, 'member', 'Cadastro público não pode conceder acesso editorial')
+    assert.equal(member.username, 'participante')
     const nativeLogin = await payload.login({ collection: 'users', data: { email: member.email, password: 'site-password' } })
     assert.ok(nativeLogin.token, 'A conta criada pelo site deve autenticar no mesmo provedor do painel')
+    const usernameLogin = await request('/login', { email: 'participante', password: 'site-password' })
+    assert.equal(usernameLogin.status, 200, 'Login pelo apelido público deve autenticar a mesma conta')
     assert.equal((await request('/register', { nickname: 'duplicate', email: member.email, password: 'site-password' })).status, 409)
+    assert.equal((await request('/register', { nickname: 'participante', email: 'other-member@example.test', password: 'site-password' })).status, 409)
     const revoked = await fetch(`${issuerURL}/api/users/logout`, { method: 'POST', headers: { authorization: `JWT ${login.data.token}`, 'Content-Type': 'application/json' }, body: '{}' })
     assert.equal(revoked.status, 200)
     assert.equal((await request('/me', undefined, login.data.token)).status, 401, 'Revogar a sessão no provedor precisa revogar o acesso ao jogo')

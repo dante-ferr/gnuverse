@@ -20,11 +20,13 @@ How the blog is wired today. For the C/Node → Next/Payload mental model, see a
 | `src/lib/blog-submission.ts` | Text ↔ Lexical, validation, HTTP errors |
 | `scripts/sync-content.mjs` | Public API → `.content/` + `public/cms-media/` |
 | `cms/src/collections/Articles.ts` | Fields (`hashtags`, `publishedAt`), `owner`, `reviewStatus`, publish hooks |
-| `cms/src/collections/Users.ts` | Auth; admin bootstrap; public signup → `author` |
+| `cms/src/collections/Users.ts` | Auth; empty-DB role force to `admin`; public signup → `author` |
+| `cms/src/identity/ensure-host-admin.ts` | Creates host admin from `HOST_ADMIN_*` on first init |
 | `cms/src/access.ts` | `admin` / `reviewer` / `author` rules |
 | `cms/src/hooks/deploy-site.ts` | Deploy-hook POST when published content changes |
-| `cms/scripts/seed-blog-demo.ts` | Idempotent local CMS seed (`make cms-seed`, also used by `make test-blog`) |
-| `cms/scripts/reset-local-db.mjs` | Deletes local SQLite DB (+ WAL/SHM) and media (`make cms-reset`) |
+| `cms/scripts/seed-blog-demo.ts` | Idempotent local CMS seed (runs after bootstrap/reset; also `make cms-seed` / `make test-blog`) |
+| `cms/scripts/bootstrap-local-db.ts` | Creates local SQLite DB + `HOST_ADMIN_*` + demo seed when missing (`make setup`) |
+| `cms/scripts/reset-local-db.mjs` | Deletes local SQLite DB (+ WAL/SHM) and media; `make cms-reset` then seeds |
 
 ## Invariants
 
@@ -39,9 +41,9 @@ How the blog is wired today. For the C/Node → Next/Payload mental model, see a
 ## One-command test
 
 ```bash
-make cms-seed       # apply demo users, covers, and articles
-make cms-reset      # wipe local CMS SQLite DB and media
-make cms-fresh      # reset, then seed
+make cms-reset      # wipe local CMS SQLite DB/media, then seed
+make cms-seed       # re-apply demo users, covers, and articles without wiping
+make cms-fresh      # alias of cms-reset
 make test-blog      # seed + E2E + browser
 make test-blog-ci   # suite only, no browser
 ```

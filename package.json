@@ -11,6 +11,7 @@
     "prebuild": "npm run content:sync",
     "content:sync": "node scripts/sync-content.mjs",
     "cms:setup": "node cms/scripts/setup-local.mjs",
+    "cms:bootstrap": "npm --prefix cms run bootstrap:local",
     "cms:reset-db": "node cms/scripts/reset-local-db.mjs",
     "cms:seed": "npm --prefix cms run seed:demo",
     "cms:dev": "npm --prefix cms run dev",

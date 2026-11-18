@@ -102,21 +102,25 @@ async function main() {
     const demoUsers = [
       {
         email: 'admin@gnuverse.local',
+        username: 'ada_admin',
         name: 'Ada Admin',
         role: 'admin' as const,
       },
       {
         email: 'revisor@gnuverse.local',
+        username: 'rui_revisor',
         name: 'Rui Revisor',
         role: 'reviewer' as const,
       },
       {
         email: 'autora@gnuverse.local',
+        username: 'ana_autora',
         name: 'Ana Autora',
         role: 'author' as const,
       },
       {
         email: 'autor2@gnuverse.local',
+        username: 'beto_autor',
         name: 'Beto Autor',
         role: 'author' as const,
       },
@@ -134,6 +138,7 @@ async function main() {
 
       const accountData = {
         email: account.email,
+        username: account.username,
         name: account.name,
         role: account.role,
         password: DEMO_PASSWORD,

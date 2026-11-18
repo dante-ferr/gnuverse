@@ -272,7 +272,7 @@ export function extractCmsErrorMessage(payload: unknown, status: number): string
       return record.error
     }
   }
-  if (status === 401) return 'E-mail ou senha inválidos, ou sessão expirada.'
+  if (status === 401) return 'E-mail, apelido ou senha inválidos, ou sessão expirada.'
   if (status === 403) return 'Você não tem permissão para realizar esta ação.'
   if (status === 404) return 'Artigo ou recurso não encontrado no CMS.'
   if (status >= 500) {
