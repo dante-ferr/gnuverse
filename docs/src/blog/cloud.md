@@ -29,11 +29,12 @@ In production, `cms/src/payload.config.ts` aborts if `DATABASE_ADAPTER=postgres`
 
 On first start with an empty database, the CMS creates the host `admin` from `HOST_ADMIN_*`. Set those variables **before** sharing the URL.
 
-## 3. Cloudflare Pages
+## 3. Cloudflare Pages / Vercel
 
 - Root: `/`; build `npm run build`; output `out/`
 - `CMS_CONTENT_MODE=live`, `CMS_URL`, `NEXT_PUBLIC_CMS_URL` (CMS HTTPS URL)
 - Deploy hook → `SITE_DEPLOY_HOOK_URL` on Render
+- **Public signup and login without `game-server`:** `/cadastro/` and `/login/` authenticate directly against `NEXT_PUBLIC_CMS_URL` whenever `NEXT_PUBLIC_GAME_API_URL` is unset off-localhost, so accounts work with only the CMS hosted.
 - Validate: submit on `/blog/`, review/publish, edit, unpublish, delete, cover
 
 ## Accepted risks
