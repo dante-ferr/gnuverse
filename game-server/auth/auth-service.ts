@@ -117,8 +117,12 @@ export class AuthService {
   async verifyEmail(token: string) {
     const value = token.trim()
     if (value.length < 8 || value.length > 512) fail(400, 'Link de verificação inválido.')
-    await this.identityProvider.verifyEmail(value)
-    return { message: 'E-mail confirmado. Agora você já pode entrar.' }
+    const result = await this.identityProvider.verifyEmail(value)
+    return {
+      message: result && typeof result.message === 'string' && result.message.trim()
+        ? result.message.trim()
+        : 'E-mail confirmado. Agora você já pode entrar.',
+    }
   }
   async logout(authorization: string | undefined) {
     await this.identityProvider.logout(this.token(authorization))

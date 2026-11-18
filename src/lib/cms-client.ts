@@ -12,7 +12,10 @@ export function resolveCmsBaseUrl(
 ): string | null {
   const trimmed = configuredUrl?.trim().replace(/\/$/, '')
   if (trimmed) return trimmed
-  if (LOCAL_HOSTNAMES.has(hostname)) return 'http://localhost:3001'
+  if (LOCAL_HOSTNAMES.has(hostname)) {
+    const port = process.env.NEXT_PUBLIC_CMS_PORT?.trim() || process.env.CMS_PORT?.trim() || '3001'
+    return `http://localhost:${/^\d+$/.test(port) ? port : '3001'}`
+  }
   return null
 }
 
@@ -62,13 +65,16 @@ export async function authenticateViaCms(
     return { verificationRequired: false, token: data.token }
   }
 
+  const handle = credentials.email.trim()
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handle)
   const response = await fetch(`${cmsUrl}/api/users/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: credentials.email,
-      password: credentials.password,
-    }),
+    body: JSON.stringify(
+      isEmail
+        ? { email: handle.toLowerCase(), password: credentials.password }
+        : { username: handle.toLowerCase(), password: credentials.password },
+    ),
     signal: AbortSignal.timeout(120000),
   })
   const data = await response.json().catch(() => null)

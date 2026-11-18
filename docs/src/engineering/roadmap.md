@@ -8,9 +8,9 @@ Create Supabase (Postgres + S3), Render (`cms/`), Cloudflare Pages, `CMS_ALLOWED
 
 **Accept:** full production cycle with documented cold start.
 
-## 2. SMTP and open signup
+## 2. Open signup hardening
 
-Payload SMTP adapter; rate limit / anti-spam on public registration before wide advertising.
+Production SMTP (auth/TLS), confirmation site URL, registration rate limit, and `make cms-set-host-admin` are in place. Still open before wide advertising: CAPTCHA or equivalent anti-spam.
 
 ## 3. Game-server hosting
 

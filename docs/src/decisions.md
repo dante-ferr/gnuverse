@@ -60,7 +60,7 @@ Gameplay loop detail: [Rules and design](game/rules.md).
 | Item | When it resolves |
 | :--- | :--- |
 | Supabase / Render / Cloudflare accounts and a real publish cycle | Before opening the site to the public |
-| SMTP and anti-spam for broad registration | Before advertising external signup |
+| CAPTCHA / stronger anti-spam for broad registration | Before advertising external signup (SMTP + rate limit already shipped) |
 | `game-server` hosting with a volume | Before `/jogo/` in production |
 | 14 posts + logbook + accessibility | By delivery (2026-12-02) |
 | Aligned human editorial criteria | Before batch publishing |

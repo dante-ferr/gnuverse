@@ -22,5 +22,5 @@ export interface IdentityProvider {
   logout(token: string): Promise<void>
   forgotPassword(email: string): Promise<void>
   resetPassword(token: string, password: string): Promise<void>
-  verifyEmail(token: string): Promise<void>
+  verifyEmail(token: string): Promise<{ message?: string } | void>
 }

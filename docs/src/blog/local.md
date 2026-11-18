@@ -40,7 +40,7 @@ Do not commit secrets. Templates live in `.env.example` and `cms/.env.example`.
 
 | Variable | Where |
 | :--- | :--- |
-| `PAYLOAD_SECRET`, `HOST_ADMIN_*`, `DATABASE_*`, `STORAGE_*` / `S3_*`, `CMS_SERVER_URL`, `CMS_ALLOWED_ORIGINS`, `SITE_DEPLOY_HOOK_URL` | Render (`cms/`) |
+| `PAYLOAD_SECRET`, `HOST_ADMIN_*`, `DATABASE_*`, `STORAGE_*` / `S3_*`, `CMS_SERVER_URL`, `CMS_ALLOWED_ORIGINS`, `SITE_DEPLOY_HOOK_URL`, `SMTP_*`, `GNUVERSE_SITE_URL` | Render (`cms/`) |
 | `CMS_CONTENT_MODE=live`, `CMS_URL`, `NEXT_PUBLIC_CMS_URL`, `NEXT_PUBLIC_GAME_API_URL` | Cloudflare Pages |
 
 Do not use `SUPABASE_ANON_KEY` / `SERVICE_ROLE` in this design. Account walkthrough: [Cloud](cloud.md).

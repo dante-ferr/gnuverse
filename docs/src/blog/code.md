@@ -21,7 +21,10 @@ How the blog is wired today. For the C/Node → Next/Payload mental model, see a
 | `scripts/sync-content.mjs` | Public API → `.content/` + `public/cms-media/` |
 | `cms/src/collections/Articles.ts` | Fields (`hashtags`, `publishedAt`), `owner`, `reviewStatus`, publish hooks |
 | `cms/src/collections/Users.ts` | Auth; empty-DB role force to `admin`; public signup → `author` |
-| `cms/src/identity/ensure-host-admin.ts` | Creates host admin from `HOST_ADMIN_*` on first init |
+| `cms/src/identity/host-admin.ts` | Creates host admin from `HOST_ADMIN_*` on first init; `setHostAdminFromEnv` for redefine |
+| `cms/src/identity/verify-email.ts` | Idempotent confirmation for `/identity/verify-email` (replays do not hard-fail) |
+| `cms/scripts/set-host-admin.ts` | CLI to create/update host admin (`make cms-set-host-admin`) |
+| `cms/scripts/verify-email-flow.ts` | Register block → confirm → replay → login integration check |
 | `cms/src/access.ts` | `admin` / `reviewer` / `author` rules |
 | `cms/src/hooks/deploy-site.ts` | Deploy-hook POST when published content changes |
 | `cms/scripts/seed-blog-demo.ts` | Idempotent local CMS seed (runs after bootstrap/reset; also `make cms-seed` / `make test-blog`) |

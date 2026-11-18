@@ -55,9 +55,11 @@ flowchart LR
 ```bash
 make setup          # first time
 make dev            # CMS + game + site
+make mailpit        # local inbox (SMTP 1025; UI 8025, or 8026 if busy)
 make cms-reset      # wipe local CMS SQLite DB/media, then seed
 make cms-seed       # re-apply demo seed without wiping
 make cms-fresh      # alias of cms-reset
+make cms-set-host-admin  # create/update host admin from HOST_ADMIN_*
 make test-blog      # seed + E2E + browser
 make check          # tests + typecheck
 make build          # sync + out/

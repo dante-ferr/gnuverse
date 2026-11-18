@@ -15,7 +15,8 @@
     "setup:local": "node scripts/setup-local.mjs",
     "bootstrap:local": "node --import tsx scripts/bootstrap-local-db.ts",
     "seed:demo": "CMS_SEEDING=1 node --import tsx scripts/seed-blog-demo.ts",
-    "test": "node --import tsx scripts/verify.ts"
+    "set-host-admin": "CMS_SEEDING=1 node --import tsx scripts/set-host-admin.ts",
+    "test": "node --import tsx scripts/verify.ts && node --import tsx scripts/verify-email-flow.ts && node --import tsx scripts/verify-legacy-account.ts"
   },
   "engines": {
     "node": ">=22.0.0"

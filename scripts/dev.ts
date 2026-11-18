@@ -144,7 +144,7 @@ try {
     `Iniciando CMS em ${cmsURL}/admin e jogo em ${config.gameURL}. Aguardando as APIs…`,
   )
   console.log(
-    'E-mails locais: inicie make mailpit e abra http://127.0.0.1:8025 para ver confirmações e recuperação de senha.',
+    'E-mails locais: inicie make mailpit e abra a URL do inbox que o comando imprimir (SMTP em 127.0.0.1:1025).',
   )
   start(['run', 'cms:dev'], 'CMS', {
     CMS_ALLOWED_ORIGINS: config.allowedOrigins,
@@ -152,6 +152,8 @@ try {
   start(['run', 'game:dev'], 'Jogo', {
     GAME_PORT: config.gamePort,
     GAME_ALLOWED_ORIGINS: config.allowedOrigins,
+    CMS_URL: cmsURL,
+    CMS_PORT: new URL(cmsURL).port || process.env.CMS_PORT || '3001',
   })
   await Promise.all([
     waitForAPI(`${cmsURL}/api/articles?limit=1`, 'CMS', (body) =>
@@ -174,6 +176,7 @@ try {
         CMS_CONTENT_MODE: 'live',
         CMS_URL: cmsURL,
         NEXT_PUBLIC_CMS_URL: cmsURL,
+        NEXT_PUBLIC_CMS_PORT: new URL(cmsURL).port || process.env.CMS_PORT || '3001',
         NEXT_PUBLIC_GAME_API_URL: config.gameURL,
       },
     )

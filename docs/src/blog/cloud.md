@@ -25,14 +25,27 @@ In production, `cms/src/payload.config.ts` aborts if `DATABASE_ADAPTER=postgres`
 - Node 22+, Free
 - Build: `npm ci && npm run generate:importmap && npm run build`
 - Start: `npm run migrate && npm start` (`push: false` — schema only via versioned migrations)
-- Env: `NODE_ENV=production`, stable `PAYLOAD_SECRET`, `HOST_ADMIN_EMAIL` / `HOST_ADMIN_PASSWORD` / `HOST_ADMIN_NAME` (unique production password), `CMS_SERVER_URL` (HTTPS without `/admin`), Postgres/S3, then `SITE_DEPLOY_HOOK_URL` and `CMS_ALLOWED_ORIGINS` (Pages URL, no trailing slash)
+- Env: `NODE_ENV=production`, stable `PAYLOAD_SECRET`, `HOST_ADMIN_EMAIL` / `HOST_ADMIN_PASSWORD` / `HOST_ADMIN_NAME` / `HOST_ADMIN_USERNAME` (unique production password), `CMS_SERVER_URL` (HTTPS without `/admin`), Postgres/S3, then `SITE_DEPLOY_HOOK_URL` and `CMS_ALLOWED_ORIGINS` (Pages URL, no trailing slash)
+- Mail (required for signup / password recovery): `SMTP_HOST`, `SMTP_PORT` (`587` or `465`), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM_ADDRESS`, `SMTP_FROM_NAME`, and `GNUVERSE_SITE_URL` (public HTTPS origin of the static site — used in confirmation links). Set `SMTP_SECURE=true` for port 465; leave empty for STARTTLS on 587.
 
-On first start with an empty database, the CMS creates the host `admin` from `HOST_ADMIN_*`. Set those variables **before** sharing the URL.
+On first start with an empty database, the CMS creates the host `admin` from `HOST_ADMIN_*`. Set those variables **before** sharing the URL. Changing `HOST_ADMIN_*` later does **not** update the existing account.
+
+### Redefine the host admin
+
+On the Render Shell (or any host with the production env loaded):
+
+```bash
+cd cms
+# Optional when changing the admin e-mail: HOST_ADMIN_MATCH_EMAIL=current@example
+npm run set-host-admin
+```
+
+From the repo root: `make cms-set-host-admin` / `npm run cms:set-host-admin`. The command reads `HOST_ADMIN_*` from the environment, updates the matched admin (or creates one if none exists), and marks the account verified.
 
 ## 3. Cloudflare Pages
 
 - Root: `/`; build `npm run build`; output `out/`
-- `CMS_CONTENT_MODE=live`, `CMS_URL`, `NEXT_PUBLIC_CMS_URL` (CMS HTTPS URL)
+- `CMS_CONTENT_MODE=live`, `CMS_URL`, `NEXT_PUBLIC_CMS_URL` (CMS HTTPS URL), `GNUVERSE_SITE_URL` only on the CMS — not required on Pages
 - Deploy hook → `SITE_DEPLOY_HOOK_URL` on Render
 - Validate: submit on `/blog/`, review/publish, edit, unpublish, delete, cover
 

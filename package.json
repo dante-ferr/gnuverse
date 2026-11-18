@@ -14,6 +14,7 @@
     "cms:bootstrap": "npm --prefix cms run bootstrap:local",
     "cms:reset-db": "node cms/scripts/reset-local-db.mjs",
     "cms:seed": "npm --prefix cms run seed:demo",
+    "cms:set-host-admin": "npm --prefix cms run set-host-admin",
     "cms:dev": "npm --prefix cms run dev",
     "cms:typecheck": "npm --prefix cms run typecheck",
     "test": "node --test tests/*.test.mjs tests/*.test.ts",

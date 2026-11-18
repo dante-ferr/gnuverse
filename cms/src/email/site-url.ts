@@ -2,6 +2,9 @@
 export function getSiteURL(env: Record<string, string | undefined> = process.env): string {
   const explicit = env.GNUVERSE_SITE_URL?.trim().replace(/\/$/, '')
   if (explicit) return explicit
+  if (env.NODE_ENV === 'production') {
+    throw new Error('Configure GNUVERSE_SITE_URL com a URL pública do site (ex.: https://gnuverse.example).')
+  }
   const port = env.SITE_PORT?.trim() || '3000'
   if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) {
     return 'http://localhost:3000'

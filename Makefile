@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev cms site sync build preview check test typecheck mailpit cms-reset cms-seed cms-fresh test-blog test-blog-ci docs-serve
+.PHONY: help setup dev cms site sync build preview check test typecheck mailpit cms-reset cms-seed cms-fresh cms-set-host-admin test-blog test-blog-ci docs-serve
 
 help:
 	@printf '%s\n' 'GNUverse — commands' '' \
@@ -8,10 +8,11 @@ help:
 		'  make dev         Start CMS + game + site; Ctrl+C stops all three' \
 		'  make test-blog   Seed demo data, run E2E tests, open the browser' \
 		'  make cms         Start only the CMS on CMS_PORT' \
-		'  make mailpit     Start local Mailpit (SMTP 1025, UI 8025)' \
+		'  make mailpit     Start local Mailpit (SMTP 1025, UI 8025; auto-picks free UI port)' \
 		'  make cms-reset   Wipe the local CMS SQLite DB/media, then apply the demo seed' \
 		'  make cms-seed    Re-apply the local CMS demo seed without wiping' \
 		'  make cms-fresh   Alias of cms-reset (wipe, then seed)' \
+		'  make cms-set-host-admin  Create/update host admin from HOST_ADMIN_* (prod-safe)' \
 		'  make site        Start only the site' \
 		'  make sync        Refresh local content from the CMS' \
 		'  make build       Build the static site into out/' \
@@ -33,7 +34,16 @@ cms:
 	npm run cms:dev
 
 mailpit:
-	docker compose -f compose.mailpit.yml up -d
+	@ui="$${MAILPIT_UI_PORT:-8025}"; \
+	smtp="$${MAILPIT_SMTP_PORT:-1025}"; \
+	if [ -z "$${MAILPIT_UI_PORT:-}" ] && command -v ss >/dev/null 2>&1 && \
+		ss -ltn | awk '{print $$4}' | grep -Eq "(^|:|])$${ui}$$"; then \
+		ui=8026; \
+		echo "Port 8025 is already in use; publishing the Mailpit UI on $${ui} instead."; \
+		echo "Override with MAILPIT_UI_PORT=<port> make mailpit."; \
+	fi; \
+	MAILPIT_UI_PORT="$${ui}" MAILPIT_SMTP_PORT="$${smtp}" docker compose -f compose.mailpit.yml up -d && \
+	echo "Mailpit UI: http://127.0.0.1:$${ui}  SMTP: 127.0.0.1:$${smtp}"
 
 cms-reset:
 	npm run cms:reset-db
@@ -43,6 +53,9 @@ cms-seed:
 	npm run cms:seed
 
 cms-fresh: cms-reset
+
+cms-set-host-admin:
+	npm run cms:set-host-admin
 
 site:
 	npm run dev -- --webpack

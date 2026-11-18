@@ -27,12 +27,37 @@ export function AccountRecoveryPage({
 
   useEffect(() => {
     if (mode !== 'verify' || !token) return
+    const storageKey = `gnuverse-verify-email:${token}`
+    try {
+      if (sessionStorage.getItem(storageKey) === 'ok') {
+        feedback.setNotice('E-mail confirmado. Agora você já pode entrar.')
+        return
+      }
+      if (sessionStorage.getItem(storageKey) === 'pending') return
+      sessionStorage.setItem(storageKey, 'pending')
+    } catch {
+      /* sessionStorage may be unavailable; the server confirm path is idempotent. */
+    }
     void feedback.run(async () => {
-      const result = await api.request<{ message: string }>(
-        `/api/verify-email/${encodeURIComponent(token)}`,
-        {},
-      )
-      feedback.setNotice(result.message)
+      try {
+        const result = await api.request<{ message: string }>(
+          `/api/verify-email/${encodeURIComponent(token)}`,
+          {},
+        )
+        try {
+          sessionStorage.setItem(storageKey, 'ok')
+        } catch {
+          /* Keep the success notice in memory. */
+        }
+        feedback.setNotice(result.message)
+      } catch (error) {
+        try {
+          sessionStorage.removeItem(storageKey)
+        } catch {
+          /* Ignore storage failures while surfacing the API error. */
+        }
+        throw error
+      }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, token])

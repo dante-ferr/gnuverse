@@ -16,7 +16,9 @@ export function createTestIdentityProvider(options: { now?: () => number; roles?
     },
     async forgotPassword() {},
     async resetPassword() {},
-    async verifyEmail() {},
+    async verifyEmail() {
+      return { message: 'E-mail confirmado. Agora você já pode entrar.' }
+    },
     async login(identifier, password) {
       const handle = identifier.toLowerCase()
       const stored = accounts.get(handle)

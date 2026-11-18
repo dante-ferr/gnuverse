@@ -20,7 +20,7 @@ Do not start a second `npm run game:dev` while one is running (SQLite: "Já exis
 
 Use the panel account or register through the site auth pages (email, password, unique public nickname). Sign-in accepts email or nickname plus password. Sign-in and registration use dedicated pages — not inline forms in the lobby or room. Test with two sessions (private window) in the same room.
 
-For local confirmation and password-recovery email, run `make mailpit` and open `http://127.0.0.1:8025`.
+For local confirmation and password-recovery email, run `make mailpit` and open the URL it prints (`http://127.0.0.1:8025` by default; `8026` if that port is already taken).
 
 ## Variables
 
