@@ -6,7 +6,7 @@
 | :--- | :--- |
 | `admin` | All: users, CMS, articles, media, rooms, future quizzes |
 | `blog-editor` | CMS panel, articles, media |
-| `game-moderator` | Edit or delete any room |
+| `game-moderator` | CMS panel access; edit or delete any room; moderate room chat |
 | `quiz-editor` | Manage quizzes (permission reserved; no UI yet) |
 | `member` | Edit rules and delete own rooms |
 
@@ -38,3 +38,16 @@ The panel queries the game at `GAME_INTERNAL_URL` (default `http://localhost:${G
 ## Room interventions
 
 Admin and `game-moderator` can delete rooms and change settings through `/api/towers` where those routes remain. Open Pipeline v0.1 gameplay itself only needs a signed-in account to place or remove belts; in-room governance UI was dropped for now (see [`open-pipeline-wip.md`](../../open-pipeline-wip.md)).
+
+## Chat moderation (CMS)
+
+Administrators and game moderators open **Moderação do chat** (`/moderacao-chat` on the CMS host, also linked from the Payload admin nav). The page proxies to the game server:
+
+| CMS route | Game route | Effect |
+| :--- | :--- | :--- |
+| `GET /api/game-chat/rooms` | `GET /api/admin/rooms` | List rooms with chat counts |
+| `GET /api/game-chat/rooms/:id` | `GET /api/admin/rooms/:id/chat` | Read messages |
+| `DELETE /api/game-chat/rooms/:id/messages/:messageId` | `DELETE /api/admin/rooms/:id/chat/:messageId` | Delete one message |
+| `DELETE /api/game-chat/rooms/:id/messages` | `DELETE /api/admin/rooms/:id/chat` | Clear the room chat |
+
+The game checks the panel session at `CMS_URL` via `/api/access-management/verify-chat-moderator` (`room:chat:moderate`). Live clients receive the updated history on the existing SSE `chat` event.

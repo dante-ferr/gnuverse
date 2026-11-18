@@ -11,6 +11,7 @@ import { Users } from './collections/Users'
 import { Articles } from './collections/Articles'
 import { Media } from './collections/Media'
 import { accessManagementEndpoints } from './access-management/endpoints'
+import { chatModerationEndpoints } from './chat-moderation/endpoints'
 import { identityEndpoints } from './identity/endpoints'
 import { markLegacyAccountsVerified } from './identity/legacy-verification'
 import { getLocalCMSURL, loadLocalEnvironment } from '../scripts/local-config.mjs'
@@ -55,8 +56,17 @@ export default buildConfig({
   ...(email ? { email } : {}),
   cors: allowedOrigins,
   csrf: allowedOrigins,
-  admin: { user: 'users', importMap: { baseDir: dirname }, components: { afterNavLinks: ['/access-management/AccessLink#AccessLink'] } },
-  endpoints: [...accessManagementEndpoints, ...identityEndpoints],
+  admin: {
+    user: 'users',
+    importMap: { baseDir: dirname },
+    components: {
+      afterNavLinks: [
+        '/access-management/AccessLink#AccessLink',
+        '/chat-moderation/ChatModerationLink#ChatModerationLink',
+      ],
+    },
+  },
+  endpoints: [...accessManagementEndpoints, ...chatModerationEndpoints, ...identityEndpoints],
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },
   collections: [Users, Articles, Media],
   onInit: markLegacyAccountsVerified,

@@ -50,6 +50,7 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 - **Unlock:** `game-server/pipeline/world/unlock.ts`; `unlock_collaborators = 2` in TOML; `POST /api/towers/:id/advance` (admin).
 - **Moderation UI:** `pipeline-moderation.tsx` (sala, suspensão, BDFL).
 - **Room chat:** `Room.chat` in SQLite; `POST /api/towers/:id/chat`; SSE `chat`; sidebar `room-chat.tsx` + `room-collaborators.tsx`.
+- **CMS chat moderation:** `/moderacao-chat`; `GET/DELETE /api/admin/rooms…/chat`; permission `room:chat:moderate`.
 - **Generation clearance:** `geometry/clearance.ts` + `world/map-layout.ts` — per-side pads at match creation — 2026-11-17.
 - **Seeded initial layout:** `geometry/seed-rng.ts` + procedural `layoutInitialMachines` (room seed picks approach + offset; clearance enforced) — 2026-11-17.
 
@@ -137,6 +138,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-17 | Ops | CMS Moderação do chat (`/moderacao-chat`) deletes/clears via game admin APIs |
 | 2026-11-17 | UX | Room sidebar chat (`POST …/chat` + SSE `chat`) and compact collaborators block |
 | 2026-11-17 | Progression + UX | Dual unlock (`unlock_collaborators=2`), admin advance, sala ban UI, long-press belt blame |
 | 2026-11-17 | UX | Core requirements moved to room sidebar (`CoreRequirementsSidebar`); canvas keeps git blame only |

@@ -3,7 +3,7 @@ export const ROLES = ['admin', 'blog-editor', 'game-moderator', 'quiz-editor', '
 export type Role = typeof ROLES[number]
 export const PERMISSIONS = [
   'roles:manage', 'cms:access', 'article:manage', 'media:manage', 'media:delete',
-  'room:update:any', 'room:delete:any',
+  'room:update:any', 'room:delete:any', 'room:chat:moderate',
   'room:update:own', 'room:delete:own', 'quiz:manage',
 ] as const
 export type Permission = typeof PERMISSIONS[number]
@@ -13,7 +13,8 @@ export type OwnedResource = { ownerId: string }
 const grants: Record<Role, readonly Permission[]> = {
   admin: PERMISSIONS,
   'blog-editor': ['cms:access', 'article:manage', 'media:manage'],
-  'game-moderator': ['room:update:any', 'room:delete:any'],
+  // Panel access so moderators can open /moderacao-chat without blog edit rights.
+  'game-moderator': ['cms:access', 'room:update:any', 'room:delete:any', 'room:chat:moderate'],
   'quiz-editor': ['quiz:manage'],
   member: ['room:update:own', 'room:delete:own'],
 }

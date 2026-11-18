@@ -7,9 +7,17 @@ import { readRoleRegistry, RoleManagementError, updateRoleRegistry } from '../..
 import { cmsActor } from '../access'
 
 export type AccountOption = { provider: 'cms' | 'game'; id: string; name: string; email: string; cmsUserId?: string }
-function requireAdministrator(req: PayloadRequest) {
+function requireUser(req: PayloadRequest) {
   if (!req.user) throw new RoleManagementError(401, 'Entre no painel administrativo.')
+}
+function requireAdministrator(req: PayloadRequest) {
+  requireUser(req)
   if (!can(cmsActor(req.user), 'roles:manage')) throw new RoleManagementError(403, 'Apenas administradores podem gerenciar os acessos.')
+}
+function requireChatModerator(req: PayloadRequest) {
+  requireUser(req)
+  if (!can(cmsActor(req.user), 'room:chat:moderate'))
+    throw new RoleManagementError(403, 'Apenas administradores e moderadores do jogo podem moderar o chat.')
 }
 function saveRegistry(req: PayloadRequest, revision: string, change: (entries: RoleEntry[], enabled: boolean) => RoleEntry[]) {
   return updateRoleRegistry(revision, (entries, enabled) => {
@@ -59,8 +67,28 @@ async function gameAccounts(req: PayloadRequest): Promise<AccountOption[]> {
   return (await response.json()).accounts
 }
 
+function moderationEndpoint(handler: (req: PayloadRequest) => Promise<unknown>): Endpoint['handler'] {
+  return async (req) => {
+    try {
+      requireChatModerator(req)
+      return Response.json(await handler(req), { headers: { 'Cache-Control': 'no-store' } })
+    } catch (error) {
+      if (!(error instanceof RoleManagementError)) req.payload.logger.error({ err: error }, 'Falha na moderação do chat')
+      return Response.json({ error: error instanceof RoleManagementError ? error.message : 'Não foi possível concluir a moderação do chat.' }, {
+        status: error instanceof RoleManagementError ? error.status : 500,
+        headers: { 'Cache-Control': 'no-store' },
+      })
+    }
+  }
+}
+
 export const accessManagementEndpoints: Endpoint[] = [
   { path: '/access-management/verify', method: 'get', handler: endpoint(async () => ({ allowed: true })) },
+  {
+    path: '/access-management/verify-chat-moderator',
+    method: 'get',
+    handler: moderationEndpoint(async () => ({ allowed: true })),
+  },
   { path: '/access-management', method: 'get', handler: endpoint(async () => readRoleRegistry()) },
   { path: '/access-management/accounts', method: 'get', handler: endpoint(async (req) => {
     const users = await cmsAccounts(req)

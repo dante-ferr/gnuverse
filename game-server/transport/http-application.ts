@@ -10,7 +10,10 @@ import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { json, readBody } from './http-helpers.ts'
 import { can, canManageRoom } from '../../core/authz/policy.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
-import { verifyCMSAdministrator } from '../auth/cms-administrator.ts'
+import {
+  verifyCMSAdministrator,
+  verifyCMSChatModerator,
+} from '../auth/cms-panel.ts'
 
 type Dependencies = {
   store: GameStore
@@ -65,6 +68,42 @@ export class HttpApplication {
           provider: 'game', id: user.id, name: user.nickname, email: user.email,
           cmsUserId: user.identity?.provider === 'cms' ? user.identity.id : undefined,
         })) })
+      }
+      if (path[1] === 'admin' && path[2] === 'rooms') {
+        await verifyCMSChatModerator({
+          cookie: req.headers.cookie,
+          authorization: req.headers.authorization,
+        })
+        if (req.method === 'GET' && path.length === 3)
+          return json(res, 200, { rooms: rooms.adminRooms() })
+        if (req.method === 'GET' && path[4] === 'chat' && path.length === 5) {
+          const room = store.state.rooms[path[3]]
+          if (!room) fail(404, 'Sala não encontrada.')
+          return json(res, 200, rooms.adminChat(room))
+        }
+        if (req.method === 'DELETE' && path[4] === 'chat' && path.length === 5) {
+          return json(
+            res,
+            200,
+            store.atomic(() => {
+              const room = store.state.rooms[path[3]]
+              if (!room) fail(404, 'Sala não encontrada.')
+              return rooms.clearChat(room, null)
+            }),
+          )
+        }
+        if (req.method === 'DELETE' && path[4] === 'chat' && path.length === 6) {
+          return json(
+            res,
+            200,
+            store.atomic(() => {
+              const room = store.state.rooms[path[3]]
+              if (!room) fail(404, 'Sala não encontrada.')
+              return rooms.deleteChatMessage(room, path[5], null)
+            }),
+          )
+        }
+        fail(404, 'Não encontrado.')
       }
       const body = req.method === 'POST' ? await readBody(req) : {}
       if (

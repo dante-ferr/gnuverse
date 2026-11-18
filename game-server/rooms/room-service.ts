@@ -239,6 +239,36 @@ export class RoomService {
     this.runtime.publishChat(room.id, room.chat)
     return { message, chat: room.chat }
   }
+  adminRooms() {
+    return Object.values(this.store.state.rooms)
+      .filter((room) => isPipelineFrame(room.frame))
+      .map((room) => ({
+        ...this.publicRoom(room),
+        chatCount: (room.chat ?? []).length,
+        lastChatAt: room.chat?.at(-1)?.createdAt ?? null,
+      }))
+      .sort((a, b) => (b.lastChatAt ?? 0) - (a.lastChatAt ?? 0))
+  }
+  adminChat(room: Room) {
+    return { room: this.publicRoom(room), chat: room.chat ?? [] }
+  }
+  deleteChatMessage(room: Room, messageId: string, actorId: string | null) {
+    const chat = room.chat ?? []
+    const index = chat.findIndex((message) => message.id === messageId)
+    if (index < 0) fail(404, 'Mensagem não encontrada.')
+    const [removed] = chat.splice(index, 1)
+    room.chat = chat
+    this.history.event(room, 'chat-delete', actorId, { messageId, authorId: removed?.authorId })
+    this.runtime.publishChat(room.id, room.chat)
+    return { chat: room.chat }
+  }
+  clearChat(room: Room, actorId: string | null) {
+    const removed = (room.chat ?? []).length
+    room.chat = []
+    this.history.event(room, 'chat-clear', actorId, { removed })
+    this.runtime.publishChat(room.id, room.chat)
+    return { chat: room.chat, removed }
+  }
   private editable(room: Room) {
     if (!isPipelineFrame(room.frame))
       fail(409, 'Esta sala é de uma versão anterior.')
