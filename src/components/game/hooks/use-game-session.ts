@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { GameApi } from '../api/game-api'
+import { GameApi, resolveGameApiUrl } from '../api/game-api'
 import { type User, type Wallet } from '../model/types'
 
 const SESSION_KEY = 'gnuverse-game-session'
@@ -47,10 +47,7 @@ function useSessionState() {
 
   useEffect(() => {
     if (!token) return
-    const hasGameApi =
-      Boolean(process.env.NEXT_PUBLIC_GAME_API_URL?.trim()) ||
-      (typeof window !== 'undefined' &&
-        ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname))
+    const hasGameApi = Boolean(resolveGameApiUrl())
     if (!hasGameApi) return
     let active = true
     const refresh = () =>

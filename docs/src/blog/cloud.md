@@ -42,11 +42,12 @@ npm run set-host-admin
 
 From the repo root: `make cms-set-host-admin` / `npm run cms:set-host-admin`. The command reads `HOST_ADMIN_*` from the environment, updates the matched admin (or creates one if none exists), and marks the account verified.
 
-## 3. Cloudflare Pages
+## 3. Cloudflare Pages / Vercel
 
 - Root: `/`; build `npm run build`; output `out/`
 - `CMS_CONTENT_MODE=live`, `CMS_URL`, `NEXT_PUBLIC_CMS_URL` (CMS HTTPS URL), `GNUVERSE_SITE_URL` only on the CMS — not required on Pages
 - Deploy hook → `SITE_DEPLOY_HOOK_URL` on Render
+- **Public signup and login without `game-server`:** `/cadastro/` and `/login/` authenticate directly against `NEXT_PUBLIC_CMS_URL` whenever `NEXT_PUBLIC_GAME_API_URL` is unset off-localhost, so accounts work with only the CMS hosted.
 - Validate: submit on `/blog/`, review/publish, edit, unpublish, delete, cover
 
 ## Accepted risks
