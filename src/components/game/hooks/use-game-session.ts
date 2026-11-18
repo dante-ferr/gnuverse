@@ -47,6 +47,11 @@ function useSessionState() {
 
   useEffect(() => {
     if (!token) return
+    const hasGameApi =
+      Boolean(process.env.NEXT_PUBLIC_GAME_API_URL?.trim()) ||
+      (typeof window !== 'undefined' &&
+        ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname))
+    if (!hasGameApi) return
     let active = true
     const refresh = () =>
       api

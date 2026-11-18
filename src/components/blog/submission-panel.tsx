@@ -6,6 +6,7 @@ import { EditorialHeader } from '@/components/blog/editorial-header'
 import { GAME_API_URL } from '@/components/game/api/game-api'
 import { useGameSession } from '@/components/game/hooks/use-game-session'
 import { categoryNames, type ArticleReference } from '@/lib/article-meta'
+import { resolveCmsBaseUrl } from '@/lib/cms-client'
 import {
   canAuthorEditSubmission,
   extractCmsErrorMessage,
@@ -19,10 +20,6 @@ import {
   type SubmissionArticle,
   validateSubmissionInput,
 } from '@/lib/blog-submission'
-
-const CMS_URL = (
-  process.env.NEXT_PUBLIC_CMS_URL || 'http://localhost:3001'
-).replace(/\/$/, '')
 
 const REQUEST_TIMEOUT_MS = 120000
 
@@ -63,7 +60,7 @@ async function loginWithSharedSession(
         : extractCmsErrorMessage(loginData, loginResponse.status),
     )
   }
-  const meResponse = await fetch(`${CMS_URL}/api/users/me`, {
+  const meResponse = await fetch(`${resolveCmsBaseUrl() || 'http://localhost:3001'}/api/users/me`, {
     headers: { Authorization: `Bearer ${loginData.token}` },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
@@ -158,6 +155,7 @@ export function SubmissionPanel({
   mode?: 'demo' | 'live'
 }) {
   const { token, setSessionToken, logout, user: gameUser } = useGameSession()
+  const [cmsUrl, setCmsUrl] = useState<string | null | undefined>(undefined)
   const [isOpen, setIsOpen] = useState(false)
   const [session, setSession] = useState<BlogSession | null>(null)
   const [authBusy, setAuthBusy] = useState(false)
@@ -229,6 +227,7 @@ export function SubmissionPanel({
 
   const loadMyArticles = useCallback(
     async (activeSession: BlogSession): Promise<SubmissionArticle[]> => {
+      if (!cmsUrl) return []
       setListBusy(true)
       setListError('')
       try {
@@ -238,7 +237,7 @@ export function SubmissionPanel({
           sort: '-updatedAt',
           limit: '50',
         })
-        const response = await fetch(`${CMS_URL}/api/articles?${params}`, {
+        const response = await fetch(`${cmsUrl}/api/articles?${params}`, {
           headers: { Authorization: `Bearer ${activeSession.token}` },
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         })
@@ -273,19 +272,25 @@ export function SubmissionPanel({
         setListBusy(false)
       }
     },
-    [handleSessionExpired],
+    [cmsUrl, handleSessionExpired],
   )
 
   useEffect(() => {
-    if (!token) {
-      setSession(null)
-      setMyArticles([])
+    setCmsUrl(resolveCmsBaseUrl())
+  }, [])
+
+  useEffect(() => {
+    if (!token || !cmsUrl) {
+      if (!token) {
+        setSession(null)
+        setMyArticles([])
+      }
       return
     }
     let active = true
     void (async () => {
       try {
-        const response = await fetch(`${CMS_URL}/api/users/me`, {
+        const response = await fetch(`${cmsUrl}/api/users/me`, {
           headers: { Authorization: `Bearer ${token}` },
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         })
@@ -310,7 +315,7 @@ export function SubmissionPanel({
     return () => {
       active = false
     }
-  }, [token, handleSessionExpired])
+  }, [cmsUrl, token, handleSessionExpired])
 
   useEffect(() => {
     if (!BLOG_TEST_UI || autotestInitializedRef.current) return
@@ -388,9 +393,9 @@ export function SubmissionPanel({
     } catch {
       setSessionToken('')
     }
-    if (!loggedOutViaGameServer && activeToken) {
+    if (!loggedOutViaGameServer && activeToken && cmsUrl) {
       try {
-        await fetch(`${CMS_URL}/api/users/logout`, {
+        await fetch(`${cmsUrl}/api/users/logout`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${activeToken}` },
           signal: AbortSignal.timeout(10000),
@@ -461,7 +466,7 @@ export function SubmissionPanel({
   }
 
   async function handleSaveSubmission(targetReviewStatus: 'draft' | 'in_review') {
-    if (!session) return
+    if (!session || !cmsUrl) return
     setSubmitError('')
     setSubmitSuccess('')
 
@@ -487,8 +492,8 @@ export function SubmissionPanel({
 
     try {
       const endpoint = editingId
-        ? `${CMS_URL}/api/articles/${encodeURIComponent(editingId)}?draft=true`
-        : `${CMS_URL}/api/articles?draft=true`
+        ? `${cmsUrl}/api/articles/${encodeURIComponent(editingId)}?draft=true`
+        : `${cmsUrl}/api/articles?draft=true`
       const method = editingId ? 'PATCH' : 'POST'
       const { hashtags, ...submissionPayload } = validated.data
 
@@ -609,7 +614,7 @@ export function SubmissionPanel({
                   Preencher artigo exemplo
                 </button>
                 <a
-                  href={`${CMS_URL}/admin`}
+                  href={`${cmsUrl || 'http://localhost:3001'}/admin`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-sm border border-[var(--line)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-[var(--accent)] transition hover:border-[var(--accent)]"
@@ -628,7 +633,16 @@ export function SubmissionPanel({
             continua instantânea.
           </p>
 
-          {!session ? (
+          {cmsUrl === null ? (
+            <div className="mt-6 rounded-sm border border-[var(--line)] bg-[var(--background)] p-5">
+              <p className="text-sm leading-relaxed text-[var(--ink)]">
+                O servidor editorial (CMS) ainda não foi configurado neste
+                ambiente público (<code>NEXT_PUBLIC_CMS_URL</code> ausente). A
+                leitura dos artigos publicados funciona normalmente; para enviar
+                textos, configure o CMS em produção ou use o ambiente local.
+              </p>
+            </div>
+          ) : !session ? (
             <div className="mt-6 rounded-sm border border-[var(--line)] bg-[var(--background)] p-5">
               <p className="text-sm leading-relaxed text-[var(--ink)]">
                 Para enviar artigos para revisão editorial e acompanhar suas
