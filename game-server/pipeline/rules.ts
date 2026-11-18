@@ -6,6 +6,8 @@ export type PipelineRules = {
   colorBackground: string
   colorGrid: string
   colorBelt: string
+  /** Flow arrows stroked on top of belt track fill. */
+  colorBeltChevron: string
   colorPacket: string
   colorCore: string
   colorSource: string

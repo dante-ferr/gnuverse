@@ -8,6 +8,7 @@ export type PipelineRules = {
   colorBackground: string
   colorGrid: string
   colorBelt: string
+  colorBeltChevron: string
   colorPacket: string
   colorCore: string
   colorSource: string

@@ -35,7 +35,7 @@ const rules: PipelineRules = {
   resourceGlyphSizePx: 28,
   resourceGlyphOrbitPx: 4,
   resourceGlyphOrbitMs: 4000,
-  beltChevronStrokePx: 6,
+  beltChevronStrokePx: 4,
   beltChevronFlowMs: 900,
   machineClearanceMin: 1,
   coreClearanceExtra: 2,

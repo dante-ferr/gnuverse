@@ -89,7 +89,7 @@ function chevrons(ctx: CanvasRenderingContext2D, belt: BeltRecord, rules: Pipeli
       belt.direction,
       cellSize * 0.14,
       rules.beltChevronStrokePx,
-      rules.colorBackground,
+      rules.colorBeltChevron,
     )
   }
   ctx.restore()
