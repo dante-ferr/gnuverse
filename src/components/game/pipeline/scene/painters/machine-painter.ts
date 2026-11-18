@@ -102,6 +102,7 @@ export class MachinePainter {
 
   private drawResourceGlyph(ctx: CanvasRenderingContext2D, shape: PacketShape, rules: PipelineRules) {
     const size = rules.resourceGlyphSizePx
+    const image = this.images.resources[shape]
     if (shape === 'circle') {
       // Single filled disk + dark outline only (no inner rings or nested circles).
       const radius = size / 2
@@ -114,7 +115,6 @@ export class MachinePainter {
       ctx.stroke()
       return
     }
-    const image = this.images.resources[shape]
     if (image?.complete && image.naturalWidth > 0) {
       ctx.drawImage(image, -size / 2, -size / 2, size, size)
     }

@@ -74,9 +74,9 @@ test('packetDisplayCenter lerps between ticks', () => {
   const f1 = frame(1, [{ id: 'p1', x: 3, y: 2, shape: 'circle' }])
   syncPacketMotion(motion, f1, 1000)
 
-  const start = packetDisplayCenter({ id: 'p1', x: 3, y: 2, shape: 'circle' }, f1, rules, motion, 1000, cell)
-  const mid = packetDisplayCenter({ id: 'p1', x: 3, y: 2, shape: 'circle' }, f1, rules, motion, 1125, cell)
-  const end = packetDisplayCenter({ id: 'p1', x: 3, y: 2, shape: 'circle' }, f1, rules, motion, 1250, cell)
+  const start = packetDisplayCenter({ id: 'p1', x: 3, y: 2 }, f1, rules, motion, 1000, cell)
+  const mid = packetDisplayCenter({ id: 'p1', x: 3, y: 2 }, f1, rules, motion, 1125, cell)
+  const end = packetDisplayCenter({ id: 'p1', x: 3, y: 2 }, f1, rules, motion, 1250, cell)
 
   assert.equal(start.px, (2.5 * cell))
   assert.equal(end.px, (3.5 * cell))
@@ -88,8 +88,8 @@ test('packetDisplayCenter coasts along belt after one tickMs', () => {
   const f = frame(3, [{ id: 'p1', x: 2, y: 2, shape: 'circle' }])
   syncPacketMotion(motion, f, 0)
 
-  const settled = packetDisplayCenter({ id: 'p1', x: 2, y: 2, shape: 'circle' }, f, rules, motion, 250, cell)
-  const coastMid = packetDisplayCenter({ id: 'p1', x: 2, y: 2, shape: 'circle' }, f, rules, motion, 375, cell)
+  const settled = packetDisplayCenter({ id: 'p1', x: 2, y: 2 }, f, rules, motion, 250, cell)
+  const coastMid = packetDisplayCenter({ id: 'p1', x: 2, y: 2 }, f, rules, motion, 375, cell)
 
   assert.equal(settled.px, 2.5 * cell)
   assert.equal(coastMid.px, 3 * cell)
