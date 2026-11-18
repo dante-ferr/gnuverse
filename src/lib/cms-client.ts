@@ -16,6 +16,21 @@ export function resolveCmsBaseUrl(
   return null
 }
 
+async function fetchCms(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init)
+  } catch (cause) {
+    if (cause instanceof Error && cause.name === 'TimeoutError') {
+      throw new Error(
+        'O servidor editorial (CMS) demorou para responder. Tente novamente.',
+      )
+    }
+    throw new Error(
+      'Não foi possível conectar ao servidor editorial (CMS). Confira se o backend está em execução.',
+    )
+  }
+}
+
 /**
  * Authenticates or registers a blog contributor directly against Payload CMS,
  * without requiring the game server to be deployed.
@@ -29,7 +44,7 @@ export async function authenticateViaCms(
   | { verificationRequired: false; token: string }
 > {
   if (mode === 'register') {
-    const response = await fetch(`${cmsUrl}/api/identity/register`, {
+    const response = await fetchCms(`${cmsUrl}/api/identity/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -62,7 +77,7 @@ export async function authenticateViaCms(
     return { verificationRequired: false, token: data.token }
   }
 
-  const response = await fetch(`${cmsUrl}/api/users/login`, {
+  const response = await fetchCms(`${cmsUrl}/api/users/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

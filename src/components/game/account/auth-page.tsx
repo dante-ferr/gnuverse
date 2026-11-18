@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authenticateViaCms, resolveCmsBaseUrl } from '@/lib/cms-client'
+import { resolveGameApiUrl } from '../api/game-api'
 import { AuthPanel, type AuthMode } from './auth-panel'
 import { useGameSession } from '../hooks/use-game-session'
 import { useActionFeedback } from '../hooks/use-action-feedback'
@@ -47,9 +48,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
 
   const authenticate = (form: HTMLFormElement) =>
     feedback.run(async () => {
-      const isBlogAuth =
-        returnTo.startsWith('/blog') || returnTo.startsWith('/artigos')
-      if (isBlogAuth) {
+      const useCmsDirect =
+        returnTo.startsWith('/blog') ||
+        returnTo.startsWith('/artigos') ||
+        !resolveGameApiUrl()
+      if (useCmsDirect) {
         const cmsUrl = resolveCmsBaseUrl()
         if (!cmsUrl) {
           throw new Error(

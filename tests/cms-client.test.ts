@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { authenticateViaCms, resolveCmsBaseUrl } from '../src/lib/cms-client.ts'
+import { GameApi, resolveGameApiUrl } from '../src/components/game/api/game-api.ts'
 
 test('resolveCmsBaseUrl usa URL configurada, localhost em dev e null em produção sem variável', () => {
   assert.equal(
@@ -60,5 +61,60 @@ test('authenticateViaCms autentica login e cadastro direto no CMS sem game-serve
     assert.equal(calls[1]?.url, 'https://cms.gnuverse.test/api/identity/register')
   } finally {
     globalThis.fetch = originalFetch
+  }
+})
+
+test('resolveGameApiUrl usa URL configurada, localhost em dev e null em produção sem variável', () => {
+  assert.equal(
+    resolveGameApiUrl('https://game.gnuverse.test/', 'gnuverse.vercel.app'),
+    'https://game.gnuverse.test',
+  )
+  assert.equal(resolveGameApiUrl('', 'localhost'), 'http://localhost:3002')
+  assert.equal(resolveGameApiUrl(undefined, '127.0.0.1'), 'http://localhost:3002')
+  assert.equal(resolveGameApiUrl('', 'gnuverse.vercel.app'), null)
+})
+
+test('authenticateViaCms e GameApi traduzem falhas de rede para português', async () => {
+  const originalFetch = globalThis.fetch
+  const originalWindow = globalThis.window
+  globalThis.fetch = (async () => {
+    throw new TypeError('NetworkError when attempting to fetch resource.')
+  }) as typeof fetch
+
+  try {
+    await assert.rejects(
+      () =>
+        authenticateViaCms('https://cms.gnuverse.test', 'register', {
+          email: 'ana@gnuverse.local',
+          password: '123',
+          nickname: 'ana',
+        }),
+      /Não foi possível conectar ao servidor editorial \(CMS\)/,
+    )
+
+    const api = new GameApi('', () => {})
+    await assert.rejects(
+      () => api.request('/api/register', { email: 'ana@gnuverse.local' }),
+      /Não foi possível conectar ao servidor do jogo/,
+    )
+
+    Object.defineProperty(globalThis, 'window', {
+      value: { location: { hostname: 'gnuverse.vercel.app' } },
+      configurable: true,
+    })
+    await assert.rejects(
+      () => api.request('/api/register', { email: 'ana@gnuverse.local' }),
+      /O servidor do jogo ainda não foi configurado neste ambiente/,
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+    if (originalWindow === undefined) {
+      delete (globalThis as { window?: unknown }).window
+    } else {
+      Object.defineProperty(globalThis, 'window', {
+        value: originalWindow,
+        configurable: true,
+      })
+    }
   }
 })
