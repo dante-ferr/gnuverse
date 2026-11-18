@@ -39,7 +39,11 @@ const rules: PipelineRules = {
   machineClearanceMin: 1,
   coreClearanceExtra: 2,
   coreDemandCircle: 20,
-  unlockCollaborators: 2,
+  chunkSize: 24,
+  mapChunkExtent: 64,
+  chunkCostBase: 5,
+  chunkCostGrowth: 2,
+  chunkPreviewRing: 1,
   slotInputDepthPercent: 22,
   slotOutputDepthPercent: 34,
   slotBracketThickPercent: 18,
@@ -174,14 +178,10 @@ test('all belts in a stroke are kept without a per-player cap', () => {
   assert.ok(match.beltAt({ x: 2, y }))
 })
 
-test('auto unlock bumps 0.1 to 0.2 when deliveries and collaborators gates are met', () => {
+test('auto unlock bumps 0.1 to 0.2 when delivery milestones are met', () => {
   const match = connected({ ...rules, coreDemandCircle: 3 })
   match.deliveryByShape = { circle: 3 }
   match.deliveries = 3
-  match.collaborators.push(
-    { id: 'ada', nickname: 'Ada' },
-    { id: 'bob', nickname: 'Bob' },
-  )
   assert.equal(match.version, '0.1')
   match.tick()
   assert.equal(match.version, '0.2')

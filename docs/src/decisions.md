@@ -88,6 +88,36 @@ Full detail: [Element recipes](game/elements.md#planned-graph-machines-and-core-
 
 Recipe book and visualizer: [Element recipes](game/elements.md). Edit TOML under `game-server/config/` (`elements.toml` and optional `elements/**/*.toml`), then `make elements-serve` (http://127.0.0.1:3010).
 
+## 11. Coins and chunk expansion
+
+Direction locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and map expansion](game/economy-expansion.md).
+
+### Locked now
+
+| Choice | Rule |
+| :--- | :--- |
+| Progression currency | **Coins**, not unique collaborator count |
+| Extra level gate | **None** beyond coin spends / content unlocks (collaborator threshold retired) |
+| Spend targets | Conveyors, machines, **area expansion**, later paid actions |
+| Map unit | Square **chunks**; side length `chunk_size` cells in `[pipeline]` |
+| Starter | Exactly **one** owned chunk of that same size at room start |
+| World limit | High extent (e.g. **64×64** chunks) from TOML |
+| Chunk price | Non-linear growth (not `base × n`); exact curve still open |
+| Preview | Features in a ring around owned chunks are **visible but obscured**; not playable until bought |
+| Generation | **Gradual** from room seed: create chunk content the first time it enters the preview set; do not build the full map at room create |
+| Source test layout | Place circle sources across generated chunks while procedural gen is validated |
+
+### Still open (need a call before locking code paths)
+
+| Choice | Options |
+| :--- | :--- |
+| Coin pool | Shared room / per-player / hybrid |
+| Coin earn | Deliveries / passive match regen / account wallet / mix |
+| Version `0.1→0.2` | Coins / deliveries only / no version gate / keep demand quotas without collaborators |
+| Cost curve | Exponential in purchase index / quadratic / distance from starter |
+| Buy eligibility | Edge-adjacent only / any preview / any unowned in extent |
+| Starter index | Which chunk holds the core when extent is even |
+
 ## Still open
 
 | Item | When it resolves |
@@ -97,5 +127,6 @@ Recipe book and visualizer: [Element recipes](game/elements.md). Edit TOML under
 | `game-server` hosting with a volume | Before `/jogo/` in production |
 | 14 posts + logbook + accessibility | By delivery (2026-12-02) |
 | Aligned human editorial criteria | Before batch publishing |
+| Coin pool, earn, version gate, chunk cost curve, buy adjacency (§11) | Before shipping economy/expansion gameplay |
 
 Operational detail: [Roadmap](engineering/roadmap.md).

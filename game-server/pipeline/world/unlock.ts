@@ -18,14 +18,10 @@ export function demandsSatisfied(match: Match): boolean {
   )
 }
 
-export function collaboratorsSatisfied(match: Match): boolean {
-  return match.collaborators.length >= match.rules.unlockCollaborators
-}
-
-/** Auto-advance only from 0.1 → 0.2 when both gates are met. */
+/** Auto-advance only from 0.1 → 0.2 when delivery milestones are met. */
 export function tryAutoUnlock(match: Match): boolean {
   if (match.version !== '0.1') return false
-  if (!demandsSatisfied(match) || !collaboratorsSatisfied(match)) return false
+  if (!demandsSatisfied(match)) return false
   match.version = bumpPipelineVersion(match.version)
   return true
 }

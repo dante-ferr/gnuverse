@@ -47,8 +47,16 @@ export type PipelineRules = {
   coreClearanceExtra: number
   /** v0.1 milestone: circle deliveries required before the next tier. */
   coreDemandCircle: number
-  /** Unique collaborators required alongside delivery milestones to unlock the next version. */
-  unlockCollaborators: number
+  /** Cells on one side of a purchasable map chunk (starter owned chunk uses the same size). */
+  chunkSize: number
+  /** Maximum chunks per axis in the world grid. */
+  mapChunkExtent: number
+  /** Base coin cost for the first purchased chunk (after the free starter). */
+  chunkCostBase: number
+  /** Multiplicative growth factor per purchase index (see chunkPurchaseCost). */
+  chunkCostGrowth: number
+  /** Chebyshev ring (in chunk units) of obscured preview around owned chunks. */
+  chunkPreviewRing: number
   /** Input “[” bracket protrusion as percent of one cell (shallower = recess). */
   slotInputDepthPercent: number
   /** Output bracket protrusion as percent of one cell (deeper = nozzle). */

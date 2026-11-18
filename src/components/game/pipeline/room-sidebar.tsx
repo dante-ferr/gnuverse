@@ -101,7 +101,6 @@ export function RoomSidebar({
             creatorId={creatorId}
             members={members}
             collaborators={frame?.collaborators ?? []}
-            unlockCollaborators={rules?.unlockCollaborators ?? 2}
             busy={busy}
             onRefresh={onRefresh}
             onError={onError}

@@ -35,7 +35,7 @@ game-server/pipeline/
   geometry/          direction, cell, clearance (generation free pads), seed-rng
   machines/          Machine, Slot, Source (3×3), Core (5×5), Belt
   packets/           Packet (circle only in v0.1)
-  world/             Match, map-layout, frame, Movement, Emission, BeltEditor
+  world/             Match, map-layout, chunks, unlock, frame, Movement, Emission, BeltEditor
   rules.ts           TypeScript mirror of TOML
   load-rules.ts      [pipeline] validation
 ```

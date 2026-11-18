@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<!-- SVG created with Arrow, by QuiverAI (https://quiver.ai) -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m312.1 214.7c5.1-15.18 10.76-32.68 13.14-52.86" stroke="#000" stroke-width="36.29" />
+    <path d="m325.7 161.9c-50.54-2.32-79.8-42.72-71.9-93.72 42.18-0.2 75.96 39.4 71.9 93.72z" stroke="#000" stroke-width="33.35" />
+    <path d="m329.5 161.3c53.58 2.96 87.82-37 86.54-84.74-47.42-6.6-87.82 27.68-86.54 84.74z" stroke="#000" stroke-width="33.35" />
+    <ellipse transform="matrix(.6308 -.7759 .7344 .6787 0 0)" cx="-106.9" cy="387.3" rx="135.3" ry="88.13" stroke="#000" stroke-width="37.62" />
+    <path d="m248.9 265.5c-37.2 26.1-67.9 72.76-77.62 116.5" stroke="#000" stroke-width="24.61" />
+  </g>
+</svg>

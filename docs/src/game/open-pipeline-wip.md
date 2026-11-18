@@ -35,7 +35,8 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 | Active core ports | Milestone-gated (e.g. 2 ports at start) | **All 12** inputs accept deliveries in v0.1 |
 | Machine art | Proposal: procedural for geometric visuals | Cell-fit body + “[” slots procedural; QuiverAI black-ink decor tinted darker than each body (`decor_darken_percent`) — [Decisions §9](../decisions.md#9-open-pipeline-machines) |
 | Collaborators | `localStorage` token option | **CMS accounts only**; `join` records nickname |
-| Building cost | Cheap, no coin gate | Belts do **not** spend wallet coins yet |
+| Building cost | Cheap, no coin gate | Belts do **not** spend coins yet; **direction:** coins for belts, machines, chunks — [economy-expansion.md](economy-expansion.md) |
+| Map / progression | Unique players unlock space | **Direction:** chunk buy with coins; gradual seed gen; no collaborator unlock gate — [Decisions §11](../decisions.md#11-coins-and-chunk-expansion) |
 | Fail / victory | No crash; victory at 9 cores | **No fail state**; no victory screen |
 
 ### Done (implemented)
@@ -47,7 +48,8 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 
 - **Art:** dark grid / light machines; procedural bodies/slots + `color_outline`; decor SVGs tint to a darker tone of each body color (`decor_darken_percent`); `color_decor` is palette-only for future UI; screen-space circle resource = one filled disk (canvas outline); sidebar uses `resource-circle.svg` (single black fill); `decor_stroke_width` on thick decor strokes.
 - **Tests:** [`tests/pipeline-tick.test.ts`](../tests/pipeline-tick.test.ts), [`tests/pipeline-http.test.ts`](../tests/pipeline-http.test.ts), [`tests/pipeline-unlock-http.test.ts`](../tests/pipeline-unlock-http.test.ts).
-- **Unlock:** `game-server/pipeline/world/unlock.ts`; `unlock_collaborators = 2` in TOML; `POST /api/towers/:id/advance` (admin).
+- **Unlock:** `game-server/pipeline/world/unlock.ts` — demand milestones only (collaborator gate removed 2026-11-18); auto **0.1 → 0.2**; `POST /api/towers/:id/advance` (admin).
+- **Chunk scaffolding:** `[pipeline]` `chunk_size` / `map_chunk_extent` / `chunk_cost_*` / `chunk_preview_ring`; pure helpers in `world/chunks.ts` + `tests/pipeline-chunks.test.ts` — not wired into `Match`/frame yet — 2026-11-18.
 - **Moderation UI:** `pipeline-moderation.tsx` (sala, suspensão, BDFL).
 - **Room chat:** `Room.chat` in SQLite; `POST /api/towers/:id/chat`; SSE `chat`; sidebar `room-chat.tsx` + `room-collaborators.tsx`.
 - **CMS chat moderation:** `/moderacao-chat`; `GET/DELETE /api/admin/rooms…/chat`; permission `room:chat:moderate`.
@@ -70,7 +72,9 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 **Design / proposal alignment**
 
 - [ ] Proposal milestone table still says `3×3` core — update proposal or add errata when user locks 5×5 for v0.1.
-- [x] Dual unlock (all demands met + `unlock_collaborators` ≥ 2); auto **0.1 → 0.2** only; admin `advance`; no solo fallback — 2026-11-17.
+- [x] Dual unlock (demands + collaborators) shipped 2026-11-17; **collaborator gate retired** 2026-11-18 (demand-only auto **0.1 → 0.2**; admin `advance`).
+- [x] Chunk TOML keys + `chunks.ts` helpers/tests; Participantes unlock meter removed — 2026-11-18.
+- [ ] **Coins + chunks (runtime):** wire owned/preview into `Match`/frame; buy API; gradual seed generation; multi-source test layout; coin spend/earn — [economy-expansion.md](economy-expansion.md); blocked on open questions in [Decisions §11](../decisions.md#11-coins-and-chunk-expansion).
 - [x] Git blame on belts: desktop hover + ~450ms long-press — 2026-11-17.
 
 ---
@@ -82,7 +86,7 @@ game-server/pipeline/
   geometry/          direction, cell, clearance (generation pads), seed-rng
   machines/          Machine, Slot, Source (3×3), Core (5×5), Belt
   packets/           Packet (circle only)
-  world/             Match, map-layout, frame, Movement, Emission, BeltEditor
+  world/             Match, map-layout, chunks, unlock, frame, Movement, Emission, BeltEditor
   rules.ts           TypeScript mirror of TOML
   load-rules.ts      [pipeline] validation
 
@@ -138,6 +142,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-18 | Progression | Collaborator unlock gate removed; chunk config + `chunks.ts` scaffolding; economy/expansion docs (§11) — runtime buy/gen/coins still open |
 | 2026-11-18 | Design | Planned (docs only): 36 elements, tier 5, 3-in/2-out machines with coupled dual eject + half-rate split; ancestry chart layout known-bad — see `elements.md` / decisions §10 |
 | 2026-11-17 | Ops | CMS Moderação do chat (`/moderacao-chat`) deletes/clears via game admin APIs |
 | 2026-11-17 | UX | Room sidebar chat (`POST …/chat` + SSE `chat`) and compact collaborators block |

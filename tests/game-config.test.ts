@@ -37,12 +37,23 @@ test('loads an explicit TOML path and maps configured values', () => {
   )
 })
 
-test('loads unlock_collaborators in the pipeline table and rejects unknown pipeline keys', () => {
-  withToml('[pipeline]\nunlock_collaborators = 4\n', (configPath) => {
-    const { pipeline } = loadGameConfig(configPath)
-    assert.equal(pipeline.unlockCollaborators, 4)
-  })
+test('loads chunk expansion keys in the pipeline table and rejects unknown pipeline keys', () => {
+  withToml(
+    '[pipeline]\nchunk_size = 16\nmap_chunk_extent = 32\nchunk_cost_base = 10\nchunk_cost_growth = 3\nchunk_preview_ring = 2\n',
+    (configPath) => {
+      const { pipeline } = loadGameConfig(configPath)
+      assert.equal(pipeline.chunkSize, 16)
+      assert.equal(pipeline.mapChunkExtent, 32)
+      assert.equal(pipeline.chunkCostBase, 10)
+      assert.equal(pipeline.chunkCostGrowth, 3)
+      assert.equal(pipeline.chunkPreviewRing, 2)
+    },
+  )
   assert.throws(() => pipelineRulesFrom({ mystery_pipeline_key: 1 }), /desconhecida: pipeline\.mystery_pipeline_key/)
+  assert.throws(
+    () => pipelineRulesFrom({ chunk_size: 4 }),
+    /chunk_size deve ser inteiro entre 8 e 64/,
+  )
 })
 
 test('rejects unknown TOML fields instead of silently ignoring them', () => {

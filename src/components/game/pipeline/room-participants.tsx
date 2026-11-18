@@ -13,7 +13,6 @@ type Props = {
   creatorId: string
   members: Member[]
   collaborators: PipelineFrame['collaborators']
-  unlockCollaborators: number
   busy?: boolean
   onRefresh: () => Promise<void>
   onError: (message: string) => void
@@ -24,7 +23,7 @@ function letterAvatar(nickname: string) {
   return (trimmed ? trimmed[0] : '?').toUpperCase()
 }
 
-/** Room members plus collaborator unlock progress (unified Participantes page). */
+/** Room members and moderation (Participantes page). */
 export function RoomParticipants({
   api,
   roomId,
@@ -32,7 +31,6 @@ export function RoomParticipants({
   creatorId,
   members,
   collaborators,
-  unlockCollaborators,
   busy,
   onRefresh,
   onError,
@@ -88,14 +86,6 @@ export function RoomParticipants({
       <h2 id="room-participants-heading" className={styles.sidebarSectionTitle}>
         Participantes
       </h2>
-      <dl className={styles.coreRequirements}>
-        <div>
-          <dt>Colaboradores</dt>
-          <dd>
-            {collaborators.length} / {unlockCollaborators}
-          </dd>
-        </div>
-      </dl>
       {people.length === 0 ? (
         <p className={styles.controlsHint}>Ninguém na sala ainda.</p>
       ) : (

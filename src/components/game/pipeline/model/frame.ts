@@ -31,7 +31,11 @@ export type PipelineRules = {
   machineClearanceMin: number
   coreClearanceExtra: number
   coreDemandCircle: number
-  unlockCollaborators: number
+  chunkSize: number
+  mapChunkExtent: number
+  chunkCostBase: number
+  chunkCostGrowth: number
+  chunkPreviewRing: number
   slotInputDepthPercent: number
   slotOutputDepthPercent: number
   slotBracketThickPercent: number
