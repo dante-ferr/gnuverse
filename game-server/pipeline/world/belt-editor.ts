@@ -16,11 +16,15 @@ export class BeltEditor {
 
   place(cells: Stroke[], author: Author) {
     if (cells.length === 0) return 'Escolha ao menos uma célula.'
+    const allowed: Stroke[] = []
     for (const cell of cells) {
+      if (this.onMachine(cell)) continue
       const error = this.validate(cell, author)
       if (error) return error
+      allowed.push(cell)
     }
-    for (const cell of cells) this.write(cell, author)
+    if (allowed.length === 0) return 'Essa célula pertence a uma máquina.'
+    for (const cell of allowed) this.write(cell, author)
     this.match.noteCollaborator(author)
     return null
   }
@@ -36,10 +40,12 @@ export class BeltEditor {
     return null
   }
 
+  private onMachine(cell: { x: number; y: number }) {
+    return this.match.core.covers(cell) || this.match.source.covers(cell)
+  }
+
   private validate(cell: Stroke, author: Author) {
     if (!this.match.inBounds(cell)) return 'Fora do mapa.'
-    if (this.match.core.covers(cell) || this.match.source.covers(cell))
-      return 'Essa célula pertence a uma máquina.'
     const belt = this.match.beltAt(cell)
     if (belt && belt.authorId !== author.id) return 'Essa esteira é de outra pessoa.'
     return null

@@ -204,3 +204,24 @@ test('a signed placement cannot cover the core', () => {
     /máquina/,
   )
 })
+
+test('a stroke skips machine cells and keeps the rest', () => {
+  const match = Match.create('seed', rules)
+  const free = { x: match.core.origin.x - 1, y: match.core.origin.y + 2 }
+  const onCore = { x: match.core.origin.x, y: match.core.origin.y + 2 }
+  assert.ok(!match.core.covers(free))
+  assert.ok(match.core.covers(onCore))
+  assert.equal(
+    match.place(
+      [
+        { ...free, direction: 'east' },
+        { ...onCore, direction: 'east' },
+      ],
+      author,
+    ),
+    null,
+  )
+  assert.ok(match.beltAt(free))
+  assert.equal(match.beltAt(onCore), undefined)
+  assert.equal(match.belts.length, 1)
+})
