@@ -70,7 +70,8 @@ export function chunkPurchaseCost(ownedCount: number, base: number, step: number
 
 export type ChunkCellState = 'owned' | 'preview' | 'void'
 
-function chunkKeySet(coords: ChunkCoord[]): Set<string> {
+/** Stable `"cx,cy"` keys for membership tests without rebuilding per cell. */
+export function chunkKeySet(coords: ChunkCoord[]): Set<string> {
   return new Set(coords.map(chunkKey))
 }
 
@@ -100,6 +101,22 @@ export function visibleAabb(chunks: ChunkCoord[], chunkSize: number): {
   }
 }
 
+/** Local match cell → owned / preview / void using prebuilt key sets. */
+export function cellChunkStateFromSets(
+  cell: Cell,
+  ownedKeys: Set<string>,
+  previewKeys: Set<string>,
+  originChunk: ChunkCoord,
+  chunkSize: number,
+): ChunkCellState {
+  const localCx = Math.floor(cell.x / chunkSize)
+  const localCy = Math.floor(cell.y / chunkSize)
+  const key = chunkKey({ cx: originChunk.cx + localCx, cy: originChunk.cy + localCy })
+  if (ownedKeys.has(key)) return 'owned'
+  if (previewKeys.has(key)) return 'preview'
+  return 'void'
+}
+
 /** Local match cell → owned / preview / void inside the visible AABB. */
 export function cellChunkState(
   cell: Cell,
@@ -108,11 +125,11 @@ export function cellChunkState(
   originChunk: ChunkCoord,
   chunkSize: number,
 ): ChunkCellState {
-  const localCx = Math.floor(cell.x / chunkSize)
-  const localCy = Math.floor(cell.y / chunkSize)
-  const world = { cx: originChunk.cx + localCx, cy: originChunk.cy + localCy }
-  const key = chunkKey(world)
-  if (chunkKeySet(owned).has(key)) return 'owned'
-  if (chunkKeySet(preview).has(key)) return 'preview'
-  return 'void'
+  return cellChunkStateFromSets(
+    cell,
+    chunkKeySet(owned),
+    chunkKeySet(preview),
+    originChunk,
+    chunkSize,
+  )
 }

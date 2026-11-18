@@ -6,7 +6,7 @@ import { CoreMachine } from '../machines/core-machine.ts'
 import { SourceMachine } from '../machines/source-machine.ts'
 import { Packet } from '../packets/packet.ts'
 import type { PipelineRules } from '../rules.ts'
-import { cellChunkState } from './chunks.ts'
+import { cellChunkStateFromSets, chunkKeySet } from './chunks.ts'
 import type { ChunkCoord } from './chunks.ts'
 import { layoutMatchFromSeed, machinesFromLayout } from './chunk-generation.ts'
 import { BeltEditor } from './belt-editor.ts'
@@ -41,6 +41,8 @@ export class Match {
   readonly sources: SourceMachine[]
   readonly sourceRoles: Record<string, SourceRole>
   readonly core: CoreMachine
+  private readonly ownedChunkKeys: Set<string>
+  private readonly previewChunkKeys: Set<string>
 
   constructor(
     rules: PipelineRules,
@@ -64,6 +66,8 @@ export class Match {
     this.sources = sources
     this.sourceRoles = sourceRoles
     this.core = core
+    this.ownedChunkKeys = chunkKeySet(ownedChunks)
+    this.previewChunkKeys = chunkKeySet(previewChunks)
   }
 
   /** @deprecated Use `sources`; kept for transitional call sites. */
@@ -94,8 +98,13 @@ export class Match {
 
   isOwnedCell(cell: Cell) {
     return (
-      cellChunkState(cell, this.ownedChunks, this.previewChunks, this.originChunk, this.rules.chunkSize) ===
-      'owned'
+      cellChunkStateFromSets(
+        cell,
+        this.ownedChunkKeys,
+        this.previewChunkKeys,
+        this.originChunk,
+        this.rules.chunkSize,
+      ) === 'owned'
     )
   }
 

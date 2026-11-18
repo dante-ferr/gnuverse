@@ -1,11 +1,10 @@
-import {
-  cellChunkState,
-  type ChunkCoord,
-} from '../../../../../../game-server/pipeline/world/chunks.ts'
+import type { ChunkCoord } from '../../../../../../game-server/pipeline/world/chunks.ts'
 import type { PipelineFrame, PipelineRules } from '../../model/frame.ts'
 import { darkenHex } from './darken-hex.ts'
 
 const cellSize = 48
+/** Avoid allocating multi-megapixel floor bitmaps on phones (starter AABB is 96×96 cells). */
+const MAX_FLOOR_CACHE_SIDE_PX = 2048
 
 function frameChunks(frame: PipelineFrame, rules: PipelineRules) {
   const originChunk: ChunkCoord = frame.originChunk ?? { cx: 0, cy: 0 }
@@ -19,47 +18,96 @@ function frameChunks(frame: PipelineFrame, rules: PipelineRules) {
   return { originChunk, owned, preview, chunkSize }
 }
 
+function floorCacheKey(frame: PipelineFrame, rules: PipelineRules) {
+  const { originChunk, owned, preview, chunkSize } = frameChunks(frame, rules)
+  const ownedKeys = owned.map((c) => `${c.cx},${c.cy}`).join(';')
+  const previewKeys = preview.map((c) => `${c.cx},${c.cy}`).join(';')
+  return [
+    frame.width,
+    frame.height,
+    chunkSize,
+    originChunk.cx,
+    originChunk.cy,
+    ownedKeys,
+    previewKeys,
+    rules.colorBackground,
+    rules.colorGrid,
+    rules.colorMuted,
+  ].join('|')
+}
+
 /** Draws the floor grid with owned, preview, and void regions. */
 export class GridPainter {
+  private floorCache: HTMLCanvasElement | null = null
+  private floorCacheKey = ''
+
   draw(ctx: CanvasRenderingContext2D, frame: PipelineFrame, rules: PipelineRules) {
-    const { originChunk, owned, preview, chunkSize } = frameChunks(frame, rules)
-    const voidFill = darkenHex(rules.colorBackground, 22)
-
-    ctx.fillStyle = rules.colorBackground
-    ctx.fillRect(0, 0, frame.width * cellSize, frame.height * cellSize)
-
-    for (let y = 0; y < frame.height; y++) {
-      for (let x = 0; x < frame.width; x++) {
-        const state = cellChunkState({ x, y }, owned, preview, originChunk, chunkSize)
-        if (state !== 'void') continue
-        ctx.fillStyle = voidFill
-        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize)
-      }
+    const worldW = frame.width * cellSize
+    const worldH = frame.height * cellSize
+    if (worldW > MAX_FLOOR_CACHE_SIDE_PX || worldH > MAX_FLOOR_CACHE_SIDE_PX) {
+      this.paintFloor(ctx, frame, rules)
+      return
     }
-
-    ctx.strokeStyle = rules.colorGrid
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    for (let y = 0; y < frame.height; y++) {
-      for (let x = 0; x < frame.width; x++) {
-        const state = cellChunkState({ x, y }, owned, preview, originChunk, chunkSize)
-        if (state === 'void') continue
-        const px = x * cellSize + 0.5
-        const py = y * cellSize + 0.5
-        ctx.moveTo(px, py)
-        ctx.lineTo(px + cellSize, py)
-        ctx.moveTo(px, py)
-        ctx.lineTo(px, py + cellSize)
-      }
-    }
-    ctx.stroke()
-
-    this.drawChunkBorders(ctx, originChunk, owned, preview, chunkSize, rules)
+    const cache = this.ensureFloorCache(frame, rules)
+    ctx.drawImage(cache, 0, 0)
   }
 
   drawPreviewOverlay(ctx: CanvasRenderingContext2D, frame: PipelineFrame, rules: PipelineRules) {
     const { originChunk, preview, chunkSize } = frameChunks(frame, rules)
     this.fillPreviewOverlay(ctx, originChunk, preview, chunkSize)
+  }
+
+  private ensureFloorCache(frame: PipelineFrame, rules: PipelineRules) {
+    const key = floorCacheKey(frame, rules)
+    if (this.floorCache && this.floorCacheKey === key) return this.floorCache
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, frame.width * cellSize)
+    canvas.height = Math.max(1, frame.height * cellSize)
+    const off = canvas.getContext('2d')
+    if (!off) return canvas
+    this.paintFloor(off, frame, rules)
+    this.floorCache = canvas
+    this.floorCacheKey = key
+    return canvas
+  }
+
+  private paintFloor(ctx: CanvasRenderingContext2D, frame: PipelineFrame, rules: PipelineRules) {
+    const { originChunk, owned, preview, chunkSize } = frameChunks(frame, rules)
+    const voidFill = darkenHex(rules.colorBackground, 22)
+    const worldW = frame.width * cellSize
+    const worldH = frame.height * cellSize
+
+    ctx.fillStyle = voidFill
+    ctx.fillRect(0, 0, worldW, worldH)
+
+    const playable = [...owned, ...preview]
+    ctx.fillStyle = rules.colorBackground
+    for (const coord of playable) {
+      const lx = (coord.cx - originChunk.cx) * chunkSize
+      const ly = (coord.cy - originChunk.cy) * chunkSize
+      ctx.fillRect(lx * cellSize, ly * cellSize, chunkSize * cellSize, chunkSize * cellSize)
+    }
+
+    ctx.strokeStyle = rules.colorGrid
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    for (const coord of playable) {
+      const lx = (coord.cx - originChunk.cx) * chunkSize
+      const ly = (coord.cy - originChunk.cy) * chunkSize
+      const px = lx * cellSize + 0.5
+      const py = ly * cellSize + 0.5
+      const extent = chunkSize * cellSize
+      for (let i = 0; i <= chunkSize; i++) {
+        const offset = i * cellSize
+        ctx.moveTo(px, py + offset)
+        ctx.lineTo(px + extent, py + offset)
+        ctx.moveTo(px + offset, py)
+        ctx.lineTo(px + offset, py + extent)
+      }
+    }
+    ctx.stroke()
+
+    this.drawChunkBorders(ctx, originChunk, owned, preview, chunkSize, rules)
   }
 
   private drawChunkBorders(

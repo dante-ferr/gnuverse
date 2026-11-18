@@ -50,4 +50,16 @@ export class GridCamera {
     this.x = screenX - before.x * cell * this.zoom
     this.y = screenY - before.y * cell * this.zoom
   }
+
+  /** Inclusive cell AABB visible in the viewport, with an optional cell margin. */
+  visibleCellBounds(viewWidth: number, viewHeight: number, cell: number, margin = 1) {
+    const topLeft = this.world(0, 0, cell)
+    const bottomRight = this.world(viewWidth, viewHeight, cell)
+    return {
+      minX: Math.floor(topLeft.x) - margin,
+      minY: Math.floor(topLeft.y) - margin,
+      maxX: Math.ceil(bottomRight.x) + margin,
+      maxY: Math.ceil(bottomRight.y) + margin,
+    }
+  }
 }

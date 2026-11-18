@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   cellChunkState,
+  cellChunkStateFromSets,
   cellToChunk,
+  chunkKeySet,
   chunkOriginCell,
   chunkInExtent,
   chunkPurchaseCost,
@@ -79,6 +81,20 @@ test('cellChunkState marks owned, preview, and void inside the visible grid', ()
   assert.equal(cellChunkState({ x: 0, y: 0 }, owned, preview, origin, chunkSize), 'owned')
   assert.equal(cellChunkState({ x: 24, y: 0 }, owned, preview, origin, chunkSize), 'preview')
   assert.equal(cellChunkState({ x: 0, y: 24 }, owned, preview, origin, chunkSize), 'void')
+  const ownedKeys = chunkKeySet(owned)
+  const previewKeys = chunkKeySet(preview)
+  assert.equal(
+    cellChunkStateFromSets({ x: 0, y: 0 }, ownedKeys, previewKeys, origin, chunkSize),
+    'owned',
+  )
+  assert.equal(
+    cellChunkStateFromSets({ x: 24, y: 0 }, ownedKeys, previewKeys, origin, chunkSize),
+    'preview',
+  )
+  assert.equal(
+    cellChunkStateFromSets({ x: 0, y: 24 }, ownedKeys, previewKeys, origin, chunkSize),
+    'void',
+  )
 })
 
 test('chunkPurchaseCost is linear from the free starter', () => {

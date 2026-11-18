@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react'
-import type { PipelineFrame, PipelineRules } from '../model/frame.ts'
+import type { BeltRecord, PipelineFrame } from '../model/frame.ts'
 import { getStructure, type StructurePlacementSession, type StructurePlaceRequest } from '../structures'
 import { BeltEraseStroke } from './belt-erase-stroke.ts'
 import { GridCamera } from './grid-camera.ts'
@@ -27,6 +27,9 @@ type Props = {
 
 const KEY_PAN_SPEED = 10
 const PAN_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'])
+const MAX_DEVICE_PIXEL_RATIO = 2
+
+type ViewSize = { width: number; height: number; left: number; top: number }
 
 /** Full-viewport grid. Core requirements sit in the room sidebar. */
 export function PipelineScene({
@@ -52,31 +55,14 @@ export function PipelineScene({
   const packetPainter = useRef(new PacketPainter())
   const readoutPainter = useRef(new ReadoutPainter())
   const packetMotion = useRef(createPacketMotionState())
+  const viewSize = useRef<ViewSize>({ width: 1, height: 1, left: 0, top: 0 })
+  const paintScheduled = useRef(false)
+  const animateFrameId = useRef(0)
   frameRef.current = frame
   rulesRef.current = rules
   editModeRef.current = editMode
   structureIdRef.current = structureId
   onToggleEditModeRef.current = onToggleEditMode
-
-  useEffect(() => {
-    images.current = loadMachineDecor(() => paint())
-    machinePainter.current = new MachinePainter(images.current)
-  }, [])
-
-  useEffect(() => {
-    if (!frame) return
-    cameraRef.current.setWorldSize(frame.width, frame.height)
-  }, [frame?.width, frame?.height])
-
-  useEffect(() => {
-    let frameId = 0
-    const loop = () => {
-      paint()
-      frameId = requestAnimationFrame(loop)
-    }
-    frameId = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(frameId)
-  }, [])
 
   const paint = () => {
     const canvas = canvasRef.current
@@ -85,8 +71,8 @@ export function PipelineScene({
     if (!canvas || !current || !palette) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    const view = canvas.getBoundingClientRect()
-    const ratio = window.devicePixelRatio || 1
+    const view = viewSize.current
+    const ratio = Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO)
     const nextWidth = Math.max(1, Math.floor(view.width * ratio))
     const nextHeight = Math.max(1, Math.floor(view.height * ratio))
     if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
@@ -104,17 +90,77 @@ export function PipelineScene({
     const preview = placement.current?.previewBelts() ?? []
     const timeMs = performance.now()
     syncPacketMotion(packetMotion.current, current, palette, timeMs, cellSize)
-    const belts = visibleBelts(current)
-    const previewKeys = new Set(preview.map((belt) => cellKey(belt)))
+    const bounds = camera.visibleCellBounds(view.width, view.height, cellSize)
+    const belts = cullBelts(visibleBelts(current), bounds)
+    const previewVisible = cullBelts(preview, bounds)
+    const previewKeys = new Set(previewVisible.map((belt) => cellKey(belt)))
     const underPreview = belts.filter((belt) => !previewKeys.has(cellKey(belt)))
-    beltPainter.current.draw(ctx, [...underPreview, ...preview], palette, timeMs)
-    packetPainter.current.draw(ctx, current, belts, palette, packetMotion.current, timeMs)
+    const drawnBelts = [...underPreview, ...previewVisible]
+    beltPainter.current.draw(ctx, drawnBelts, palette, timeMs)
+    const packets = current.packets.filter(
+      (packet) =>
+        packet.x >= bounds.minX &&
+        packet.x <= bounds.maxX &&
+        packet.y >= bounds.minY &&
+        packet.y <= bounds.maxY,
+    )
+    const packetFrame = packets.length === current.packets.length ? current : { ...current, packets }
+    packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs)
     machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs)
     gridPainter.current.drawPreviewOverlay(ctx, current, palette)
     const hover = pinnedBlame.current ?? hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
     readoutPainter.current.draw(ctx, current, palette, hover)
     ctx.restore()
   }
+
+  const requestPaint = () => {
+    if (paintScheduled.current) return
+    paintScheduled.current = true
+    requestAnimationFrame(() => {
+      paintScheduled.current = false
+      paint()
+    })
+  }
+
+  useEffect(() => {
+    images.current = loadMachineDecor(() => requestPaint())
+    machinePainter.current = new MachinePainter(images.current)
+  }, [])
+
+  useEffect(() => {
+    if (!frame) return
+    cameraRef.current.setWorldSize(frame.width, frame.height)
+    requestPaint()
+  }, [frame?.width, frame?.height])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const syncView = () => {
+      const rect = canvas.getBoundingClientRect()
+      viewSize.current = { width: rect.width, height: rect.height, left: rect.left, top: rect.top }
+      requestPaint()
+    }
+    syncView()
+
+    const observer = new ResizeObserver(syncView)
+    observer.observe(canvas)
+    window.addEventListener('scroll', syncView, true)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', syncView, true)
+    }
+  }, [])
+
+  useEffect(() => {
+    const loop = () => {
+      paint()
+      animateFrameId.current = requestAnimationFrame(loop)
+    }
+    animateFrameId.current = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(animateFrameId.current)
+  }, [])
 
   const lastPointer = useRef<{ x: number; y: number } | null>(null)
   const pinnedBlame = useRef<{ x: number; y: number; nickname: string } | null>(null)
@@ -141,7 +187,7 @@ export function PipelineScene({
     if (!current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y)) return
     hiddenBelts.current.add(key)
     onRemove([cell])
-    paint()
+    requestPaint()
   }
 
   const syncHiddenBelts = () => {
@@ -162,17 +208,13 @@ export function PipelineScene({
       if (!cell) continue
       if (current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y)) hiddenBelts.current.delete(key)
     }
-    paint()
+    requestPaint()
   }
 
   useEffect(() => {
     syncHiddenBelts()
-    paint()
+    requestPaint()
   }, [frame])
-
-  useEffect(() => {
-    paint()
-  })
 
   useEffect(() => {
     const typingTarget = (target: EventTarget | null) => {
@@ -214,7 +256,7 @@ export function PipelineScene({
         if (keys.has('s') || keys.has('arrowdown')) dy -= KEY_PAN_SPEED
         if (dx !== 0 || dy !== 0) {
           cameraRef.current.pan(dx, dy)
-          paint()
+          // Animation RAF already paints; no extra paint() here.
         }
       }
       frameId = requestAnimationFrame(tick)
@@ -233,10 +275,9 @@ export function PipelineScene({
   }, [])
 
   const localCell = (event: { clientX: number; clientY: number }) => {
-    const canvas = canvasRef.current
     const current = frameRef.current
-    if (!canvas || !current) return null
-    const view = canvas.getBoundingClientRect()
+    if (!current) return null
+    const view = viewSize.current
     const cell = cameraRef.current.cellAt(event.clientX - view.left, event.clientY - view.top, cellSize)
     if (cell.x < 0 || cell.y < 0 || cell.x >= current.width || cell.y >= current.height) return null
     return cell
@@ -263,7 +304,7 @@ export function PipelineScene({
       longPress.current.fired = true
       longPress.current.timer = null
       placement.current = null
-      paint()
+      requestPaint()
     }, 450)
   }
 
@@ -296,7 +337,7 @@ export function PipelineScene({
     if (!cell || !structure) {
       pinnedBlame.current = null
       placement.current = null
-      paint()
+      requestPaint()
       return
     }
     if (current) {
@@ -341,10 +382,7 @@ export function PipelineScene({
           beginPlace(event, cell)
         }}
         onPointerMove={(event) => {
-          lastPointer.current = { x: event.clientX, y: event.clientY }
-          const canvas = canvasRef.current
-          if (!canvas) return
-          const view = canvas.getBoundingClientRect()
+          const view = viewSize.current
           lastPointer.current = { x: event.clientX - view.left, y: event.clientY - view.top }
           if (pointers.current.size >= 2) {
             const points = [...pointers.current.values()]
@@ -352,14 +390,12 @@ export function PipelineScene({
             const previous = pinchDistance.current
             if (previous) cameraRef.current.zoomAt(view.width / 2, view.height / 2, distance / previous, cellSize)
             pinchDistance.current = distance
-            paint()
             return
           }
           pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
           if (pan.current) {
             cameraRef.current.pan(event.clientX - pan.current.x, event.clientY - pan.current.y)
             pan.current = { x: event.clientX, y: event.clientY }
-            paint()
             return
           }
           const cell = localCell(event)
@@ -374,7 +410,6 @@ export function PipelineScene({
           else if (cell && placement.current) {
             if (placement.current.push(cell)) cancelLongPress()
           }
-          paint()
         }}
         onPointerUp={(event) => {
           if (eraseStroke.current) canvasRef.current?.releasePointerCapture(event.pointerId)
@@ -401,16 +436,14 @@ export function PipelineScene({
             revertPendingRemovals()
           }
           lastPointer.current = null
-          paint()
+          requestPaint()
         }}
         onWheel={(event) => {
           event.preventDefault()
-          const canvas = canvasRef.current
-          if (!canvas) return
-          const view = canvas.getBoundingClientRect()
+          const view = viewSize.current
           const factor = event.deltaY < 0 ? 1.08 : 0.92
           cameraRef.current.zoomAt(event.clientX - view.left, event.clientY - view.top, factor, cellSize)
-          paint()
+          requestPaint()
         }}
       />
     </>
@@ -418,6 +451,15 @@ export function PipelineScene({
 }
 
 const pinchDistance = { current: null as number | null }
+
+type CellBounds = { minX: number; minY: number; maxX: number; maxY: number }
+
+function cullBelts(belts: BeltRecord[], bounds: CellBounds) {
+  return belts.filter(
+    (belt) =>
+      belt.x >= bounds.minX && belt.x <= bounds.maxX && belt.y >= bounds.minY && belt.y <= bounds.maxY,
+  )
+}
 
 function hoverLabel(
   frame: PipelineFrame,
