@@ -2,6 +2,7 @@ import { cellKey } from '../geometry/cell.ts'
 import type { PacketShape } from '../packets/packet.ts'
 import type { Packet } from '../packets/packet.ts'
 import { remainingDemand } from './demands.ts'
+import { mergeInputs } from './merge.ts'
 import type { Match } from './match.ts'
 
 type Move = { packet: Packet; from: string; to: string }
@@ -83,34 +84,68 @@ export class Movement {
     let changed = true
     while (changed) {
       changed = false
-      const counts = new Map<string, number>()
-      for (const move of active) {
-        if (move.to === 'deliver') continue
-        counts.set(move.to, (counts.get(move.to) ?? 0) + 1)
-      }
       const leaving = new Set(active.map((move) => move.from))
+      const byDest = new Map<string, Move[]>()
       const next: Move[] = []
       for (const move of active) {
-        if (move.to !== 'deliver') {
-          if ((counts.get(move.to) ?? 0) > 1) {
-            changed = true
-            continue
-          }
-          const occupant = occupied.get(move.to)
-          if (occupant && !leaving.has(move.to)) {
-            changed = true
-            continue
-          }
-          const reverse = active.find((other) => other.from === move.to && other.to === move.from)
-          if (reverse) {
-            changed = true
-            continue
-          }
+        if (move.to === 'deliver') {
+          next.push(move)
+          continue
         }
-        next.push(move)
+        const occupant = occupied.get(move.to)
+        if (occupant && !leaving.has(move.to)) {
+          changed = true
+          continue
+        }
+        const reverse = active.find((other) => other.from === move.to && other.to === move.from)
+        if (reverse) {
+          changed = true
+          continue
+        }
+        const group = byDest.get(move.to)
+        if (group) group.push(move)
+        else byDest.set(move.to, [move])
+      }
+      for (const [dest, group] of byDest) {
+        const winner = this.pickMergeWinner(dest, group)
+        if (!winner) {
+          changed = true
+          continue
+        }
+        if (group.length > 1) changed = true
+        next.push(winner)
       }
       active = next
     }
     return active
+  }
+
+  /**
+   * Round-robin among up to three NESW inbound belts. Skips empty inputs;
+   * advances `mergeLast` when a packet enters.
+   */
+  private pickMergeWinner(dest: string, group: Move[]): Move | undefined {
+    const [x, y] = dest.split(',').map(Number)
+    const inputs = mergeInputs(this.match, { x: x!, y: y! })
+    const order = inputs.map((belt) => cellKey(belt.origin))
+    const allowed = new Set(order)
+    const eligible = group.filter((move) => allowed.has(move.from))
+    if (eligible.length === 0) return undefined
+
+    const last = this.match.mergeLast[dest]
+    let start = 0
+    if (last) {
+      const idx = order.indexOf(last)
+      if (idx >= 0) start = (idx + 1) % order.length
+    }
+    for (let i = 0; i < order.length; i++) {
+      const key = order[(start + i) % order.length]!
+      const hit = eligible.find((move) => move.from === key)
+      if (hit) {
+        this.match.mergeLast[dest] = hit.from
+        return hit
+      }
+    }
+    return undefined
   }
 }

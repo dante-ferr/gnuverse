@@ -38,6 +38,8 @@ export type PipelineFrame = {
   nextBeltSeq: number
   belts: BeltRecord[]
   packets: PacketRecord[]
+  /** Destination cell key → last inbound cell key that won a merge into it. */
+  mergeLast?: Record<string, string>
   source: {
     id: string
     x: number

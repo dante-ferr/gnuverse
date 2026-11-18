@@ -20,6 +20,8 @@ export class Match {
   belts: BeltMachine[] = []
   packets: Packet[] = []
   collaborators: CollaboratorRecord[] = []
+  /** Destination cell key → last inbound cell key admitted by merge RR. */
+  mergeLast: Record<string, string> = {}
   version = '0.1'
   tickIndex = 0
   deliveries = 0
@@ -129,6 +131,7 @@ export class Match {
         y: packet.cell.y,
         shape: packet.shape,
       })),
+      mergeLast: { ...this.mergeLast },
       source: {
         id: this.source.id,
         x: this.source.origin.x,
@@ -177,6 +180,7 @@ export class Match {
     match.packets = frame.packets.map(
       (packet) => new Packet(packet.id, { x: packet.x, y: packet.y }, packet.shape),
     )
+    match.mergeLast = frame.mergeLast ? { ...frame.mergeLast } : {}
     return match
   }
 }

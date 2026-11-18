@@ -16,6 +16,7 @@ const rules: PipelineRules = {
   colorBackground: '#0e171d',
   colorGrid: '#23343c',
   colorBelt: '#9eb0b7',
+  colorBeltChevron: '#6b7d87',
   colorPacket: '#52d6c9',
   colorCore: '#ffffff',
   colorSource: '#52d6c9',
@@ -157,6 +158,127 @@ test('two packets do not swap and a blocked belt holds its packet', () => {
   match.tick()
   const cells = match.packets.map((packet) => `${packet.id}:${packet.cell.x}`).sort()
   assert.deepEqual(cells, ['a:1', 'b:2'])
+})
+
+test('two belts feeding one free cell admit exactly one packet', () => {
+  const match = Match.create('seed', rules)
+  const y = 2
+  const mid = 2
+  assert.equal(
+    match.place(
+      [
+        { x: 1, y, direction: 'east' },
+        { x: 3, y, direction: 'west' },
+        { x: mid, y, direction: 'north' },
+      ],
+      author,
+    ),
+    null,
+  )
+  match.packets.push(new Packet('a', { x: 1, y }), new Packet('b', { x: 3, y }))
+  match.tick()
+  const atJunction = match.packets.filter((packet) => packet.cell.x === mid && packet.cell.y === y)
+  const stillWaiting = match.packets.filter(
+    (packet) => (packet.cell.x === 1 || packet.cell.x === 3) && packet.cell.y === y,
+  )
+  assert.equal(atJunction.length, 1)
+  assert.equal(atJunction[0]!.id, 'b')
+  assert.equal(stillWaiting.length, 1)
+  assert.equal(stillWaiting[0]!.id, 'a')
+})
+
+test('merge round-robin alternates equally between two inputs', () => {
+  const match = Match.create('seed', rules)
+  const y = 2
+  const mid = 2
+  assert.equal(
+    match.place(
+      [
+        { x: 1, y, direction: 'east' },
+        { x: 3, y, direction: 'west' },
+        { x: mid, y, direction: 'north' },
+        { x: mid, y: y - 1, direction: 'north' },
+      ],
+      author,
+    ),
+    null,
+  )
+  const winners: string[] = []
+  for (let i = 0; i < 4; i++) {
+    match.packets = [new Packet('a', { x: 1, y }), new Packet('b', { x: 3, y })]
+    match.tick()
+    const atJunction = match.packets.find((packet) => packet.cell.x === mid && packet.cell.y === y)
+    assert.ok(atJunction)
+    winners.push(atJunction.id)
+  }
+  assert.deepEqual(winners, ['b', 'a', 'b', 'a'])
+})
+
+test('three-input merge round-robins NESW and rejects a fourth inbound', () => {
+  const match = Match.create('seed', rules)
+  const y = 5
+  const mid = 5
+  assert.equal(
+    match.place(
+      [
+        { x: mid, y: y - 1, direction: 'south' },
+        { x: mid + 1, y, direction: 'west' },
+        { x: mid - 1, y, direction: 'east' },
+        { x: mid, y, direction: 'south' },
+        { x: mid, y: y + 1, direction: 'south' },
+      ],
+      author,
+    ),
+    null,
+  )
+  assert.match(
+    match.place([{ x: mid, y: y + 1, direction: 'north' }], author) ?? '',
+    /3 esteiras/,
+  )
+
+  const winners: string[] = []
+  for (let i = 0; i < 6; i++) {
+    match.packets = [
+      new Packet('n', { x: mid, y: y - 1 }),
+      new Packet('e', { x: mid + 1, y }),
+      new Packet('w', { x: mid - 1, y }),
+    ]
+    match.tick()
+    const atJunction = match.packets.find((packet) => packet.cell.x === mid && packet.cell.y === y)
+    assert.ok(atJunction)
+    winners.push(atJunction.id)
+  }
+  assert.deepEqual(winners, ['n', 'e', 'w', 'n', 'e', 'w'])
+})
+
+test('a merge follows an occupant that clears the junction in the same tick', () => {
+  const match = Match.create('seed', rules)
+  const y = 2
+  const mid = 2
+  assert.equal(
+    match.place(
+      [
+        { x: 1, y, direction: 'east' },
+        { x: 3, y, direction: 'west' },
+        { x: mid, y, direction: 'north' },
+        { x: mid, y: y - 1, direction: 'north' },
+      ],
+      author,
+    ),
+    null,
+  )
+  match.packets.push(
+    new Packet('a', { x: 1, y }),
+    new Packet('b', { x: 3, y }),
+    new Packet('c', { x: mid, y }),
+  )
+  match.tick()
+  assert.deepEqual(
+    match.packets
+      .map((packet) => `${packet.id}:${packet.cell.x},${packet.cell.y}`)
+      .sort(),
+    ['a:1,2', 'b:2,2', 'c:2,1'],
+  )
 })
 
 test('all belts in a stroke are kept without a per-player cap', () => {

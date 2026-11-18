@@ -1,6 +1,7 @@
 import { cellKey } from '../geometry/cell.ts'
-import type { Direction } from '../geometry/direction.ts'
+import { ahead, type Direction } from '../geometry/direction.ts'
 import { BeltMachine } from '../machines/belt-machine.ts'
+import { MERGE_INPUT_MAX, allInboundBelts } from './merge.ts'
 import type { Match } from './match.ts'
 
 type Author = { id: string; nickname: string }
@@ -19,7 +20,7 @@ export class BeltEditor {
     const allowed: Stroke[] = []
     for (const cell of cells) {
       if (this.onMachine(cell)) continue
-      const error = this.validate(cell, author)
+      const error = this.validate(cell, author, allowed)
       if (error) return error
       allowed.push(cell)
     }
@@ -44,11 +45,34 @@ export class BeltEditor {
     return this.match.core.covers(cell) || this.match.source.covers(cell)
   }
 
-  private validate(cell: Stroke, author: Author) {
+  private validate(cell: Stroke, author: Author, pending: Stroke[]) {
     if (!this.match.inBounds(cell)) return 'Fora do mapa.'
     const belt = this.match.beltAt(cell)
     if (belt && belt.authorId !== author.id) return 'Essa esteira é de outra pessoa.'
+    if (this.mergeInputCount(cell, pending) >= MERGE_INPUT_MAX)
+      return 'No máximo 3 esteiras podem apontar para a mesma célula.'
     return null
+  }
+
+  /** Existing + pending inbounds into the cell this stroke entry points at. */
+  private mergeInputCount(cell: Stroke, pending: Stroke[]) {
+    const dest = ahead(cell.x, cell.y, cell.direction)
+    const destKey = cellKey(dest)
+    const fromKey = cellKey(cell)
+    const existing = allInboundBelts(this.match, dest).filter(
+      (belt) => cellKey(belt.origin) !== fromKey,
+    )
+    const pendingKeys = new Set(
+      pending
+        .filter((stroke) => {
+          if (cellKey(stroke) === fromKey) return false
+          const tip = ahead(stroke.x, stroke.y, stroke.direction)
+          return cellKey(tip) === destKey
+        })
+        .map((stroke) => cellKey(stroke)),
+    )
+    const keptExisting = existing.filter((belt) => !pendingKeys.has(cellKey(belt.origin))).length
+    return keptExisting + pendingKeys.size
   }
 
   private write(cell: Stroke, author: Author) {
