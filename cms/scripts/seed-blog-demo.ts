@@ -101,9 +101,10 @@ async function main() {
   try {
     const demoUsers = [
       {
+        // Keep username aligned with HOST_ADMIN_USERNAME so reset/bootstrap login stays predictable.
         email: 'admin@gnuverse.local',
-        username: 'ada_admin',
-        name: 'Ada Admin',
+        username: process.env.HOST_ADMIN_USERNAME?.trim().toLowerCase() || 'admin',
+        name: process.env.HOST_ADMIN_NAME?.trim() || 'Ada Admin',
         role: 'admin' as const,
       },
       {
