@@ -12,7 +12,6 @@ const rules: PipelineRules = {
   tickMs: 250,
   gridWidth: 24,
   gridHeight: 24,
-  tileCap: 25,
   sourcePeriodTicks: 4,
   colorBackground: '#0e171d',
   colorGrid: '#23343c',
@@ -156,8 +155,8 @@ test('two packets do not swap and a blocked belt holds its packet', () => {
   assert.deepEqual(cells, ['a:1', 'b:2'])
 })
 
-test('the oldest belt is recycled past the tile cap', () => {
-  const match = Match.create('seed', { ...rules, tileCap: 2 })
+test('all belts in a stroke are kept without a per-player cap', () => {
+  const match = Match.create('seed', rules)
   const y = 1
   assert.equal(
     match.place(
@@ -170,8 +169,8 @@ test('the oldest belt is recycled past the tile cap', () => {
     ),
     null,
   )
-  assert.equal(match.belts.length, 2)
-  assert.equal(match.beltAt({ x: 0, y }), undefined)
+  assert.equal(match.belts.length, 3)
+  assert.ok(match.beltAt({ x: 0, y }))
   assert.ok(match.beltAt({ x: 2, y }))
 })
 

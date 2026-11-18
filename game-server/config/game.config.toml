@@ -28,7 +28,6 @@ bdfl_veto = false
 tick_ms = 250
 grid_width = 24
 grid_height = 24
-tile_cap = 25
 source_period_ticks = 4
 color_background = "#0e171d"
 color_grid = "#23343c"

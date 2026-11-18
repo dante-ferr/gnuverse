@@ -2,7 +2,6 @@ export type PipelineRules = {
   tickMs: number
   gridWidth: number
   gridHeight: number
-  tileCap: number
   sourcePeriodTicks: number
   colorBackground: string
   colorGrid: string

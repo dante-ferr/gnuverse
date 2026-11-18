@@ -26,7 +26,7 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 ### v0.1 rules
 
 - One **3×3** circle source and a **5×5** central core. Each core face has three input slots on the central tiles. Corners are solid, so the core has 12 inputs. The source has one output on the center of its facing edge.
-- Players drag unidirectional belts. Each cell holds one packet. The oldest belt past the tile cap is removed.
+- Players drag unidirectional belts. Each cell holds one packet.
 - The server moves packets simultaneously. Packets do not swap. An open core slot consumes a circle and counts a delivery.
 - No stability bar and no crash / game over. Deliveries accumulate; later versions keep prior packet demands active so dropping an older supply blocks leveling up rather than ending the match. There is no victory screen yet.
 - All gameplay and presentation numbers live in the `[pipeline]` table and reach the client on the rules payload. Do not hardcode them in TypeScript. `game:dev` watches `game.config.toml` and hot-reloads `[pipeline]` on save (invalid edits keep the previous rules).

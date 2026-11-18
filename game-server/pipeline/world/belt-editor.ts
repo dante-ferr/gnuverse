@@ -6,7 +6,7 @@ import type { Match } from './match.ts'
 type Author = { id: string; nickname: string }
 type Stroke = { x: number; y: number; direction: Direction }
 
-/** Adds and removes belts, including the per-player tile cap. */
+/** Adds and removes belts. */
 export class BeltEditor {
   private match: Match
 
@@ -21,7 +21,6 @@ export class BeltEditor {
       if (error) return error
     }
     for (const cell of cells) this.write(cell, author)
-    this.enforceCap(author.id)
     this.match.noteCollaborator(author)
     return null
   }
@@ -58,19 +57,5 @@ export class BeltEditor {
         placedAt,
       }),
     )
-  }
-
-  private enforceCap(authorId: string) {
-    const own = this.match.belts
-      .filter((belt) => belt.authorId === authorId)
-      .sort((a, b) => a.placedAt - b.placedAt)
-    while (own.length > this.match.rules.tileCap) {
-      const oldest = own.shift()
-      if (!oldest) break
-      this.match.belts = this.match.belts.filter((belt) => belt !== oldest)
-      this.match.packets = this.match.packets.filter(
-        (packet) => cellKey(packet.cell) !== cellKey(oldest.origin),
-      )
-    }
   }
 }

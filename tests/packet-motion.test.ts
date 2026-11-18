@@ -11,7 +11,6 @@ const rules: PipelineRules = {
   tickMs: 250,
   gridWidth: 24,
   gridHeight: 24,
-  tileCap: 25,
   sourcePeriodTicks: 4,
   colorBackground: '#0e171d',
   colorGrid: '#23343c',
