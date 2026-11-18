@@ -1,0 +1,144 @@
+# Open Pipeline element recipe book (design source of truth).
+# Replaces nested geometric shapes. Combiners accept 2 distinct inputs → 1 output.
+# Tier 1 elements are spawned only by sources. Highest tier is 4.
+# UI labels use name_pt. Glyph SVGs (thick outline, simple silhouette) come later.
+
+max_tier = 4
+combiner_inputs = 2
+
+# --- Tier 1: bases (sources) -------------------------------------------------
+
+[[elements]]
+id = "water"
+name_pt = "Água"
+tier = 1
+color = "#4aa8ff"
+
+[[elements]]
+id = "fire"
+name_pt = "Fogo"
+tier = 1
+color = "#ff6b3d"
+
+[[elements]]
+id = "grass"
+name_pt = "Grama"
+tier = 1
+color = "#5ecf6a"
+
+[[elements]]
+id = "earth"
+name_pt = "Terra"
+tier = 1
+color = "#c4a574"
+
+# --- Tier 2: every unordered pair of bases -----------------------------------
+
+[[elements]]
+id = "steam"
+name_pt = "Vapor"
+tier = 2
+color = "#b8d4e8"
+inputs = ["water", "fire"]
+
+[[elements]]
+id = "moss"
+name_pt = "Musgo"
+tier = 2
+color = "#3d8f5a"
+inputs = ["water", "grass"]
+
+[[elements]]
+id = "mud"
+name_pt = "Lama"
+tier = 2
+color = "#8b6914"
+inputs = ["water", "earth"]
+
+[[elements]]
+id = "ash"
+name_pt = "Cinza"
+tier = 2
+color = "#9aa0a6"
+inputs = ["fire", "grass"]
+
+[[elements]]
+id = "lava"
+name_pt = "Lava"
+tier = 2
+color = "#e85d04"
+inputs = ["fire", "earth"]
+
+[[elements]]
+id = "seed"
+name_pt = "Semente"
+tier = 2
+color = "#8fbc5a"
+inputs = ["grass", "earth"]
+
+# --- Tier 3: curated composites ----------------------------------------------
+
+[[elements]]
+id = "cloud"
+name_pt = "Nuvem"
+tier = 3
+color = "#dce6f0"
+inputs = ["steam", "moss"]
+
+[[elements]]
+id = "brick"
+name_pt = "Tijolo"
+tier = 3
+color = "#c45c26"
+inputs = ["mud", "fire"]
+
+[[elements]]
+id = "sprout"
+name_pt = "Broto"
+tier = 3
+color = "#7dcf4a"
+inputs = ["seed", "water"]
+
+[[elements]]
+id = "obsidian"
+name_pt = "Obsidiana"
+tier = 3
+color = "#2a1f3d"
+inputs = ["lava", "water"]
+
+[[elements]]
+id = "charcoal"
+name_pt = "Carvão"
+tier = 3
+color = "#3a3a3a"
+inputs = ["ash", "earth"]
+
+[[elements]]
+id = "clay"
+name_pt = "Argila"
+tier = 3
+color = "#b08968"
+inputs = ["mud", "ash"]
+
+# --- Tier 4: capstones (few; slow to unlock) ---------------------------------
+
+[[elements]]
+id = "storm"
+name_pt = "Tempestade"
+tier = 4
+color = "#5b6abf"
+inputs = ["cloud", "ash"]
+
+[[elements]]
+id = "garden"
+name_pt = "Jardim"
+tier = 4
+color = "#4caf70"
+inputs = ["sprout", "moss"]
+
+[[elements]]
+id = "forge"
+name_pt = "Forja"
+tier = 4
+color = "#d9480f"
+inputs = ["brick", "lava"]

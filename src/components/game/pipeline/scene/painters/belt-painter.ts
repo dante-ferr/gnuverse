@@ -31,8 +31,12 @@ export class BeltPainter {
 }
 
 function enterSide(belt: BeltRecord, byCell: Map<string, BeltRecord>): Direction {
+  const exit = belt.direction
   const sides: Direction[] = ['north', 'south', 'east', 'west']
   for (const side of sides) {
+    // A head-on neighbor on the exit side must not count as entry — that collapses
+    // the track onto one edge (half belt) when a line is partially reversed.
+    if (side === exit) continue
     const neighborPos = ahead(belt.x, belt.y, side)
     const neighbor = byCell.get(`${neighborPos.x},${neighborPos.y}`)
     if (!neighbor) continue

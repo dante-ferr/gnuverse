@@ -55,6 +55,24 @@ Locked presentation and footprints for v0.1 (enforced on `Machine` in `game-serv
 
 Gameplay loop detail: [Rules and design](game/rules.md).
 
+## 10. Open Pipeline elements (replaces nested shapes)
+
+Locked design direction (2026-11-18). Packets are **elements**, not nested geometric shapes. The previous concentric-shape plan (`Circle` / `Triangle` / `Square` / `Diamond`, solid/hollow modifiers) is retired.
+
+| Choice | Rule |
+| :--- | :--- |
+| Identity | Each packet has one element `id` from `game-server/config/elements.toml` |
+| Bases | Tier **1** only — spawned by sources. Four bases: `water`, `fire`, `grass`, `earth` |
+| Combiners | Fixed map machines; **2 distinct** inputs → **1** output. Recipes are config-only (no alternate recipes, no cycles) |
+| Tier formula | `tier(output) = 1 + max(tier(inputs))`. Highest tier is **4** (few capstones; slow to reach) |
+| Discoverability | Every recipe is visible in the room GUI (sidebar / recipe panel). No hidden alchemy |
+| Glyphs | Simple silhouettes with **thick outlines** (SVG). Generate later (Quiver); until then procedural placeholders may stand in |
+| Scope | Ship the element graph **with combiners** (not before). v0.1 may keep the current single circle packet until that slice |
+| Demands | Which bases spawn and which elements the core asks for can be **procedural** per match, constrained to a reachable subgraph of this book; the recipe book itself stays authored in TOML |
+| Metaphor | FOSS analogy stays in the logistics / collaboration format; element flavor does not need a strict software metaphor |
+
+Recipe book and visualizer: [Element recipes](game/elements.md). Edit `elements.toml`, then `npm run elements:graph`.
+
 ## Still open
 
 | Item | When it resolves |
