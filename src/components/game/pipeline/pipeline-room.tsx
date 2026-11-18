@@ -132,7 +132,7 @@ export function PipelineRoom() {
           onDelete={() =>
             feedback.run(async () => {
               await session.api.request(`/api/towers/${lobby.roomId}`, undefined, 'DELETE')
-              lobby.setRoomId('')
+              router.push('/jogo/')
             })
           }
           canAdvance={Boolean(lobby.roomId && isAdmin)}
