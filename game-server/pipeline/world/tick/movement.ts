@@ -1,9 +1,9 @@
-import { cellKey } from '../geometry/cell.ts'
-import type { PacketShape } from '../packets/packet.ts'
-import type { Packet } from '../packets/packet.ts'
-import { remainingDemand } from './demands.ts'
+import { cellKey } from '../../geometry/cell.ts'
+import type { PacketShape } from '../../packets/packet.ts'
+import type { Packet } from '../../packets/packet.ts'
+import { remainingDemand } from '../progression/demands.ts'
+import type { Match } from '../match.ts'
 import { mergeInputs } from './merge.ts'
-import type { Match } from './match.ts'
 
 type Move = { packet: Packet; from: string; to: string }
 

@@ -1,4 +1,4 @@
-import type { Cell } from '../geometry/cell.ts'
+import type { Cell } from '../../geometry/cell.ts'
 
 export type ChunkCoord = { cx: number; cy: number }
 

@@ -1,14 +1,15 @@
-import type { Cell } from '../geometry/cell.ts'
-import { CoreMachine } from '../machines/core-machine.ts'
-import { SourceMachine } from '../machines/source-machine.ts'
-import type { PipelineRules } from '../rules.ts'
+import type { Cell } from '../../geometry/cell.ts'
+import { CoreMachine } from '../../machines/core-machine.ts'
+import { SourceMachine } from '../../machines/source-machine.ts'
+import type { PipelineRules } from '../../rules.ts'
+import { layoutTwoStarterSources } from '../placement/approach.ts'
+import type { PlacedSource } from '../types.ts'
 import {
   previewCoords,
   starterChunkCoord,
   visibleAabb,
   type ChunkCoord,
-} from './chunks.ts'
-import { layoutTwoStarterSources, type PlacedSource } from './map-layout.ts'
+} from './coords.ts'
 
 export type MatchLayout = {
   originChunk: ChunkCoord

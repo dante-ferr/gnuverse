@@ -1,7 +1,7 @@
 import type { Direction } from '../geometry/direction.ts'
 import type { PacketShape } from '../packets/packet.ts'
-import type { CoreDemandRecord } from './demands.ts'
-import type { SourceRole } from './map-layout.ts'
+import type { CoreDemandRecord } from './progression/demands.ts'
+import type { SourceRole } from './types.ts'
 
 export type BeltRecord = {
   id: string

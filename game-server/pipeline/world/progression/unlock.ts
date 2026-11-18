@@ -1,6 +1,5 @@
-import type { PipelineRules } from '../rules.ts'
+import type { Match } from '../match.ts'
 import { coreDemands } from './demands.ts'
-import type { Match } from './match.ts'
 
 /** Parse `major.minor`, increment minor; missing minor treats as `0.1`. */
 export function bumpPipelineVersion(version: string): string {

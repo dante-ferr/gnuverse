@@ -35,14 +35,14 @@ game-server/pipeline/
   geometry/          direction, cell, clearance (generation free pads), seed-rng
   machines/          Machine, Slot, Source (3×3), Core (5×5), Belt
   packets/           Packet (circle only in v0.1)
-  world/             Match, map-layout, chunks, unlock, frame, Movement, Emission, BeltEditor
+  world/             Match, frame, types; chunks/, placement/, tick/, edit/, progression/
   rules.ts           TypeScript mirror of TOML
   load-rules.ts      [pipeline] validation
 ```
 
 **Frame contract:** `PipelineFrame` in `game-server/pipeline/world/frame.ts` — live state on `Room.frame`; history in `Snapshot.frame`. Persisted under `State.rooms` in SQLite JSON (`game-store` still loads a legacy `towers` key when present).
 
-**Match layout:** `Match.create(seed, rules)` centers the core and places the source from `seed` via `map-layout.ts` (clearance-separated procedural placement).
+**Match layout:** `Match.create(seed, rules)` centers the core and places starter fire/water sources from `seed` via `world/chunks/match-layout.ts` and `world/placement/approach.ts` (clearance-separated procedural placement).
 
 ## Actions
 

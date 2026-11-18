@@ -1,5 +1,5 @@
-import type { PacketShape } from '../packets/packet.ts'
-import type { PipelineRules } from '../rules.ts'
+import type { PacketShape } from '../../packets/packet.ts'
+import type { PipelineRules } from '../../rules.ts'
 
 export type CoreDemandRecord = {
   shape: PacketShape

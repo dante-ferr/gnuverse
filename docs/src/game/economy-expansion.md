@@ -97,7 +97,7 @@ When real element sources ship, generation rolls **per source type** using stati
 
 | Concern | Extension point |
 | :--- | :--- |
-| Layout | `map-layout.ts` + `clearance.ts`; sub-seed `${seed}:chunk:${cx},${cy}` |
+| Layout | `world/placement/` (`PlacementField`, approach, chunk-source) + `clearance.ts`; sub-seed `${seed}:chunk:${cx},${cy}` |
 | Frame | Owned + generated/preview sets; `sources[]` (fire, water, …) |
 | Sim | `Match.inBounds` / `BeltEditor` / `Emission` honor owned cells and every source |
 | Client | Dim overlay for preview chunks; sync `GridCamera` from frame size |

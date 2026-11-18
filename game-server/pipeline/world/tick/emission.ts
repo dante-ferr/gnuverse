@@ -1,6 +1,6 @@
-import { cellKey } from '../geometry/cell.ts'
-import { Packet } from '../packets/packet.ts'
-import type { Match } from './match.ts'
+import { cellKey } from '../../geometry/cell.ts'
+import { Packet } from '../../packets/packet.ts'
+import type { Match } from '../match.ts'
 
 /** Emits from each in-play source when its output belt cell is empty. */
 export class Emission {

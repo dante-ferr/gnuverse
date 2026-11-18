@@ -6,7 +6,7 @@ import { CoreMachine } from '../game-server/pipeline/machines/core-machine.ts'
 import { Packet } from '../game-server/pipeline/packets/packet.ts'
 import type { PipelineRules } from '../game-server/pipeline/rules.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
-import { forceAdvance } from '../game-server/pipeline/world/unlock.ts'
+import { forceAdvance } from '../game-server/pipeline/world/progression/unlock.ts'
 
 const rules: PipelineRules = {
   tickMs: 250,

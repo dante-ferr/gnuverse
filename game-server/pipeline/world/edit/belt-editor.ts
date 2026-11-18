@@ -1,8 +1,8 @@
-import { cellKey } from '../geometry/cell.ts'
-import { ahead, type Direction } from '../geometry/direction.ts'
-import { BeltMachine } from '../machines/belt-machine.ts'
-import { MERGE_INPUT_MAX, allInboundBelts } from './merge.ts'
-import type { Match } from './match.ts'
+import { cellKey } from '../../geometry/cell.ts'
+import { ahead, type Direction } from '../../geometry/direction.ts'
+import { BeltMachine } from '../../machines/belt-machine.ts'
+import type { Match } from '../match.ts'
+import { MERGE_INPUT_MAX, allInboundBelts } from '../tick/merge.ts'
 
 type Author = { id: string; nickname: string }
 type Stroke = { x: number; y: number; direction: Direction }

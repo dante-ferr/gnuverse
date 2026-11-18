@@ -48,14 +48,14 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 
 - **Art:** dark grid / light machines; procedural bodies/slots + `color_outline`; decor SVGs tint to a darker tone of each body color (`decor_darken_percent`); `color_decor` is palette-only for future UI; screen-space circle resource = one filled disk (canvas outline); sidebar uses `resource-circle.svg` (single black fill); `decor_stroke_width` on thick decor strokes.
 - **Tests:** [`tests/pipeline-tick.test.ts`](../tests/pipeline-tick.test.ts), [`tests/pipeline-http.test.ts`](../tests/pipeline-http.test.ts), [`tests/pipeline-unlock-http.test.ts`](../tests/pipeline-unlock-http.test.ts).
-- **Unlock:** `game-server/pipeline/world/unlock.ts` — demand milestones only (collaborator gate removed 2026-11-18); auto **0.1 → 0.2**; `POST /api/towers/:id/advance` (admin).
-- **Chunk scaffolding:** `[pipeline]` `chunk_size` / `map_chunk_extent` / `chunk_cost_base` + `chunk_cost_step` (linear buy cost); edge-adjacent preview helpers in `world/chunks.ts` + `tests/pipeline-chunks.test.ts` — 2026-11-18.
-- **Obscured preview chunks:** `chunk-generation.ts` + `Match`/frame `ownedChunks` / `previewChunks`; client dim overlay on preview; starter fire+water + outer circle sources; buy API still TODO — 2026-11-18.
+- **Unlock:** `game-server/pipeline/world/progression/unlock.ts` — demand milestones only (collaborator gate removed 2026-11-18); auto **0.1 → 0.2**; `POST /api/towers/:id/advance` (admin).
+- **Chunk scaffolding:** `[pipeline]` `chunk_size` / `map_chunk_extent` / `chunk_cost_base` + `chunk_cost_step` (linear buy cost); edge-adjacent preview helpers in `world/chunks/coords.ts` + `tests/pipeline-chunks.test.ts` — 2026-11-18.
+- **Obscured preview chunks:** `world/chunks/match-layout.ts` + `Match`/frame `ownedChunks` / `previewChunks`; client dim overlay on preview; starter fire+water + outer circle sources; buy API still TODO — 2026-11-18.
 - **Moderation UI:** `pipeline-moderation.tsx` (sala, suspensão, BDFL).
 - **Room chat:** `Room.chat` in SQLite; `POST /api/towers/:id/chat`; SSE `chat`; sidebar `room-chat.tsx` + `room-collaborators.tsx`.
 - **CMS chat moderation:** `/moderacao-chat`; `GET/DELETE /api/admin/rooms…/chat`; permission `room:chat:moderate`.
-- **Generation clearance:** `geometry/clearance.ts` + `world/map-layout.ts` — per-side pads at match creation — 2026-11-17.
-- **Seeded initial layout:** `geometry/seed-rng.ts` + procedural `layoutInitialMachines` (room seed picks approach + offset; clearance enforced) — 2026-11-17.
+- **Generation clearance:** `geometry/clearance.ts` + `world/placement/` (`PlacementField`, gaps) — per-side pads at match creation — 2026-11-17.
+- **Seeded initial layout:** `geometry/seed-rng.ts` + `layoutTwoStarterSources` in `world/placement/approach.ts` (room seed picks fire/water pair; clearance enforced) — 2026-11-17.
 
 ### Gaps / debt (fix in small PRs, not one blob)
 
@@ -74,7 +74,7 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 
 - [ ] Proposal milestone table still says `3×3` core — update proposal or add errata when user locks 5×5 for v0.1.
 - [x] Dual unlock (demands + collaborators) shipped 2026-11-17; **collaborator gate retired** 2026-11-18 (demand-only auto **0.1 → 0.2**; admin `advance`).
-- [x] Chunk TOML keys + `chunks.ts` helpers/tests; Participantes unlock meter removed — 2026-11-18.
+- [x] Chunk TOML keys + `world/chunks/coords.ts` helpers/tests; Participantes unlock meter removed — 2026-11-18.
 - [ ] **Coins + chunks (runtime):** chunk buy API + wallet spend on place/expand; remaining: exact belt/chunk unit prices beyond `chunk_cost_*` — [economy-expansion.md](economy-expansion.md) / [Decisions §11](../decisions.md#11-coins-and-chunk-expansion).
 - [x] Git blame on belts: desktop hover + ~450ms long-press — 2026-11-17.
 
@@ -87,7 +87,7 @@ game-server/pipeline/
   geometry/          direction, cell, clearance (generation pads), seed-rng
   machines/          Machine, Slot, Source (3×3), Core (5×5), Belt
   packets/           Packet (circle only)
-  world/             Match, map-layout, chunks, unlock, frame, Movement, Emission, BeltEditor
+  world/             Match, frame, types; chunks/, placement/, tick/, edit/, progression/
   rules.ts           TypeScript mirror of TOML
   load-rules.ts      [pipeline] validation
 

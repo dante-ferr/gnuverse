@@ -9,7 +9,7 @@ import { isDirection } from '../pipeline/geometry/direction.ts'
 import { Match } from '../pipeline/world/match.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import { canManageRoom } from '../../core/authz/policy.ts'
-import { forceAdvance } from '../pipeline/world/unlock.ts'
+import { forceAdvance } from '../pipeline/world/progression/unlock.ts'
 
 export class RoomService {
   private store: GameStore

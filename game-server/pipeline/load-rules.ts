@@ -1,5 +1,5 @@
 import type { PipelineRules } from './rules.ts'
-import { layoutMatchFromSeed } from './world/chunk-generation.ts'
+import { layoutMatchFromSeed } from './world/chunks/match-layout.ts'
 
 const defaults = {
   tick_ms: 250,

@@ -9,11 +9,12 @@ import {
 import { CoreMachine } from '../game-server/pipeline/machines/core-machine.ts'
 import { SourceMachine } from '../game-server/pipeline/machines/source-machine.ts'
 import type { PipelineRules } from '../game-server/pipeline/rules.ts'
+import type { Direction } from '../game-server/pipeline/geometry/direction.ts'
+import { layoutTwoStarterSources } from '../game-server/pipeline/world/placement/approach.ts'
 import {
   bodyGapAlongApproach,
   expectedBodyGap,
-  layoutInitialMachines,
-} from '../game-server/pipeline/world/map-layout.ts'
+} from '../game-server/pipeline/world/placement/gaps.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
 
 const rules: PipelineRules = {
@@ -66,6 +67,14 @@ const rules: PipelineRules = {
 
 const author = { id: 'ada', nickname: 'Ada' }
 
+function coreInChunkFor(rules: PipelineRules) {
+  const chunkSize = rules.chunkSize
+  return {
+    x: Math.floor((chunkSize - CoreMachine.size) / 2),
+    y: Math.floor((chunkSize - CoreMachine.size) / 2),
+  }
+}
+
 test('core clearance depths are port counts plus core extra on every side', () => {
   const core = new CoreMachine('core', { x: 0, y: 0 })
   const ports = portCountsBySide(core)
@@ -93,7 +102,7 @@ test('freeRect expands the footprint by depths on all sides including corners', 
 function assertSourceApproachGap(
   coreOrigin: { x: number; y: number },
   sourceOrigin: { x: number; y: number },
-  sourceDirection: ReturnType<typeof layoutInitialMachines>['sourceDirection'],
+  sourceDirection: Direction,
 ) {
   const core = new CoreMachine('core', coreOrigin)
   const source = new SourceMachine(
@@ -117,22 +126,23 @@ function assertSourceApproachGap(
   assert.equal(rectsOverlap(coreFree, sourceFree), false)
 }
 
-function assertClearanceGap(layout: ReturnType<typeof layoutInitialMachines>) {
-  assert.deepEqual(layout.coreOrigin, { x: 9, y: 9 })
-  assertSourceApproachGap(layout.coreOrigin, layout.sourceOrigin, layout.sourceDirection)
-}
-
-test('layoutInitialMachines on 24×24 centers core and separates source by clearance gap', () => {
-  assertClearanceGap(layoutInitialMachines(rules, 'any-seed'))
+test('layoutTwoStarterSources centers core in chunk and separates sources by clearance', () => {
+  const coreInChunk = coreInChunkFor(rules)
+  assert.deepEqual(coreInChunk, { x: 9, y: 9 })
+  const [fire, water] = layoutTwoStarterSources(rules, 'any-seed', coreInChunk, rules.chunkSize)
+  assertSourceApproachGap(coreInChunk, fire.origin, fire.direction)
+  assertSourceApproachGap(coreInChunk, water.origin, water.direction)
 })
 
-test('same seed yields identical layout', () => {
-  const a = layoutInitialMachines(rules, 'room-7f3a')
-  const b = layoutInitialMachines(rules, 'room-7f3a')
+test('same seed yields identical two-source layout', () => {
+  const coreInChunk = coreInChunkFor(rules)
+  const a = layoutTwoStarterSources(rules, 'room-7f3a', coreInChunk, rules.chunkSize)
+  const b = layoutTwoStarterSources(rules, 'room-7f3a', coreInChunk, rules.chunkSize)
   assert.deepEqual(a, b)
 })
 
 test('different seeds can pick different placements', () => {
+  const coreInChunk = coreInChunkFor(rules)
   const seeds = [
     'seed',
     'room-7f3a',
@@ -143,11 +153,10 @@ test('different seeds can pick different placements', () => {
     'north-pick',
     'south-pick',
   ]
-  const layouts = seeds.map((seed) => layoutInitialMachines(rules, seed))
+  const layouts = seeds.map((seed) => layoutTwoStarterSources(rules, seed, coreInChunk, rules.chunkSize))
   const keys = new Set(
-    layouts.map(
-      (layout) =>
-        `${layout.sourceDirection}:${layout.sourceOrigin.x},${layout.sourceOrigin.y}`,
+    layouts.map(([fire, water]) =>
+      `${fire.direction}:${fire.origin.x},${fire.origin.y}|${water.direction}:${water.origin.x},${water.origin.y}`,
     ),
   )
   assert.ok(keys.size >= 2, `expected varied layouts, saw ${[...keys].join('; ')}`)
@@ -155,12 +164,13 @@ test('different seeds can pick different placements', () => {
 
 test('port-only clearance extra 0 yields body gap 4 on default rules size', () => {
   const tight: PipelineRules = { ...rules, coreClearanceExtra: 0 }
-  const layout = layoutInitialMachines(tight, 'gap-four')
-  const core = new CoreMachine('core', layout.coreOrigin)
+  const coreInChunk = coreInChunkFor(tight)
+  const [fire] = layoutTwoStarterSources(tight, 'gap-four', coreInChunk, tight.chunkSize)
+  const core = new CoreMachine('core', coreInChunk)
   const source = new SourceMachine(
     'source',
-    layout.sourceOrigin,
-    layout.sourceDirection,
+    fire.origin,
+    fire.direction,
     'circle',
     tight.sourcePeriodTicks,
   )
@@ -171,9 +181,9 @@ test('port-only clearance extra 0 yields body gap 4 on default rules size', () =
   )
   const sourceDepths = clearanceDepths(portCountsBySide(source), tight.machineClearanceMin)
   const gap = bodyGapAlongApproach(
-    layout.coreOrigin,
-    layout.sourceOrigin,
-    layout.sourceDirection,
+    coreInChunk,
+    fire.origin,
+    fire.direction,
     sourceDepths,
     coreDepths,
   )

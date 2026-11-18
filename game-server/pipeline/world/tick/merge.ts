@@ -1,6 +1,6 @@
-import { ahead, directions, opposite } from '../geometry/direction.ts'
-import type { BeltMachine } from '../machines/belt-machine.ts'
-import type { Match } from './match.ts'
+import { ahead, directions, opposite } from '../../geometry/direction.ts'
+import type { BeltMachine } from '../../machines/belt-machine.ts'
+import type { Match } from '../match.ts'
 
 /** A belt cell accepts at most this many inbound feeders. */
 export const MERGE_INPUT_MAX = 3

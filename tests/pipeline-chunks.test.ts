@@ -12,7 +12,7 @@ import {
   starterChunkCoord,
   visibleAabb,
   type ChunkCoord,
-} from '../game-server/pipeline/world/chunks.ts'
+} from '../game-server/pipeline/world/chunks/coords.ts'
 
 test('starterChunkCoord centers inside an odd or even extent', () => {
   assert.deepEqual(starterChunkCoord(64), { cx: 31, cy: 31 })
