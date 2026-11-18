@@ -23,7 +23,3 @@ Team accounts; 14 reviewed posts; a11y/mobile; collective and individual logbook
 ## 5. Human editorial criteria
 
 Align what reviewers require (sources, tone, cover) beyond API locks.
-
-## 6. Dedicated auth pages
-
-Move login and registration off inline panels into shared pages; every “sign in / register” control redirects there (`AGENTS.md`).

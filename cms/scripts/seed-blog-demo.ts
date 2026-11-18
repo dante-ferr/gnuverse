@@ -157,6 +157,7 @@ async function main() {
         const created = await payload.create({
           collection: 'users',
           overrideAccess: true,
+          disableVerificationEmail: true,
           data: accountData,
         })
         usersByEmail.set(account.email, {

@@ -1,0 +1,61 @@
+name: Deploy site to Vercel
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build static site
+        env:
+          CMS_CONTENT_MODE: live
+          CMS_URL: ${{ secrets.CMS_URL }}
+          NEXT_PUBLIC_CMS_URL: ${{ vars.NEXT_PUBLIC_CMS_URL }}
+          NEXT_PUBLIC_GAME_API_URL: ${{ vars.NEXT_PUBLIC_GAME_API_URL }}
+        run: |
+          if [ -n "$CMS_URL" ]; then
+            npm run build
+          else
+            make setup
+            npm run cms:dev >/tmp/cms-ci.log 2>&1 &
+            CMS_PID=$!
+            trap "pkill -P $CMS_PID 2>/dev/null || true; kill $CMS_PID 2>/dev/null || true" EXIT
+            for i in $(seq 1 60); do
+              if curl -sf "http://localhost:3001/api/articles?limit=1" >/dev/null; then
+                break
+              fi
+              sleep 1
+            done
+            curl -sf "http://localhost:3001/api/articles?limit=1" >/dev/null
+            CMS_CONTENT_MODE=live CMS_URL=http://localhost:3001 npm run build
+          fi
+
+      - name: Deploy static output to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || 'team_yhH9d8e87h4tpnFfAKzC5K3z' }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || 'prj_T9DWXPhrKNYBql4yMp6NnDMG8lmP' }}
+        run: npx --yes vercel@latest deploy out --prod --yes --token="$VERCEL_TOKEN"
