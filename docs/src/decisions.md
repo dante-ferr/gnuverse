@@ -90,33 +90,32 @@ Recipe book and visualizer: [Element recipes](game/elements.md). Edit TOML under
 
 ## 11. Coins and chunk expansion
 
-Direction locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and map expansion](game/economy-expansion.md).
-
-### Locked now
+Locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and map expansion](game/economy-expansion.md).
 
 | Choice | Rule |
 | :--- | :--- |
 | Progression currency | **Coins**, not unique collaborator count |
-| Extra level gate | **None** beyond coin spends / content unlocks (collaborator threshold retired) |
+| Coin pool | **Per-player** account wallet (`WalletService`) |
+| Earn | **Passive regen** now; criteria-based earning later |
+| Version unlock | **Deliveries only** (no collaborator gate, no coin spend to advance) |
 | Spend targets | Conveyors, machines, **area expansion**, later paid actions |
 | Map unit | Square **chunks**; side length `chunk_size` cells in `[pipeline]` |
-| Starter | Exactly **one** owned chunk of that same size at room start |
+| Starter | Exactly **one** owned chunk; always the **central** index `floor((extent−1)/2)` |
+| Starter content | Central **5×5** core + **two** sources reserved for chapter 1 **fire** and **water** (see below) |
+| Starter packets (interim) | Both sources still emit **`circle`** until the element packet slice ships; placement/identity is fire + water |
 | World limit | High extent (e.g. **64×64** chunks) from TOML |
-| Chunk price | Non-linear growth (not `base × n`); exact curve still open |
-| Preview | Features in a ring around owned chunks are **visible but obscured**; not playable until bought |
-| Generation | **Gradual** from room seed: create chunk content the first time it enters the preview set; do not build the full map at room create |
-| Source test layout | Place circle sources across generated chunks while procedural gen is validated |
+| Chunk price | **Linear:** `chunk_cost_base + chunk_cost_step * (ownedCount - 1)` |
+| Preview / buy | Only **edge-adjacent** (orthogonal) neighbors of owned chunks; visible but obscured until bought |
+| Generation | **Gradual** from room seed when a chunk first enters the preview set |
+| Non-starter sources | **Optional** — static per-type spawn chance in TOML (`source_spawn_chance_*_percent`); never mandatory; only on cells outside clearance free-rects (roll not wired until element sources ship) |
+| Clearance | **On** at generation (`machine_clearance_min`, `core_clearance_extra`); belts may use pad cells afterward |
 
-### Still open (need a call before locking code paths)
+### Still open (narrow)
 
-| Choice | Options |
+| Choice | Why it matters |
 | :--- | :--- |
-| Coin pool | Shared room / per-player / hybrid |
-| Coin earn | Deliveries / passive match regen / account wallet / mix |
-| Version `0.1→0.2` | Coins / deliveries only / no version gate / keep demand quotas without collaborators |
-| Cost curve | Exponential in purchase index / quadratic / distance from starter |
-| Buy eligibility | Edge-adjacent only / any preview / any unowned in extent |
-| Starter index | Which chunk holds the core when extent is even |
+| Belt / chunk unit prices | Exact TOML costs for place and expand beyond `chunk_cost_*` |
+| Criteria-based earn rules | Deferred; do not invent bonuses yet |
 
 ## Still open
 
@@ -127,6 +126,6 @@ Direction locked 2026-11-18 (**implementation in progress**). Full write-up: [Co
 | `game-server` hosting with a volume | Before `/jogo/` in production |
 | 14 posts + logbook + accessibility | By delivery (2026-12-02) |
 | Aligned human editorial criteria | Before batch publishing |
-| Coin pool, earn, version gate, chunk cost curve, buy adjacency (§11) | Before shipping economy/expansion gameplay |
+| Place/expand coin prices (§11) | Before shipping economy/expansion gameplay |
 
 Operational detail: [Roadmap](engineering/roadmap.md).

@@ -6,9 +6,16 @@ export class GridCamera {
   private fitted = false
 
   constructor(
-    readonly columns: number,
-    readonly rows: number,
+    private columns: number,
+    private rows: number,
   ) {}
+
+  setWorldSize(columns: number, rows: number) {
+    if (columns === this.columns && rows === this.rows) return
+    this.columns = columns
+    this.rows = rows
+    this.fitted = false
+  }
 
   fit(viewWidth: number, viewHeight: number, cell: number) {
     if (this.fitted || viewWidth < 1 || viewHeight < 1) return

@@ -35,17 +35,14 @@ export class MachinePainter {
     timeMs: number,
   ) {
     const core = new CoreMachine(frame.core.id, { x: frame.core.x, y: frame.core.y })
-    const source = new SourceMachine(
-      frame.source.id,
-      { x: frame.source.x, y: frame.source.y },
-      frame.source.direction,
-      frame.source.shape,
-      1,
-    )
+    const specs = frame.sources?.length ? frame.sources : [frame.source]
     const bracketStyle = slotBracketStyleFromRules(rules)
     this.machine(ctx, core, rules.colorCore, this.images.core, rules, bracketStyle)
-    this.machine(ctx, source, rules.colorSource, this.images.source, rules, bracketStyle)
-    this.drawOrbitingResourceGlyph(ctx, source, frame.source.shape, rules, cameraZoom, timeMs)
+    for (const spec of specs) {
+      const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
+      this.machine(ctx, source, rules.colorSource, this.images.source, rules, bracketStyle)
+      this.drawOrbitingResourceGlyph(ctx, source, spec.shape, rules, cameraZoom, timeMs)
+    }
   }
 
   private machine(

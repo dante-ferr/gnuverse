@@ -16,7 +16,7 @@ const rules: PipelineRules = {
   colorBackground: '#0e171d',
   colorGrid: '#23343c',
   colorBelt: '#9eb0b7',
-  colorBeltChevron: '#6b7d87',
+  colorBeltChevron: '#8499a3',
   colorPacket: '#52d6c9',
   colorCore: '#ffffff',
   colorSource: '#52d6c9',
@@ -43,8 +43,10 @@ const rules: PipelineRules = {
   chunkSize: 24,
   mapChunkExtent: 64,
   chunkCostBase: 5,
-  chunkCostGrowth: 2,
-  chunkPreviewRing: 1,
+  chunkCostStep: 2,
+  sourceSpawnChanceCirclePercent: 0,
+  sourceSpawnChanceFirePercent: 0,
+  sourceSpawnChanceWaterPercent: 0,
   slotInputDepthPercent: 22,
   slotOutputDepthPercent: 34,
   slotBracketThickPercent: 18,
@@ -52,6 +54,12 @@ const rules: PipelineRules = {
 }
 
 const author = { id: 'ada', nickname: 'Ada' }
+
+function ownedStrip(match: Match) {
+  const ox = (match.ownedChunks[0]!.cx - match.originChunk.cx) * rules.chunkSize
+  const oy = (match.ownedChunks[0]!.cy - match.originChunk.cy) * rules.chunkSize
+  return { x0: ox + 1, y: oy + 1 }
+}
 
 function directionBetween(from: Cell, to: Cell): Direction {
   if (to.x > from.x) return 'east'
@@ -143,44 +151,47 @@ test('core stops accepting a shape once its requirement is met', () => {
 
 test('two packets do not swap and a blocked belt holds its packet', () => {
   const match = Match.create('seed', rules)
-  const y = 2
+  const { x0, y } = ownedStrip(match)
   assert.equal(
     match.place(
       [
-        { x: 1, y, direction: 'east' },
-        { x: 2, y, direction: 'west' },
+        { x: x0, y, direction: 'east' },
+        { x: x0 + 1, y, direction: 'west' },
       ],
       author,
     ),
     null,
   )
-  match.packets.push(new Packet('a', { x: 1, y }), new Packet('b', { x: 2, y }))
+  match.packets.push(new Packet('a', { x: x0, y }), new Packet('b', { x: x0 + 1, y }))
   match.tick()
   const cells = match.packets.map((packet) => `${packet.id}:${packet.cell.x}`).sort()
-  assert.deepEqual(cells, ['a:1', 'b:2'])
+  assert.deepEqual(cells, [`a:${x0}`, `b:${x0 + 1}`])
 })
 
 test('two belts feeding one free cell admit exactly one packet', () => {
   const match = Match.create('seed', rules)
-  const y = 2
-  const mid = 2
+  const { x0, y } = ownedStrip(match)
+  const mid = x0 + 1
+  const far = x0 + 2
   assert.equal(
     match.place(
       [
-        { x: 1, y, direction: 'east' },
-        { x: 3, y, direction: 'west' },
+        { x: x0, y, direction: 'east' },
+        { x: far, y, direction: 'west' },
         { x: mid, y, direction: 'north' },
       ],
       author,
     ),
     null,
   )
-  match.packets.push(new Packet('a', { x: 1, y }), new Packet('b', { x: 3, y }))
+  match.packets.push(new Packet('a', { x: x0, y }), new Packet('b', { x: far, y }))
   match.tick()
   const atJunction = match.packets.filter((packet) => packet.cell.x === mid && packet.cell.y === y)
   const stillWaiting = match.packets.filter(
-    (packet) => (packet.cell.x === 1 || packet.cell.x === 3) && packet.cell.y === y,
+    (packet) =>
+      (packet.cell.x === x0 || packet.cell.x === far) && packet.cell.y === y,
   )
+  // NESW order: east feeder (b) before west feeder (a).
   assert.equal(atJunction.length, 1)
   assert.equal(atJunction[0]!.id, 'b')
   assert.equal(stillWaiting.length, 1)
@@ -189,13 +200,14 @@ test('two belts feeding one free cell admit exactly one packet', () => {
 
 test('merge round-robin alternates equally between two inputs', () => {
   const match = Match.create('seed', rules)
-  const y = 2
-  const mid = 2
+  const { x0, y } = ownedStrip(match)
+  const mid = x0 + 1
+  const far = x0 + 2
   assert.equal(
     match.place(
       [
-        { x: 1, y, direction: 'east' },
-        { x: 3, y, direction: 'west' },
+        { x: x0, y, direction: 'east' },
+        { x: far, y, direction: 'west' },
         { x: mid, y, direction: 'north' },
         { x: mid, y: y - 1, direction: 'north' },
       ],
@@ -205,7 +217,10 @@ test('merge round-robin alternates equally between two inputs', () => {
   )
   const winners: string[] = []
   for (let i = 0; i < 4; i++) {
-    match.packets = [new Packet('a', { x: 1, y }), new Packet('b', { x: 3, y })]
+    match.packets = [
+      new Packet('a', { x: x0, y }),
+      new Packet('b', { x: far, y }),
+    ]
     match.tick()
     const atJunction = match.packets.find((packet) => packet.cell.x === mid && packet.cell.y === y)
     assert.ok(atJunction)
@@ -216,14 +231,15 @@ test('merge round-robin alternates equally between two inputs', () => {
 
 test('three-input merge round-robins NESW and rejects a fourth inbound', () => {
   const match = Match.create('seed', rules)
-  const y = 5
-  const mid = 5
+  const { x0, y } = ownedStrip(match)
+  const mid = x0 + 1
+  const far = x0 + 2
   assert.equal(
     match.place(
       [
         { x: mid, y: y - 1, direction: 'south' },
-        { x: mid + 1, y, direction: 'west' },
-        { x: mid - 1, y, direction: 'east' },
+        { x: far, y, direction: 'west' },
+        { x: x0, y, direction: 'east' },
         { x: mid, y, direction: 'south' },
         { x: mid, y: y + 1, direction: 'south' },
       ],
@@ -240,8 +256,8 @@ test('three-input merge round-robins NESW and rejects a fourth inbound', () => {
   for (let i = 0; i < 6; i++) {
     match.packets = [
       new Packet('n', { x: mid, y: y - 1 }),
-      new Packet('e', { x: mid + 1, y }),
-      new Packet('w', { x: mid - 1, y }),
+      new Packet('e', { x: far, y }),
+      new Packet('w', { x: x0, y }),
     ]
     match.tick()
     const atJunction = match.packets.find((packet) => packet.cell.x === mid && packet.cell.y === y)
@@ -253,13 +269,14 @@ test('three-input merge round-robins NESW and rejects a fourth inbound', () => {
 
 test('a merge follows an occupant that clears the junction in the same tick', () => {
   const match = Match.create('seed', rules)
-  const y = 2
-  const mid = 2
+  const { x0, y } = ownedStrip(match)
+  const mid = x0 + 1
+  const far = x0 + 2
   assert.equal(
     match.place(
       [
-        { x: 1, y, direction: 'east' },
-        { x: 3, y, direction: 'west' },
+        { x: x0, y, direction: 'east' },
+        { x: far, y, direction: 'west' },
         { x: mid, y, direction: 'north' },
         { x: mid, y: y - 1, direction: 'north' },
       ],
@@ -268,36 +285,37 @@ test('a merge follows an occupant that clears the junction in the same tick', ()
     null,
   )
   match.packets.push(
-    new Packet('a', { x: 1, y }),
-    new Packet('b', { x: 3, y }),
+    new Packet('a', { x: x0, y }),
+    new Packet('b', { x: far, y }),
     new Packet('c', { x: mid, y }),
   )
   match.tick()
+  // East feeder (b) wins the merge; west (a) waits.
   assert.deepEqual(
     match.packets
       .map((packet) => `${packet.id}:${packet.cell.x},${packet.cell.y}`)
       .sort(),
-    ['a:1,2', 'b:2,2', 'c:2,1'],
+    [`a:${x0},${y}`, `b:${mid},${y}`, `c:${mid},${y - 1}`],
   )
 })
 
 test('all belts in a stroke are kept without a per-player cap', () => {
   const match = Match.create('seed', rules)
-  const y = 1
+  const { x0, y } = ownedStrip(match)
   assert.equal(
     match.place(
       [
-        { x: 0, y, direction: 'east' },
-        { x: 1, y, direction: 'east' },
-        { x: 2, y, direction: 'east' },
+        { x: x0, y, direction: 'east' },
+        { x: x0 + 1, y, direction: 'east' },
+        { x: x0 + 2, y, direction: 'east' },
       ],
       author,
     ),
     null,
   )
   assert.equal(match.belts.length, 3)
-  assert.ok(match.beltAt({ x: 0, y }))
-  assert.ok(match.beltAt({ x: 2, y }))
+  assert.ok(match.beltAt({ x: x0, y }))
+  assert.ok(match.beltAt({ x: x0 + 2, y }))
 })
 
 test('auto unlock bumps 0.1 to 0.2 when delivery milestones are met', () => {
@@ -325,6 +343,39 @@ test('a signed placement cannot cover the core', () => {
     match.place([{ ...cell, direction: 'east' }], author) ?? '',
     /máquina/,
   )
+})
+
+test('Match.create uses chunked grid with one owned and four preview chunks', () => {
+  const match = Match.create('seed', rules)
+  assert.equal(match.width, rules.chunkSize * 3)
+  assert.equal(match.height, rules.chunkSize * 3)
+  assert.equal(match.ownedChunks.length, 1)
+  assert.equal(match.previewChunks.length, 4)
+  assert.equal(match.sources.length, 2)
+})
+
+test('belt placement on a preview chunk is rejected', () => {
+  const match = Match.create('seed', rules)
+  const preview = match.previewChunks[0]!
+  const cell = {
+    x: (preview.cx - match.originChunk.cx) * rules.chunkSize + 2,
+    y: (preview.cy - match.originChunk.cy) * rules.chunkSize + 2,
+  }
+  assert.equal(match.place([{ ...cell, direction: 'east' }], author), 'Área ainda não liberada.')
+  const ownedCell = {
+    x: (match.ownedChunks[0]!.cx - match.originChunk.cx) * rules.chunkSize + 1,
+    y: (match.ownedChunks[0]!.cy - match.originChunk.cy) * rules.chunkSize + 1,
+  }
+  assert.ok(!match.core.covers(ownedCell))
+  assert.equal(match.place([{ ...ownedCell, direction: 'east' }], author), null)
+})
+
+test('non-starter preview chunks need not contain sources', () => {
+  const match = Match.create('layout-preview-empty', rules)
+  assert.equal(match.sources.length, 2)
+  for (const source of match.sources) {
+    assert.equal(match.isOwnedCell(source.origin), true)
+  }
 })
 
 test('a stroke skips machine cells and keeps the rest', () => {

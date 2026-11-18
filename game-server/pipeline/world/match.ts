@@ -6,12 +6,15 @@ import { CoreMachine } from '../machines/core-machine.ts'
 import { SourceMachine } from '../machines/source-machine.ts'
 import { Packet } from '../packets/packet.ts'
 import type { PipelineRules } from '../rules.ts'
-import { layoutInitialMachines } from './map-layout.ts'
+import { cellChunkState } from './chunks.ts'
+import type { ChunkCoord } from './chunks.ts'
+import { layoutMatchFromSeed, machinesFromLayout } from './chunk-generation.ts'
 import { BeltEditor } from './belt-editor.ts'
 import { Emission } from './emission.ts'
 import type { PacketShape } from '../packets/packet.ts'
 import { coreAcceptsShape, coreDemands } from './demands.ts'
-import type { CollaboratorRecord, PipelineFrame } from './frame.ts'
+import type { CollaboratorRecord, PipelineFrame, SourceRecord } from './frame.ts'
+import type { SourceRole } from './map-layout.ts'
 import { Movement } from './movement.ts'
 import { tryAutoUnlock } from './unlock.ts'
 
@@ -32,7 +35,11 @@ export class Match {
   readonly seed: string
   readonly width: number
   readonly height: number
-  readonly source: SourceMachine
+  readonly originChunk: ChunkCoord
+  readonly ownedChunks: ChunkCoord[]
+  readonly previewChunks: ChunkCoord[]
+  readonly sources: SourceMachine[]
+  readonly sourceRoles: Record<string, SourceRole>
   readonly core: CoreMachine
 
   constructor(
@@ -40,31 +47,64 @@ export class Match {
     seed: string,
     width: number,
     height: number,
-    source: SourceMachine,
+    originChunk: ChunkCoord,
+    ownedChunks: ChunkCoord[],
+    previewChunks: ChunkCoord[],
+    sources: SourceMachine[],
+    sourceRoles: Record<string, SourceRole>,
     core: CoreMachine,
   ) {
     this.rules = rules
     this.seed = seed
     this.width = width
     this.height = height
-    this.source = source
+    this.originChunk = originChunk
+    this.ownedChunks = ownedChunks
+    this.previewChunks = previewChunks
+    this.sources = sources
+    this.sourceRoles = sourceRoles
     this.core = core
   }
 
+  /** @deprecated Use `sources`; kept for transitional call sites. */
+  get source(): SourceMachine {
+    return this.sources[0]!
+  }
+
   static create(seed: string, rules: PipelineRules) {
-    const { coreOrigin, sourceOrigin, sourceDirection } = layoutInitialMachines(rules, seed)
+    const layout = layoutMatchFromSeed(rules, seed)
+    const { core, sources, roles } = machinesFromLayout(rules, layout)
     return new Match(
       rules,
       seed,
-      rules.gridWidth,
-      rules.gridHeight,
-      new SourceMachine('source', sourceOrigin, sourceDirection, 'circle', rules.sourcePeriodTicks),
-      new CoreMachine('core', coreOrigin),
+      layout.width,
+      layout.height,
+      layout.originChunk,
+      layout.ownedChunks,
+      layout.previewChunks,
+      sources,
+      roles,
+      core,
     )
   }
 
   inBounds(cell: Cell) {
     return cell.x >= 0 && cell.y >= 0 && cell.x < this.width && cell.y < this.height
+  }
+
+  isOwnedCell(cell: Cell) {
+    return (
+      cellChunkState(cell, this.ownedChunks, this.previewChunks, this.originChunk, this.rules.chunkSize) ===
+      'owned'
+    )
+  }
+
+  inPlayableBounds(cell: Cell) {
+    return this.inBounds(cell) && this.isOwnedCell(cell)
+  }
+
+  sourceEmitsInPlay(source: SourceMachine) {
+    return this.isOwnedCell(source.origin)
   }
 
   beltAt(cell: Cell) {
@@ -102,7 +142,20 @@ export class Match {
     tryAutoUnlock(this)
   }
 
+  private sourceRecords(): SourceRecord[] {
+    return this.sources.map((machine) => ({
+      id: machine.id,
+      x: machine.origin.x,
+      y: machine.origin.y,
+      direction: machine.direction,
+      shape: machine.shape,
+      role: this.sourceRoles[machine.id] ?? 'circle',
+      cooldown: machine.ticksUntilEmit,
+    }))
+  }
+
   toFrame(): PipelineFrame {
+    const sources = this.sourceRecords()
     return {
       kind: 'pipeline',
       version: this.version,
@@ -132,32 +185,49 @@ export class Match {
         shape: packet.shape,
       })),
       mergeLast: { ...this.mergeLast },
-      source: {
-        id: this.source.id,
-        x: this.source.origin.x,
-        y: this.source.origin.y,
-        direction: this.source.direction,
-        shape: this.source.shape,
-        cooldown: this.source.ticksUntilEmit,
-      },
+      originChunk: { ...this.originChunk },
+      ownedChunks: this.ownedChunks.map((coord) => ({ ...coord })),
+      previewChunks: this.previewChunks.map((coord) => ({ ...coord })),
+      sources,
+      source: { ...sources[0]! },
       core: { id: this.core.id, x: this.core.origin.x, y: this.core.origin.y },
     }
   }
 
   static fromFrame(frame: PipelineFrame, rules: PipelineRules) {
+    const legacy = !frame.ownedChunks || frame.ownedChunks.length === 0
+    const originChunk = frame.originChunk ?? { cx: 0, cy: 0 }
+    const ownedChunks = legacy
+      ? [{ cx: originChunk.cx, cy: originChunk.cy }]
+      : frame.ownedChunks.map((coord) => ({ ...coord }))
+    const previewChunks = frame.previewChunks?.map((coord) => ({ ...coord })) ?? []
+
+    const sourceSpecs = frame.sources?.length
+      ? frame.sources
+      : [{ ...frame.source, role: 'circle' as const }]
+    const sourceRoles: Record<string, SourceRole> = {}
+    const sources = sourceSpecs.map((spec) => {
+      sourceRoles[spec.id] = spec.role ?? 'circle'
+      return new SourceMachine(
+        spec.id,
+        { x: spec.x, y: spec.y },
+        spec.direction,
+        spec.shape,
+        rules.sourcePeriodTicks,
+        spec.cooldown,
+      )
+    })
+
     const match = new Match(
       rules,
       frame.seed,
       frame.width,
       frame.height,
-      new SourceMachine(
-        frame.source.id,
-        { x: frame.source.x, y: frame.source.y },
-        frame.source.direction,
-        frame.source.shape,
-        rules.sourcePeriodTicks,
-        frame.source.cooldown,
-      ),
+      originChunk,
+      ownedChunks,
+      previewChunks,
+      sources,
+      sourceRoles,
       new CoreMachine(frame.core.id, { x: frame.core.x, y: frame.core.y }),
     )
     match.version = frame.version ?? '0.1'

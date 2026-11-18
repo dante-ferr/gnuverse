@@ -64,6 +64,11 @@ export function PipelineScene({
   }, [])
 
   useEffect(() => {
+    if (!frame) return
+    cameraRef.current.setWorldSize(frame.width, frame.height)
+  }, [frame?.width, frame?.height])
+
+  useEffect(() => {
     let frameId = 0
     const loop = () => {
       paint()
@@ -105,6 +110,7 @@ export function PipelineScene({
     beltPainter.current.draw(ctx, [...underPreview, ...preview], palette, timeMs)
     packetPainter.current.draw(ctx, current, belts, palette, packetMotion.current, timeMs)
     machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs)
+    gridPainter.current.drawPreviewOverlay(ctx, current, palette)
     const hover = pinnedBlame.current ?? hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
     readoutPainter.current.draw(ctx, current, palette, hover)
     ctx.restore()

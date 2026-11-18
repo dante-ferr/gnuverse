@@ -21,6 +21,10 @@ const emptyFrame = (): PipelineFrame => ({
   packets: [],
   source: { id: 'source', x: 0, y: 0, direction: 'east', shape: 'circle' },
   core: { id: 'core', x: 0, y: 0 },
+  originChunk: { cx: 0, cy: 0 },
+  ownedChunks: [{ cx: 0, cy: 0 }],
+  previewChunks: [],
+  sources: [{ id: 'source', x: 0, y: 0, direction: 'east', shape: 'circle' }],
 })
 
 /** SSE frames, chat, and room detail for one pipeline room. */

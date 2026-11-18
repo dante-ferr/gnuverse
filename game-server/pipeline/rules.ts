@@ -55,10 +55,16 @@ export type PipelineRules = {
   mapChunkExtent: number
   /** Base coin cost for the first purchased chunk (after the free starter). */
   chunkCostBase: number
-  /** Multiplicative growth factor per purchase index (see chunkPurchaseCost). */
-  chunkCostGrowth: number
-  /** Chebyshev ring (in chunk units) of obscured preview around owned chunks. */
-  chunkPreviewRing: number
+  /** Linear increment per further purchase index (see chunkPurchaseCost). */
+  chunkCostStep: number
+  /**
+   * Chance (0–100) to attempt placing a circle source when generating a non-starter chunk.
+   * Reserved until probabilistic spawn is wired; starter layout ignores this.
+   */
+  sourceSpawnChanceCirclePercent: number
+  /** Same for fire (starter fire+water always place; ignore these odds). */
+  sourceSpawnChanceFirePercent: number
+  sourceSpawnChanceWaterPercent: number
   /** Input “[” bracket protrusion as percent of one cell (shallower = recess). */
   slotInputDepthPercent: number
   /** Output bracket protrusion as percent of one cell (deeper = nozzle). */

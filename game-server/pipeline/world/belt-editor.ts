@@ -42,11 +42,13 @@ export class BeltEditor {
   }
 
   private onMachine(cell: { x: number; y: number }) {
-    return this.match.core.covers(cell) || this.match.source.covers(cell)
+    if (this.match.core.covers(cell)) return true
+    return this.match.sources.some((source) => source.covers(cell))
   }
 
   private validate(cell: Stroke, author: Author, pending: Stroke[]) {
     if (!this.match.inBounds(cell)) return 'Fora do mapa.'
+    if (!this.match.isOwnedCell(cell)) return 'Área ainda não liberada.'
     const belt = this.match.beltAt(cell)
     if (belt && belt.authorId !== author.id) return 'Essa esteira é de outra pessoa.'
     if (this.mergeInputCount(cell, pending) >= MERGE_INPUT_MAX)
@@ -71,6 +73,7 @@ export class BeltEditor {
         })
         .map((stroke) => cellKey(stroke)),
     )
+    // Pending may replace an existing inbound on the same origin cell.
     const keptExisting = existing.filter((belt) => !pendingKeys.has(cellKey(belt.origin))).length
     return keptExisting + pendingKeys.size
   }

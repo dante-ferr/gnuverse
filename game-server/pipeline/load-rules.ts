@@ -1,5 +1,5 @@
 import type { PipelineRules } from './rules.ts'
-import { layoutInitialMachines } from './world/map-layout.ts'
+import { layoutMatchFromSeed } from './world/chunk-generation.ts'
 
 const defaults = {
   tick_ms: 250,
@@ -36,8 +36,10 @@ const defaults = {
   chunk_size: 24,
   map_chunk_extent: 64,
   chunk_cost_base: 5,
-  chunk_cost_growth: 2,
-  chunk_preview_ring: 1,
+  chunk_cost_step: 2,
+  source_spawn_chance_circle_percent: 0,
+  source_spawn_chance_fire_percent: 0,
+  source_spawn_chance_water_percent: 0,
   slot_input_depth_percent: 22,
   slot_output_depth_percent: 34,
   slot_bracket_thick_percent: 18,
@@ -63,8 +65,10 @@ const integers = {
   chunk_size: [8, 64],
   map_chunk_extent: [3, 128],
   chunk_cost_base: [0, 1_000_000],
-  chunk_cost_growth: [1, 100],
-  chunk_preview_ring: [1, 8],
+  chunk_cost_step: [0, 1_000_000],
+  source_spawn_chance_circle_percent: [0, 100],
+  source_spawn_chance_fire_percent: [0, 100],
+  source_spawn_chance_water_percent: [0, 100],
   slot_input_depth_percent: [5, 45],
   slot_output_depth_percent: [5, 45],
   slot_bracket_thick_percent: [5, 35],
@@ -106,8 +110,10 @@ const mappings = {
   chunk_size: 'chunkSize',
   map_chunk_extent: 'mapChunkExtent',
   chunk_cost_base: 'chunkCostBase',
-  chunk_cost_growth: 'chunkCostGrowth',
-  chunk_preview_ring: 'chunkPreviewRing',
+  chunk_cost_step: 'chunkCostStep',
+  source_spawn_chance_circle_percent: 'sourceSpawnChanceCirclePercent',
+  source_spawn_chance_fire_percent: 'sourceSpawnChanceFirePercent',
+  source_spawn_chance_water_percent: 'sourceSpawnChanceWaterPercent',
   slot_input_depth_percent: 'slotInputDepthPercent',
   slot_output_depth_percent: 'slotOutputDepthPercent',
   slot_bracket_thick_percent: 'slotBracketThickPercent',
@@ -141,10 +147,10 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
   }
   const rules = result as PipelineRules
   try {
-    layoutInitialMachines(rules, 'config-check')
+    layoutMatchFromSeed(rules, 'config-check')
   } catch {
     throw new Error(
-      'O mapa do pipeline é pequeno demais para o núcleo, a fonte e a folga de segurança',
+      'O mapa do pipeline é pequeno demais para o núcleo, as fontes iniciais e a folga de segurança',
     )
   }
   return rules

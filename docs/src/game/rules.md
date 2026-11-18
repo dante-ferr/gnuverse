@@ -20,7 +20,7 @@ Dark background; machine **bodies** are procedural cell-fit rectangles plus “[
 
 On **0.1**, when every active demand shape reaches its `required` count, the server auto-advances to **0.2** on the next tick. Unique collaborators no longer gate version unlock (presence and blame still use the collaborator list). Administrators can `POST /api/towers/:id/advance`. All **12** core inputs stay open in v0.1.
 
-Growth toward the economy model uses **coins** (belts, machines, chunk expansion). Chunk keys (`chunk_size`, `map_chunk_extent`, `chunk_cost_base`, `chunk_cost_growth`, `chunk_preview_ring`) live in `[pipeline]` for scaffolding; buy API and gradual generation are not shipped yet. Map space is **chunked**, previewed when obscured, and generated gradually from the room seed — see [Coins and map expansion](economy-expansion.md) and [Decisions §11](../decisions.md#11-coins-and-chunk-expansion).
+Growth uses the **per-player wallet** (passive regen; criteria-based earn later) for belts, machines, and chunk expansion. Version unlock stays **deliveries only**. Chunk keys and `source_spawn_chance_*_percent` live in `[pipeline]`; buy API and probabilistic outer-source spawn are not fully shipped yet. Preview/buy is **edge-adjacent only**. The central starter always places **fire** and **water** (still emit **circle**); other chunks may be empty. Clearance pads apply at generation. See [Coins and map expansion](economy-expansion.md) and [Decisions §11](../decisions.md#11-coins-and-chunk-expansion).
 
 Footprints and machine art rules are locked in [Decisions §9](../decisions.md#9-open-pipeline-machines).
 

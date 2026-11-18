@@ -60,8 +60,14 @@ slot_input_depth_percent = 22
 slot_output_depth_percent = 34
 slot_bracket_thick_percent = 18
 slot_flow_mark_depth_percent = 12
-chunk_size = 24
+chunk_size = 32
 map_chunk_extent = 64
 chunk_cost_base = 5
-chunk_cost_growth = 2
-chunk_preview_ring = 1
+chunk_cost_step = 2
+# Chance 0–100 that each source type is attempted when a non-starter chunk is
+# first generated. One roll per type per chunk; on success place on a random
+# origin whose clearance free-rect does not overlap existing machines.
+# Starter fire+water always place (ignore these). Spawn roll not wired yet.
+source_spawn_chance_circle_percent = 0
+source_spawn_chance_fire_percent = 0
+source_spawn_chance_water_percent = 0

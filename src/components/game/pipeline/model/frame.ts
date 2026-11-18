@@ -35,8 +35,10 @@ export type PipelineRules = {
   chunkSize: number
   mapChunkExtent: number
   chunkCostBase: number
-  chunkCostGrowth: number
-  chunkPreviewRing: number
+  chunkCostStep: number
+  sourceSpawnChanceCirclePercent: number
+  sourceSpawnChanceFirePercent: number
+  sourceSpawnChanceWaterPercent: number
   slotInputDepthPercent: number
   slotOutputDepthPercent: number
   slotBracketThickPercent: number
@@ -47,6 +49,20 @@ export type CoreDemandRecord = {
   shape: 'circle'
   received: number
   required: number
+}
+
+export type ChunkCoordRecord = { cx: number; cy: number }
+
+export type SourceRole = 'fire' | 'water' | 'circle'
+
+export type SourceRecord = {
+  id: string
+  x: number
+  y: number
+  direction: Direction
+  shape: 'circle'
+  role?: SourceRole
+  cooldown?: number
 }
 
 export type BeltRecord = {
@@ -72,6 +88,10 @@ export type PipelineFrame = {
   collaborators: { id: string; nickname: string }[]
   belts: BeltRecord[]
   packets: { id: string; x: number; y: number; shape: 'circle' }[]
+  originChunk?: ChunkCoordRecord
+  ownedChunks?: ChunkCoordRecord[]
+  previewChunks?: ChunkCoordRecord[]
+  sources?: SourceRecord[]
   source: { id: string; x: number; y: number; direction: Direction; shape: 'circle' }
   core: { id: string; x: number; y: number }
 }

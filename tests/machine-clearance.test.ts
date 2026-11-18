@@ -51,8 +51,10 @@ const rules: PipelineRules = {
   chunkSize: 24,
   mapChunkExtent: 64,
   chunkCostBase: 5,
-  chunkCostGrowth: 2,
-  chunkPreviewRing: 1,
+  chunkCostStep: 2,
+  sourceSpawnChanceCirclePercent: 0,
+  sourceSpawnChanceFirePercent: 0,
+  sourceSpawnChanceWaterPercent: 0,
   slotInputDepthPercent: 22,
   slotOutputDepthPercent: 34,
   slotBracketThickPercent: 18,
@@ -85,14 +87,16 @@ test('freeRect expands the footprint by depths on all sides including corners', 
   assert.equal(rect.y1 - rect.y0 + 1, 5 + depths.north + depths.south)
 })
 
-function assertClearanceGap(layout: ReturnType<typeof layoutInitialMachines>) {
-  assert.deepEqual(layout.coreOrigin, { x: 9, y: 9 })
-
-  const core = new CoreMachine('core', layout.coreOrigin)
+function assertSourceApproachGap(
+  coreOrigin: { x: number; y: number },
+  sourceOrigin: { x: number; y: number },
+  sourceDirection: ReturnType<typeof layoutInitialMachines>['sourceDirection'],
+) {
+  const core = new CoreMachine('core', coreOrigin)
   const source = new SourceMachine(
     'source',
-    layout.sourceOrigin,
-    layout.sourceDirection,
+    sourceOrigin,
+    sourceDirection,
     'circle',
     rules.sourcePeriodTicks,
   )
@@ -102,19 +106,17 @@ function assertClearanceGap(layout: ReturnType<typeof layoutInitialMachines>) {
     rules.coreClearanceExtra,
   )
   const sourceDepths = clearanceDepths(portCountsBySide(source), rules.machineClearanceMin)
-  const gap = bodyGapAlongApproach(
-    layout.coreOrigin,
-    layout.sourceOrigin,
-    layout.sourceDirection,
-    sourceDepths,
-    coreDepths,
-  )
-  assert.equal(gap, expectedBodyGap(layout.sourceDirection, sourceDepths, coreDepths))
-  assert.equal(gap, 6)
+  const gap = bodyGapAlongApproach(coreOrigin, sourceOrigin, sourceDirection, sourceDepths, coreDepths)
+  assert.equal(gap, expectedBodyGap(sourceDirection, sourceDepths, coreDepths))
 
   const coreFree = freeRect(core.origin, core.width, core.height, coreDepths)
   const sourceFree = freeRect(source.origin, source.width, source.height, sourceDepths)
   assert.equal(rectsOverlap(coreFree, sourceFree), false)
+}
+
+function assertClearanceGap(layout: ReturnType<typeof layoutInitialMachines>) {
+  assert.deepEqual(layout.coreOrigin, { x: 9, y: 9 })
+  assertSourceApproachGap(layout.coreOrigin, layout.sourceOrigin, layout.sourceDirection)
 }
 
 test('layoutInitialMachines on 24×24 centers core and separates source by clearance gap', () => {
@@ -177,13 +179,12 @@ test('port-only clearance extra 0 yields body gap 4 on default rules size', () =
 
 test('Match.create respects clearance layout and allows belts in free-area cells', () => {
   const match = Match.create('seed', rules)
-  assertClearanceGap({
-    coreOrigin: match.core.origin,
-    sourceOrigin: match.source.origin,
-    sourceDirection: match.source.direction,
-  })
+  const fire = match.sources.find((source) => match.sourceRoles[source.id] === 'fire')
+  assert.ok(fire)
+  assertSourceApproachGap(match.core.origin, fire!.origin, fire!.direction)
 
   const westPad = { x: match.core.origin.x - 1, y: match.core.origin.y + 2 }
   assert.ok(!match.core.covers(westPad))
+  assert.ok(match.isOwnedCell(westPad))
   assert.equal(match.place([{ ...westPad, direction: 'east' }], author), null)
 })

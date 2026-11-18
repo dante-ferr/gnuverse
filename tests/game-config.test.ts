@@ -39,14 +39,13 @@ test('loads an explicit TOML path and maps configured values', () => {
 
 test('loads chunk expansion keys in the pipeline table and rejects unknown pipeline keys', () => {
   withToml(
-    '[pipeline]\nchunk_size = 16\nmap_chunk_extent = 32\nchunk_cost_base = 10\nchunk_cost_growth = 3\nchunk_preview_ring = 2\n',
+    '[pipeline]\nchunk_size = 24\nmap_chunk_extent = 32\nchunk_cost_base = 10\nchunk_cost_step = 3\n',
     (configPath) => {
       const { pipeline } = loadGameConfig(configPath)
-      assert.equal(pipeline.chunkSize, 16)
+      assert.equal(pipeline.chunkSize, 24)
       assert.equal(pipeline.mapChunkExtent, 32)
       assert.equal(pipeline.chunkCostBase, 10)
-      assert.equal(pipeline.chunkCostGrowth, 3)
-      assert.equal(pipeline.chunkPreviewRing, 2)
+      assert.equal(pipeline.chunkCostStep, 3)
     },
   )
   assert.throws(() => pipelineRulesFrom({ mystery_pipeline_key: 1 }), /desconhecida: pipeline\.mystery_pipeline_key/)

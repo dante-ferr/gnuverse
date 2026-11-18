@@ -49,7 +49,8 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 - **Art:** dark grid / light machines; procedural bodies/slots + `color_outline`; decor SVGs tint to a darker tone of each body color (`decor_darken_percent`); `color_decor` is palette-only for future UI; screen-space circle resource = one filled disk (canvas outline); sidebar uses `resource-circle.svg` (single black fill); `decor_stroke_width` on thick decor strokes.
 - **Tests:** [`tests/pipeline-tick.test.ts`](../tests/pipeline-tick.test.ts), [`tests/pipeline-http.test.ts`](../tests/pipeline-http.test.ts), [`tests/pipeline-unlock-http.test.ts`](../tests/pipeline-unlock-http.test.ts).
 - **Unlock:** `game-server/pipeline/world/unlock.ts` — demand milestones only (collaborator gate removed 2026-11-18); auto **0.1 → 0.2**; `POST /api/towers/:id/advance` (admin).
-- **Chunk scaffolding:** `[pipeline]` `chunk_size` / `map_chunk_extent` / `chunk_cost_*` / `chunk_preview_ring`; pure helpers in `world/chunks.ts` + `tests/pipeline-chunks.test.ts` — not wired into `Match`/frame yet — 2026-11-18.
+- **Chunk scaffolding:** `[pipeline]` `chunk_size` / `map_chunk_extent` / `chunk_cost_base` + `chunk_cost_step` (linear buy cost); edge-adjacent preview helpers in `world/chunks.ts` + `tests/pipeline-chunks.test.ts` — 2026-11-18.
+- **Obscured preview chunks:** `chunk-generation.ts` + `Match`/frame `ownedChunks` / `previewChunks`; client dim overlay on preview; starter fire+water + outer circle sources; buy API still TODO — 2026-11-18.
 - **Moderation UI:** `pipeline-moderation.tsx` (sala, suspensão, BDFL).
 - **Room chat:** `Room.chat` in SQLite; `POST /api/towers/:id/chat`; SSE `chat`; sidebar `room-chat.tsx` + `room-collaborators.tsx`.
 - **CMS chat moderation:** `/moderacao-chat`; `GET/DELETE /api/admin/rooms…/chat`; permission `room:chat:moderate`.
@@ -74,7 +75,7 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 - [ ] Proposal milestone table still says `3×3` core — update proposal or add errata when user locks 5×5 for v0.1.
 - [x] Dual unlock (demands + collaborators) shipped 2026-11-17; **collaborator gate retired** 2026-11-18 (demand-only auto **0.1 → 0.2**; admin `advance`).
 - [x] Chunk TOML keys + `chunks.ts` helpers/tests; Participantes unlock meter removed — 2026-11-18.
-- [ ] **Coins + chunks (runtime):** wire owned/preview into `Match`/frame; buy API; gradual seed generation; multi-source test layout; coin spend/earn — [economy-expansion.md](economy-expansion.md); blocked on open questions in [Decisions §11](../decisions.md#11-coins-and-chunk-expansion).
+- [ ] **Coins + chunks (runtime):** chunk buy API + wallet spend on place/expand; remaining: exact belt/chunk unit prices beyond `chunk_cost_*` — [economy-expansion.md](economy-expansion.md) / [Decisions §11](../decisions.md#11-coins-and-chunk-expansion).
 - [x] Git blame on belts: desktop hover + ~450ms long-press — 2026-11-17.
 
 ---
@@ -142,6 +143,8 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-18 | Design | Outer sources optional (`source_spawn_chance_*_percent` in TOML); clearance on at gen; spawn roll deferred — §11 |
+| 2026-11-18 | Design | Starter chunk always places fire + water sources; packets stay `circle` until elements ship — §11 / economy-expansion.md |
 | 2026-11-18 | Progression | Collaborator unlock gate removed; chunk config + `chunks.ts` scaffolding; economy/expansion docs (§11) — runtime buy/gen/coins still open |
 | 2026-11-18 | Design | Planned (docs only): 36 elements, tier 5, 3-in/2-out machines with coupled dual eject + half-rate split; ancestry chart layout known-bad — see `elements.md` / decisions §10 |
 | 2026-11-17 | Ops | CMS Moderação do chat (`/moderacao-chat`) deletes/clears via game admin APIs |

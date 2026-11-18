@@ -1,6 +1,7 @@
 import type { Direction } from '../geometry/direction.ts'
 import type { PacketShape } from '../packets/packet.ts'
 import type { CoreDemandRecord } from './demands.ts'
+import type { SourceRole } from './map-layout.ts'
 
 export type BeltRecord = {
   id: string
@@ -21,6 +22,18 @@ export type PacketRecord = {
 
 export type CollaboratorRecord = { id: string; nickname: string }
 
+export type ChunkCoordRecord = { cx: number; cy: number }
+
+export type SourceRecord = {
+  id: string
+  x: number
+  y: number
+  direction: Direction
+  shape: PacketShape
+  role: SourceRole
+  cooldown: number
+}
+
 /** Persisted match. Classes are rebuilt from this on each tick. */
 export type PipelineFrame = {
   kind: 'pipeline'
@@ -40,14 +53,12 @@ export type PipelineFrame = {
   packets: PacketRecord[]
   /** Destination cell key → last inbound cell key that won a merge into it. */
   mergeLast?: Record<string, string>
-  source: {
-    id: string
-    x: number
-    y: number
-    direction: Direction
-    shape: PacketShape
-    cooldown: number
-  }
+  originChunk: ChunkCoordRecord
+  ownedChunks: ChunkCoordRecord[]
+  previewChunks: ChunkCoordRecord[]
+  sources: SourceRecord[]
+  /** First source mirror for legacy readers. */
+  source: Omit<SourceRecord, 'role'> & { role?: SourceRole }
   core: { id: string; x: number; y: number }
 }
 
