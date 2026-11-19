@@ -63,30 +63,39 @@ export class MachinePainter {
     const frameInk = darkenHex(rules.colorCore, rules.decorDarkenPercent)
     drawTintedDecor(ctx, this.images.coreFrame, frameInk, px, py, width, height, this.tintCache)
 
+    // Gears share the core center pivot (SVGs recentered to 256,256).
+    // Outline: lighter than colorOutline, even circular offsets.
     const outerAngle = (2 * Math.PI * timeMs) / rules.coreGearOuterMs
-    drawTintedDecorRotated(
+    const outerInk = rules.colorAccent
+    drawCoreGear(
       ctx,
       this.images.coreGearOuter,
-      rules.colorAccent,
+      outerInk,
+      darkenHex(outerInk, CORE_GEAR_OUTLINE_DARKEN_PERCENT),
       px,
       py,
       width,
       height,
+      CORE_GEAR_OUTER_SCALE,
       outerAngle,
+      rules.outlineWidthPx,
       this.tintCache,
     )
 
     const innerInk = darkenHex(rules.colorAccent, rules.decorDarkenPercent)
     const innerAngle = (-2 * Math.PI * timeMs) / rules.coreGearInnerMs
-    drawTintedDecorRotated(
+    drawCoreGear(
       ctx,
       this.images.coreGearInner,
       innerInk,
+      darkenHex(innerInk, CORE_GEAR_OUTLINE_DARKEN_PERCENT),
       px,
       py,
       width,
       height,
+      CORE_GEAR_INNER_SCALE,
       innerAngle,
+      rules.outlineWidthPx,
       this.tintCache,
     )
   }
@@ -101,6 +110,8 @@ export class MachinePainter {
     const cx = px + width / 2
     const cy = py + height / 2
     const radius = width / 2
+    // Ports under the body so the circle covers the bracket root.
+    this.drawSlotBrackets(ctx, machine, rules.colorSource, rules, bracketStyle)
     ctx.beginPath()
     ctx.arc(cx, cy, radius, 0, Math.PI * 2)
     ctx.fillStyle = rules.colorSource
@@ -108,7 +119,6 @@ export class MachinePainter {
     ctx.strokeStyle = rules.colorOutline
     ctx.lineWidth = rules.outlineWidthPx
     ctx.stroke()
-    this.drawSlotBrackets(ctx, machine, rules.colorSource, rules, bracketStyle)
     const decorInk = darkenHex(rules.colorSource, rules.decorDarkenPercent)
     drawTintedDecor(ctx, this.images.source, decorInk, px, py, width, height, this.tintCache)
   }
@@ -138,12 +148,13 @@ export class MachinePainter {
     width: number,
     height: number,
   ) {
+    // Ports under the body so the plate covers the bracket root.
+    this.drawSlotBrackets(ctx, machine, bodyColor, rules, bracketStyle)
     ctx.fillStyle = bodyColor
     ctx.fillRect(px, py, width, height)
     ctx.strokeStyle = rules.colorOutline
     ctx.lineWidth = rules.outlineWidthPx
     ctx.strokeRect(px, py, width, height)
-    this.drawSlotBrackets(ctx, machine, bodyColor, rules, bracketStyle)
   }
 
   private drawSlotBrackets(
@@ -292,6 +303,16 @@ function drawTintedDecor(
   ctx.drawImage(tinted, x, y, width, height)
 }
 
+/** Fraction of the core footprint used by each gear layer (inner < outer). */
+const CORE_GEAR_OUTER_SCALE = 0.74
+const CORE_GEAR_INNER_SCALE = 0.48
+/** Offset samples around the silhouette for an even, round outline. */
+const CORE_GEAR_OUTLINE_SAMPLES = 24
+/** Outline thickness relative to `outline_width_px` (world px after multiply). */
+const CORE_GEAR_OUTLINE_WIDTH_FACTOR = 1.85
+/** Darken the gear fill to get a lighter outline than `color_outline`. */
+const CORE_GEAR_OUTLINE_DARKEN_PERCENT = 48
+
 function drawTintedDecorRotated(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement | null,
@@ -310,4 +331,37 @@ function drawTintedDecorRotated(
   ctx.rotate(angleRad)
   drawTintedDecor(ctx, image, ink, -width / 2, -height / 2, width, height, cache)
   ctx.restore()
+}
+
+/**
+ * Rotating gear centered in the core footprint.
+ * Outline is an even ring (circular offsets), then the fill sits on top.
+ */
+function drawCoreGear(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | null,
+  fillInk: string,
+  outlineInk: string,
+  px: number,
+  py: number,
+  width: number,
+  height: number,
+  scale: number,
+  angleRad: number,
+  outlineWidthPx: number,
+  cache: Map<string, HTMLCanvasElement>,
+) {
+  const size = Math.min(width, height) * scale
+  const cx = px + width / 2
+  const cy = py + height / 2
+  const x0 = cx - size / 2
+  const y0 = cy - size / 2
+  const outlineRadius = Math.max(outlineWidthPx * CORE_GEAR_OUTLINE_WIDTH_FACTOR, size * 0.03)
+  for (let i = 0; i < CORE_GEAR_OUTLINE_SAMPLES; i++) {
+    const a = (2 * Math.PI * i) / CORE_GEAR_OUTLINE_SAMPLES
+    const ox = Math.cos(a) * outlineRadius
+    const oy = Math.sin(a) * outlineRadius
+    drawTintedDecorRotated(ctx, image, outlineInk, x0 + ox, y0 + oy, size, size, angleRad, cache)
+  }
+  drawTintedDecorRotated(ctx, image, fillInk, x0, y0, size, size, angleRad, cache)
 }
