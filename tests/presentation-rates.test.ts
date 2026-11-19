@@ -34,7 +34,11 @@ test('sourceGlyphShouldOrbit hold window', () => {
 })
 
 test('combinerCraftProgress', () => {
-  assert.equal(combinerCraftProgress(3, 60, 250), 0.25)
+  // 60/min at 250ms → 4 ticks; remaining starts at 3 and counts down.
+  assert.equal(combinerCraftProgress(3, 60, 250, 0), 0)
+  assert.equal(combinerCraftProgress(3, 60, 250, 1), 1 / 3)
+  assert.equal(combinerCraftProgress(2, 60, 250, 0), 1 / 3)
+  assert.equal(combinerCraftProgress(1, 60, 250, 1), 1)
   assert.equal(combinerCraftProgress(0, 60, 250), 1)
   assert.equal(combinerCraftProgress(4, 60, 250), 0)
 })

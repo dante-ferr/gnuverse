@@ -42,13 +42,24 @@ export function sourceGlyphShouldOrbit(
   return timeMs - lastExportAtMs < periodMs + HOLD_TAIL_MS
 }
 
+/**
+ * Craft wheel fill in [0, 1].
+ * `craftRemaining` starts at `total - 1` and counts down each sim tick; `tickPhase`
+ * (0..1 within the current tick, from packet-motion sync) interpolates so the arc
+ * advances smoothly instead of jumping per tick.
+ */
 export function combinerCraftProgress(
   craftRemaining: number,
   recipeRatePerMinute: number,
   tickMs: number,
+  tickPhase = 0,
 ): number {
   const total = ticksForRatePerMinute(recipeRatePerMinute, tickMs)
-  const done = total - craftRemaining
   if (total <= 0) return 0
-  return Math.min(1, Math.max(0, done / total))
+  if (craftRemaining <= 0) return 1
+  const phase = Math.min(1, Math.max(0, tickPhase))
+  // Start frame has remaining = total - 1 → progress 0; last visible tick reaches 1.
+  if (total === 1) return phase
+  const completed = total - craftRemaining - 1 + phase
+  return Math.min(1, Math.max(0, completed / (total - 1)))
 }
