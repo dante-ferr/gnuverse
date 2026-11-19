@@ -23,7 +23,7 @@ export type PacketMotionState = {
   from: Map<string, { x: number; y: number }>
   /** Authoritative cells after the latest frame event. */
   at: Map<string, { x: number; y: number; shape: string }>
-  /** Packets consumed by the core, animating under the machine body. */
+  /** Packets absorbed by a machine input, animating under the machine body. */
   sinks: PacketSink[]
 }
 
@@ -45,14 +45,13 @@ export function syncPacketMotion(
   if (frame.tick === state.lastTick) return
 
   const nextIds = new Set(frame.packets.map((packet) => packet.id))
-  const core = new CoreMachine(frame.core.id, { x: frame.core.x, y: frame.core.y })
 
   for (const [id, prev] of state.at) {
     if (nextIds.has(id)) continue
     const belt = beltAt(frame, prev.x, prev.y)
     if (!belt) continue
     const dest = ahead(prev.x, prev.y, belt.direction)
-    if (!core.slotAt(dest, 'input')) continue
+    if (!isMachineInputCell(frame, dest)) continue
 
     const ghostFrame: PipelineFrame = {
       ...frame,
@@ -145,6 +144,48 @@ function beltAt(frame: PipelineFrame, x: number, y: number) {
   return frame.belts.find((belt) => belt.x === x && belt.y === y)
 }
 
+/** True when `cell` is an input slot that can absorb a packet (core, craft, splitter, tunnel). */
+function isMachineInputCell(frame: PipelineFrame, cell: { x: number; y: number }) {
+  const cores = frame.cores?.length
+    ? frame.cores
+    : [{ id: frame.core.id, x: frame.core.x, y: frame.core.y }]
+  for (const spec of cores) {
+    const core = new CoreMachine(spec.id, { x: spec.x, y: spec.y })
+    if (core.slotAt(cell, 'input')) return true
+  }
+  for (const spec of frame.combiners ?? []) {
+    const machine = new CombinerMachine(
+      spec.id,
+      spec.machineId,
+      { x: spec.x, y: spec.y },
+      spec.facing,
+    )
+    if (machine.slotAt(cell, 'input')) return true
+  }
+  for (const spec of frame.splitters ?? []) {
+    const machine = new SplitterMachine(
+      spec.id,
+      { x: spec.x, y: spec.y },
+      spec.facing,
+      { id: '', nickname: '' },
+    )
+    if (machine.slotAt(cell, 'input')) return true
+  }
+  for (const spec of frame.tunnels ?? []) {
+    if (spec.role !== 'entrance') continue
+    const portal = new TunnelPortalMachine(
+      spec.id,
+      { x: spec.x, y: spec.y },
+      spec.role,
+      spec.pairId,
+      spec.direction,
+      { id: '', nickname: '' },
+    )
+    if (portal.slotAt(cell, 'input')) return true
+  }
+  return false
+}
+
 function cellCenter(x: number, y: number, cellSize: number) {
   return { px: (x + 0.5) * cellSize, py: (y + 0.5) * cellSize }
 }
@@ -190,7 +231,7 @@ export function packetDisplayCenter(
   return { px: lerp(a.px, b.px, coast), py: lerp(a.py, b.py, coast) }
 }
 
-/** Screen-space center while a delivered packet slides into a core input (drawn under machines). */
+/** Screen-space center while a packet slides into a machine input (drawn under machines). */
 export function packetSinkCenter(sink: PacketSink, rules: PipelineRules, nowMs: number) {
   const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
   const t = Math.min(1, Math.max(0, (nowMs - sink.startedAtMs) / tickMs))

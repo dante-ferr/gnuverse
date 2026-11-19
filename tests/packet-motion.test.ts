@@ -104,3 +104,47 @@ test('syncPacketMotion starts a sink when a packet is consumed by the core', () 
   const mid = packetSinkCenter(sink, rules, 1000 + rules.tickMs / 2)
   assert.equal(mid.px, (sink.startPx + sink.endPx) / 2)
 })
+
+test('syncPacketMotion starts a sink when a packet enters a tunnel entrance', () => {
+  const motion = createPacketMotionState()
+  const tunnels = [
+    {
+      id: 't1:in',
+      pairId: 't1',
+      role: 'entrance' as const,
+      x: 5,
+      y: 2,
+      direction: 'east' as const,
+      authorId: 'a',
+      authorNickname: 'n',
+      queue: [null, null],
+    },
+    {
+      id: 't1:out',
+      pairId: 't1',
+      role: 'exit' as const,
+      x: 8,
+      y: 2,
+      direction: 'east' as const,
+      authorId: 'a',
+      authorNickname: 'n',
+    },
+  ]
+  const belts = [
+    { id: 'b0', x: 4, y: 2, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 0 },
+  ]
+  const onBelt = frame(4, [{ id: 'p1', x: 4, y: 2, shape: 'circle' }])
+  onBelt.belts = belts
+  onBelt.tunnels = tunnels
+  syncPacketMotion(motion, onBelt, rules, 1000, cell)
+
+  const absorbed = frame(5, [])
+  absorbed.belts = belts
+  absorbed.tunnels = tunnels
+  syncPacketMotion(motion, absorbed, rules, 1000, cell)
+
+  assert.equal(motion.sinks.length, 1)
+  const sink = motion.sinks[0]!
+  assert.equal(sink.endPx, (5 + 0.5) * cell)
+  assert.equal(sink.endPy, (2 + 0.5) * cell)
+})

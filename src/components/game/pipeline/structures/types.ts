@@ -33,6 +33,8 @@ export type StructureHoverGhost = {
   belts?: StructurePreviewBelt[]
   machine?: StructurePreviewMachine
   machines?: StructurePreviewMachine[]
+  /** Soft cell highlights (e.g. valid tunnel exit range). */
+  hintCells?: GridCell[]
 }
 
 export type StructurePlaceRequest = {
@@ -55,6 +57,8 @@ export type StructurePlacementSession = {
   previewBelts(): StructurePreviewBelt[]
   previewMachine?(): StructurePreviewMachine | null
   previewMachines?(): StructurePreviewMachine[]
+  /** Soft cell highlights while the stroke is active. */
+  previewHintCells?(): GridCell[]
   isEmpty(): boolean
   finish(): StructurePlaceRequest | null
 }
@@ -73,6 +77,11 @@ export type StructureDefinition = {
   commit: (ctx: StructureCommitContext, payload: unknown) => Promise<void>
   /** Hover ghost while selected in create mode (no drag required). */
   hoverGhost?: (cell: GridCell) => StructureHoverGhost | null
+  /**
+   * Soft cell highlights for an in-progress multi-step placement
+   * (for example tunnel exit range after the entrance is chosen).
+   */
+  placementHints?: () => GridCell[]
   /** Cycle facing / belt direction (R key). */
   rotate?: () => void
 }

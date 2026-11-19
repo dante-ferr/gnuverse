@@ -63,6 +63,25 @@ export class GridPainter {
     this.fillPreviewOverlay(ctx, originChunk, preview, chunkSize)
   }
 
+  /** Soft fills for placement range hints (e.g. valid tunnel exits). */
+  drawHintCells(
+    ctx: CanvasRenderingContext2D,
+    cells: { x: number; y: number }[],
+    frame: PipelineFrame,
+    fill: string,
+    alpha = 0.2,
+  ) {
+    if (cells.length === 0) return
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.fillStyle = fill
+    for (const cell of cells) {
+      if (cell.x < 0 || cell.y < 0 || cell.x >= frame.width || cell.y >= frame.height) continue
+      ctx.fillRect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize)
+    }
+    ctx.restore()
+  }
+
   private ensureFloorCache(frame: PipelineFrame, rules: PipelineRules) {
     const key = floorCacheKey(frame, rules)
     if (this.floorCache && this.floorCacheKey === key) return this.floorCache

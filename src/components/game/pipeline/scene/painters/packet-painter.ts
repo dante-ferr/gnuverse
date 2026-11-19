@@ -29,7 +29,8 @@ export class PacketPainter {
   ) {
     const radius = cellSize * 0.22
     const outline = resourceGlyphOutline(rules)
-    const drawDot = (px: number, py: number, shape: PacketShape) => {
+    const drawPacket = (px: number, py: number, shape: PacketShape) => {
+      if (shape !== 'circle' && this.drawElementGlyph(ctx, shape, rules, px, py, outline)) return
       const fill = elementFill(rules, shape) ?? rules.colorPacket
       drawOutlinedResourceDisk(ctx, fill, px, py, radius, outline)
     }
@@ -43,18 +44,14 @@ export class PacketPainter {
       ctx.clip()
       for (const packet of frame.packets) {
         const { px, py } = packetDisplayCenter(packet, frame, rules, motion, timeMs, cellSize)
-        if (packet.shape !== 'circle') {
-          const drew = this.drawElementGlyph(ctx, packet.shape, rules, px, py, outline)
-          if (drew) continue
-        }
-        drawDot(px, py, packet.shape)
+        drawPacket(px, py, packet.shape)
       }
       ctx.restore()
     }
 
     for (const sink of motion.sinks) {
       const { px, py } = packetSinkCenter(sink, rules, timeMs)
-      drawDot(px, py, sink.shape)
+      drawPacket(px, py, sink.shape)
     }
   }
 

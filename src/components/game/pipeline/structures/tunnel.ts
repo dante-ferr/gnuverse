@@ -1,9 +1,11 @@
+import { ahead } from '../../../../../game-server/pipeline/geometry/direction.ts'
 import { tunnelPairGeometry } from '../../../../../game-server/pipeline/machines/tunnel-machine.ts'
 import { cycleCombinerFacing, getCombinerPlaceOptions } from '../combiner-place-options.ts'
 import { getPlacementRules } from '../placement-rules.ts'
 import type { Direction } from '../model/frame.ts'
 import { registerStructure } from './registry.ts'
 import type {
+  GridCell,
   StructureDefinition,
   StructureHoverGhost,
   StructurePlacementSession,
@@ -72,6 +74,21 @@ function exitPlacementValid(
   return tunnelPairGeometry(entrance, exit, facing, tunnelMaxGap()).ok
 }
 
+/**
+ * Exit cells on the travel ray from entrance with gap `1..tunnelMaxGap`
+ * (Factorio-style: exit is `gap + 1` steps ahead).
+ */
+function validExitCells(entrance: GridCell, facing: Direction): GridCell[] {
+  const maxGap = tunnelMaxGap()
+  const cells: GridCell[] = []
+  let tip = entrance
+  for (let step = 1; step <= maxGap + 1; step++) {
+    tip = ahead(tip.x, tip.y, facing)
+    if (step >= 2) cells.push(tip)
+  }
+  return cells
+}
+
 function tunnelPreviewMachines(
   entrance: { x: number; y: number },
   exit: { x: number; y: number } | null,
@@ -108,6 +125,11 @@ function createTunnelSession(): StructurePlacementSession {
       if (!entrance) return []
       return tunnelPreviewMachines(entrance, exit)
     },
+    previewHintCells() {
+      if (!entrance) return []
+      const { facing } = getCombinerPlaceOptions()
+      return validExitCells(entrance, facing)
+    },
     isEmpty() {
       return !entrance && !exit
     },
@@ -140,9 +162,13 @@ function tunnelHoverGhost(cell: { x: number; y: number }): StructureHoverGhost {
       machines: tunnelPreviewMachines(pendingEntrance, cell).map((machine) =>
         machine.tunnelRole === 'exit' ? { ...machine, placementValid: valid } : machine,
       ),
+      hintCells: validExitCells(pendingEntrance, facing),
     }
   }
-  return { machine: previewPortal(cell, 'entrance', facing) }
+  return {
+    machine: previewPortal(cell, 'entrance', facing),
+    hintCells: validExitCells(cell, facing),
+  }
 }
 
 const tunnelStructure: StructureDefinition = {
@@ -152,6 +178,11 @@ const tunnelStructure: StructureDefinition = {
   signInMessage: 'Entre para colocar túneis.',
   createSession: createTunnelSession,
   hoverGhost: tunnelHoverGhost,
+  placementHints: () => {
+    if (!pendingEntrance) return []
+    const { facing } = getCombinerPlaceOptions()
+    return validExitCells(pendingEntrance, facing)
+  },
   rotate: () => {
     cycleCombinerFacing()
   },

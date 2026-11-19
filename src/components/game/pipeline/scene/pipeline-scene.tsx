@@ -162,6 +162,18 @@ export function PipelineScene({
     const packetFrame = packets.length === current.packets.length ? current : { ...current, packets }
     packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs)
     machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs, packetMotion.current)
+    const structureHints =
+      editModeRef.current === 'create'
+        ? (getStructure(structureIdRef.current)?.placementHints?.() ?? [])
+        : []
+    const hintCells = [
+      ...structureHints,
+      ...(hoverGhost?.hintCells ?? []),
+      ...(editModeRef.current === 'create' ? placement.current?.previewHintCells?.() ?? [] : []),
+    ]
+    if (hintCells.length > 0) {
+      gridPainter.current.drawHintCells(ctx, hintCells, current, palette.colorHighlight)
+    }
     const machineGhosts: StructurePreviewMachine[] = [
       ...(hoverGhost?.machines ?? []),
       ...(placement.current?.previewMachines?.() ?? []),
