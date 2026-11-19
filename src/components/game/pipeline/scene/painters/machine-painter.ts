@@ -9,7 +9,19 @@ import { CombinerMachine } from '../../../../../../game-server/pipeline/machines
 import type { PacketShape } from '../../../../../../game-server/pipeline/packets/packet.ts'
 import type { ElementMachineKind, ElementRecord } from '../../../../../../game-server/pipeline/elements/index.ts'
 import { glyphUrlForShape } from '../../model/frame.ts'
-import type { Direction, PipelineFrame, PipelineRules, SourceRecord } from '../../model/frame.ts'
+import type {
+  CombinerRecord,
+  Direction,
+  PipelineFrame,
+  PipelineRules,
+  SourceRecord,
+} from '../../model/frame.ts'
+import {
+  combinerCraftProgress,
+  resolveRecipeRatePerMinute,
+  sourceGlyphShouldOrbit,
+  sourcePeriodMsForGlyph,
+} from '../presentation-rates.ts'
 import type { PacketMotionState } from '../packet-motion.ts'
 import { sourceIsExporting, sourceOutputCell } from '../source-exporting.ts'
 import { darkenHex } from './darken-hex.ts'
@@ -35,6 +47,7 @@ export type MachineDecorImages = {
 export class MachinePainter {
   private readonly tintCache = new Map<string, HTMLCanvasElement>()
   private readonly resourceGlyphPhaseRad = new Map<string, number>()
+  private readonly lastSourceExportAtMs = new Map<string, number>()
   private lastDrawTimeMs = 0
 
   constructor(private readonly images: MachineDecorImages) {}
@@ -44,7 +57,6 @@ export class MachinePainter {
     ctx: CanvasRenderingContext2D,
     spec: {
       machineId: string
-      recipeId: string
       x: number
       y: number
       facing: Direction
@@ -55,7 +67,7 @@ export class MachinePainter {
     const combiner = new CombinerMachine(
       'ghost',
       spec.machineId,
-      spec.recipeId,
+      null,
       { x: spec.x, y: spec.y },
       spec.facing,
     )
@@ -91,7 +103,7 @@ export class MachinePainter {
       const combiner = new CombinerMachine(
         spec.id,
         spec.machineId,
-        spec.recipeId,
+        spec.recipeId ?? null,
         { x: spec.x, y: spec.y },
         spec.facing,
       )
@@ -100,6 +112,7 @@ export class MachinePainter {
       this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
         centerDecor: spec.machineId === 'combiner_3',
       })
+      this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, deltaMs)
     }
     for (const spec of specs) {
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
@@ -107,6 +120,14 @@ export class MachinePainter {
       const glyphId = sourceGlyphId(spec)
       const outputCell = sourceOutputCell(spec)
       const exporting = sourceIsExporting(outputCell, motion)
+      const periodMs = sourcePeriodMsForGlyph(rules, glyphId)
+      if (exporting) this.lastSourceExportAtMs.set(spec.id, timeMs)
+      const shouldOrbit = sourceGlyphShouldOrbit(
+        exporting,
+        this.lastSourceExportAtMs.get(spec.id),
+        timeMs,
+        periodMs,
+      )
       this.drawOrbitingResourceGlyph(
         ctx,
         source,
@@ -115,7 +136,7 @@ export class MachinePainter {
         rules,
         cameraZoom,
         deltaMs,
-        exporting,
+        shouldOrbit,
       )
     }
   }
@@ -253,6 +274,50 @@ export class MachinePainter {
     }
   }
 
+  private drawCombinerCraftOverlay(
+    ctx: CanvasRenderingContext2D,
+    machine: CombinerMachine,
+    spec: CombinerRecord,
+    rules: PipelineRules,
+    cameraZoom: number,
+    timeMs: number,
+    deltaMs: number,
+  ) {
+    if (spec.craftRemaining == null || spec.craftRemaining <= 0 || !spec.recipeId) return
+    const { px, py, width, height } = machineRect(machine)
+    const cx = px + width / 2
+    const cy = py + height / 2
+    const recipeRate = resolveRecipeRatePerMinute(rules, spec.recipeId)
+    const progress = combinerCraftProgress(spec.craftRemaining, recipeRate, rules.tickMs)
+    const wheelRadius = Math.min(width, height) * 0.42
+    ctx.save()
+    ctx.strokeStyle = rules.colorOutline
+    ctx.lineWidth = Math.max(rules.outlineWidthPx, 2)
+    ctx.beginPath()
+    ctx.arc(cx, cy, wheelRadius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+
+    const glyphId = spec.recipeId
+    const worldCx = (machine.origin.x + machine.width / 2) * cellSize
+    const worldCy = (machine.origin.y + machine.height / 2) * cellSize
+    let phase = this.resourceGlyphPhaseRad.get(spec.id) ?? 0
+    if (rules.resourceGlyphOrbitMs > 0) {
+      phase += (2 * Math.PI * deltaMs) / rules.resourceGlyphOrbitMs
+      this.resourceGlyphPhaseRad.set(spec.id, phase)
+    }
+    const ox = Math.cos(phase) * rules.resourceGlyphOrbitPx * 0.6
+    const oy = Math.sin(phase) * rules.resourceGlyphOrbitPx * 0.6
+    const zoom = cameraZoom > 0 ? cameraZoom : 1
+    ctx.save()
+    ctx.translate(worldCx, worldCy)
+    ctx.scale(1 / zoom, 1 / zoom)
+    ctx.translate(ox, oy)
+    this.drawResourceGlyph(ctx, glyphId, rules)
+    ctx.restore()
+    void timeMs
+  }
+
   private drawOrbitingResourceGlyph(
     ctx: CanvasRenderingContext2D,
     machine: Machine,
@@ -261,17 +326,17 @@ export class MachinePainter {
     rules: PipelineRules,
     cameraZoom: number,
     deltaMs: number,
-    exporting: boolean,
+    shouldOrbit: boolean,
   ) {
     const worldCx = (machine.origin.x + machine.width / 2) * cellSize
     const worldCy = (machine.origin.y + machine.height / 2) * cellSize
     let phase = this.resourceGlyphPhaseRad.get(sourceId) ?? 0
-    if (exporting && rules.resourceGlyphOrbitMs > 0) {
+    if (shouldOrbit && rules.resourceGlyphOrbitMs > 0) {
       phase += (2 * Math.PI * deltaMs) / rules.resourceGlyphOrbitMs
       this.resourceGlyphPhaseRad.set(sourceId, phase)
     }
-    const ox = exporting ? Math.cos(phase) * rules.resourceGlyphOrbitPx : 0
-    const oy = exporting ? Math.sin(phase) * rules.resourceGlyphOrbitPx : 0
+    const ox = shouldOrbit ? Math.cos(phase) * rules.resourceGlyphOrbitPx : 0
+    const oy = shouldOrbit ? Math.sin(phase) * rules.resourceGlyphOrbitPx : 0
     const zoom = cameraZoom > 0 ? cameraZoom : 1
     ctx.save()
     ctx.translate(worldCx, worldCy)

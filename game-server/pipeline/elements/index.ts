@@ -13,6 +13,7 @@ export type ElementMachineKind = {
   split_single_across_ports: boolean
   color: string
   decor: string
+  default_rate_per_minute: number
 }
 
 export type ElementChapter = {
@@ -45,11 +46,11 @@ export type ElementRecord = {
   outputs: string[]
   coproduct_of: string | null
   machine: string | null
-  craft_ticks: number | null
+  rate_per_minute: number | null
   productivity: number | null
   demand_chapter: number
   demand_required: number
-  source_period_ticks: number | null
+  source_rate_per_minute: number | null
   source_spawn_chance_percent: number | null
 }
 
@@ -57,7 +58,8 @@ export type ElementRecord = {
 export type ElementCatalogJson = {
   maxTier: number
   retainPriorDemands: boolean
-  defaultCraftTicks: number
+  defaultRatePerMinute: number
+  defaultSourceRatePerMinute: number
   defaultProductivity: number
   defaultGlyphSizePx: number
   defaultStroke: string

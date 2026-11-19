@@ -2,6 +2,10 @@ import type { Cell } from '../../geometry/cell.ts'
 import { ahead, opposite, type Direction } from '../../geometry/direction.ts'
 import { CoreMachine } from '../../machines/core-machine.ts'
 import { SourceMachine } from '../../machines/source-machine.ts'
+import {
+  sourcePeriodTicksForElement,
+  sourcePeriodTicksForRole,
+} from '../../elements/rate.ts'
 import type { PipelineRules } from '../../rules.ts'
 import { collectLayoutCandidates } from '../placement/approach.ts'
 import { PlacementField } from '../placement/field.ts'
@@ -103,7 +107,7 @@ function layoutSandboxTierOneSources(
         candidate.sourceOrigin,
         candidate.sourceDirection,
         el.id,
-        el.source_period_ticks ?? rules.sourcePeriodTicks,
+        sourcePeriodTicksForElement(rules.elements, rules.tickMs, el),
       )
       if (busy.sourceOverlapsOccupied(probe)) continue
       picked = candidate
@@ -118,7 +122,7 @@ function layoutSandboxTierOneSources(
       direction: picked.sourceDirection,
       shape: el.id,
       role: el.id,
-      sourcePeriodTicks: el.source_period_ticks ?? rules.sourcePeriodTicks,
+      sourcePeriodTicks: sourcePeriodTicksForElement(rules.elements, rules.tickMs, el),
     })
     busy.addOccupied({
       kind: 'source',
@@ -151,7 +155,8 @@ export function sandboxMachinesFromLayout(
       spec.origin,
       spec.direction,
       spec.shape,
-      spec.sourcePeriodTicks ?? rules.sourcePeriodTicks,
+      spec.sourcePeriodTicks ??
+        sourcePeriodTicksForRole(rules.elements, rules.tickMs, spec.role),
     )
   })
   return { cores, sources, roles }
