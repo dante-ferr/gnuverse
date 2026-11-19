@@ -18,7 +18,8 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
           <p>
             Ligue as fontes ao núcleo central com esteiras unidirecionais. Cada célula da grade
             comporta um pacote; o servidor move todos a cada tick. As entregas aceitas pelo núcleo
-            aparecem em <strong>Requisitos do núcleo</strong> na aba Jogo.
+            aparecem em <strong>Requisitos do núcleo</strong> na aba Jogo. Clique num requisito
+            para ver a linha de produção.
           </p>
           <p>Entre na sua conta para colocar ou apagar estruturas.</p>
         </section>
@@ -72,7 +73,11 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
         {sandbox ? (
           <section className={styles.section}>
             <h3>Combinadores (sandbox)</h3>
-            <p>Escolha a receita e, no bi-combinador, a orientação no painel <strong>Combinador</strong>. Clique no centro da máquina na grade para posicionar.</p>
+            <p>
+              Ao escolher um combinador, selecione a receita pelo produto de saída. As entradas
+              exigidas vêm só dessa receita. Depois clique no centro da máquina na grade para
+              posicionar.
+            </p>
             <ul className={styles.list} aria-label="Combinadores">
               <li>
                 <span className={styles.key}>Bi-combinador</span>
@@ -80,7 +85,7 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
               </li>
               <li>
                 <span className={styles.key}>Tri-combinador</span>
-                <span>Não gira; a receita define as entradas.</span>
+                <span>A receita define as três entradas e as saídas.</span>
               </li>
             </ul>
           </section>

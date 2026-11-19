@@ -99,7 +99,8 @@ src/components/game/pipeline/
   hooks/             use-pipeline-stream.ts
   scene/             PipelineScene, camera, belt stroke, painters/
   pipeline-room.tsx  top bar + sidebar + canvas
-  core-requirements-sidebar.tsx  version / collaborators / demands
+  core-requirements-sidebar.tsx  version / demands (click → production-line overlay)
+  production-line/               ancestry chart overlay for a requirement
   room-collaborators.tsx         compact avatar + name list
   room-chat.tsx                  per-room chat (SSE + POST)
   pipeline-moderation.tsx        sala ban proposals (BDFL)
@@ -144,6 +145,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-19 | UX | Core requirements clickable → production-line ancestry overlay (`production-line/`); circle fallback; docs §10 / elements.md |
 | 2026-11-18 | Design | Outer sources optional (per-base `source_spawn_chance_percent` in `elements.toml`); clearance on at gen; spawn roll deferred — §11 |
 | 2026-11-18 | Design | Starter chunk places `starter_source_ids` (fire + water); packets stay `circle` until elements ship — §11 / economy-expansion.md |
 | 2026-11-18 | Impl | Shared element catalog loader on `rules.elements`; TOML-driven starters/chapters/machines/presentation — §10 |

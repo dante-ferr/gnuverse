@@ -64,7 +64,7 @@ Locked design direction (2026-11-18; **planned expansion recorded 2026-11-18**, 
 | Choice | Rule |
 | :--- | :--- |
 | Identity | Each packet has one element `id` from TOML under `game-server/config/` |
-| Discoverability | Every recipe is visible in the room GUI (sidebar / recipe panel). No hidden alchemy |
+| Discoverability | Every recipe is visible in the room GUI recipe picker before placing a machine (output listed with its fixed inputs). Core requirements in the Jogo sidebar are clickable and open a production-line ancestry overlay. No hidden alchemy |
 | Glyphs | Simple silhouettes with **thick outlines** (SVG). Generate later (Quiver); until then procedural placeholders may stand in |
 | Scope | Ship the element graph **with combiners** (not before). v0.1 may keep the current single circle packet until that slice |
 | Metaphor | FOSS analogy stays in the logistics / collaboration format; element flavor does not need a strict software metaphor |
@@ -86,7 +86,7 @@ Full detail: [Element recipes](game/elements.md#planned-graph-machines-and-core-
 | Sandbox rooms | Combiner placement + element packets + full-catalog core demands only when `sandbox: true` (prototype, non-production) | Wired |
 | Core demands | Full catalog required by the **last** chapter, not at match start. `demand_chapter` + `[[chapters]]` (`max_new_bases`, `required_multiplier`) in TOML; inputs cannot be demanded later than the craft | Schedule authored; sim TBD |
 | Catalog loader | One shared loader (`game-server/pipeline/elements/load-catalog.mjs`) for game-server and `make elements-serve`. Starters, craft rates, fill/stroke/glyph, `[[machines]]` (`color`, `decor`), and chapter base caps live in TOML — not hardcoded in TS. Core/source body colors stay in `[pipeline]`; core art is layered (`core-frame` + gears), source uses `source-decor.svg` | Wired |
-| Preview graphs | Orthogonal gap routing + highway for long spans; layout sizes from `[preview]` in TOML | Preview tooling updated |
+| Preview graphs | Design preview keeps orthogonal/highway routing (`[preview]` sizes). In-room overlay (`production-line/`) uses glyph icons + name labels, **direct** arrows, and **repeats** non-adjacent inputs in the previous column so edges stay local; legacy `circle` shows a short fallback | Wired (preview + in-room) |
 
 Recipe book and visualizer: [Element recipes](game/elements.md). Edit TOML under `game-server/config/` (`elements.toml` and optional `elements/**/*.toml`), then `make elements-serve` (http://127.0.0.1:3010).
 
