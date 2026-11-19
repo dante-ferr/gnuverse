@@ -5,7 +5,8 @@
 
 max_tier = 5
 retain_prior_demands = true
-default_craft_ticks = 4
+default_rate_per_minute = 60
+default_source_rate_per_minute = 60
 default_productivity = 1
 default_glyph_size_px = 28
 default_stroke = "#0a1014"
@@ -28,6 +29,7 @@ coupled_dual_output = true
 split_single_across_ports = true
 color = "#7ec8e3"
 decor = "pipeline/combiner-2-decor.svg"
+default_rate_per_minute = 60
 
 [[machines]]
 id = "combiner_3"
@@ -38,6 +40,7 @@ coupled_dual_output = true
 split_single_across_ports = true
 color = "#c9a66b"
 decor = "pipeline/combiner-3-decor.svg"
+default_rate_per_minute = 60
 
 
 [[chapters]]
@@ -108,7 +111,6 @@ fill = "#4aa8ff"
 stroke = "#0a1014"
 glyph = "pipeline/elements/water.svg"
 demand_chapter = 1
-source_period_ticks = 4
 source_spawn_chance_percent = 0
 
 [[elements]]
@@ -121,7 +123,6 @@ fill = "#ff6b3d"
 stroke = "#0a1014"
 glyph = "pipeline/elements/fire.svg"
 demand_chapter = 1
-source_period_ticks = 4
 source_spawn_chance_percent = 0
 
 [[elements]]
@@ -134,7 +135,6 @@ fill = "#5ecf6a"
 stroke = "#0a1014"
 glyph = "pipeline/elements/grass.svg"
 demand_chapter = 2
-source_period_ticks = 4
 source_spawn_chance_percent = 15
 
 [[elements]]
@@ -147,7 +147,6 @@ fill = "#c4a574"
 stroke = "#0a1014"
 glyph = "pipeline/elements/earth.svg"
 demand_chapter = 3
-source_period_ticks = 4
 source_spawn_chance_percent = 15
 
 [[elements]]
@@ -160,7 +159,6 @@ fill = "#9ec9d9"
 stroke = "#0a1014"
 glyph = "pipeline/elements/wind.svg"
 demand_chapter = 4
-source_period_ticks = 4
 source_spawn_chance_percent = 12
 
 [[elements]]
@@ -173,7 +171,6 @@ fill = "#8a7f8f"
 stroke = "#0a1014"
 glyph = "pipeline/elements/ore.svg"
 demand_chapter = 7
-source_period_ticks = 4
 source_spawn_chance_percent = 10
 
 # --- Tier 2: 2 inputs → 1 output -------------------------------------------
@@ -190,7 +187,6 @@ glyph = "pipeline/elements/steam.svg"
 demand_chapter = 1
 inputs = ["water", "fire"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -205,7 +201,6 @@ glyph = "pipeline/elements/moss.svg"
 demand_chapter = 2
 inputs = ["water", "grass"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -220,7 +215,6 @@ glyph = "pipeline/elements/mud.svg"
 demand_chapter = 6
 inputs = ["water", "earth"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -235,7 +229,6 @@ glyph = "pipeline/elements/mist.svg"
 demand_chapter = 4
 inputs = ["water", "wind"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -250,7 +243,6 @@ glyph = "pipeline/elements/brine.svg"
 demand_chapter = 7
 inputs = ["water", "ore"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -265,7 +257,6 @@ glyph = "pipeline/elements/ash.svg"
 demand_chapter = 5
 inputs = ["fire", "grass"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -280,7 +271,6 @@ glyph = "pipeline/elements/lava.svg"
 demand_chapter = 6
 inputs = ["fire", "earth"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -295,7 +285,6 @@ glyph = "pipeline/elements/ember.svg"
 demand_chapter = 4
 inputs = ["fire", "wind"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -310,7 +299,6 @@ glyph = "pipeline/elements/slag.svg"
 demand_chapter = 7
 inputs = ["fire", "ore"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -325,7 +313,6 @@ glyph = "pipeline/elements/seed.svg"
 demand_chapter = 3
 inputs = ["grass", "earth"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -340,7 +327,6 @@ glyph = "pipeline/elements/pollen.svg"
 demand_chapter = 8
 inputs = ["grass", "wind"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -355,7 +341,6 @@ glyph = "pipeline/elements/dust.svg"
 demand_chapter = 4
 inputs = ["earth", "wind"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 # --- Tier 3: 2 inputs → 1 output -------------------------------------------
@@ -372,7 +357,6 @@ glyph = "pipeline/elements/cloud.svg"
 demand_chapter = 4
 inputs = ["steam", "mist"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -387,7 +371,6 @@ glyph = "pipeline/elements/brick.svg"
 demand_chapter = 6
 inputs = ["mud", "ash"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -402,7 +385,6 @@ glyph = "pipeline/elements/sprout.svg"
 demand_chapter = 3
 inputs = ["seed", "water"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -417,7 +399,6 @@ glyph = "pipeline/elements/glass.svg"
 demand_chapter = 6
 inputs = ["lava", "dust"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -432,7 +413,6 @@ glyph = "pipeline/elements/charcoal.svg"
 demand_chapter = 6
 inputs = ["ash", "earth"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -447,7 +427,6 @@ glyph = "pipeline/elements/clay.svg"
 demand_chapter = 6
 inputs = ["mud", "moss"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -462,7 +441,6 @@ glyph = "pipeline/elements/crystal.svg"
 demand_chapter = 7
 inputs = ["brine", "ember"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -477,7 +455,6 @@ glyph = "pipeline/elements/alloy.svg"
 demand_chapter = 7
 inputs = ["slag", "ore"]
 machine = "combiner_2"
-craft_ticks = 4
 productivity = 1
 
 # --- Tier 4: 3 inputs → 1 output -------------------------------------------
@@ -494,7 +471,6 @@ glyph = "pipeline/elements/storm.svg"
 demand_chapter = 5
 inputs = ["cloud", "ash", "wind"]
 machine = "combiner_3"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -509,7 +485,6 @@ glyph = "pipeline/elements/forge.svg"
 demand_chapter = 7
 inputs = ["brick", "lava", "slag"]
 machine = "combiner_3"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -524,7 +499,6 @@ glyph = "pipeline/elements/garden.svg"
 demand_chapter = 8
 inputs = ["sprout", "moss", "seed"]
 machine = "combiner_3"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -539,7 +513,6 @@ glyph = "pipeline/elements/battery.svg"
 demand_chapter = 7
 inputs = ["crystal", "ember", "brine"]
 machine = "combiner_3"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -554,7 +527,6 @@ glyph = "pipeline/elements/kiln.svg"
 demand_chapter = 6
 inputs = ["clay", "charcoal", "fire"]
 machine = "combiner_3"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -569,7 +541,6 @@ glyph = "pipeline/elements/lens.svg"
 demand_chapter = 7
 inputs = ["glass", "crystal", "dust"]
 machine = "combiner_3"
-craft_ticks = 4
 productivity = 1
 
 # --- Tier 5: 3 inputs → 2 outputs ------------------------------------------
@@ -587,7 +558,6 @@ demand_chapter = 8
 inputs = ["storm", "ember", "cloud"]
 outputs = ["tempest", "lightning"]
 machine = "combiner_3"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]
@@ -615,7 +585,6 @@ demand_chapter = 8
 inputs = ["forge", "alloy", "ore"]
 outputs = ["foundry", "scrap"]
 machine = "combiner_3"
-craft_ticks = 4
 productivity = 1
 
 [[elements]]

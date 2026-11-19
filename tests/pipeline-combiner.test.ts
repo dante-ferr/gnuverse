@@ -58,9 +58,9 @@ test('combiner crafts steam after craft_ticks when inputs are buffered', () => {
 
 test('dual-output craft ejects coupled or blocks when one port is full', () => {
   const match = Match.createSandbox('dual', rules)
-  const combiner = new CombinerMachine('c1', 'combiner_3', 'tempest', { x: 25, y: 24 }, 'east')
+  const combiner = new CombinerMachine('c1', 'combiner_3', 'kiln', { x: 25, y: 24 }, 'east')
   match.combiners.push(combiner)
-  combiner.pendingOutputs = ['tempest', 'lightning']
+  combiner.pendingOutputs = ['kiln', 'brick']
   const outputs = combiner.orderedOutputSlots()
   for (const slot of outputs) {
     beltAt(match, slot.cell, opposite(slot.travel))
@@ -69,8 +69,8 @@ test('dual-output craft ejects coupled or blocks when one port is full', () => {
   assert.equal(match.packets.length, 2)
   assert.equal(combiner.pendingOutputs, null)
 
-  combiner.pendingOutputs = ['tempest', 'lightning']
-  match.packets.push(new Packet('block', { ...outputs[0]!.cell }, 'tempest'))
+  combiner.pendingOutputs = ['kiln', 'brick']
+  match.packets.push(new Packet('block', { ...outputs[0]!.cell }, 'kiln'))
   match.tick()
   assert.equal(combiner.pendingOutputs?.length, 2)
   assert.equal(match.packets.length, 3)

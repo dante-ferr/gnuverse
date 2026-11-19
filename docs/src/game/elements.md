@@ -7,9 +7,11 @@ Open Pipeline packets are **elements** defined in TOML under `game-server/config
 - Primary book: `game-server/config/elements.toml` (**36** ids, max tier **5**)
 - Optional extras: any `*.toml` under `game-server/config/elements/`
 - Shared loader: `game-server/pipeline/elements/load-catalog.mjs` (also used by the game-server `rules.elements` payload)
-- Globals in TOML: `max_tier`, `retain_prior_demands`, `default_craft_ticks`, `default_productivity`, `default_glyph_size_px`, `default_stroke`, `default_demand_required`, `starter_source_ids`
-- `[[machines]]` (`color`, `decor` under `public/pipeline/` like element glyphs; core/source colors stay in `[pipeline]`), `[[chapters]]` (`max_new_bases`, `required_multiplier`), `[preview]` layout sizes
-- Per element: `fill` / `stroke` / `glyph` / `family` / `sort_key`; bases add `source_period_ticks` and `source_spawn_chance_percent`; crafts add `machine`, `craft_ticks`, `productivity`
+- Globals in TOML: `max_tier`, `retain_prior_demands`, `default_rate_per_minute`, `default_source_rate_per_minute`, `default_productivity`, `default_glyph_size_px`, `default_stroke`, `default_demand_required`, `starter_source_ids`
+- `[[machines]]` (`color`, `decor` under `public/pipeline/` like element glyphs; `default_rate_per_minute`; core/source body colors stay in `[pipeline]`), `[[chapters]]` (`max_new_bases`, `required_multiplier`), `[preview]` layout sizes
+- Per element: `fill` / `stroke` / `glyph` / `family` / `sort_key`; bases add optional `source_rate_per_minute` and `source_spawn_chance_percent` (omit to inherit `default_source_rate_per_minute`); crafts add `machine`, optional `rate_per_minute` (omit to use the machine default), `productivity`
+- Sim converts authored rates with period ms = 60 000 ÷ rate and ticks = max(1, round(period ms ÷ `tick_ms` from `[pipeline]`)). `productivity` stays a separate multiplier — not folded into rate
+- Interim v0.1 **circle** delivery quota uses `default_demand_required`, not a `[pipeline]` key
 - Crafted rows: `inputs` length **2 or 3**; `outputs` defaults to `[id]`, or two ids for dual products
 - Co-products: `coproduct_of = "primary_id"` (no `inputs`); must appear in the primary `outputs`
 - Tier rule: `tier = 1 + max(tier(inputs))`
@@ -37,7 +39,7 @@ Status: **TOML catalog + preview layout updated** (2026-11-18). **Sandbox-first*
 | Max tier | **5** | Authored |
 | Core quota | Across match progression, **every** element appears in core demand at least once | Chapter schedule authored in TOML; sim not wired yet |
 
-The core does **not** demand the whole low-tier book at match start. Chapter schedule and `max_new_bases` live in TOML (`retain_prior_demands` keeps older demands active). The current book opens with water, fire, and steam, then adds branches gradually; pollen and garden wait until chapter 8. The recipe page lists each chapter under **Quando o núcleo pede cada elemento**.
+The core does **not** demand the whole low-tier book at match start. Chapter schedule and `max_new_bases` live in TOML (`retain_prior_demands` keeps older demands active). The current book opens with water, fire, and steam, then adds branches gradually. Pollen and garden wait until chapter 8, with the two capstones that consume tier-4 byproducts. The recipe page lists each chapter under **Quando o núcleo pede cada elemento**.
 
 ### Crafting by tier (planned)
 
@@ -45,10 +47,20 @@ The core does **not** demand the whole low-tier book at match start. Chapter sch
 | :--- | :--- | :--- |
 | 1 | Sources only | Bases; no combiner inputs |
 | 2–3 | **2 inputs → 1 output** | Default combiner; keep recipes obvious |
-| 4 | **3 inputs → 1 output** (machine has 2 out ports) | See dual-port rules below |
-| 5 | **3 inputs → 1 or 2 outputs** | Capstone tier; slow to unlock |
+| 4 | **3 inputs → 1 output, or 1 output + 1 byproduct** | Byproducts are born on the spare port |
+| 5 | **3 inputs → 1 output** | Capstone. Consumes at least one tier-4 byproduct |
 
-Tier of a crafted packet still follows ancestry depth (exact formula may be restated when the 36-id graph is authored). No recipe cycles. No alternate recipes for the same output until explicitly allowed later.
+Tier of a crafted packet is `tier = 1 + max(tier(inputs))`. A co-product shares the primary's tier. No recipe cycles. No alternate recipes for the same output until explicitly allowed later.
+
+Byproducts are the second output of a tier-4 craft (`outputs` plus `coproduct_of`). Each one is an input of a tier-5 capstone.
+
+| Tier-4 craft | Byproduct | Tier-5 consumer |
+| :--- | :--- | :--- |
+| Storm (`cloud + ash + ember`) | Lightning | Tempest (`storm + lightning + cloud`) |
+| Kiln (`clay + charcoal + fire`) | Brick | Forge (`brick + scrap + lava`) |
+| Foundry (`alloy + slag + charcoal`) | Scrap | Forge, same capstone |
+
+Clay is the body of the brick. The kiln fires clay, charcoal, and fire, and brick leaves on the second port. The forge is the tier-5 piece that needs that brick, plus scrap from the foundry and lava. Tempest is the other capstone: it takes the lightning the storm threw off. A blocked byproduct belt stalls the tier-4 craft. A missing byproduct blocks the capstone.
 
 ### Three-input machine (planned)
 
@@ -66,7 +78,7 @@ Tier of a crafted packet still follows ancestry depth (exact formula may be rest
    - If the player uses **only one** output port, full craft rate goes to that belt.
    - If the player uses **both** output ports, the same material is split: each port gets **half** the productivity (integer/tick rounding TBD when implementing).
 
-This keeps the machine shape stable (always 3 in / 2 out) while letting tier-4 single products and tier-5 dual products share hardware.
+The machine shape stays stable (always 3 in / 2 out). A tier-4 recipe may fill the second port with a byproduct. A tier-4 or tier-5 single product may still split one material across both ports.
 
 ### Preview / ancestry charts
 
