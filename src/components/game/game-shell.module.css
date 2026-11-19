@@ -1226,6 +1226,30 @@
   gap: 4px;
   min-width: 0;
 }
+.coreRequirementButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.coreRequirementButton:hover,
+.coreRequirementButton:focus-visible {
+  border-color: var(--line);
+  background: var(--accent-soft);
+  outline: none;
+}
+.coreRequirementButton:focus-visible {
+  border-color: var(--accent);
+}
 .coreRequirementShapeGlyph {
   display: block;
   width: 22px;
@@ -1275,7 +1299,7 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 6px 0;
   font-family: var(--display-font);
   font-size: 15px;
@@ -1289,10 +1313,11 @@
 .gameBrand:hover {
   color: var(--accent-hover);
 }
-.gameBrand span {
-  color: var(--accent);
-  font-size: 18px;
-  line-height: 1;
+.gameBrandMark {
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: none;
 }
 .gameTopBarCentered {
   display: grid;

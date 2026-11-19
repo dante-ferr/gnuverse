@@ -35,7 +35,15 @@ export function GameTopBar({
       className={`${styles.gameTopBar}${centeredNav ? ` ${styles.gameTopBarCentered}` : ''}`}
     >
       <Link href="/" aria-label="GNUverse — início" className={styles.gameBrand}>
-        <span aria-hidden="true">⌘</span>gnuverse
+        <img
+          src="/gnuverse-logo.svg"
+          alt=""
+          width={22}
+          height={22}
+          className={styles.gameBrandMark}
+          decoding="async"
+        />
+        gnuverse
       </Link>
       {children}
       {showAccount && (
