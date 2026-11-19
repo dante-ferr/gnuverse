@@ -60,6 +60,8 @@ export function StructurePalette({
           type="button"
           className={styles.editModeButton}
           aria-pressed={editMode === 'create'}
+          aria-keyshortcuts="E"
+          title="Criar — E alterna com Apagar"
           onClick={() => onEditModeChange('create')}
         >
           Criar
@@ -68,6 +70,8 @@ export function StructurePalette({
           type="button"
           className={styles.editModeButton}
           aria-pressed={editMode === 'delete'}
+          aria-keyshortcuts="E"
+          title="Apagar — E alterna com Criar"
           onClick={() => onEditModeChange('delete')}
         >
           Apagar
@@ -76,11 +80,18 @@ export function StructurePalette({
           type="button"
           className={styles.editModeButton}
           disabled={!canRotate || editMode !== 'create'}
+          aria-keyshortcuts="R"
+          title="Girar (R)"
           onClick={() => onRotate?.()}
         >
           Girar
+          <kbd className={styles.editModeHotkey}>R</kbd>
         </button>
       </div>
+      <p className={styles.editModeHints}>
+        <kbd className={styles.editModeHotkey}>E</kbd>
+        <span>alterna criar e apagar</span>
+      </p>
     </section>
   )
 }
