@@ -25,7 +25,14 @@ import {
 import type { PacketMotionState } from '../packet-motion.ts'
 import { sourceIsExporting, sourceOutputCell } from '../source-exporting.ts'
 import { darkenHex } from './darken-hex.ts'
+import { elementFill } from './element-fill.ts'
 import { cellSize } from './grid-painter.ts'
+import {
+  drawOutlinedResourceDisk,
+  drawOutlinedResourceGlyph,
+  resourceGlyphOutline,
+} from './resource-glyph.ts'
+import { drawTintedImage } from './tint-image.ts'
 
 /** Shape → resource glyph under /public/pipeline/ (optional fallback). */
 const resourceDecorSrc: Record<PacketShape, string> = {
@@ -48,6 +55,8 @@ export class MachinePainter {
   private readonly tintCache = new Map<string, HTMLCanvasElement>()
   private readonly resourceGlyphPhaseRad = new Map<string, number>()
   private readonly lastSourceExportAtMs = new Map<string, number>()
+  /** Last primary output element id shown on each combiner (persists after craft). */
+  private readonly lastCombinerGlyphById = new Map<string, string>()
   private lastDrawTimeMs = 0
 
   constructor(private readonly images: MachineDecorImages) {}
@@ -110,12 +119,13 @@ export class MachinePainter {
       this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
         centerDecor: spec.machineId === 'combiner_3',
       })
-      this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, deltaMs)
+      this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom)
     }
     for (const spec of specs) {
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
-      this.drawSource(ctx, source, rules, bracketStyle)
       const glyphId = sourceGlyphId(spec)
+      const body = elementFill(rules, glyphId) ?? rules.colorSource
+      this.drawSource(ctx, source, body, rules, bracketStyle)
       const outputCell = sourceOutputCell(spec)
       const exporting = sourceIsExporting(outputCell, motion)
       const periodMs = sourcePeriodMsForGlyph(rules, glyphId)
@@ -192,6 +202,7 @@ export class MachinePainter {
   private drawSource(
     ctx: CanvasRenderingContext2D,
     machine: SourceMachine,
+    bodyColor: string,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
   ) {
@@ -200,15 +211,15 @@ export class MachinePainter {
     const cy = py + height / 2
     const radius = width / 2
     // Ports under the body so the circle covers the bracket root.
-    this.drawSlotBrackets(ctx, machine, rules.colorSource, rules, bracketStyle)
+    this.drawSlotBrackets(ctx, machine, bodyColor, rules, bracketStyle)
     ctx.beginPath()
     ctx.arc(cx, cy, radius, 0, Math.PI * 2)
-    ctx.fillStyle = rules.colorSource
+    ctx.fillStyle = bodyColor
     ctx.fill()
     ctx.strokeStyle = rules.colorOutline
     ctx.lineWidth = rules.outlineWidthPx
     ctx.stroke()
-    const decorInk = darkenHex(rules.colorSource, rules.decorDarkenPercent)
+    const decorInk = darkenHex(bodyColor, rules.decorDarkenPercent)
     drawTintedDecor(ctx, this.images.source, decorInk, px, py, width, height, this.tintCache)
   }
 
@@ -278,42 +289,31 @@ export class MachinePainter {
     spec: CombinerRecord,
     rules: PipelineRules,
     cameraZoom: number,
-    timeMs: number,
-    deltaMs: number,
   ) {
-    if (spec.craftRemaining == null || spec.craftRemaining <= 0 || !spec.recipeId) return
-    const { px, py, width, height } = machineRect(machine)
-    const cx = px + width / 2
-    const cy = py + height / 2
-    const recipeRate = resolveRecipeRatePerMinute(rules, spec.recipeId)
-    const progress = combinerCraftProgress(spec.craftRemaining, recipeRate, rules.tickMs)
-    const wheelRadius = Math.min(width, height) * 0.42
-    ctx.save()
-    ctx.strokeStyle = rules.colorOutline
-    ctx.lineWidth = Math.max(rules.outlineWidthPx, 2)
-    ctx.beginPath()
-    ctx.arc(cx, cy, wheelRadius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2)
-    ctx.stroke()
-    ctx.restore()
+    const liveGlyph = combinerOutputGlyphId(rules, spec)
+    if (liveGlyph) this.lastCombinerGlyphById.set(spec.id, liveGlyph)
+    const glyphId = this.lastCombinerGlyphById.get(spec.id)
+    if (!glyphId) return
 
-    const glyphId = spec.recipeId
+    const crafting =
+      spec.craftRemaining != null && spec.craftRemaining > 0 && Boolean(spec.recipeId)
     const worldCx = (machine.origin.x + machine.width / 2) * cellSize
     const worldCy = (machine.origin.y + machine.height / 2) * cellSize
-    let phase = this.resourceGlyphPhaseRad.get(spec.id) ?? 0
-    if (rules.resourceGlyphOrbitMs > 0) {
-      phase += (2 * Math.PI * deltaMs) / rules.resourceGlyphOrbitMs
-      this.resourceGlyphPhaseRad.set(spec.id, phase)
-    }
-    const ox = Math.cos(phase) * rules.resourceGlyphOrbitPx * 0.6
-    const oy = Math.sin(phase) * rules.resourceGlyphOrbitPx * 0.6
     const zoom = cameraZoom > 0 ? cameraZoom : 1
+    const glyphSize = resourceGlyphSizePx(rules, glyphId)
+    // Screen-space radius around the glyph so the wheel tracks zoom with the icon.
+    const wheelRadius = glyphSize * 0.72
+
     ctx.save()
     ctx.translate(worldCx, worldCy)
     ctx.scale(1 / zoom, 1 / zoom)
-    ctx.translate(ox, oy)
+    if (crafting && spec.recipeId && spec.craftRemaining != null) {
+      const recipeRate = resolveRecipeRatePerMinute(rules, spec.recipeId)
+      const progress = combinerCraftProgress(spec.craftRemaining, recipeRate, rules.tickMs)
+      drawCraftProgressWheel(ctx, wheelRadius, progress, rules)
+    }
     this.drawResourceGlyph(ctx, glyphId, rules)
     ctx.restore()
-    void timeMs
   }
 
   private drawOrbitingResourceGlyph(
@@ -346,27 +346,69 @@ export class MachinePainter {
 
   private drawResourceGlyph(ctx: CanvasRenderingContext2D, glyphId: string, rules: PipelineRules) {
     const size = resourceGlyphSizePx(rules, glyphId)
+    const fill = elementFill(rules, glyphId) ?? rules.colorPacket
+    const outline = resourceGlyphOutline(rules)
     if (glyphId === 'circle') {
-      // Single filled disk + dark outline only (no inner rings or nested circles).
-      const radius = size / 2
-      ctx.beginPath()
-      ctx.arc(0, 0, radius, 0, Math.PI * 2)
-      ctx.fillStyle = '#ffffff'
-      ctx.fill()
-      ctx.strokeStyle = rules.colorOutline
-      ctx.lineWidth = rules.outlineWidthPx
-      ctx.stroke()
+      drawOutlinedResourceDisk(ctx, fill, 0, 0, size / 2, outline)
       return
     }
-    const image = this.images.resources[glyphId]
-    if (image?.complete && image.naturalWidth > 0) {
-      ctx.drawImage(image, -size / 2, -size / 2, size, size)
-    }
+    drawOutlinedResourceGlyph(
+      ctx,
+      this.images.resources[glyphId] ?? null,
+      fill,
+      0,
+      0,
+      size,
+      outline,
+      this.tintCache,
+    )
   }
 }
 
 function sourceGlyphId(spec: SourceRecord): string {
   return spec.role ?? spec.shape
+}
+
+/** Primary output id for the active craft / pending eject, if any. */
+function combinerOutputGlyphId(rules: PipelineRules, spec: CombinerRecord): string | null {
+  if (spec.pendingOutputs?.length) return spec.pendingOutputs[0] ?? null
+  if (!spec.recipeId) return null
+  const el = rules.elements.elements.find((item) => item.id === spec.recipeId)
+  if (!el) return spec.recipeId
+  if (el.outputs?.length) return el.outputs[0] ?? el.id
+  return el.id
+}
+
+/** Progress arc with white outer / black inner outline (screen-space). */
+function drawCraftProgressWheel(
+  ctx: CanvasRenderingContext2D,
+  radius: number,
+  progress: number,
+  rules: PipelineRules,
+) {
+  const amount = Math.min(1, Math.max(0, progress))
+  if (amount <= 0) return
+  const start = -Math.PI / 2
+  const end = start + amount * Math.PI * 2
+  const core = Math.max(rules.resourceGlyphOutlineInnerWidthPx, 1)
+  const ring = Math.max(rules.resourceGlyphOutlineOuterWidthPx, 0)
+  ctx.save()
+  ctx.lineCap = 'round'
+  if (ring > 0 || core > 0) {
+    ctx.beginPath()
+    ctx.arc(0, 0, radius, start, end)
+    ctx.strokeStyle = rules.resourceGlyphOutlineOuter
+    ctx.lineWidth = core + ring * 2
+    ctx.stroke()
+  }
+  if (core > 0) {
+    ctx.beginPath()
+    ctx.arc(0, 0, radius, start, end)
+    ctx.strokeStyle = rules.resourceGlyphOutlineInner
+    ctx.lineWidth = core
+    ctx.stroke()
+  }
+  ctx.restore()
 }
 
 function resourceGlyphSizePx(rules: PipelineRules, glyphId: string): number {
@@ -449,22 +491,7 @@ function drawTintedDecor(
   height: number,
   cache: Map<string, HTMLCanvasElement>,
 ) {
-  if (!image || !image.complete || image.naturalWidth <= 0) return
-  const key = `${image.currentSrc}|${ink}|${image.naturalWidth}x${image.naturalHeight}`
-  let tinted = cache.get(key)
-  if (!tinted) {
-    tinted = document.createElement('canvas')
-    tinted.width = image.naturalWidth
-    tinted.height = image.naturalHeight
-    const tctx = tinted.getContext('2d')
-    if (!tctx) return
-    tctx.drawImage(image, 0, 0)
-    tctx.globalCompositeOperation = 'source-in'
-    tctx.fillStyle = ink
-    tctx.fillRect(0, 0, tinted.width, tinted.height)
-    cache.set(key, tinted)
-  }
-  ctx.drawImage(tinted, x, y, width, height)
+  drawTintedImage(ctx, image, ink, x, y, width, height, cache)
 }
 
 /** Square SVG fitted to the short side and centered in a possibly non-square footprint. */

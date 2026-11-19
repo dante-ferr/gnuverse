@@ -104,6 +104,6 @@ Preview HTML: `scripts/elements/render.mjs`. In-room overlay: `src/components/ga
 
 1. Promote combiners + typed packets from sandbox to normal match progression (chapter gates)
 2. Wire cumulative core demands so the full catalog is required by late progression outside sandbox
-3. Finish glyph rendering on belts for every element (sandbox client falls back to `fill` disk when SVG not loaded)
+3. Promote tinted catalog glyphs (and `fill` disk fallback) from sandbox to normal match progression as chapter gates land
 
 Locked footprints and half-rate behavior above; split rounding remainder is not needed when alternating ports.

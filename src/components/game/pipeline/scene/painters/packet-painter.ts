@@ -2,10 +2,18 @@ import type { BeltRecord, PipelineFrame, PipelineRules, PacketShape } from '../.
 import type { PacketMotionState } from '../packet-motion.ts'
 import { packetDisplayCenter, packetSinkCenter } from '../packet-motion.ts'
 import { cellSize } from './grid-painter.ts'
+import { elementFill } from './element-fill.ts'
+import {
+  drawOutlinedResourceDisk,
+  drawOutlinedResourceGlyph,
+  resourceGlyphOutline,
+  type ResourceGlyphOutline,
+} from './resource-glyph.ts'
 
 /** Packets are clipped to belt cells so they never paint over machines. */
 export class PacketPainter {
   private resourceGlyphs: Record<string, HTMLImageElement | null> = {}
+  private readonly tintCache = new Map<string, HTMLCanvasElement>()
 
   setResourceGlyphs(glyphs: Record<string, HTMLImageElement | null>) {
     this.resourceGlyphs = glyphs
@@ -20,15 +28,10 @@ export class PacketPainter {
     timeMs: number,
   ) {
     const radius = cellSize * 0.22
+    const outline = resourceGlyphOutline(rules)
     const drawDot = (px: number, py: number, shape: PacketShape) => {
       const fill = elementFill(rules, shape) ?? rules.colorPacket
-      ctx.beginPath()
-      ctx.fillStyle = fill
-      ctx.arc(px, py, radius, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = rules.colorOutline
-      ctx.lineWidth = rules.outlineWidthPx
-      ctx.stroke()
+      drawOutlinedResourceDisk(ctx, fill, px, py, radius, outline)
     }
 
     if (frame.packets.length > 0 && belts.length > 0) {
@@ -41,7 +44,7 @@ export class PacketPainter {
       for (const packet of frame.packets) {
         const { px, py } = packetDisplayCenter(packet, frame, rules, motion, timeMs, cellSize)
         if (packet.shape !== 'circle') {
-          const drew = this.drawElementGlyph(ctx, packet.shape, rules, px, py)
+          const drew = this.drawElementGlyph(ctx, packet.shape, rules, px, py, outline)
           if (drew) continue
         }
         drawDot(px, py, packet.shape)
@@ -61,18 +64,15 @@ export class PacketPainter {
     rules: PipelineRules,
     px: number,
     py: number,
+    outline: ResourceGlyphOutline,
   ) {
     const el = rules.elements.elements.find((item) => item.id === shape)
     if (!el?.glyph) return false
     const image = this.resourceGlyphs[shape]
     if (!image?.complete || image.naturalWidth <= 0) return false
     const size = el.glyph_size_px ?? rules.resourceGlyphSizePx
-    ctx.drawImage(image, px - size / 2, py - size / 2, size, size)
+    const fill = el.fill || rules.colorPacket
+    drawOutlinedResourceGlyph(ctx, image, fill, px, py, size, outline, this.tintCache)
     return true
   }
-}
-
-function elementFill(rules: PipelineRules, shape: PacketShape) {
-  if (shape === 'circle') return rules.colorPacket
-  return rules.elements.elements.find((item) => item.id === shape)?.fill ?? rules.colorPacket
 }

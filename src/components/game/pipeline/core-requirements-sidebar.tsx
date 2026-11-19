@@ -35,10 +35,11 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
       <ul className={styles.coreRequirementGrid} aria-label="Formas exigidas">
         {frame.demands.map((demand) => {
           const glyph = glyphUrlForShape(rules, demand.shape) ?? '/pipeline/resource-circle.svg'
+          const element = rules?.elements.elements.find((el) => el.id === demand.shape)
           const met = demand.received >= demand.required
           const name =
-            rules?.elements.elements.find((el) => el.id === demand.shape)?.name_pt ??
-            (demand.shape === 'circle' ? 'Círculo' : demand.shape)
+            element?.name_pt ?? (demand.shape === 'circle' ? 'Círculo' : demand.shape)
+          const glyphColor = element?.fill ?? rules?.colorPacket ?? undefined
           return (
             <li key={demand.shape} className={styles.coreRequirementCell}>
               <button
@@ -52,6 +53,7 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
                   style={{
                     maskImage: `url(${glyph})`,
                     WebkitMaskImage: `url(${glyph})`,
+                    ...(glyphColor ? { backgroundColor: glyphColor } : {}),
                   }}
                   aria-hidden
                 />

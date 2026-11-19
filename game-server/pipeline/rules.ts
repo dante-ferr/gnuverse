@@ -48,6 +48,16 @@ export type PipelineRules = {
   resourceGlyphOrbitPx: number
   /** Full orbit period (ms). */
   resourceGlyphOrbitMs: number
+  /** Outer (usually white) outline color for element glyphs and belt packets. */
+  resourceGlyphOutlineOuter: string
+  /** Inner (usually black) outline color for element glyphs and belt packets. */
+  resourceGlyphOutlineInner: string
+  /** Outer outline thickness (screen px). 0 disables the outer ring. */
+  resourceGlyphOutlineOuterWidthPx: number
+  /** Inner outline thickness (screen px). 0 disables the inner ring. */
+  resourceGlyphOutlineInnerWidthPx: number
+  /** Multiplier for silhouette offset rings (larger = thicker halo). */
+  resourceGlyphOutlineSpread: number
   /** Core outer gear full clockwise turn (ms). */
   coreGearOuterMs: number
   /** Core inner gear full counter-clockwise turn (ms). */

@@ -33,6 +33,11 @@ export type PipelineRules = {
   resourceGlyphSizePx: number
   resourceGlyphOrbitPx: number
   resourceGlyphOrbitMs: number
+  resourceGlyphOutlineOuter: string
+  resourceGlyphOutlineInner: string
+  resourceGlyphOutlineOuterWidthPx: number
+  resourceGlyphOutlineInnerWidthPx: number
+  resourceGlyphOutlineSpread: number
   coreGearOuterMs: number
   coreGearInnerMs: number
   beltChevronStrokePx: number
