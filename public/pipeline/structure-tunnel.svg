@@ -1,6 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-<!-- QuiverAI-inspired tunnel sidebar glyph -->
-  <path fill="#000000" d="M72 220c0-28 22-52 52-52h24v176H124c-30 0-52-24-52-52V220zm292-52h24c30 0 52 24 52 52v72c0 28-22 52-52 52h-24V168z"/>
-  <path fill="none" stroke="#000000" stroke-width="28" stroke-linecap="round" stroke-dasharray="36 28" d="M168 256h176"/>
-  <path fill="#000000" d="M236 220h40v72h-40z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <!-- Sidebar glyph: tunnel travel arrow (facing north). -->
+  <g fill="none" stroke="#000000" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 120 H384"/>
+    <path d="M160 88 H352"/>
+    <path d="M256 400 V200"/>
+    <path d="M176 280 L256 168 L336 280"/>
+    <path d="M196 360 L256 268 L316 360"/>
+  </g>
 </svg>

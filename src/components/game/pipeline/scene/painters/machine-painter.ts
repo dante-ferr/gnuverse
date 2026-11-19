@@ -100,7 +100,9 @@ export class MachinePainter {
         spec.facing,
         { id: '', nickname: '' },
       )
-      this.machine(ctx, splitter, rules.colorSplitter, this.images.splitter, rules, bracketStyle)
+      this.machine(ctx, splitter, rules.colorSplitter, this.images.splitter, rules, bracketStyle, {
+        decorFacing: spec.facing,
+      })
       ctx.restore()
       return
     }
@@ -115,7 +117,9 @@ export class MachinePainter {
         { id: '', nickname: '' },
       )
       const decor = role === 'entrance' ? this.images.tunnelEntrance : this.images.tunnelExit
-      this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle)
+      this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle, {
+        decorFacing: spec.facing,
+      })
     }
     ctx.restore()
   }
@@ -177,7 +181,7 @@ export class MachinePainter {
       this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
         centerDecor: spec.machineId === 'combiner_3',
       })
-      this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom)
+      this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, motion)
     }
     for (const spec of frame.splitters ?? []) {
       this.drawSplitter(ctx, spec, rules, bracketStyle)
@@ -275,7 +279,9 @@ export class MachinePainter {
       spec.facing,
       { id: spec.authorId, nickname: spec.authorNickname },
     )
-    this.machine(ctx, splitter, rules.colorSplitter, this.images.splitter, rules, bracketStyle)
+    this.machine(ctx, splitter, rules.colorSplitter, this.images.splitter, rules, bracketStyle, {
+      decorFacing: spec.facing,
+    })
   }
 
   private drawTunnelPortal(
@@ -295,7 +301,9 @@ export class MachinePainter {
     )
     const decor =
       spec.role === 'entrance' ? this.images.tunnelEntrance : this.images.tunnelExit
-    this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle)
+    this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle, {
+      decorFacing: spec.direction,
+    })
   }
 
   private drawSource(
@@ -329,11 +337,25 @@ export class MachinePainter {
     decor: HTMLImageElement | null,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
-    options: { centerDecor?: boolean } = {},
+    options: { centerDecor?: boolean; decorFacing?: Direction } = {},
   ) {
     const { px, py, width, height } = machineRect(machine)
     this.drawMachineBody(ctx, machine, bodyColor, rules, bracketStyle, px, py, width, height)
     const decorInk = darkenHex(bodyColor, rules.decorDarkenPercent)
+    if (options.decorFacing) {
+      drawTintedDecorRotated(
+        ctx,
+        decor,
+        decorInk,
+        px,
+        py,
+        width,
+        height,
+        facingAngleRad(options.decorFacing),
+        this.tintCache,
+      )
+      return
+    }
     if (options.centerDecor) {
       drawTintedDecorCentered(ctx, decor, decorInk, px, py, width, height, this.tintCache)
     } else {
@@ -388,6 +410,8 @@ export class MachinePainter {
     spec: CombinerRecord,
     rules: PipelineRules,
     cameraZoom: number,
+    timeMs: number,
+    motion: PacketMotionState,
   ) {
     const liveGlyph = combinerOutputGlyphId(rules, spec)
     if (liveGlyph) this.lastCombinerGlyphById.set(spec.id, liveGlyph)
@@ -408,7 +432,15 @@ export class MachinePainter {
     ctx.scale(1 / zoom, 1 / zoom)
     if (crafting && spec.recipeId && spec.craftRemaining != null) {
       const recipeRate = resolveRecipeRatePerMinute(rules, spec.recipeId)
-      const progress = combinerCraftProgress(spec.craftRemaining, recipeRate, rules.tickMs)
+      const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
+      const tickPhase =
+        motion.syncedAtMs > 0 ? Math.max(0, timeMs - motion.syncedAtMs) / tickMs : 0
+      const progress = combinerCraftProgress(
+        spec.craftRemaining,
+        recipeRate,
+        rules.tickMs,
+        tickPhase,
+      )
       drawCraftProgressWheel(ctx, wheelRadius, progress, rules)
     }
     this.drawResourceGlyph(ctx, glyphId, rules)
@@ -522,6 +554,14 @@ function machineRect(machine: Machine) {
   const width = machine.width * cellSize
   const height = machine.height * cellSize
   return { px, py, width, height }
+}
+
+/** Canvas radians for north-up decor SVGs (Y grows down). */
+function facingAngleRad(facing: Direction): number {
+  if (facing === 'east') return Math.PI / 2
+  if (facing === 'south') return Math.PI
+  if (facing === 'west') return -Math.PI / 2
+  return 0
 }
 
 /** Public URL for a TOML decor path (`pipeline/...` → `/pipeline/...`). */
