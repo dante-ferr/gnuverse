@@ -80,6 +80,19 @@ test('a belt line carries a circle into the facing core slot', () => {
   assert.equal(match.packets.every((packet) => packet.shape === 'circle'), true)
 })
 
+test('core input pulls from the approach belt regardless of belt facing', () => {
+  const match = Match.create('pull-facing', rules)
+  const slot = match.core.inputSlots().find((item) => item.travel === 'east')
+  assert.ok(slot)
+  const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
+  assert.equal(match.place([{ ...approach, direction: 'north' }], author), null)
+  match.packets.push(new Packet('p1', approach, 'circle'))
+  const before = match.deliveries
+  match.tick()
+  assert.equal(match.deliveries, before + 1)
+  assert.equal(match.packets.length, 0)
+})
+
 test('deliveries count per shape and surface on frame demands', () => {
   const match = connected()
   for (let i = 0; i < 30; i++) match.tick()

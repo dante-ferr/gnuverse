@@ -52,6 +52,12 @@ export type PipelineRules = {
   slotOutputDepthPercent: number
   slotBracketThickPercent: number
   slotFlowMarkDepthPercent: number
+  /** 1×1 splitter machine body. */
+  colorSplitter: string
+  /** Underground tunnel portal body. */
+  colorTunnel: string
+  /** Max empty cells between tunnel entrance and exit. */
+  tunnelMaxGap: number
   /** Element catalog from `elements.toml` (same payload as the game-server). */
   elements: ElementCatalogJson
 }
@@ -92,6 +98,29 @@ export type CombinerRecord = {
   nextSplitPort?: 0 | 1
 }
 
+export type SplitterRecord = {
+  id: string
+  x: number
+  y: number
+  facing: Direction
+  authorId: string
+  authorNickname: string
+  nextSplitPort?: 0 | 1 | 2
+  buffer?: PacketShape | null
+}
+
+export type TunnelPortalRecord = {
+  id: string
+  pairId: string
+  role: 'entrance' | 'exit'
+  x: number
+  y: number
+  direction: Direction
+  authorId: string
+  authorNickname: string
+  queue?: (PacketShape | null)[]
+}
+
 export type BeltRecord = {
   id: string
   x: number
@@ -124,6 +153,8 @@ export type PipelineFrame = {
   core: CoreRecord
   cores?: CoreRecord[]
   combiners?: CombinerRecord[]
+  splitters?: SplitterRecord[]
+  tunnels?: TunnelPortalRecord[]
 }
 
 export function isPipelineFrame(value: unknown): value is PipelineFrame {

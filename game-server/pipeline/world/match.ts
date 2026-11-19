@@ -5,6 +5,8 @@ import { BeltMachine } from '../machines/belt-machine.ts'
 import { CombinerMachine } from '../machines/combiner-machine.ts'
 import { CoreMachine } from '../machines/core-machine.ts'
 import { SourceMachine } from '../machines/source-machine.ts'
+import { SplitterMachine } from '../machines/splitter-machine.ts'
+import { TunnelPortalMachine } from '../machines/tunnel-machine.ts'
 import { Packet } from '../packets/packet.ts'
 import { sourcePeriodTicksForRole } from '../elements/rate.ts'
 import type { PipelineRules } from '../rules.ts'
@@ -16,6 +18,7 @@ import { BeltEditor } from './edit/belt-editor.ts'
 import { MachineEditor, type MachinePlaceRequest } from './edit/machine-editor.ts'
 import { Craft } from './tick/craft.ts'
 import { Emission } from './tick/emission.ts'
+import { Routing } from './tick/routing.ts'
 import type { PacketShape } from '../packets/packet.ts'
 import { coreAcceptsShape, coreDemands } from './progression/demands.ts'
 import type { CollaboratorRecord, PipelineFrame, SourceRecord } from './frame.ts'
@@ -30,6 +33,8 @@ export class Match {
   collaborators: CollaboratorRecord[] = []
   /** Destination cell key → last inbound cell key admitted by merge RR. */
   mergeLast: Record<string, string> = {}
+  /** Approach cell key → last winner between input pull and belt flow. */
+  pullLast: Record<string, 'pull' | 'flow'> = {}
   version = '0.1'
   tickIndex = 0
   deliveries = 0
@@ -37,6 +42,8 @@ export class Match {
   nextPacketId = 1
   nextBeltSeq = 1
   nextCombinerSeq = 1
+  nextSplitterSeq = 1
+  nextTunnelSeq = 1
   readonly rules: PipelineRules
   readonly seed: string
   readonly sandbox: boolean
@@ -49,6 +56,8 @@ export class Match {
   readonly sourceRoles: Record<string, SourceRole>
   readonly cores: CoreMachine[]
   combiners: CombinerMachine[] = []
+  splitters: SplitterMachine[] = []
+  tunnels: TunnelPortalMachine[] = []
   private ownedChunkKeys: Set<string>
   private previewChunkKeys: Set<string>
 
@@ -164,6 +173,8 @@ export class Match {
     if (this.cores.some((core) => core.covers(cell))) return 'core'
     if (this.sources.some((source) => source.covers(cell))) return 'source'
     if (this.combiners.some((machine) => machine.covers(cell))) return 'combiner'
+    if (this.splitters.some((machine) => machine.covers(cell))) return 'splitter'
+    if (this.tunnels.some((portal) => portal.covers(cell))) return 'tunnel'
     return null
   }
 
@@ -181,19 +192,21 @@ export class Match {
   }
 
   /**
-   * Removes a belt or combiner under `cell`.
+   * Removes a belt or player machine under `cell`.
    * Cores and sources cannot be deleted.
    */
-  remove(cell: Cell, author: CollaboratorRecord): { error: string | null; kind: 'belt' | 'combiner' | null } {
+  remove(
+    cell: Cell,
+    author: CollaboratorRecord,
+  ): { error: string | null; kind: 'belt' | 'combiner' | 'splitter' | 'tunnel' | null } {
     if (this.cores.some((core) => core.covers(cell))) {
       return { error: 'Não é possível apagar o núcleo.', kind: null }
     }
     if (this.sources.some((source) => source.covers(cell))) {
       return { error: 'Não é possível apagar fontes.', kind: null }
     }
-    if (new MachineEditor(this).removeAt(cell, author)) {
-      return { error: null, kind: 'combiner' }
-    }
+    const machineKind = new MachineEditor(this).removeAt(cell, author)
+    if (machineKind) return { error: null, kind: machineKind }
     const error = new BeltEditor(this).remove(cell, author)
     return { error, kind: error ? null : 'belt' }
   }
@@ -214,6 +227,7 @@ export class Match {
 
   tick() {
     new Movement(this).resolve()
+    new Routing(this).resolve()
     new Craft(this).resolve()
     new Emission(this).emit()
     this.tickIndex += 1
@@ -253,6 +267,8 @@ export class Match {
       nextPacketId: this.nextPacketId,
       nextBeltSeq: this.nextBeltSeq,
       nextCombinerSeq: this.nextCombinerSeq,
+      nextSplitterSeq: this.nextSplitterSeq,
+      nextTunnelSeq: this.nextTunnelSeq,
       sandbox: this.sandbox ? true : undefined,
       belts: this.belts.map((belt) => ({
         id: belt.id,
@@ -270,6 +286,7 @@ export class Match {
         shape: packet.shape,
       })),
       mergeLast: { ...this.mergeLast },
+      pullLast: { ...this.pullLast },
       originChunk: { ...this.originChunk },
       ownedChunks: this.ownedChunks.map((coord) => ({ ...coord })),
       previewChunks: this.previewChunks.map((coord) => ({ ...coord })),
@@ -288,6 +305,27 @@ export class Match {
         craftRemaining: machine.craftRemaining,
         pendingOutputs: machine.pendingOutputs ? [...machine.pendingOutputs] : null,
         nextSplitPort: machine.nextSplitPort,
+      })),
+      splitters: this.splitters.map((machine) => ({
+        id: machine.id,
+        x: machine.origin.x,
+        y: machine.origin.y,
+        facing: machine.facing,
+        authorId: machine.authorId,
+        authorNickname: machine.authorNickname,
+        nextSplitPort: machine.nextSplitPort,
+        buffer: machine.buffer,
+      })),
+      tunnels: this.tunnels.map((portal) => ({
+        id: portal.id,
+        pairId: portal.pairId,
+        role: portal.role,
+        x: portal.origin.x,
+        y: portal.origin.y,
+        direction: portal.direction,
+        authorId: portal.authorId,
+        authorNickname: portal.authorNickname,
+        queue: portal.role === 'entrance' ? [...portal.queue] : undefined,
       })),
     }
   }
@@ -348,6 +386,8 @@ export class Match {
     match.nextPacketId = frame.nextPacketId
     match.nextBeltSeq = frame.nextBeltSeq
     match.nextCombinerSeq = frame.nextCombinerSeq ?? 1
+    match.nextSplitterSeq = frame.nextSplitterSeq ?? 1
+    match.nextTunnelSeq = frame.nextTunnelSeq ?? 1
     match.belts = frame.belts.map(
       (belt) =>
         new BeltMachine(belt.id, { x: belt.x, y: belt.y }, belt.direction, {
@@ -360,6 +400,7 @@ export class Match {
       (packet) => new Packet(packet.id, { x: packet.x, y: packet.y }, packet.shape),
     )
     match.mergeLast = frame.mergeLast ? { ...frame.mergeLast } : {}
+    match.pullLast = frame.pullLast ? { ...frame.pullLast } : {}
     match.combiners = (frame.combiners ?? []).map(
       (spec) => {
         const machine = new CombinerMachine(
@@ -376,6 +417,33 @@ export class Match {
         return machine
       },
     )
+    match.splitters = (frame.splitters ?? []).map((spec) => {
+      const machine = new SplitterMachine(
+        spec.id,
+        { x: spec.x, y: spec.y },
+        spec.facing,
+        { id: spec.authorId, nickname: spec.authorNickname },
+      )
+      machine.nextSplitPort = spec.nextSplitPort
+      machine.buffer = spec.buffer
+      return machine
+    })
+    match.tunnels = (frame.tunnels ?? []).map((spec) => {
+      const capacity = spec.role === 'entrance' ? (spec.queue?.length ?? 0) : 0
+      const portal = new TunnelPortalMachine(
+        spec.id,
+        { x: spec.x, y: spec.y },
+        spec.role,
+        spec.pairId,
+        spec.direction,
+        { id: spec.authorId, nickname: spec.authorNickname },
+        capacity,
+      )
+      if (spec.role === 'entrance' && spec.queue) {
+        portal.queue = [...spec.queue]
+      }
+      return portal
+    })
     return match
   }
 }

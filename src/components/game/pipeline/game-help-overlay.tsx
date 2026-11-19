@@ -70,6 +70,20 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
           <p>Passe o mouse sobre uma esteira para ver quem a colocou. Pressione e segure numa esteira para fixar o rótulo na tela.</p>
         </section>
 
+        <section className={styles.section}>
+          <h3>Divisor e túnel</h3>
+          <p>
+            O <strong>Divisor</strong> ocupa uma célula: uma entrada na face oposta à orientação e três
+            saídas (esquerda, frente e direita relativas à orientação). Use <strong>Girar</strong> ou{' '}
+            <strong>R</strong> antes de colocar.
+          </p>
+          <p>
+            O <strong>Túnel</strong> liga duas células na mesma linha de viagem: primeiro clique marca a
+            entrada, o segundo a saída (distância máxima vem das regras da sala). Entrada e saída usam a
+            mesma orientação.
+          </p>
+        </section>
+
         {sandbox ? (
           <section className={styles.section}>
             <h3>Combinadores (sandbox)</h3>

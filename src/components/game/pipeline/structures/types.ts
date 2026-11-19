@@ -1,6 +1,8 @@
 import type { CombinerMachineId } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
 import type { Direction } from '../model/frame'
 
+export type PreviewMachineId = CombinerMachineId | 'splitter' | 'tunnel'
+
 export type GridCell = { x: number; y: number }
 
 /** Belt-shaped preview cells drawn while a stroke tool is active. */
@@ -15,17 +17,22 @@ export type StructurePreviewBelt = {
 }
 
 export type StructurePreviewMachine = {
-  machineId: CombinerMachineId
+  machineId: PreviewMachineId
   x: number
   y: number
   facing: Direction
   width: number
   height: number
+  /** Tunnel portal role when `machineId` is `tunnel`. */
+  tunnelRole?: 'entrance' | 'exit'
+  /** When false, placement preview is shown as invalid. */
+  placementValid?: boolean
 }
 
 export type StructureHoverGhost = {
   belts?: StructurePreviewBelt[]
   machine?: StructurePreviewMachine
+  machines?: StructurePreviewMachine[]
 }
 
 export type StructurePlaceRequest = {
@@ -47,6 +54,7 @@ export type StructurePlacementSession = {
   push(cell: GridCell): boolean
   previewBelts(): StructurePreviewBelt[]
   previewMachine?(): StructurePreviewMachine | null
+  previewMachines?(): StructurePreviewMachine[]
   isEmpty(): boolean
   finish(): StructurePlaceRequest | null
 }

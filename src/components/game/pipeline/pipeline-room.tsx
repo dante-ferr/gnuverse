@@ -19,6 +19,7 @@ import {
   getStructure,
   type StructurePlaceRequest,
 } from './structures'
+import { clearTunnelPlacement } from './structures/tunnel.ts'
 import styles from '../game-shell.module.css'
 
 function roomLoginHref() {
@@ -216,10 +217,14 @@ export function PipelineRoom() {
             frame={live.frame.seed ? live.frame : null}
             rules={rules}
             structureId={structureId}
-            onSelectStructure={setStructureId}
+            onSelectStructure={(id) => {
+              clearTunnelPlacement()
+              setStructureId(id)
+            }}
             editMode={editMode}
             onEditModeChange={setEditMode}
             onRotate={() => {
+              clearTunnelPlacement()
               getStructure(structureId)?.rotate?.()
               setPlaceEpoch((n) => n + 1)
             }}

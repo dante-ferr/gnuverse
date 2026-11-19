@@ -6,6 +6,11 @@ import {
 import { SourceMachine } from '../../../../../../game-server/pipeline/machines/source-machine.ts'
 import type { Machine } from '../../../../../../game-server/pipeline/machines/machine.ts'
 import { CombinerMachine } from '../../../../../../game-server/pipeline/machines/combiner-machine.ts'
+import { SplitterMachine } from '../../../../../../game-server/pipeline/machines/splitter-machine.ts'
+import {
+  TunnelPortalMachine,
+  type TunnelPortalRole,
+} from '../../../../../../game-server/pipeline/machines/tunnel-machine.ts'
 import type { PacketShape } from '../../../../../../game-server/pipeline/packets/packet.ts'
 import type { ElementMachineKind, ElementRecord } from '../../../../../../game-server/pipeline/elements/index.ts'
 import { glyphUrlForShape } from '../../model/frame.ts'
@@ -15,7 +20,10 @@ import type {
   PipelineFrame,
   PipelineRules,
   SourceRecord,
+  SplitterRecord,
+  TunnelPortalRecord,
 } from '../../model/frame.ts'
+import type { StructurePreviewMachine } from '../../structures/types.ts'
 import {
   combinerCraftProgress,
   resolveRecipeRatePerMinute,
@@ -44,6 +52,9 @@ export type MachineDecorImages = {
   coreGearOuter: HTMLImageElement | null
   coreGearInner: HTMLImageElement | null
   source: HTMLImageElement | null
+  splitter: HTMLImageElement | null
+  tunnelEntrance: HTMLImageElement | null
+  tunnelExit: HTMLImageElement | null
   /** Craft machines from `rules.elements.machines` (keyed by machine id). */
   byKind: Record<string, HTMLImageElement | null>
   /** Element and legacy packet-shape glyphs keyed by catalog id. */
@@ -61,7 +72,55 @@ export class MachinePainter {
 
   constructor(private readonly images: MachineDecorImages) {}
 
-  /** Translucent combiner ghost for hover / placement preview. */
+  /** Translucent machine ghost for hover / placement preview. */
+  drawMachineGhost(ctx: CanvasRenderingContext2D, spec: StructurePreviewMachine, rules: PipelineRules) {
+    const bracketStyle = slotBracketStyleFromRules(rules)
+    const alpha = spec.placementValid === false ? 0.22 : 0.45
+    ctx.save()
+    ctx.globalAlpha = alpha
+    if (spec.machineId === 'combiner_2' || spec.machineId === 'combiner_3') {
+      const combiner = new CombinerMachine(
+        'ghost',
+        spec.machineId,
+        { x: spec.x, y: spec.y },
+        spec.facing,
+      )
+      const kind = rules.elements.machines.find((item) => item.id === spec.machineId)
+      const body = kind?.color ?? rules.colorAccent
+      this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
+        centerDecor: spec.machineId === 'combiner_3',
+      })
+      ctx.restore()
+      return
+    }
+    if (spec.machineId === 'splitter') {
+      const splitter = new SplitterMachine(
+        'ghost',
+        { x: spec.x, y: spec.y },
+        spec.facing,
+        { id: '', nickname: '' },
+      )
+      this.machine(ctx, splitter, rules.colorSplitter, this.images.splitter, rules, bracketStyle)
+      ctx.restore()
+      return
+    }
+    if (spec.machineId === 'tunnel') {
+      const role: TunnelPortalRole = spec.tunnelRole ?? 'entrance'
+      const portal = new TunnelPortalMachine(
+        'ghost',
+        { x: spec.x, y: spec.y },
+        role,
+        'ghost-pair',
+        spec.facing,
+        { id: '', nickname: '' },
+      )
+      const decor = role === 'entrance' ? this.images.tunnelEntrance : this.images.tunnelExit
+      this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle)
+    }
+    ctx.restore()
+  }
+
+  /** @deprecated Use `drawMachineGhost`. */
   drawCombinerGhost(
     ctx: CanvasRenderingContext2D,
     spec: {
@@ -69,25 +128,24 @@ export class MachinePainter {
       x: number
       y: number
       facing: Direction
+      width?: number
+      height?: number
     },
     rules: PipelineRules,
   ) {
     if (spec.machineId !== 'combiner_2' && spec.machineId !== 'combiner_3') return
-    const combiner = new CombinerMachine(
-      'ghost',
-      spec.machineId,
-      { x: spec.x, y: spec.y },
-      spec.facing,
+    this.drawMachineGhost(
+      ctx,
+      {
+        machineId: spec.machineId,
+        x: spec.x,
+        y: spec.y,
+        facing: spec.facing,
+        width: spec.width ?? CombinerMachine.sizeFor(spec.machineId, spec.facing).width,
+        height: spec.height ?? CombinerMachine.sizeFor(spec.machineId, spec.facing).height,
+      },
+      rules,
     )
-    const kind = rules.elements.machines.find((item) => item.id === spec.machineId)
-    const body = kind?.color ?? rules.colorAccent
-    const bracketStyle = slotBracketStyleFromRules(rules)
-    ctx.save()
-    ctx.globalAlpha = 0.45
-    this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
-      centerDecor: spec.machineId === 'combiner_3',
-    })
-    ctx.restore()
   }
 
   draw(
@@ -120,6 +178,12 @@ export class MachinePainter {
         centerDecor: spec.machineId === 'combiner_3',
       })
       this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom)
+    }
+    for (const spec of frame.splitters ?? []) {
+      this.drawSplitter(ctx, spec, rules, bracketStyle)
+    }
+    for (const spec of frame.tunnels ?? []) {
+      this.drawTunnelPortal(ctx, spec, rules, bracketStyle)
     }
     for (const spec of specs) {
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
@@ -197,6 +261,41 @@ export class MachinePainter {
       rules.outlineWidthPx,
       this.tintCache,
     )
+  }
+
+  private drawSplitter(
+    ctx: CanvasRenderingContext2D,
+    spec: SplitterRecord,
+    rules: PipelineRules,
+    bracketStyle: SlotBracketStyle,
+  ) {
+    const splitter = new SplitterMachine(
+      spec.id,
+      { x: spec.x, y: spec.y },
+      spec.facing,
+      { id: spec.authorId, nickname: spec.authorNickname },
+    )
+    this.machine(ctx, splitter, rules.colorSplitter, this.images.splitter, rules, bracketStyle)
+  }
+
+  private drawTunnelPortal(
+    ctx: CanvasRenderingContext2D,
+    spec: TunnelPortalRecord,
+    rules: PipelineRules,
+    bracketStyle: SlotBracketStyle,
+  ) {
+    const portal = new TunnelPortalMachine(
+      spec.id,
+      { x: spec.x, y: spec.y },
+      spec.role,
+      spec.pairId,
+      spec.direction,
+      { id: spec.authorId, nickname: spec.authorNickname },
+      spec.queue?.length ?? 0,
+    )
+    const decor =
+      spec.role === 'entrance' ? this.images.tunnelEntrance : this.images.tunnelExit
+    this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle)
   }
 
   private drawSource(
@@ -455,6 +554,18 @@ export function loadMachineDecor(
   const source = new Image()
   source.src = '/pipeline/source-decor.svg'
   source.onload = onLoad
+  const splitter = new Image()
+  splitter.src = '/pipeline/splitter-decor.svg'
+  splitter.onload = onLoad
+  const tunnelEntrance = new Image()
+  tunnelEntrance.src = '/pipeline/tunnel-entrance-decor.svg'
+  tunnelEntrance.onload = onLoad
+  const tunnelExit = new Image()
+  tunnelExit.src = '/pipeline/tunnel-exit-decor.svg'
+  tunnelExit.onerror = () => {
+    tunnelExit.src = '/pipeline/tunnel-entrance-decor.svg'
+  }
+  tunnelExit.onload = onLoad
   const byKind: MachineDecorImages['byKind'] = {}
   for (const kind of machineKinds ?? []) {
     if (byKind[kind.id]) continue
@@ -478,7 +589,17 @@ export function loadMachineDecor(
     image.onload = onLoad
     resources[el.id] = image
   }
-  return { coreFrame, coreGearOuter, coreGearInner, source, byKind, resources }
+  return {
+    coreFrame,
+    coreGearOuter,
+    coreGearInner,
+    source,
+    splitter,
+    tunnelEntrance,
+    tunnelExit,
+    byKind,
+    resources,
+  }
 }
 
 function drawTintedDecor(

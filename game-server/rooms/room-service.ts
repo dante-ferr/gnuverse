@@ -6,8 +6,8 @@ import { WalletService } from '../economy/wallet-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { HistoryService } from './history-service.ts'
 import { isDirection } from '../pipeline/geometry/direction.ts'
-import type { CombinerMachineId } from '../pipeline/machines/combiner-machine.ts'
 import { Match } from '../pipeline/world/match.ts'
+import type { MachinePlaceRequest } from '../pipeline/world/edit/machine-editor.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import { canManageRoom } from '../../core/authz/policy.ts'
 import { forceAdvance } from '../pipeline/world/progression/unlock.ts'
@@ -192,21 +192,37 @@ export class RoomService {
   placeMachine(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
     const machineId = body.machineId
-    if (machineId !== 'combiner_2' && machineId !== 'combiner_3') {
-      fail(400, 'Máquina inválida.')
-    }
     if (!isDirection(body.facing)) fail(400, 'Direção inválida.')
-    const error = match.placeMachine(
-      {
-        machineId: machineId as CombinerMachineId,
+    let spec: MachinePlaceRequest
+    if (machineId === 'combiner_2' || machineId === 'combiner_3') {
+      spec = {
+        machineId,
         x: integer(body.x, 0, match.width - 1, 'X'),
         y: integer(body.y, 0, match.height - 1, 'Y'),
         facing: body.facing,
-      },
-      { id: user.id, nickname: user.nickname },
-    )
+      }
+    } else if (machineId === 'splitter') {
+      spec = {
+        machineId: 'splitter',
+        x: integer(body.x, 0, match.width - 1, 'X'),
+        y: integer(body.y, 0, match.height - 1, 'Y'),
+        facing: body.facing,
+      }
+    } else if (machineId === 'tunnel') {
+      spec = {
+        machineId: 'tunnel',
+        entranceX: integer(body.entranceX, 0, match.width - 1, 'Entrada X'),
+        entranceY: integer(body.entranceY, 0, match.height - 1, 'Entrada Y'),
+        exitX: integer(body.exitX, 0, match.width - 1, 'Saída X'),
+        exitY: integer(body.exitY, 0, match.height - 1, 'Saída Y'),
+        facing: body.facing,
+      }
+    } else {
+      fail(400, 'Máquina inválida.')
+    }
+    const error = match.placeMachine(spec, { id: user.id, nickname: user.nickname })
     if (error) fail(409, error)
-    return this.commitMachine(room, user, participant, match)
+    return this.commitMachine(room, user, participant, match, String(machineId))
   }
   place(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
@@ -228,13 +244,16 @@ export class RoomService {
       { id: user.id, nickname: user.nickname },
     )
     if (result.error) fail(409, result.error)
-    if (result.kind === 'combiner') {
+    if (result.kind === 'combiner' || result.kind === 'splitter' || result.kind === 'tunnel') {
       room.frame = match.toFrame()
       participant.contributions++
       room.actionCount++
       room.lastActorId = user.id
       this.history.event(room, 'machine-remove', user.id, {
+        structure: result.kind,
         combiners: match.combiners.length,
+        splitters: match.splitters.length,
+        tunnels: match.tunnels.length,
       })
       this.runtime.afterAction(room)
       return { frame: room.frame }
@@ -344,13 +363,22 @@ export class RoomService {
       direction: record.direction,
     }
   }
-  private commitMachine(room: Room, user: User, participant: Member, match: Match) {
+  private commitMachine(
+    room: Room,
+    user: User,
+    participant: Member,
+    match: Match,
+    structure: string,
+  ) {
     room.frame = match.toFrame()
     participant.contributions++
     room.actionCount++
     room.lastActorId = user.id
     this.history.event(room, 'machine-place', user.id, {
+      structure,
       combiners: match.combiners.length,
+      splitters: match.splitters.length,
+      tunnels: match.tunnels.length,
     })
     this.runtime.afterAction(room)
     return { frame: room.frame }

@@ -18,6 +18,12 @@ export type PipelineRules = {
   colorPacket: string
   colorCore: string
   colorSource: string
+  /** 1×1 splitter machine body. */
+  colorSplitter: string
+  /** Underground tunnel portal body. */
+  colorTunnel: string
+  /** Max empty cells between tunnel entrance and exit. */
+  tunnelMaxGap: number
   /** GNUverse accent; site teal (legacy palette key). */
   colorAccent: string
   /** Palette ink reserved for future UI; machine overlays use darkenHex(body, decorDarkenPercent). */

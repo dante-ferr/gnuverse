@@ -48,6 +48,8 @@ color_belt_chevron = "#6b7d87"
 color_packet = "#52d6c9"
 color_core = "#ffffff"
 color_source = "#52d6c9"
+color_splitter = "#c4a574" # 1×1 splitter body
+color_tunnel = "#7a8f9a" # Underground tunnel portals
 color_accent = "#52d6c9" # Site teal
 color_decor = "#1a4542" # Machine decor SVG base (darkened per machine)
 decor_darken_percent = 35 # Decor darken amount (0–90)
@@ -64,6 +66,7 @@ decor_stroke_width = 28 # SVG units; sync with public/pipeline/*.svg
 # Belts and animation
 belt_chevron_stroke_px = 4
 belt_chevron_flow_ms = 900 # Ms to move chevrons one cell
+tunnel_max_gap = 8 # Empty cells between tunnel entrance and exit (Factorio-style)
 
 # Resource glyphs at sources / belts (dual outline: white outer, black inner)
 resource_glyph_size_px = 28

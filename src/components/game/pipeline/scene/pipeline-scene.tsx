@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { BeltRecord, PipelineFrame, PipelineRules } from '../model/frame.ts'
 import { CombinerMachine } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
+import { setPlacementRules } from '../placement-rules.ts'
 import {
   getStructure,
   type StructureHoverGhost,
@@ -89,6 +90,7 @@ export function PipelineScene({
   const [buyAnchors, setBuyAnchors] = useState<ChunkBuyAnchor[]>([])
   frameRef.current = frame
   rulesRef.current = rules
+  setPlacementRules(rules)
   editModeRef.current = editMode
   structureIdRef.current = structureId
   onToggleEditModeRef.current = onToggleEditMode
@@ -160,11 +162,16 @@ export function PipelineScene({
     const packetFrame = packets.length === current.packets.length ? current : { ...current, packets }
     packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs)
     machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs, packetMotion.current)
-    const machineGhost: StructurePreviewMachine | null | undefined =
+    const machineGhosts: StructurePreviewMachine[] = [
+      ...(hoverGhost?.machines ?? []),
+      ...(placement.current?.previewMachines?.() ?? []),
+    ]
+    const singleGhost =
       hoverGhost?.machine ??
       (editModeRef.current === 'create' ? placement.current?.previewMachine?.() : null)
-    if (machineGhost) {
-      machinePainter.current.drawCombinerGhost(ctx, machineGhost, palette)
+    if (singleGhost) machineGhosts.push(singleGhost)
+    for (const ghost of machineGhosts) {
+      machinePainter.current.drawMachineGhost(ctx, ghost, palette)
     }
     gridPainter.current.drawPreviewOverlay(ctx, current, palette)
     const hover = pinnedBlame.current ?? hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
@@ -331,7 +338,27 @@ export function PipelineScene({
       seenCombiners.add(hit.id)
       combinerTargets.push({ x: hit.x, y: hit.y })
     }
-    const targets = [...beltTargets, ...combinerTargets]
+    const splitterTargets: { x: number; y: number }[] = []
+    const seenSplitters = new Set<string>()
+    for (const cell of strokeCells) {
+      const hit = (current.splitters ?? []).find(
+        (machine) => machine.x === cell.x && machine.y === cell.y,
+      )
+      if (!hit || seenSplitters.has(hit.id)) continue
+      seenSplitters.add(hit.id)
+      splitterTargets.push({ x: hit.x, y: hit.y })
+    }
+    const tunnelTargets: { x: number; y: number }[] = []
+    const seenTunnelPairs = new Set<string>()
+    for (const cell of strokeCells) {
+      const hit = (current.tunnels ?? []).find(
+        (portal) => portal.x === cell.x && portal.y === cell.y,
+      )
+      if (!hit || seenTunnelPairs.has(hit.pairId)) continue
+      seenTunnelPairs.add(hit.pairId)
+      tunnelTargets.push({ x: hit.x, y: hit.y })
+    }
+    const targets = [...beltTargets, ...combinerTargets, ...splitterTargets, ...tunnelTargets]
     if (targets.length === 0) {
       hiddenBelts.current.clear()
       requestPaint()

@@ -44,6 +44,8 @@ export class BeltEditor {
   private onMachine(cell: { x: number; y: number }) {
     if (this.match.cores.some((core) => core.covers(cell))) return true
     if (this.match.combiners.some((machine) => machine.covers(cell))) return true
+    if (this.match.splitters.some((machine) => machine.covers(cell))) return true
+    if (this.match.tunnels.some((portal) => portal.covers(cell))) return true
     return this.match.sources.some((source) => source.covers(cell))
   }
 

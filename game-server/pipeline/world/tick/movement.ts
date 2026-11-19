@@ -1,12 +1,16 @@
-import { cellKey } from '../../geometry/cell.ts'
+import { cellKey, sameCell } from '../../geometry/cell.ts'
+import { ahead, opposite } from '../../geometry/direction.ts'
 import type { PacketShape } from '../../packets/packet.ts'
 import type { Packet } from '../../packets/packet.ts'
 import { remainingDemand } from '../progression/demands.ts'
 import type { Match } from '../match.ts'
 import { combinerAcceptsShape } from './craft.ts'
 import { mergeInputs } from './merge.ts'
+import { tunnelAbsorb, tunnelCanAbsorb } from './routing.ts'
 
 type Move = { packet: Packet; from: string; to: string }
+
+export type PullFlowChoice = 'pull' | 'flow'
 
 /** Moves every belt packet at once. Packets do not swap places. */
 export class Movement {
@@ -28,7 +32,7 @@ export class Movement {
       moves.push({
         packet,
         from: cellKey(belt.origin),
-        to: this.destination(output.cell, packet.shape),
+        to: this.chooseDestination(belt.origin, output.cell, packet.shape),
       })
     }
     const allowed = this.allowed(moves, occupied)
@@ -40,13 +44,27 @@ export class Movement {
         this.match.recordDelivery(move.packet.shape)
         continue
       }
-      if (move.to.startsWith('absorb:')) {
-        const combinerId = move.to.slice('absorb:'.length)
+      if (move.to.startsWith('absorb:combiner:')) {
+        const combinerId = move.to.slice('absorb:combiner:'.length)
         const combiner = this.match.combiners.find((machine) => machine.id === combinerId)
         if (!combiner || !combinerAcceptsShape(combiner, this.match.rules, move.packet.shape)) {
           continue
         }
         combiner.buffer[move.packet.shape] = (combiner.buffer[move.packet.shape] ?? 0) + 1
+        absorbedIds.add(move.packet.id)
+        continue
+      }
+      if (move.to.startsWith('absorb:splitter:')) {
+        const splitterId = move.to.slice('absorb:splitter:'.length)
+        const splitter = this.match.splitters.find((machine) => machine.id === splitterId)
+        if (!splitter || splitter.buffer !== null) continue
+        splitter.buffer = move.packet.shape
+        absorbedIds.add(move.packet.id)
+        continue
+      }
+      if (move.to.startsWith('absorb:tunnel:')) {
+        const pairId = move.to.slice('absorb:tunnel:'.length)
+        if (!tunnelAbsorb(this.match, pairId, move.packet.shape)) continue
         absorbedIds.add(move.packet.id)
         continue
       }
@@ -60,6 +78,83 @@ export class Movement {
     return deliveredIds.size
   }
 
+  /**
+   * Prefer input pull when the belt sits on an approach cell, round-robin with
+   * the belt’s natural forward destination when both are available.
+   */
+  private chooseDestination(
+    origin: { x: number; y: number },
+    outputCell: { x: number; y: number },
+    shape: PacketShape,
+  ) {
+    const flow = this.destination(outputCell, shape)
+    const pull = this.pullFromApproach(origin, shape)
+    if (!pull) return flow
+    if (flow === 'blocked') return pull
+    if (flow === pull) return pull
+    return this.pickPullFlowWinner(cellKey(origin), pull, flow)
+  }
+
+  /**
+   * If `cell` sits one step outside an accepting input, return that input’s
+   * deliver/absorb target. Returns null when the cell is not an approach or
+   * the input cannot take the packet this tick.
+   */
+  private pullFromApproach(cell: { x: number; y: number }, shape: PacketShape): string | null {
+    for (const core of this.match.cores) {
+      for (const slot of core.inputSlots()) {
+        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
+        if (!sameCell(approach, cell)) continue
+        if (!this.match.acceptsDelivery(shape)) return null
+        return 'deliver'
+      }
+    }
+    for (const combiner of this.match.combiners) {
+      for (const slot of combiner.inputSlots()) {
+        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
+        if (!sameCell(approach, cell)) continue
+        if (!combinerAcceptsShape(combiner, this.match.rules, shape)) return null
+        return `absorb:combiner:${combiner.id}`
+      }
+    }
+    for (const splitter of this.match.splitters) {
+      for (const slot of splitter.inputSlots()) {
+        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
+        if (!sameCell(approach, cell)) continue
+        if (splitter.buffer !== null) return null
+        return `absorb:splitter:${splitter.id}`
+      }
+    }
+    for (const portal of this.match.tunnels) {
+      if (portal.role !== 'entrance') continue
+      for (const slot of portal.inputSlots()) {
+        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
+        if (!sameCell(approach, cell)) continue
+        if (!tunnelCanAbsorb(this.match, portal.pairId)) return null
+        return `absorb:tunnel:${portal.pairId}`
+      }
+    }
+    return null
+  }
+
+  /** Round-robin between input pull and belt-forward flow for one approach cell. */
+  private pickPullFlowWinner(fromKey: string, pull: string, flow: string) {
+    const order: PullFlowChoice[] = ['pull', 'flow']
+    const targets: Record<PullFlowChoice, string> = { pull, flow }
+    const last = this.match.pullLast[fromKey]
+    let start = 0
+    if (last === 'pull') start = 1
+    else if (last === 'flow') start = 0
+    for (let i = 0; i < order.length; i++) {
+      const choice = order[(start + i) % order.length]!
+      const to = targets[choice]
+      if (to === 'blocked') continue
+      this.match.pullLast[fromKey] = choice
+      return to
+    }
+    return 'blocked'
+  }
+
   private destination(cell: { x: number; y: number }, shape: PacketShape) {
     for (const core of this.match.cores) {
       if (core.slotAt(cell, 'input')) {
@@ -70,7 +165,19 @@ export class Movement {
     for (const combiner of this.match.combiners) {
       if (combiner.slotAt(cell, 'input')) {
         if (!combinerAcceptsShape(combiner, this.match.rules, shape)) return 'blocked'
-        return `absorb:${combiner.id}`
+        return `absorb:combiner:${combiner.id}`
+      }
+    }
+    for (const splitter of this.match.splitters) {
+      if (splitter.slotAt(cell, 'input')) {
+        if (splitter.buffer !== null) return 'blocked'
+        return `absorb:splitter:${splitter.id}`
+      }
+    }
+    for (const portal of this.match.tunnels) {
+      if (portal.role === 'entrance' && portal.slotAt(cell, 'input')) {
+        if (!tunnelCanAbsorb(this.match, portal.pairId)) return 'blocked'
+        return `absorb:tunnel:${portal.pairId}`
       }
     }
     if (!this.match.inBounds(cell) || !this.match.beltAt(cell)) return 'blocked'

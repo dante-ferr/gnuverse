@@ -1,5 +1,7 @@
 import { ahead, opposite } from '../../../../../game-server/pipeline/geometry/direction.ts'
 import { CombinerMachine } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
+import { SplitterMachine } from '../../../../../game-server/pipeline/machines/splitter-machine.ts'
+import { TunnelPortalMachine } from '../../../../../game-server/pipeline/machines/tunnel-machine.ts'
 import { CoreMachine } from '../../../../../game-server/pipeline/machines/core-machine.ts'
 import { SourceMachine } from '../../../../../game-server/pipeline/machines/source-machine.ts'
 import type { PipelineFrame, PipelineRules } from '../model/frame.ts'
@@ -109,6 +111,29 @@ function outputPortOrigin(frame: PipelineFrame, x: number, y: number) {
       spec.machineId,
       { x: spec.x, y: spec.y },
       spec.facing,
+    )
+    const slot = machine.slotAt(cell, 'output')
+    if (slot) return ahead(x, y, opposite(slot.travel))
+  }
+  for (const spec of frame.splitters ?? []) {
+    const machine = new SplitterMachine(
+      spec.id,
+      { x: spec.x, y: spec.y },
+      spec.facing,
+      { id: '', nickname: '' },
+    )
+    const slot = machine.slotAt(cell, 'output')
+    if (slot) return ahead(x, y, opposite(slot.travel))
+  }
+  for (const spec of frame.tunnels ?? []) {
+    if (spec.role !== 'exit') continue
+    const machine = new TunnelPortalMachine(
+      spec.id,
+      { x: spec.x, y: spec.y },
+      spec.role,
+      spec.pairId,
+      spec.direction,
+      { id: '', nickname: '' },
     )
     const slot = machine.slotAt(cell, 'output')
     if (slot) return ahead(x, y, opposite(slot.travel))

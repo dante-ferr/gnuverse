@@ -1,17 +1,43 @@
+import { cellKey } from '../../geometry/cell.ts'
+import { isDirection, type Direction } from '../../geometry/direction.ts'
 import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
-import type { Direction } from '../../geometry/direction.ts'
+import { SplitterMachine } from '../../machines/splitter-machine.ts'
+import {
+  TunnelPortalMachine,
+  tunnelPairGeometry,
+} from '../../machines/tunnel-machine.ts'
 import type { Match } from '../match.ts'
 
 type Author = { id: string; nickname: string }
 
-export type MachinePlaceRequest = {
+export type CombinerPlaceRequest = {
   machineId: CombinerMachineId
   x: number
   y: number
   facing: Direction
 }
 
-/** Places and removes player combiners in sandbox matches. */
+export type SplitterPlaceRequest = {
+  machineId: 'splitter'
+  x: number
+  y: number
+  facing: Direction
+}
+
+export type TunnelPlaceRequest = {
+  machineId: 'tunnel'
+  entranceX: number
+  entranceY: number
+  exitX: number
+  exitY: number
+  facing: Direction
+}
+
+export type MachinePlaceRequest = CombinerPlaceRequest | SplitterPlaceRequest | TunnelPlaceRequest
+
+export type RemoveKind = 'combiner' | 'splitter' | 'tunnel' | null
+
+/** Places and removes player machines (combiners sandbox-only; splitter/tunnel everywhere). */
 export class MachineEditor {
   private match: Match
 
@@ -20,6 +46,43 @@ export class MachineEditor {
   }
 
   place(spec: MachinePlaceRequest, author: Author) {
+    if (spec.machineId === 'tunnel') return this.placeTunnel(spec, author)
+    if (spec.machineId === 'splitter') return this.placeSplitter(spec, author)
+    return this.placeCombiner(spec, author)
+  }
+
+  /** Removes a player machine under `cell`. Returns which kind, or null. */
+  removeAt(cell: { x: number; y: number }, author: Author): RemoveKind {
+    const splitterIndex = this.match.splitters.findIndex((machine) => machine.covers(cell))
+    if (splitterIndex >= 0) {
+      const [removed] = this.match.splitters.splice(splitterIndex, 1)
+      if (removed) {
+        this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
+      }
+      this.match.noteCollaborator(author)
+      return 'splitter'
+    }
+
+    const tunnel = this.match.tunnels.find((portal) => portal.covers(cell))
+    if (tunnel) {
+      const pairId = tunnel.pairId
+      this.match.tunnels = this.match.tunnels.filter((portal) => portal.pairId !== pairId)
+      this.match.noteCollaborator(author)
+      return 'tunnel'
+    }
+
+    const index = this.match.combiners.findIndex((machine) => machine.covers(cell))
+    if (index < 0) return null
+    if (!this.match.sandbox) return null
+    const [removed] = this.match.combiners.splice(index, 1)
+    if (removed) {
+      this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
+    }
+    this.match.noteCollaborator(author)
+    return 'combiner'
+  }
+
+  private placeCombiner(spec: CombinerPlaceRequest, author: Author) {
     if (!this.match.sandbox) return 'Combinadores só estão disponíveis na sala teste.'
     const { width, height } = CombinerMachine.sizeFor(spec.machineId, spec.facing)
     if (!this.footprintInOwned(spec.x, spec.y, width, height)) {
@@ -39,16 +102,70 @@ export class MachineEditor {
     return null
   }
 
-  /** Removes a combiner under `cell`. Returns false if none. */
-  removeAt(cell: { x: number; y: number }, author: Author) {
-    const index = this.match.combiners.findIndex((machine) => machine.covers(cell))
-    if (index < 0) return false
-    const [removed] = this.match.combiners.splice(index, 1)
-    if (removed) {
-      this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
+  private placeSplitter(spec: SplitterPlaceRequest, author: Author) {
+    if (!isDirection(spec.facing)) return 'Direção inválida.'
+    if (!this.footprintInOwned(spec.x, spec.y, 1, 1)) return 'Fora da área liberada.'
+    if (this.overlapsMachines(spec.x, spec.y, 1, 1)) {
+      return 'Espaço ocupado por outra estrutura.'
     }
+    if (this.overlapsBelts(spec.x, spec.y, 1, 1)) return 'Há esteiras nesse espaço.'
+    const id = `s${this.match.nextSplitterSeq++}`
+    this.match.splitters.push(
+      new SplitterMachine(id, { x: spec.x, y: spec.y }, spec.facing, {
+        id: author.id,
+        nickname: author.nickname,
+      }),
+    )
     this.match.noteCollaborator(author)
-    return true
+    return null
+  }
+
+  private placeTunnel(spec: TunnelPlaceRequest, author: Author) {
+    if (!isDirection(spec.facing)) return 'Direção inválida.'
+    const entrance = { x: spec.entranceX, y: spec.entranceY }
+    const exit = { x: spec.exitX, y: spec.exitY }
+    const geometry = tunnelPairGeometry(
+      entrance,
+      exit,
+      spec.facing,
+      this.match.rules.tunnelMaxGap,
+    )
+    if (!geometry.ok) return geometry.reason
+    if (!this.footprintInOwned(entrance.x, entrance.y, 1, 1)) return 'Fora da área liberada.'
+    if (!this.footprintInOwned(exit.x, exit.y, 1, 1)) return 'Fora da área liberada.'
+    if (this.overlapsMachines(entrance.x, entrance.y, 1, 1) || this.overlapsMachines(exit.x, exit.y, 1, 1)) {
+      return 'Espaço ocupado por outra estrutura.'
+    }
+    if (this.overlapsBelts(entrance.x, entrance.y, 1, 1) || this.overlapsBelts(exit.x, exit.y, 1, 1)) {
+      return 'Há esteiras nesse espaço.'
+    }
+    const pairId = `t${this.match.nextTunnelSeq++}`
+    this.match.tunnels.push(
+      new TunnelPortalMachine(
+        `${pairId}:in`,
+        entrance,
+        'entrance',
+        pairId,
+        spec.facing,
+        { id: author.id, nickname: author.nickname },
+        geometry.gap,
+      ),
+      new TunnelPortalMachine(
+        `${pairId}:out`,
+        exit,
+        'exit',
+        pairId,
+        spec.facing,
+        { id: author.id, nickname: author.nickname },
+        0,
+      ),
+    )
+    this.match.packets = this.match.packets.filter(
+      (packet) =>
+        cellKey(packet.cell) !== cellKey(entrance) && cellKey(packet.cell) !== cellKey(exit),
+    )
+    this.match.noteCollaborator(author)
+    return null
   }
 
   private footprintInOwned(x: number, y: number, width: number, height: number) {
@@ -69,9 +186,13 @@ export class MachineEditor {
     if (this.match.sources.some((source) => covers(source.origin.x, source.origin.y, source.width, source.height))) {
       return true
     }
-    return this.match.combiners.some((machine) =>
-      covers(machine.origin.x, machine.origin.y, machine.width, machine.height),
-    )
+    if (this.match.combiners.some((machine) => covers(machine.origin.x, machine.origin.y, machine.width, machine.height))) {
+      return true
+    }
+    if (this.match.splitters.some((machine) => covers(machine.origin.x, machine.origin.y, 1, 1))) {
+      return true
+    }
+    return this.match.tunnels.some((portal) => covers(portal.origin.x, portal.origin.y, 1, 1))
   }
 
   private overlapsBelts(x: number, y: number, width: number, height: number) {

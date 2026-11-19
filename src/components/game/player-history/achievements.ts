@@ -21,6 +21,13 @@ function detailRecord(detail: unknown): Record<string, unknown> | null {
   return detail as Record<string, unknown>
 }
 
+const MACHINE_PLACE_LABELS: Record<string, string> = {
+  combiner_2: 'Combinador',
+  combiner_3: 'Tri-combinador',
+  splitter: 'Divisor',
+  tunnel: 'Túnel',
+}
+
 /** Portuguese label for one achievement event. */
 export function formatAchievementLabel(event: GameEvent): string {
   const detail = detailRecord(event.detail)
@@ -30,8 +37,11 @@ export function formatAchievementLabel(event: GameEvent): string {
     return `Colocou ${String(structure)}`
   }
   if (event.type === 'machine-place') {
-    const machine = detail?.machine
-    if (typeof machine === 'string' && machine) return `Colocou a máquina ${machine}`
+    const id = detail?.structure ?? detail?.machine
+    if (typeof id === 'string' && id) {
+      const label = MACHINE_PLACE_LABELS[id]
+      return label ? `Colocou ${label}` : `Colocou a máquina ${id}`
+    }
     return 'Colocou uma máquina'
   }
   if (event.type === 'chunk-buy') {

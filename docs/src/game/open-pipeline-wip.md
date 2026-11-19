@@ -41,7 +41,8 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 
 ### Done (implemented)
 
-- **Server sim:** `game-server/pipeline/` — `Machine` / `SourceMachine` / `CoreMachine` / `BeltMachine`, `Match`, `Movement`, `Emission`, `BeltEditor` (no `StabilityMeter`).
+- **Server sim:** `game-server/pipeline/` — `Machine` / `SourceMachine` / `CoreMachine` / `BeltMachine` / `SplitterMachine` / `TunnelPortalMachine`, `Match`, `Movement`, `Routing`, `Emission`, `BeltEditor` / `MachineEditor` (no `StabilityMeter`).
+- **Splitter + tunnels:** 1×1 RR divisor and Factorio-style portal pairs (`tunnel_max_gap`); placeable in all rooms — 2026-11-19.
 - **Config:** `[pipeline]` in [`game.config.toml`](../game-server/config/game.config.toml), loaded via [`pipeline/load-rules.ts`](../game-server/pipeline/load-rules.ts).
 - **HTTP:** `POST /api/towers/:id/place`, `remove`, `join`, `chat`; SSE `frame` pushes `PipelineFrame`; SSE `chat` pushes room messages.
 - **Client:** `src/components/game/pipeline/` — canvas scene, painters, drag belts, pan/zoom; room at `/jogo/torre/` via `PipelineRoom` with sidebar chat + collaborators.
@@ -86,7 +87,7 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 ```text
 game-server/pipeline/
   geometry/          direction, cell, clearance (generation pads), seed-rng
-  machines/          Machine, Slot, Source (3×3), Core (5×5), Belt
+  machines/          Machine, Slot, Source (3×3), Core (5×5), Belt, Splitter (1×1), Tunnel portals
   packets/           Packet (circle only)
   world/             Match, frame, types; chunks/, placement/, tick/, edit/, progression/
   rules.ts           TypeScript mirror of TOML
@@ -145,6 +146,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-19 | Gameplay | Splitter 1×1 (1-in/3-out RR) + Factorio tunnels (`tunnel_max_gap`) in all rooms; QuiverAI decor; tests `pipeline-splitter` / `pipeline-tunnel` — early vs proposal v0.2/v0.3 |
 | 2026-11-19 | Design | Element book: kiln fires clay into brick (tier-4 byproduct); lightning and scrap move to tier 4; tier-5 capstones consume those byproducts (tempest, forge) — `elements.md` / decisions §10 |
 | 2026-11-19 | UX | Core requirements clickable → production-line ancestry overlay (`production-line/`); circle fallback; docs §10 / elements.md |
 | 2026-11-18 | Design | Outer sources optional (per-base `source_spawn_chance_percent` in `elements.toml`); clearance on at gen; spawn roll deferred — §11 |

@@ -20,9 +20,16 @@ type Props = {
   structureId: string
 }
 
-/** Facing picker for sandbox combiner placement. */
+const FACING_STRUCTURE_HEADINGS: Record<string, string> = {
+  combiner_2: 'Combinador',
+  combiner_3: 'Tri-combinador',
+  splitter: 'Divisor',
+  tunnel: 'Túnel',
+}
+
+/** Facing picker for machines that expose a travel direction before placement. */
 export function CombinerPlaceControls({ structureId }: Props) {
-  const isCombiner = structureId === 'combiner_2' || structureId === 'combiner_3'
+  const heading = FACING_STRUCTURE_HEADINGS[structureId]
   const [revision, setRevision] = useState(0)
   const options = getCombinerPlaceOptions()
 
@@ -30,14 +37,14 @@ export function CombinerPlaceControls({ structureId }: Props) {
     return subscribeCombinerPlaceOptions(() => setRevision((n) => n + 1))
   }, [])
 
-  if (!isCombiner) return null
+  if (!heading) return null
 
   void revision
 
   return (
-    <section className={styles.sidebarStats} aria-labelledby="combiner-place-heading">
-      <h2 id="combiner-place-heading" className={styles.sidebarSectionTitle}>
-        Combinador
+    <section className={styles.sidebarStats} aria-labelledby="machine-facing-heading">
+      <h2 id="machine-facing-heading" className={styles.sidebarSectionTitle}>
+        {heading}
       </h2>
       <label>
         Orientação

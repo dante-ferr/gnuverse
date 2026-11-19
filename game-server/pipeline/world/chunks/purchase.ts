@@ -41,6 +41,20 @@ function shiftMergeLast(
   return next
 }
 
+function shiftPullLast(
+  pullLast: Record<string, 'pull' | 'flow'>,
+  dx: number,
+  dy: number,
+): Record<string, 'pull' | 'flow'> {
+  if (dx === 0 && dy === 0) return { ...pullLast }
+  const next: Record<string, 'pull' | 'flow'> = {}
+  for (const [from, choice] of Object.entries(pullLast)) {
+    const fromKey = shiftKey(from, dx, dy)
+    if (fromKey) next[fromKey] = choice
+  }
+  return next
+}
+
 /** Apply an owned-set change: recompute preview AABB and remap local cells if the origin moves. */
 export function applyOwnedChunks(match: Match, ownedChunks: ChunkCoord[]): void {
   const chunkSize = match.rules.chunkSize
@@ -65,6 +79,7 @@ export function applyOwnedChunks(match: Match, ownedChunks: ChunkCoord[]): void 
     }
     for (const packet of match.packets) shiftCell(packet.cell, dx, dy)
     match.mergeLast = shiftMergeLast(match.mergeLast, dx, dy)
+    match.pullLast = shiftPullLast(match.pullLast, dx, dy)
   }
 
   match.originChunk = originChunk

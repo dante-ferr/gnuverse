@@ -49,6 +49,30 @@ export type CombinerRecord = {
   nextSplitPort: 0 | 1
 }
 
+export type SplitterRecord = {
+  id: string
+  x: number
+  y: number
+  facing: Direction
+  authorId: string
+  authorNickname: string
+  nextSplitPort: 0 | 1 | 2
+  buffer: PacketShape | null
+}
+
+export type TunnelPortalRecord = {
+  id: string
+  pairId: string
+  role: 'entrance' | 'exit'
+  x: number
+  y: number
+  direction: Direction
+  authorId: string
+  authorNickname: string
+  /** Entrance only: underground lane occupancy (null = empty). */
+  queue?: (PacketShape | null)[]
+}
+
 /** Persisted match. Classes are rebuilt from this on each tick. */
 export type PipelineFrame = {
   kind: 'pipeline'
@@ -65,11 +89,15 @@ export type PipelineFrame = {
   nextPacketId: number
   nextBeltSeq: number
   nextCombinerSeq?: number
+  nextSplitterSeq?: number
+  nextTunnelSeq?: number
   sandbox?: boolean
   belts: BeltRecord[]
   packets: PacketRecord[]
   /** Destination cell key → last inbound cell key that won a merge into it. */
   mergeLast?: Record<string, string>
+  /** Approach cell key → last winner between input pull and belt-forward flow. */
+  pullLast?: Record<string, 'pull' | 'flow'>
   originChunk: ChunkCoordRecord
   ownedChunks: ChunkCoordRecord[]
   previewChunks: ChunkCoordRecord[]
@@ -79,6 +107,8 @@ export type PipelineFrame = {
   core: CoreRecord
   cores?: CoreRecord[]
   combiners?: CombinerRecord[]
+  splitters?: SplitterRecord[]
+  tunnels?: TunnelPortalRecord[]
 }
 
 export function isPipelineFrame(value: unknown): value is PipelineFrame {
