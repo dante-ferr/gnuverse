@@ -1,8 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { GameTopBar } from './game/game-top-bar'
 import { useGameSession } from './game/hooks/use-game-session'
+import styles from './game/game-shell.module.css'
+
 const pages = [
   { href: '/', label: 'Início' },
   { href: '/jogo/', label: 'Jogo' },
@@ -11,57 +15,51 @@ const pages = [
 
 export function SiteHeader() {
   const pathname = usePathname()
+  const router = useRouter()
   const session = useGameSession()
+  const [busy, setBusy] = useState(false)
+
+  // In-room chrome owns the top bar; lobby/dashboard uses this site bar.
+  if (pathname?.startsWith('/jogo/torre')) {
+    return null
+  }
+
+  const isHome = pathname === '/'
+
   return (
-    <header className={`site-header${pathname !== '/' ? ' site-header-centered' : ''}`}>
-      <Link href="/" aria-label="GNUverse — início" className="site-brand">
-        <span aria-hidden="true">⌘</span>gnuverse
-      </Link>
-      <nav aria-label="Navegação principal" className="site-nav">
+    <GameTopBar
+      user={session.user}
+      wallet={session.wallet}
+      secondsToCoin={session.secondsToCoin}
+      busy={busy}
+      showAccount={!isHome}
+      centeredNav
+      onLogout={() => {
+        setBusy(true)
+        void session.logout().finally(() => setBusy(false))
+      }}
+      onOpenAuth={() => router.push('/login/')}
+    >
+      <nav aria-label="Navegação principal" className={styles.topBarNav}>
         {pages.map((page) => {
           const active =
             page.href === '/'
               ? pathname === '/'
               : page.href === '/blog/'
-                ? pathname?.startsWith('/blog') ||
-                  pathname?.startsWith('/artigos')
+                ? pathname?.startsWith('/blog') || pathname?.startsWith('/artigos')
                 : pathname?.startsWith('/jogo')
           return (
             <Link
               key={page.href}
               href={page.href}
               aria-current={active ? 'page' : undefined}
-              className="site-link"
+              className={styles.topBarLink}
             >
               {page.label}
             </Link>
           )
         })}
       </nav>
-      {pathname !== '/' && (
-        <div className="site-account">
-          {session.user ? (
-            <>
-              {session.wallet && (
-                <span className="site-credits" title={`${session.wallet.balance} de ${session.wallet.cap} moedas`} aria-label={`${session.wallet.balance} de ${session.wallet.cap} moedas`}>
-                  {session.wallet.balance}
-                </span>
-              )}
-              <Link className="site-avatar" href="/jogo/" aria-label={`Perfil de ${session.user.nickname}`} title={session.user.nickname}>
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <circle cx="12" cy="8" r="3.5" />
-                  <path d="M5 20c.6-4 3-6 7-6s6.4 2 7 6" />
-                </svg>
-              </Link>
-            </>
-          ) : (
-            <div className="site-auth-links">
-              <Link href="/login/">Entrar</Link>
-              <Link href="/cadastro/">Registrar</Link>
-            </div>
-          )}
-        </div>
-      )}
-    </header>
+    </GameTopBar>
   )
 }

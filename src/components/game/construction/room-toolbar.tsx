@@ -4,7 +4,9 @@ import styles from '../game-shell.module.css'
 
 type Props = {
   connection: Connection
-  roomName?: string
+  title: string
+  product?: string
+  showBack?: boolean
   onCreate: () => void
   canDelete: boolean
   onDelete: () => void
@@ -12,19 +14,23 @@ type Props = {
 
 export function RoomToolbar({
   connection,
-  roomName,
+  title,
+  product = 'Open Pipeline',
+  showBack = true,
   onCreate,
   canDelete,
   onDelete,
 }: Props) {
   return (
     <div className={styles.detailToolbar}>
-      <a className={styles.backLink} href="/jogo/">
-        ← Salas
-      </a>
+      {showBack && (
+        <a className={styles.backLink} href="/jogo/">
+          ← Salas
+        </a>
+      )}
       <div className={styles.gameTitleBlock}>
-        <p className={styles.gameProduct}>Open Pipeline</p>
-        <h1 className={styles.gameTitle}>{roomName?.trim() || 'Sala'}</h1>
+        <p className={styles.gameProduct}>{product}</p>
+        <h1 className={styles.gameTitle}>{title.trim() || 'Sala'}</h1>
       </div>
       <span className={`${styles.connection} ${connection === 'live' ? styles.live : ''}`}>
         <i />

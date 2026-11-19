@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { canManageRoom } from '../../../../core/authz/policy'
 import { createRoomFromForm } from '../api/create-room'
-import { AccountBanner } from '../account/account-banner'
 import { CreateRoomPanel } from '../construction/create-room-panel'
+import { GameTopBar } from '../game-top-bar'
 import { RoomToolbar } from '../construction/room-toolbar'
 import { useActionFeedback } from '../hooks/use-action-feedback'
 import { useGameSession } from '../hooks/use-game-session'
@@ -129,10 +129,17 @@ export function PipelineRoom() {
   }
   return (
     <main className={styles.gameShell}>
-      <header className={styles.gameTopBar}>
+      <GameTopBar
+        user={session.user}
+        wallet={session.wallet}
+        secondsToCoin={session.secondsToCoin}
+        busy={feedback.busy}
+        onLogout={() => feedback.run(session.logout)}
+        onOpenAuth={openLogin}
+      >
         <RoomToolbar
           connection={lobby.roomId ? live.connection : lobby.connection}
-          roomName={live.name}
+          title={live.name?.trim() || 'Sala'}
           onCreate={() => setShowCreate(true)}
           canDelete={Boolean(
             session.user &&
@@ -150,15 +157,7 @@ export function PipelineRoom() {
             })
           }
         />
-        <AccountBanner
-          user={session.user}
-          wallet={session.wallet}
-          secondsToCoin={session.secondsToCoin}
-          busy={feedback.busy}
-          onLogout={() => feedback.run(session.logout)}
-          onOpenAuth={openLogin}
-        />
-      </header>
+      </GameTopBar>
       {feedback.error && (
         <div className={styles.playToast} role="alert">
           {feedback.error}

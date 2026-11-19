@@ -42,14 +42,20 @@ export function PipelineLobby() {
           <h1>Open Pipeline</h1>
           <p>Escolha uma sala para ligar esteiras com a comunidade.</p>
         </div>
-        <button type="button" className={styles.primary} onClick={() => {
-          feedback.setError('')
-          if (!session.user) {
-            router.push('/login/?next=%2Fjogo%2F%3Fnovo%3D1&notice=login-required')
-            return
-          }
-          setShowCreate(true)
-        }}>Nova sala</button>
+        <button
+          type="button"
+          className={styles.primary}
+          onClick={() => {
+            feedback.setError('')
+            if (!session.user) {
+              router.push('/login/?next=%2Fjogo%2F%3Fnovo%3D1&notice=login-required')
+              return
+            }
+            setShowCreate(true)
+          }}
+        >
+          Nova sala
+        </button>
       </header>
 
       {feedback.notice && <p className={styles.message} role="status">{feedback.notice}</p>}
