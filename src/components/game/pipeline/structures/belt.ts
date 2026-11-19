@@ -1,28 +1,56 @@
 import { cycleBeltPlaceDirection, getBeltPlaceDirection } from '../belt-place-options.ts'
-import { BeltStroke } from '../scene/belt-stroke.ts'
+import { planBeltCrossings, readBeltCrossQuery, type PlannedTunnel } from '../scene/belt-cross.ts'
+import { BeltStroke, type StrokeCell } from '../scene/belt-stroke.ts'
 import { registerStructure } from './registry.ts'
 import type {
   StructureDefinition,
   StructureHoverGhost,
   StructurePlacementSession,
   StructurePreviewBelt,
+  StructurePreviewMachine,
 } from './types.ts'
 
-type BeltPayload = { cells: BeltStroke['cells'] }
+type BeltPayload = { cells: StrokeCell[]; tunnels?: PlannedTunnel[] }
 
 function isBeltPayload(payload: unknown): payload is BeltPayload {
   if (!payload || typeof payload !== 'object') return false
-  return Array.isArray((payload as BeltPayload).cells)
+  const record = payload as BeltPayload
+  if (!Array.isArray(record.cells)) return false
+  return record.tunnels == null || Array.isArray(record.tunnels)
+}
+
+function previewPortal(
+  tunnel: PlannedTunnel,
+  role: 'entrance' | 'exit',
+): StructurePreviewMachine {
+  return {
+    machineId: 'tunnel',
+    x: role === 'entrance' ? tunnel.entranceX : tunnel.exitX,
+    y: role === 'entrance' ? tunnel.entranceY : tunnel.exitY,
+    facing: tunnel.facing,
+    width: 1,
+    height: 1,
+    tunnelRole: role,
+    placementValid: true,
+  }
 }
 
 function createBeltSession(): StructurePlacementSession {
   const stroke = new BeltStroke()
+
+  const plan = () => {
+    const query = readBeltCrossQuery()
+    if (!query.enabled()) return { belts: stroke.cells, tunnels: [] as PlannedTunnel[] }
+    const { conveyors, blocked } = query.occupancy()
+    return planBeltCrossings(stroke.cells, conveyors, blocked, query.maxGap())
+  }
+
   return {
     push(cell) {
       return stroke.push(cell)
     },
     previewBelts(): StructurePreviewBelt[] {
-      return stroke.cells.map((cell, index) => ({
+      return plan().belts.map((cell, index) => ({
         id: `preview-${index}`,
         x: cell.x,
         y: cell.y,
@@ -32,12 +60,21 @@ function createBeltSession(): StructurePlacementSession {
         placedAt: index,
       }))
     },
+    previewMachines(): StructurePreviewMachine[] {
+      return plan().tunnels.flatMap((tunnel) => [
+        previewPortal(tunnel, 'entrance'),
+        previewPortal(tunnel, 'exit'),
+      ])
+    },
     isEmpty() {
       return stroke.cells.length === 0
     },
     finish() {
-      if (stroke.cells.length === 0) return null
-      return { structureId: 'belt', payload: { cells: stroke.cells } satisfies BeltPayload }
+      const next = plan()
+      if (next.belts.length === 0 && next.tunnels.length === 0) return null
+      const payload: BeltPayload = { cells: next.belts }
+      if (next.tunnels.length > 0) payload.tunnels = next.tunnels
+      return { structureId: 'belt', payload }
     },
   }
 }
@@ -69,7 +106,18 @@ const beltStructure: StructureDefinition = {
     cycleBeltPlaceDirection()
   },
   async commit(ctx, payload) {
-    if (!isBeltPayload(payload) || payload.cells.length === 0) return
+    if (!isBeltPayload(payload)) return
+    for (const tunnel of payload.tunnels ?? []) {
+      await ctx.request(`/api/towers/${ctx.roomId}/place-machine`, {
+        machineId: 'tunnel',
+        entranceX: tunnel.entranceX,
+        entranceY: tunnel.entranceY,
+        exitX: tunnel.exitX,
+        exitY: tunnel.exitY,
+        facing: tunnel.facing,
+      })
+    }
+    if (payload.cells.length === 0) return
     await ctx.request(`/api/towers/${ctx.roomId}/place`, { cells: payload.cells })
   },
 }

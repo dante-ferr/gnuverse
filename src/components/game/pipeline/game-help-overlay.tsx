@@ -36,6 +36,10 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
               <span className={styles.key}>R · Girar</span>
               <span>Roda a peça selecionada, quando a estrutura permite.</span>
             </li>
+            <li>
+              <span className={styles.key}>Shift+arrastar</span>
+              <span>Com a esteira, atravessa esteiras já colocadas com um túnel.</span>
+            </li>
           </ul>
         </section>
 
@@ -48,7 +52,7 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
             </li>
             <li>
               <span className={styles.key}>Botão direito · meio</span>
-              <span>Arrasta a visão (também com Shift+arrastar ou dois dedos).</span>
+              <span>Arrasta a visão, também com dois dedos. Shift+arrastar move a câmera fora da ferramenta de esteira.</span>
             </li>
             <li>
               <span className={styles.key}>Roda · pinça</span>
@@ -68,6 +72,14 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
         <section className={styles.section}>
           <h3>Esteiras</h3>
           <p>Passe o mouse sobre uma esteira para ver quem a colocou. Pressione e segure numa esteira para fixar o rótulo na tela.</p>
+          <p>
+            Segure <strong>Shift</strong> ao arrastar uma esteira para passar por baixo de esteiras já no
+            mapa. O túnel segue a orientação do arraste e só entra quando o trecho cabe na distância
+            máxima da sala, com uma esteira sua imediatamente antes da entrada e outra logo depois da
+            saída. Esteiras separadas por uma ou duas células vazias contam como um trecho só. Um grupo
+            mais largo que o limite, ou sem célula livre para os portais, permanece no lugar; a esteira
+            nova ocupa as células livres.
+          </p>
         </section>
 
         <section className={styles.section}>

@@ -146,6 +146,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-19 | Gameplay | Shift-drag on belts inserts tunnels across runs that fit in `tunnel_max_gap` (1–2 empty cells stay in the span). Thicker runs and missing portal cells are skipped — `belt-cross.ts` |
 | 2026-11-19 | Gameplay | Splitter 1×1 (1-in/3-out RR) + Factorio tunnels (`tunnel_max_gap`) in all rooms; QuiverAI decor; tests `pipeline-splitter` / `pipeline-tunnel` — early vs proposal v0.2/v0.3 |
 | 2026-11-19 | Design | Element book: kiln fires clay into brick (tier-4 byproduct); lightning and scrap move to tier 4; tier-5 capstones consume those byproducts (tempest, forge) — `elements.md` / decisions §10 |
 | 2026-11-19 | UX | Core requirements clickable → production-line ancestry overlay (`production-line/`); circle fallback; docs §10 / elements.md |
