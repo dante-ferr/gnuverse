@@ -2,6 +2,8 @@ import type { ElementCatalogJson } from '../../../../../game-server/pipeline/ele
 
 export type Direction = 'north' | 'east' | 'south' | 'west'
 
+export type PacketShape = string
+
 export type PipelineRules = {
   tickMs: number
   gridWidth: number
@@ -52,7 +54,7 @@ export type PipelineRules = {
 }
 
 export type CoreDemandRecord = {
-  shape: 'circle'
+  shape: PacketShape
   received: number
   required: number
 }
@@ -67,9 +69,24 @@ export type SourceRecord = {
   x: number
   y: number
   direction: Direction
-  shape: 'circle'
+  shape: PacketShape
   role?: SourceRole
   cooldown?: number
+}
+
+export type CoreRecord = { id: string; x: number; y: number }
+
+export type CombinerRecord = {
+  id: string
+  machineId: 'combiner_2' | 'combiner_3'
+  recipeId: string
+  x: number
+  y: number
+  facing: Direction
+  buffer?: Record<string, number>
+  craftRemaining?: number | null
+  pendingOutputs?: string[] | null
+  nextSplitPort?: 0 | 1
 }
 
 export type BeltRecord = {
@@ -90,17 +107,20 @@ export type PipelineFrame = {
   height: number
   tick: number
   deliveries: number
-  deliveryByShape: Partial<Record<'circle', number>>
+  deliveryByShape: Partial<Record<PacketShape, number>>
   demands: CoreDemandRecord[]
   collaborators: { id: string; nickname: string }[]
   belts: BeltRecord[]
-  packets: { id: string; x: number; y: number; shape: 'circle' }[]
+  packets: { id: string; x: number; y: number; shape: PacketShape }[]
+  sandbox?: boolean
   originChunk?: ChunkCoordRecord
   ownedChunks?: ChunkCoordRecord[]
   previewChunks?: ChunkCoordRecord[]
   sources?: SourceRecord[]
-  source: { id: string; x: number; y: number; direction: Direction; shape: 'circle' }
-  core: { id: string; x: number; y: number }
+  source: { id: string; x: number; y: number; direction: Direction; shape: PacketShape }
+  core: CoreRecord
+  cores?: CoreRecord[]
+  combiners?: CombinerRecord[]
 }
 
 export function isPipelineFrame(value: unknown): value is PipelineFrame {
@@ -111,4 +131,14 @@ export function pipelineRulesFrom(rules: Record<string, unknown> | null): Pipeli
   const pipeline = rules?.pipeline
   if (!pipeline || typeof pipeline !== 'object') return null
   return pipeline as PipelineRules
+}
+
+export function glyphUrlForShape(
+  rules: PipelineRules | null,
+  shape: PacketShape,
+): string | null {
+  if (shape === 'circle') return '/pipeline/resource-circle.svg'
+  const el = rules?.elements.elements.find((item) => item.id === shape)
+  if (!el?.glyph) return null
+  return el.glyph.startsWith('/') ? el.glyph : `/${el.glyph}`
 }

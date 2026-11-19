@@ -7,8 +7,15 @@ export type CoreDemandRecord = {
   required: number
 }
 
+export type PipelineFrameVersion = string
+
 /** Shapes the central core counts toward the current version milestone. */
-export function activeDemandShapes(version: PipelineFrameVersion): PacketShape[] {
+export function activeDemandShapes(
+  version: PipelineFrameVersion,
+  rules: PipelineRules,
+  sandbox = false,
+): PacketShape[] {
+  if (sandbox) return rules.elements.elements.map((el) => el.id)
   switch (version) {
     case '0.1':
       return ['circle']
@@ -17,9 +24,11 @@ export function activeDemandShapes(version: PipelineFrameVersion): PacketShape[]
   }
 }
 
-export type PipelineFrameVersion = string
-
-function requiredForShape(rules: PipelineRules, shape: PacketShape): number {
+function requiredForShape(rules: PipelineRules, shape: PacketShape, sandbox = false): number {
+  if (sandbox) {
+    const el = rules.elements.elements.find((item) => item.id === shape)
+    return el?.demand_required ?? rules.elements.defaultDemandRequired
+  }
   switch (shape) {
     case 'circle':
       return rules.coreDemandCircle
@@ -32,11 +41,12 @@ export function coreDemands(
   rules: PipelineRules,
   version: PipelineFrameVersion,
   receivedByShape: Partial<Record<PacketShape, number>>,
+  sandbox = false,
 ): CoreDemandRecord[] {
-  return activeDemandShapes(version).map((shape) => ({
+  return activeDemandShapes(version, rules, sandbox).map((shape) => ({
     shape,
     received: receivedByShape[shape] ?? 0,
-    required: requiredForShape(rules, shape),
+    required: requiredForShape(rules, shape, sandbox),
   }))
 }
 
@@ -46,9 +56,10 @@ export function remainingDemand(
   version: PipelineFrameVersion,
   shape: PacketShape,
   receivedByShape: Partial<Record<PacketShape, number>>,
+  sandbox = false,
 ): number {
-  if (!activeDemandShapes(version).includes(shape)) return 0
-  return Math.max(0, requiredForShape(rules, shape) - (receivedByShape[shape] ?? 0))
+  if (!activeDemandShapes(version, rules, sandbox).includes(shape)) return 0
+  return Math.max(0, requiredForShape(rules, shape, sandbox) - (receivedByShape[shape] ?? 0))
 }
 
 /** Whether the central core still counts deliveries for this shape toward the current milestone. */
@@ -57,6 +68,7 @@ export function coreAcceptsShape(
   version: PipelineFrameVersion,
   shape: PacketShape,
   receivedByShape: Partial<Record<PacketShape, number>>,
+  sandbox = false,
 ): boolean {
-  return remainingDemand(rules, version, shape, receivedByShape) > 0
+  return remainingDemand(rules, version, shape, receivedByShape, sandbox) > 0
 }

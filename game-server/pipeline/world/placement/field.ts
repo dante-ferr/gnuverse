@@ -86,6 +86,13 @@ export class PlacementField {
     if (machine.kind === 'core') {
       return [this.freeRectForCore(machine.origin)]
     }
+    if (machine.kind === 'combiner') {
+      const depths = clearanceDepths(
+        { north: 0, east: 0, south: 0, west: 0 },
+        this.rules.machineClearanceMin,
+      )
+      return [freeRect(machine.origin, machine.width, machine.height, depths)]
+    }
     const source = new SourceMachine(
       's',
       machine.origin,

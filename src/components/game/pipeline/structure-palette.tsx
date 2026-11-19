@@ -1,22 +1,29 @@
 import type { EditMode } from './scene/pipeline-scene'
-import { listStructures } from './structures'
+import type { PipelineFrame } from './model/frame'
+import { getStructure, listStructures } from './structures'
 import styles from '../game-shell.module.css'
 
 type Props = {
+  frame: PipelineFrame | null
   selectedStructureId: string
   onSelectStructure: (id: string) => void
   editMode: EditMode
   onEditModeChange: (mode: EditMode) => void
+  onRotate?: () => void
 }
 
 /** Placeable structures from the registry, plus create/delete mode. */
 export function StructurePalette({
+  frame,
   selectedStructureId,
   onSelectStructure,
   editMode,
   onEditModeChange,
+  onRotate,
 }: Props) {
-  const structures = listStructures()
+  const sandbox = frame?.sandbox === true
+  const structures = listStructures().filter((item) => !item.sandboxOnly || sandbox)
+  const canRotate = Boolean(getStructure(selectedStructureId)?.rotate)
 
   return (
     <section className={styles.structurePalette} aria-labelledby="structure-palette-heading">
@@ -65,10 +72,15 @@ export function StructurePalette({
         >
           Apagar
         </button>
+        <button
+          type="button"
+          className={styles.editModeButton}
+          disabled={!canRotate || editMode !== 'create'}
+          onClick={() => onRotate?.()}
+        >
+          Girar
+        </button>
       </div>
-      <p className={styles.controlsHint}>
-        Pressione E para alternar. WASD, setas ou botão direito movem a câmera.
-      </p>
     </section>
   )
 }

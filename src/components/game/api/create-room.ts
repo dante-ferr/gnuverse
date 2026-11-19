@@ -9,5 +9,10 @@ export function createRoomFromForm(api: GameApi, form: HTMLFormElement) {
     eligibilityMode: data.get('eligibilityMode') ?? 'automatic',
     minContributions: Number(data.get('minContributions')),
     allowCreatorBan: data.get('allowCreatorBan') === 'on',
+    sandbox: data.get('sandbox') === 'true' ? true : undefined,
   })
+}
+
+export function createSandboxRoom(api: GameApi) {
+  return api.request<{ room: Room }>('/api/towers', { sandbox: true })
 }

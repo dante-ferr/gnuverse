@@ -1,9 +1,6 @@
 import type { PipelineFrame, PipelineRules } from './model/frame'
+import { glyphUrlForShape } from './model/frame'
 import styles from '../game-shell.module.css'
-
-const resourceGlyph: Record<PipelineFrame['source']['shape'], string> = {
-  circle: '/pipeline/resource-circle.svg',
-}
 
 type Props = {
   frame: PipelineFrame | null
@@ -11,7 +8,7 @@ type Props = {
 }
 
 /** Delivery readouts for the central core (Jogo page). */
-export function CoreRequirementsSidebar({ frame }: Props) {
+export function CoreRequirementsSidebar({ frame, rules }: Props) {
   if (!frame?.seed) {
     return (
       <div className={styles.sidebarStats}>
@@ -31,7 +28,7 @@ export function CoreRequirementsSidebar({ frame }: Props) {
       </dl>
       <ul className={styles.coreRequirementGrid} aria-label="Formas exigidas">
         {frame.demands.map((demand) => {
-          const glyph = resourceGlyph[demand.shape]
+          const glyph = glyphUrlForShape(rules, demand.shape) ?? '/pipeline/resource-circle.svg'
           const met = demand.received >= demand.required
           return (
             <li key={demand.shape} className={styles.coreRequirementCell}>

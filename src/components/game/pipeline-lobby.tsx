@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CreateRoomPanel } from './construction/create-room-panel'
-import { createRoomFromForm } from './api/create-room'
+import { createRoomFromForm, createSandboxRoom } from './api/create-room'
 import { useActionFeedback } from './hooks/use-action-feedback'
 import { DEFAULT_ROOM_FILTERS, type RoomFilters, useRoomLobby } from './hooks/use-room-lobby'
 import { useGameSession } from './hooks/use-game-session'
@@ -42,20 +42,41 @@ export function PipelineLobby() {
           <h1>Open Pipeline</h1>
           <p>Escolha uma sala para ligar esteiras com a comunidade.</p>
         </div>
-        <button
-          type="button"
-          className={styles.primary}
-          onClick={() => {
-            feedback.setError('')
-            if (!session.user) {
-              router.push('/login/?next=%2Fjogo%2F%3Fnovo%3D1&notice=login-required')
-              return
-            }
-            setShowCreate(true)
-          }}
-        >
-          Nova sala
-        </button>
+        <div className={styles.roomFilterActions}>
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={() => {
+              feedback.setError('')
+              if (!session.user) {
+                router.push('/login/?next=%2Fjogo%2F%3Fnovo%3D1&notice=login-required')
+                return
+              }
+              setShowCreate(true)
+            }}
+          >
+            Nova sala
+          </button>
+          {lobby.rules?.sandboxAllowed === true ? (
+            <button
+              type="button"
+              className={styles.secondary}
+              disabled={feedback.busy || !session.user}
+              onClick={() =>
+                feedback.run(async () => {
+                  if (!session.user) {
+                    router.push('/login/?next=%2Fjogo%2F%3Fnovo%3D1&notice=login-required')
+                    return
+                  }
+                  const result = await createSandboxRoom(session.api)
+                  router.push(`/jogo/torre/?id=${encodeURIComponent(result.room.id)}`)
+                })
+              }
+            >
+              Sala teste (elementos)
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {feedback.notice && <p className={styles.message} role="status">{feedback.notice}</p>}

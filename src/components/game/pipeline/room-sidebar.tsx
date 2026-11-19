@@ -10,6 +10,8 @@ import { RoomChat } from './room-chat'
 import { RoomDecisions } from './room-decisions'
 import { RoomParticipants } from './room-participants'
 import { StructurePalette } from './structure-palette'
+import { CombinerPlaceControls } from './combiner-place-controls'
+import { GameHelpOverlay } from './game-help-overlay'
 import styles from '../game-shell.module.css'
 
 type SidebarPage = 'jogo' | 'participantes' | 'decisoes'
@@ -21,6 +23,7 @@ type Props = {
   onSelectStructure: (id: string) => void
   editMode: EditMode
   onEditModeChange: (mode: EditMode) => void
+  onRotate?: () => void
   api: GameApi
   roomId: string
   user: User | null
@@ -53,6 +56,7 @@ export function RoomSidebar({
   onSelectStructure,
   editMode,
   onEditModeChange,
+  onRotate,
   api,
   roomId,
   user,
@@ -71,31 +75,54 @@ export function RoomSidebar({
   onSendChat,
 }: Props) {
   const [page, setPage] = useState<SidebarPage>('jogo')
+  const [helpOpen, setHelpOpen] = useState(false)
 
   return (
     <aside className={styles.gameSidebar} aria-label="Painel da sala">
-      <div className={styles.tabs} role="tablist" aria-label="Páginas da sala">
-        {pages.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={page === item.id}
-            onClick={() => setPage(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className={styles.sidebarTabRow}>
+        <div className={styles.tabs} role="tablist" aria-label="Páginas da sala">
+          {pages.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={page === item.id}
+              onClick={() => setPage(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className={styles.gameHelpButton}
+          aria-label="Ajuda e controles"
+          title="Ajuda"
+          onClick={() => setHelpOpen(true)}
+        >
+          ?
+        </button>
       </div>
+      {helpOpen ? (
+        <GameHelpOverlay sandbox={frame?.sandbox === true} onClose={() => setHelpOpen(false)} />
+      ) : null}
       <div className={styles.sidebarPage} role="tabpanel">
         {page === 'jogo' ? (
           <div className={styles.sidebarPageStack}>
             <StructurePalette
+              frame={frame}
               selectedStructureId={structureId}
               onSelectStructure={onSelectStructure}
               editMode={editMode}
               onEditModeChange={onEditModeChange}
+              onRotate={onRotate}
             />
+            {frame?.sandbox ? (
+              <CombinerPlaceControls
+                rules={rules}
+                structureId={structureId}
+              />
+            ) : null}
             <CoreRequirementsSidebar frame={frame} rules={rules} />
           </div>
         ) : null}

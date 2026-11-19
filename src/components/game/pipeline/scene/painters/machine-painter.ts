@@ -5,9 +5,10 @@ import {
 } from '../../../../../../game-server/pipeline/machines/machine.ts'
 import { SourceMachine } from '../../../../../../game-server/pipeline/machines/source-machine.ts'
 import type { Machine } from '../../../../../../game-server/pipeline/machines/machine.ts'
+import { CombinerMachine } from '../../../../../../game-server/pipeline/machines/combiner-machine.ts'
 import type { PacketShape } from '../../../../../../game-server/pipeline/packets/packet.ts'
 import type { ElementMachineKind } from '../../../../../../game-server/pipeline/elements/index.ts'
-import type { PipelineFrame, PipelineRules } from '../../model/frame.ts'
+import type { Direction, PipelineFrame, PipelineRules } from '../../model/frame.ts'
 import { darkenHex } from './darken-hex.ts'
 import { cellSize } from './grid-painter.ts'
 
@@ -32,6 +33,37 @@ export class MachinePainter {
 
   constructor(private readonly images: MachineDecorImages) {}
 
+  /** Translucent combiner ghost for hover / placement preview. */
+  drawCombinerGhost(
+    ctx: CanvasRenderingContext2D,
+    spec: {
+      machineId: string
+      recipeId: string
+      x: number
+      y: number
+      facing: Direction
+    },
+    rules: PipelineRules,
+  ) {
+    if (spec.machineId !== 'combiner_2' && spec.machineId !== 'combiner_3') return
+    const combiner = new CombinerMachine(
+      'ghost',
+      spec.machineId,
+      spec.recipeId || 'steam',
+      { x: spec.x, y: spec.y },
+      spec.facing,
+    )
+    const kind = rules.elements.machines.find((item) => item.id === spec.machineId)
+    const body = kind?.color ?? rules.colorAccent
+    const bracketStyle = slotBracketStyleFromRules(rules)
+    ctx.save()
+    ctx.globalAlpha = 0.45
+    this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
+      centerDecor: spec.machineId === 'combiner_3',
+    })
+    ctx.restore()
+  }
+
   draw(
     ctx: CanvasRenderingContext2D,
     frame: PipelineFrame,
@@ -39,10 +71,27 @@ export class MachinePainter {
     cameraZoom: number,
     timeMs: number,
   ) {
-    const core = new CoreMachine(frame.core.id, { x: frame.core.x, y: frame.core.y })
+    const coreSpecs = frame.cores?.length ? frame.cores : [frame.core]
     const specs = frame.sources?.length ? frame.sources : [frame.source]
     const bracketStyle = slotBracketStyleFromRules(rules)
-    this.drawCore(ctx, core, rules, bracketStyle, timeMs)
+    for (const coreSpec of coreSpecs) {
+      const core = new CoreMachine(coreSpec.id, { x: coreSpec.x, y: coreSpec.y })
+      this.drawCore(ctx, core, rules, bracketStyle, timeMs)
+    }
+    for (const spec of frame.combiners ?? []) {
+      const combiner = new CombinerMachine(
+        spec.id,
+        spec.machineId,
+        spec.recipeId,
+        { x: spec.x, y: spec.y },
+        spec.facing,
+      )
+      const kind = rules.elements.machines.find((item) => item.id === spec.machineId)
+      const body = kind?.color ?? rules.colorAccent
+      this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
+        centerDecor: spec.machineId === 'combiner_3',
+      })
+    }
     for (const spec of specs) {
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
       this.drawSource(ctx, source, rules, bracketStyle)
@@ -130,11 +179,16 @@ export class MachinePainter {
     decor: HTMLImageElement | null,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
+    options: { centerDecor?: boolean } = {},
   ) {
     const { px, py, width, height } = machineRect(machine)
     this.drawMachineBody(ctx, machine, bodyColor, rules, bracketStyle, px, py, width, height)
     const decorInk = darkenHex(bodyColor, rules.decorDarkenPercent)
-    drawTintedDecor(ctx, decor, decorInk, px, py, width, height, this.tintCache)
+    if (options.centerDecor) {
+      drawTintedDecorCentered(ctx, decor, decorInk, px, py, width, height, this.tintCache)
+    } else {
+      drawTintedDecor(ctx, decor, decorInk, px, py, width, height, this.tintCache)
+    }
   }
 
   private drawMachineBody(
@@ -301,6 +355,23 @@ function drawTintedDecor(
     cache.set(key, tinted)
   }
   ctx.drawImage(tinted, x, y, width, height)
+}
+
+/** Square SVG fitted to the short side and centered in a possibly non-square footprint. */
+function drawTintedDecorCentered(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | null,
+  ink: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  cache: Map<string, HTMLCanvasElement>,
+) {
+  const size = Math.min(width, height)
+  const dx = x + (width - size) / 2
+  const dy = y + (height - size) / 2
+  drawTintedDecor(ctx, image, ink, dx, dy, size, size, cache)
 }
 
 /** Fraction of the core footprint used by each gear layer (inner < outer). */

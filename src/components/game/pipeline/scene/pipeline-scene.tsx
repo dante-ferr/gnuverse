@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { BeltRecord, PipelineFrame, PipelineRules } from '../model/frame.ts'
-import { getStructure, type StructurePlacementSession, type StructurePlaceRequest } from '../structures'
+import { CombinerMachine } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
+import {
+  getStructure,
+  type StructureHoverGhost,
+  type StructurePlacementSession,
+  type StructurePlaceRequest,
+  type StructurePreviewMachine,
+} from '../structures'
 import { BeltEraseStroke } from './belt-erase-stroke.ts'
 import { GridCamera } from './grid-camera.ts'
 import { BeltPainter } from './painters/belt-painter.ts'
@@ -34,6 +41,8 @@ type Props = {
   onPlace: (request: StructurePlaceRequest) => void
   onRemove: (cells: { x: number; y: number }[]) => void
   onToggleEditMode: () => void
+  /** Bumped when sidebar Girar (or similar) changes place options. */
+  placeEpoch?: number
 }
 
 const KEY_PAN_SPEED = 10
@@ -54,6 +63,7 @@ export function PipelineScene({
   onPlace,
   onRemove,
   onToggleEditMode,
+  placeEpoch = 0,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cameraRef = useRef(new GridCamera(24, 24))
@@ -110,7 +120,12 @@ export function PipelineScene({
     ctx.translate(camera.x, camera.y)
     ctx.scale(camera.zoom, camera.zoom)
     gridPainter.current.draw(ctx, current, palette, camera.zoom)
-    const preview = placement.current?.previewBelts() ?? []
+    const strokePreview = placement.current?.previewBelts() ?? []
+    const hoverGhost =
+      editModeRef.current === 'create' && !placement.current && !eraseStroke.current
+        ? hoverStructureGhost(structureIdRef.current, current, camera, lastPointer.current)
+        : null
+    const preview = [...strokePreview, ...(hoverGhost?.belts ?? [])]
     const timeMs = performance.now()
     syncPacketMotion(packetMotion.current, current, palette, timeMs, cellSize)
     const bounds = camera.visibleCellBounds(view.width, view.height, cellSize)
@@ -143,6 +158,12 @@ export function PipelineScene({
     const packetFrame = packets.length === current.packets.length ? current : { ...current, packets }
     packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs)
     machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs)
+    const machineGhost: StructurePreviewMachine | null | undefined =
+      hoverGhost?.machine ??
+      (editModeRef.current === 'create' ? placement.current?.previewMachine?.() : null)
+    if (machineGhost) {
+      machinePainter.current.drawCombinerGhost(ctx, machineGhost, palette)
+    }
     gridPainter.current.drawPreviewOverlay(ctx, current, palette)
     const hover = pinnedBlame.current ?? hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
     readoutPainter.current.draw(ctx, current, palette, hover)
@@ -285,15 +306,33 @@ export function PipelineScene({
       requestPaint()
       return
     }
-    const targets = stroke.cells().filter((cell) =>
+    const strokeCells = stroke.cells()
+    const beltTargets = strokeCells.filter((cell) =>
       current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y),
     )
+    const combinerTargets: { x: number; y: number }[] = []
+    const seenCombiners = new Set<string>()
+    for (const cell of strokeCells) {
+      const hit = (current.combiners ?? []).find((machine) => {
+        const size = CombinerMachine.sizeFor(machine.machineId, machine.facing)
+        return (
+          cell.x >= machine.x &&
+          cell.x < machine.x + size.width &&
+          cell.y >= machine.y &&
+          cell.y < machine.y + size.height
+        )
+      })
+      if (!hit || seenCombiners.has(hit.id)) continue
+      seenCombiners.add(hit.id)
+      combinerTargets.push({ x: hit.x, y: hit.y })
+    }
+    const targets = [...beltTargets, ...combinerTargets]
     if (targets.length === 0) {
       hiddenBelts.current.clear()
       requestPaint()
       return
     }
-    for (const cell of targets) hiddenBelts.current.add(cellKey(cell))
+    for (const cell of beltTargets) hiddenBelts.current.add(cellKey(cell))
     onRemove(targets)
     requestPaint()
   }
@@ -302,6 +341,10 @@ export function PipelineScene({
     syncHiddenBelts()
     requestPaint()
   }, [frame])
+
+  useEffect(() => {
+    requestPaint()
+  }, [placeEpoch])
 
   useEffect(() => {
     const typingTarget = (target: EventTarget | null) => {
@@ -316,6 +359,13 @@ export function PipelineScene({
       if (key === 'e' && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey) {
         event.preventDefault()
         onToggleEditModeRef.current()
+        return
+      }
+      if (key === 'r' && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault()
+        const structure = getStructure(structureIdRef.current)
+        structure?.rotate?.()
+        requestPaint()
         return
       }
       if (!PAN_KEYS.has(key)) return
@@ -497,6 +547,7 @@ export function PipelineScene({
           else if (cell && placement.current) {
             if (placement.current.push(cell)) cancelLongPress()
           }
+          requestPaint()
         }}
         onPointerUp={(event) => {
           if (eraseStroke.current || placement.current) {
@@ -580,6 +631,20 @@ function cullBelts(belts: BeltRecord[], bounds: CellBounds) {
     (belt) =>
       belt.x >= bounds.minX && belt.x <= bounds.maxX && belt.y >= bounds.minY && belt.y <= bounds.maxY,
   )
+}
+
+function hoverStructureGhost(
+  structureId: string,
+  frame: PipelineFrame,
+  camera: GridCamera,
+  pointer: { x: number; y: number } | null,
+): StructureHoverGhost | null {
+  if (!pointer) return null
+  const structure = getStructure(structureId)
+  if (!structure?.hoverGhost) return null
+  const cell = camera.cellAt(pointer.x, pointer.y, cellSize)
+  if (cell.x < 0 || cell.y < 0 || cell.x >= frame.width || cell.y >= frame.height) return null
+  return structure.hoverGhost(cell)
 }
 
 function hoverLabel(

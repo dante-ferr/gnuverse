@@ -3,6 +3,7 @@ import type { PacketShape } from '../../packets/packet.ts'
 import type { Packet } from '../../packets/packet.ts'
 import { remainingDemand } from '../progression/demands.ts'
 import type { Match } from '../match.ts'
+import { combinerAcceptsShape } from './craft.ts'
 import { mergeInputs } from './merge.ts'
 
 type Move = { packet: Packet; from: string; to: string }
@@ -32,24 +33,45 @@ export class Movement {
     }
     const allowed = this.allowed(moves, occupied)
     const deliveredIds = new Set<string>()
+    const absorbedIds = new Set<string>()
     for (const move of allowed) {
       if (move.to === 'deliver') {
         deliveredIds.add(move.packet.id)
         this.match.recordDelivery(move.packet.shape)
         continue
       }
+      if (move.to.startsWith('absorb:')) {
+        const combinerId = move.to.slice('absorb:'.length)
+        const combiner = this.match.combiners.find((machine) => machine.id === combinerId)
+        if (!combiner || !combinerAcceptsShape(combiner, this.match.rules, move.packet.shape)) {
+          continue
+        }
+        combiner.buffer[move.packet.shape] = (combiner.buffer[move.packet.shape] ?? 0) + 1
+        absorbedIds.add(move.packet.id)
+        continue
+      }
       const [x, y] = move.to.split(',').map(Number)
       move.packet.cell = { x, y }
     }
-    if (deliveredIds.size > 0)
-      this.match.packets = this.match.packets.filter((packet) => !deliveredIds.has(packet.id))
+  if (deliveredIds.size > 0 || absorbedIds.size > 0) {
+      const remove = new Set([...deliveredIds, ...absorbedIds])
+      this.match.packets = this.match.packets.filter((packet) => !remove.has(packet.id))
+    }
     return deliveredIds.size
   }
 
   private destination(cell: { x: number; y: number }, shape: PacketShape) {
-    if (this.match.core.slotAt(cell, 'input')) {
-      if (!this.match.acceptsDelivery(shape)) return 'blocked'
-      return 'deliver'
+    for (const core of this.match.cores) {
+      if (core.slotAt(cell, 'input')) {
+        if (!this.match.acceptsDelivery(shape)) return 'blocked'
+        return 'deliver'
+      }
+    }
+    for (const combiner of this.match.combiners) {
+      if (combiner.slotAt(cell, 'input')) {
+        if (!combinerAcceptsShape(combiner, this.match.rules, shape)) return 'blocked'
+        return `absorb:${combiner.id}`
+      }
     }
     if (!this.match.inBounds(cell) || !this.match.beltAt(cell)) return 'blocked'
     return cellKey(cell)
@@ -68,7 +90,13 @@ export class Movement {
       if (!budget.has(shape)) {
         budget.set(
           shape,
-          remainingDemand(this.match.rules, this.match.version, shape, this.match.deliveryByShape),
+          remainingDemand(
+            this.match.rules,
+            this.match.version,
+            shape,
+            this.match.deliveryByShape,
+            this.match.sandbox,
+          ),
         )
       }
       const left = budget.get(shape) ?? 0
@@ -88,7 +116,7 @@ export class Movement {
       const byDest = new Map<string, Move[]>()
       const next: Move[] = []
       for (const move of active) {
-        if (move.to === 'deliver') {
+        if (move.to === 'deliver' || move.to.startsWith('absorb:')) {
           next.push(move)
           continue
         }

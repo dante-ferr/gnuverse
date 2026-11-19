@@ -6,7 +6,7 @@ import type { PipelineFrame, PipelineRules } from '../model/frame.ts'
 
 export type PacketSink = {
   id: string
-  shape: 'circle'
+  shape: string
   startPx: number
   startPy: number
   endPx: number
@@ -20,7 +20,7 @@ export type PacketMotionState = {
   /** Cell at the previous server tick (lerp start for the step that just completed). */
   from: Map<string, { x: number; y: number }>
   /** Authoritative cells after the latest frame event. */
-  at: Map<string, { x: number; y: number; shape: 'circle' }>
+  at: Map<string, { x: number; y: number; shape: string }>
   /** Packets consumed by the core, animating under the machine body. */
   sinks: PacketSink[]
 }
@@ -131,7 +131,7 @@ function lerp(a: number, b: number, t: number) {
 
 /** Screen-space center for a packet, interpolated between server ticks (and optionally coasting on the belt). */
 export function packetDisplayCenter(
-  packet: { id: string; x: number; y: number },
+  packet: { id: string; x: number; y: number; shape?: string },
   frame: PipelineFrame,
   rules: PipelineRules,
   state: PacketMotionState,

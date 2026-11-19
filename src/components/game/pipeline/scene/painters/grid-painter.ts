@@ -18,6 +18,10 @@ function frameChunks(frame: PipelineFrame, rules: PipelineRules) {
   return { originChunk, owned, preview, chunkSize }
 }
 
+function chunkKey(coord: ChunkCoord): string {
+  return `${coord.cx},${coord.cy}`
+}
+
 function floorCacheKey(frame: PipelineFrame, rules: PipelineRules) {
   const { originChunk, owned, preview, chunkSize } = frameChunks(frame, rules)
   const ownedKeys = owned.map((c) => `${c.cx},${c.cy}`).join(';')
@@ -130,16 +134,57 @@ export class GridPainter {
     chunkSize: number,
     rules: PipelineRules,
   ) {
-    const all = [...owned, ...preview]
+    const ownedKeys = new Set(owned.map(chunkKey))
     ctx.strokeStyle = rules.colorMuted
     ctx.lineWidth = 1
     ctx.globalAlpha = 0.35
-    for (const coord of all) {
+    ctx.beginPath()
+    for (const coord of owned) {
+      this.appendOwnedChunkBorderEdges(ctx, originChunk, coord, chunkSize, ownedKeys)
+    }
+    for (const coord of preview) {
       const lx = (coord.cx - originChunk.cx) * chunkSize
       const ly = (coord.cy - originChunk.cy) * chunkSize
-      ctx.strokeRect(lx * cellSize + 0.5, ly * cellSize + 0.5, chunkSize * cellSize, chunkSize * cellSize)
+      const x0 = lx * cellSize + 0.5
+      const y0 = ly * cellSize + 0.5
+      const extent = chunkSize * cellSize
+      ctx.rect(x0, y0, extent, extent)
     }
+    ctx.stroke()
     ctx.globalAlpha = 1
+  }
+
+  /** Chunk outline on edges that do not touch another owned chunk (no seam between unlocks). */
+  private appendOwnedChunkBorderEdges(
+    ctx: CanvasRenderingContext2D,
+    originChunk: ChunkCoord,
+    coord: ChunkCoord,
+    chunkSize: number,
+    ownedKeys: Set<string>,
+  ) {
+    const neighborOwned = (dx: number, dy: number) => ownedKeys.has(chunkKey({ cx: coord.cx + dx, cy: coord.cy + dy }))
+    const lx = (coord.cx - originChunk.cx) * chunkSize
+    const ly = (coord.cy - originChunk.cy) * chunkSize
+    const x0 = lx * cellSize + 0.5
+    const y0 = ly * cellSize + 0.5
+    const x1 = x0 + chunkSize * cellSize
+    const y1 = y0 + chunkSize * cellSize
+    if (!neighborOwned(0, -1)) {
+      ctx.moveTo(x0, y0)
+      ctx.lineTo(x1, y0)
+    }
+    if (!neighborOwned(1, 0)) {
+      ctx.moveTo(x1, y0)
+      ctx.lineTo(x1, y1)
+    }
+    if (!neighborOwned(0, 1)) {
+      ctx.moveTo(x1, y1)
+      ctx.lineTo(x0, y1)
+    }
+    if (!neighborOwned(-1, 0)) {
+      ctx.moveTo(x0, y1)
+      ctx.lineTo(x0, y0)
+    }
   }
 
   private fillPreviewOverlay(

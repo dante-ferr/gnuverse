@@ -34,6 +34,21 @@ export type SourceRecord = {
   cooldown: number
 }
 
+export type CoreRecord = { id: string; x: number; y: number }
+
+export type CombinerRecord = {
+  id: string
+  machineId: 'combiner_2' | 'combiner_3'
+  recipeId: string
+  x: number
+  y: number
+  facing: Direction
+  buffer: Record<string, number>
+  craftRemaining: number | null
+  pendingOutputs: string[] | null
+  nextSplitPort: 0 | 1
+}
+
 /** Persisted match. Classes are rebuilt from this on each tick. */
 export type PipelineFrame = {
   kind: 'pipeline'
@@ -49,6 +64,8 @@ export type PipelineFrame = {
   collaborators: CollaboratorRecord[]
   nextPacketId: number
   nextBeltSeq: number
+  nextCombinerSeq?: number
+  sandbox?: boolean
   belts: BeltRecord[]
   packets: PacketRecord[]
   /** Destination cell key → last inbound cell key that won a merge into it. */
@@ -59,7 +76,9 @@ export type PipelineFrame = {
   sources: SourceRecord[]
   /** First source mirror for legacy readers. */
   source: Omit<SourceRecord, 'role'> & { role?: SourceRole }
-  core: { id: string; x: number; y: number }
+  core: CoreRecord
+  cores?: CoreRecord[]
+  combiners?: CombinerRecord[]
 }
 
 export function isPipelineFrame(value: unknown): value is PipelineFrame {

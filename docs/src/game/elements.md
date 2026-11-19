@@ -26,7 +26,7 @@ Portuguese labels (`name_pt`) are for the in-game UI later; this preview page is
 
 ## Planned graph, machines, and core demands
 
-Status: **TOML catalog + preview layout updated** (2026-11-18). In-game combiners, 3-in machines, dual-out tick rules, and glyphs remain **unimplemented** until reviewed.
+Status: **TOML catalog + preview layout updated** (2026-11-18). **Sandbox-first** in-game slice (2026-11-19): combiners, typed packets, and full-catalog core demands run only in **Sala teste (elementos)** (`sandbox: true`, prototype + non-production). Normal rooms still use circle packets, fire+water starters, and one core.
 
 ### Catalog target
 
@@ -78,10 +78,19 @@ Implemented in `scripts/elements/render.mjs`:
 - Merge “+” at the gap in front of the crafted node
 - Dual outputs share one ancestry chart; co-product sits in the same tier column
 
+### Sandbox slice (implemented)
+
+| Piece | Rule |
+| :--- | :--- |
+| Footprints | `combiner_2` **3×3**, `combiner_3` **5×3** (width×height) |
+| Dual-out | Coupled eject — both ports succeed or neither |
+| Half-rate split | Single-output recipe with **both** output belts: alternate ports each craft; one belt → full rate to that port |
+| Packets | Element `id` on the belt in sandbox; circle only in normal rooms |
+
 ### Implementation order (remaining)
 
-1. Implement 2-in combiner in-game, then 3-in / dual-out machine + tick rules (coupled eject, half-rate split)
-2. Wire cumulative core demands so the full catalog is required by late progression
-3. Glyph SVGs (Quiver) and machine footprints per Decisions §9
+1. Promote combiners + typed packets from sandbox to normal match progression (chapter gates)
+2. Wire cumulative core demands so the full catalog is required by late progression outside sandbox
+3. Finish glyph rendering on belts for every element (sandbox client falls back to `fill` disk when SVG not loaded)
 
-Unset numbers (tick split rounding, machine footprint, polish of ids/names) stay open until review.
+Locked footprints and half-rate behavior above; split rounding remainder is not needed when alternating ports.

@@ -60,8 +60,11 @@ export class HttpApplication {
       if (path[0] !== 'api') fail(404, 'Não encontrado.')
       if (req.method === 'GET' && path[1] === 'health' && path.length === 2)
         return json(res, 200, { ok: true })
-      if (req.method === 'GET' && path[1] === 'rules' && path.length === 2)
-        return json(res, 200, { rules })
+      if (req.method === 'GET' && path[1] === 'rules' && path.length === 2) {
+        const sandboxAllowed =
+          rules.prototype === true && process.env.NODE_ENV !== 'production'
+        return json(res, 200, { rules: { ...rules, sandboxAllowed } })
+      }
       if (req.method === 'GET' && path[1] === 'admin' && path[2] === 'accounts' && path.length === 3) {
         await verifyCMSAdministrator({ cookie: req.headers.cookie, authorization: req.headers.authorization })
         return json(res, 200, { accounts: Object.values(store.state.users).map((user) => ({
@@ -243,12 +246,13 @@ export class HttpApplication {
         if (participant.banned) fail(403, 'Você foi banido desta sala.')
         if (path[3] === 'settings' && path.length === 4)
           return rooms.settings(room, user, body)
-        const pipelineActions = ['place', 'remove', 'join', 'chat', 'buy-chunk'] as const
+        const pipelineActions = ['place', 'remove', 'join', 'chat', 'buy-chunk', 'place-machine'] as const
         if (
           pipelineActions.includes(path[3] as (typeof pipelineActions)[number]) &&
           path.length === 4
         ) {
           if (path[3] === 'place') return rooms.place(room, user, participant, body)
+          if (path[3] === 'place-machine') return rooms.placeMachine(room, user, participant, body)
           if (path[3] === 'remove') return rooms.removeBelt(room, user, participant, body)
           if (path[3] === 'chat') return rooms.chat(room, user, participant, body)
           if (path[3] === 'buy-chunk') return rooms.buyChunk(room, user, participant, body)

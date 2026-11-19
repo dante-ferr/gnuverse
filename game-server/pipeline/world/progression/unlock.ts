@@ -12,7 +12,7 @@ export function bumpPipelineVersion(version: string): string {
 }
 
 export function demandsSatisfied(match: Match): boolean {
-  return coreDemands(match.rules, match.version, match.deliveryByShape).every(
+  return coreDemands(match.rules, match.version, match.deliveryByShape, match.sandbox).every(
     (demand) => demand.received >= demand.required,
   )
 }

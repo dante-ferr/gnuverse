@@ -36,6 +36,7 @@ export function PipelineRoom() {
   const [loginHref, setLoginHref] = useState('/login/')
   const [editMode, setEditMode] = useState<EditMode>('create')
   const [structureId, setStructureId] = useState(defaultStructureId)
+  const [placeEpoch, setPlaceEpoch] = useState(0)
   const chatMaxLength =
     typeof live.rules?.chatMessageMaxLength === 'number' && live.rules.chatMessageMaxLength > 0
       ? live.rules.chatMessageMaxLength
@@ -105,7 +106,7 @@ export function PipelineRoom() {
   const remove = (cells: { x: number; y: number }[]) => {
     if (cells.length === 0) return
     if (!session.user) {
-      feedback.setError('Entre para remover esteiras.')
+      feedback.setError('Entre para remover esteiras ou combinadores.')
       return
     }
     for (const cell of cells) {
@@ -205,6 +206,7 @@ export function PipelineRoom() {
               onBuyChunk={buyChunk}
               onPlace={place}
               onRemove={remove}
+              placeEpoch={placeEpoch}
               onToggleEditMode={() =>
                 setEditMode((current) => (current === 'create' ? 'delete' : 'create'))
               }
@@ -217,6 +219,10 @@ export function PipelineRoom() {
             onSelectStructure={setStructureId}
             editMode={editMode}
             onEditModeChange={setEditMode}
+            onRotate={() => {
+              getStructure(structureId)?.rotate?.()
+              setPlaceEpoch((n) => n + 1)
+            }}
             api={session.api}
             roomId={lobby.roomId}
             user={session.user}

@@ -6,6 +6,7 @@ import { WalletService } from '../economy/wallet-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { HistoryService } from './history-service.ts'
 import { isDirection } from '../pipeline/geometry/direction.ts'
+import type { CombinerMachineId } from '../pipeline/machines/combiner-machine.ts'
 import { Match } from '../pipeline/world/match.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import { canManageRoom } from '../../core/authz/policy.ts'
@@ -95,10 +96,15 @@ export class RoomService {
       typeof body.allowCreatorBan !== 'boolean'
     )
       fail(400, 'A opção de suspensão do criador deve ser booleana.')
+    const sandbox = body.sandbox === true
+    if (sandbox && (!this.rules.prototype || process.env.NODE_ENV === 'production')) {
+      fail(403, 'Sala teste indisponível neste ambiente.')
+    }
     const roomId = randomUUID()
+    const defaultName = sandbox ? 'Sandbox elementos' : undefined
     const room: Room = {
       id: roomId,
-      name: text(body.name, 3, 60, 'Nome'),
+      name: text(body.name ?? defaultName, 3, 60, 'Nome'),
       creatorId: user.id,
       allowCreatorBan: body.allowCreatorBan === true,
       cost: integer(
@@ -125,7 +131,10 @@ export class RoomService {
       proposals: [],
       beltCount: 0,
       actionCount: 0,
-      frame: Match.create(roomId, this.rules.pipeline).toFrame(),
+      frame: (sandbox
+        ? Match.createSandbox(roomId, this.rules.pipeline)
+        : Match.create(roomId, this.rules.pipeline)
+      ).toFrame(),
     }
     this.member(room, user)
     this.store.state.rooms[room.id] = room
@@ -180,6 +189,27 @@ export class RoomService {
     this.history.event(room, 'settings', user.id, { before, after, reason })
     return { room: this.publicRoom(room) }
   }
+  placeMachine(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(room)
+    const machineId = body.machineId
+    if (machineId !== 'combiner_2' && machineId !== 'combiner_3') {
+      fail(400, 'Máquina inválida.')
+    }
+    if (!isDirection(body.facing)) fail(400, 'Direção inválida.')
+    const recipeId = text(body.recipeId, 1, 40, 'Receita')
+    const error = match.placeMachine(
+      {
+        machineId: machineId as CombinerMachineId,
+        recipeId,
+        x: integer(body.x, 0, match.width - 1, 'X'),
+        y: integer(body.y, 0, match.height - 1, 'Y'),
+        facing: body.facing,
+      },
+      { id: user.id, nickname: user.nickname },
+    )
+    if (error) fail(409, error)
+    return this.commitMachine(room, user, participant, match)
+  }
   place(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
     const raw = body.cells
@@ -192,14 +222,25 @@ export class RoomService {
   }
   removeBelt(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
-    const error = match.remove(
+    const result = match.remove(
       {
         x: integer(body.x, 0, match.width - 1, 'X'),
         y: integer(body.y, 0, match.height - 1, 'Y'),
       },
       { id: user.id, nickname: user.nickname },
     )
-    if (error) fail(409, error)
+    if (result.error) fail(409, result.error)
+    if (result.kind === 'combiner') {
+      room.frame = match.toFrame()
+      participant.contributions++
+      room.actionCount++
+      room.lastActorId = user.id
+      this.history.event(room, 'machine-remove', user.id, {
+        combiners: match.combiners.length,
+      })
+      this.runtime.afterAction(room)
+      return { frame: room.frame }
+    }
     return this.commit(room, user, participant, match, 'remove')
   }
   join(room: Room, user: User) {
@@ -304,6 +345,17 @@ export class RoomService {
       y: integer(record.y, 0, height - 1, 'Y'),
       direction: record.direction,
     }
+  }
+  private commitMachine(room: Room, user: User, participant: Member, match: Match) {
+    room.frame = match.toFrame()
+    participant.contributions++
+    room.actionCount++
+    room.lastActorId = user.id
+    this.history.event(room, 'machine-place', user.id, {
+      combiners: match.combiners.length,
+    })
+    this.runtime.afterAction(room)
+    return { frame: room.frame }
   }
   private commit(room: Room, user: User, participant: Member, match: Match, eventType: string) {
     room.frame = match.toFrame()

@@ -78,11 +78,12 @@ Full detail: [Element recipes](game/elements.md#planned-graph-machines-and-core-
 | :--- | :--- | :--- |
 | Catalog size | **36** distinct resources (up to **3** color families) | TOML authored |
 | Max tier | **5** | TOML authored |
-| Tiers 2–3 | **2-input → 1-output** | TOML authored; in-game combiner TBD |
-| Tier 4 | **3-input → 1-output** | TOML authored; 3-in machine TBD |
-| Tier 5 | **3-input → 2 outputs** (`outputs` + `coproduct_of`) | TOML authored; tick rules TBD |
-| 3-in machine I/O | Always **3 in + 2 out ports**. Dual recipe → different packets per port. Single recipe → same packet on both ports; using both **halves** productivity | Design only |
-| Coupled dual output | Dual recipe ports eject together; one blocked belt stalls both | Design only |
+| Tiers 2–3 | **2-input → 1-output** | TOML authored; **combiner_2** (3×3) in sandbox rooms |
+| Tier 4 | **3-input → 1-output** | TOML authored; **combiner_3** (5×3) in sandbox rooms |
+| Tier 5 | **3-input → 2 outputs** (`outputs` + `coproduct_of`) | TOML authored; coupled eject in sandbox |
+| 3-in machine I/O | Always **3 in + 2 out ports**. Dual recipe → different packets per port. Single recipe → same packet on both ports; using both **halves** productivity via **port alternation** | Sandbox sim |
+| Coupled dual output | Dual recipe ports eject together; one blocked belt stalls both | Sandbox sim |
+| Sandbox rooms | Combiner placement + element packets + full-catalog core demands only when `sandbox: true` (prototype, non-production) | Wired |
 | Core demands | Full catalog required by the **last** chapter, not at match start. `demand_chapter` + `[[chapters]]` (`max_new_bases`, `required_multiplier`) in TOML; inputs cannot be demanded later than the craft | Schedule authored; sim TBD |
 | Catalog loader | One shared loader (`game-server/pipeline/elements/load-catalog.mjs`) for game-server and `make elements-serve`. Starters, craft rates, fill/stroke/glyph, `[[machines]]` (`color`, `decor`), and chapter base caps live in TOML — not hardcoded in TS. Core/source body colors stay in `[pipeline]`; core art is layered (`core-frame` + gears), source uses `source-decor.svg` | Wired |
 | Preview graphs | Orthogonal gap routing + highway for long spans; layout sizes from `[preview]` in TOML | Preview tooling updated |

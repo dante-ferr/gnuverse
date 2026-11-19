@@ -1,6 +1,12 @@
+import { cycleBeltPlaceDirection, getBeltPlaceDirection } from '../belt-place-options.ts'
 import { BeltStroke } from '../scene/belt-stroke.ts'
 import { registerStructure } from './registry.ts'
-import type { StructureDefinition, StructurePlacementSession, StructurePreviewBelt } from './types.ts'
+import type {
+  StructureDefinition,
+  StructureHoverGhost,
+  StructurePlacementSession,
+  StructurePreviewBelt,
+} from './types.ts'
 
 type BeltPayload = { cells: BeltStroke['cells'] }
 
@@ -36,12 +42,32 @@ function createBeltSession(): StructurePlacementSession {
   }
 }
 
+function beltHoverGhost(cell: { x: number; y: number }): StructureHoverGhost {
+  return {
+    belts: [
+      {
+        id: 'hover-belt',
+        x: cell.x,
+        y: cell.y,
+        direction: getBeltPlaceDirection(),
+        authorId: '',
+        authorNickname: '',
+        placedAt: 0,
+      },
+    ],
+  }
+}
+
 const beltStructure: StructureDefinition = {
   id: 'belt',
   label: 'Esteira',
   iconSrc: '/pipeline/structure-belt.svg',
   signInMessage: 'Entre para colocar esteiras.',
   createSession: createBeltSession,
+  hoverGhost: beltHoverGhost,
+  rotate: () => {
+    cycleBeltPlaceDirection()
+  },
   async commit(ctx, payload) {
     if (!isBeltPayload(payload) || payload.cells.length === 0) return
     await ctx.request(`/api/towers/${ctx.roomId}/place`, { cells: payload.cells })

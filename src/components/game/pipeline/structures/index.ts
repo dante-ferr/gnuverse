@@ -1,11 +1,14 @@
 /** Side-effect imports register every placeable structure. */
 import './belt.ts'
+import './combiner.ts'
 
 export { defaultStructureId, getStructure, listStructures, registerStructure } from './registry.ts'
 export type {
   StructureCommitContext,
   StructureDefinition,
+  StructureHoverGhost,
   StructurePlaceRequest,
   StructurePlacementSession,
   StructurePreviewBelt,
+  StructurePreviewMachine,
 } from './types.ts'

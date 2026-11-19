@@ -1,3 +1,4 @@
+import { getBeltPlaceDirection } from '../belt-place-options.ts'
 import type { Direction } from '../model/frame.ts'
 import { directionBetween, manhattanElbow } from './grid-math.ts'
 
@@ -13,7 +14,7 @@ export class BeltStroke {
     if (!this.origin) {
       this.origin = { x: cell.x, y: cell.y }
       this.cells.length = 0
-      this.cells.push({ x: cell.x, y: cell.y, direction: 'east' })
+      this.cells.push({ x: cell.x, y: cell.y, direction: getBeltPlaceDirection() })
       return true
     }
     return this.rebuild(cell)
@@ -24,7 +25,7 @@ export class BeltStroke {
     if (!origin) return false
     const next: StrokeCell[] = []
     if (end.x === origin.x && end.y === origin.y) {
-      next.push({ x: origin.x, y: origin.y, direction: 'east' })
+      next.push({ x: origin.x, y: origin.y, direction: getBeltPlaceDirection() })
     } else {
       const steps = manhattanElbow(origin, end)
       const path = [origin, ...steps]
