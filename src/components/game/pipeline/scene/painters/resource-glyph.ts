@@ -22,8 +22,6 @@ export function resourceGlyphOutline(rules: PipelineRules): ResourceGlyphOutline
   }
 }
 
-const OUTLINE_SAMPLES = 12
-
 /**
  * Draws a catalog SVG glyph with a dual outline.
  * Bakes outer + inner + fill into one cached canvas, then draws once.
@@ -120,6 +118,8 @@ function getOutlinedGlyph(
     const body = getTintedImage(image, fill, cache)
     if (!body) return null
 
+    // Bake at native SVG resolution, then scale down once when drawing.
+    // Display-size bakes looked soft; stamp density still follows screen px.
     canvas = document.createElement('canvas')
     canvas.width = nw + pad * 2
     canvas.height = nh + pad * 2
@@ -128,11 +128,17 @@ function getOutlinedGlyph(
 
     if (outerRing > 0) {
       const outer = getTintedImage(image, outline.outer, cache)
-      if (outer) stampRing(tctx, outer, pad, nw, nh, outerRing * scale)
+      if (outer) {
+        stampDisk(tctx, outer, pad, nw, nh, outerRing * scale, outerRing)
+        hardenAlpha(tctx)
+      }
     }
     if (innerRing > 0) {
       const inner = getTintedImage(image, outline.inner, cache)
-      if (inner) stampRing(tctx, inner, pad, nw, nh, innerRing * scale)
+      if (inner) {
+        stampDisk(tctx, inner, pad, nw, nh, innerRing * scale, innerRing)
+        hardenAlpha(tctx)
+      }
     }
     tctx.drawImage(body, pad, pad)
 
@@ -141,18 +147,45 @@ function getOutlinedGlyph(
   return { canvas, displaySize }
 }
 
-function stampRing(
+/**
+ * Morphological dilation of a (possibly stroke-only) glyph alpha.
+ *
+ * Element SVGs are black-ink strokes, not filled silhouettes. Stamping only the
+ * outer circumference leaves ghost copies when the outline is thick. Concentric
+ * rings fill a solid halo. Ring/sample counts follow display px so native-res
+ * bakes stay affordable and look continuous after downscale.
+ */
+function stampDisk(
   ctx: CanvasRenderingContext2D,
   tinted: HTMLCanvasElement,
   pad: number,
   width: number,
   height: number,
-  radius: number,
+  canvasRadius: number,
+  displayRadius: number,
 ) {
-  for (let i = 0; i < OUTLINE_SAMPLES; i++) {
-    const a = (2 * Math.PI * i) / OUTLINE_SAMPLES
-    const ox = Math.cos(a) * radius
-    const oy = Math.sin(a) * radius
-    ctx.drawImage(tinted, pad + ox, pad + oy, width, height)
+  if (canvasRadius <= 0 || displayRadius <= 0) return
+  const rings = Math.max(1, Math.ceil(displayRadius))
+  for (let ring = 1; ring <= rings; ring++) {
+    const t = ring / rings
+    const r = canvasRadius * t
+    const samples = Math.min(64, Math.max(8, Math.ceil(2 * Math.PI * displayRadius * t)))
+    for (let i = 0; i < samples; i++) {
+      const a = (2 * Math.PI * i) / samples
+      const ox = Math.cos(a) * r
+      const oy = Math.sin(a) * r
+      ctx.drawImage(tinted, pad + ox, pad + oy, width, height)
+    }
   }
+}
+
+/** Snap outline coverage to binary alpha so downscale AA stays crisp, not muddy. */
+function hardenAlpha(ctx: CanvasRenderingContext2D) {
+  const { width, height } = ctx.canvas
+  const image = ctx.getImageData(0, 0, width, height)
+  const data = image.data
+  for (let i = 3; i < data.length; i += 4) {
+    data[i] = data[i] > 0 ? 255 : 0
+  }
+  ctx.putImageData(image, 0, 0)
 }
