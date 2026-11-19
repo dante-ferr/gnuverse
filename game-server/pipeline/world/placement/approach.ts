@@ -4,10 +4,6 @@ import type { SideDepths } from '../../geometry/clearance.ts'
 import { createSeedRng } from '../../geometry/seed-rng.ts'
 import { CoreMachine } from '../../machines/core-machine.ts'
 import { SourceMachine } from '../../machines/source-machine.ts'
-import {
-  defaultSourcePeriodTicks,
-  sourcePeriodTicksForElement,
-} from '../../elements/rate.ts'
 import type { PipelineRules } from '../../rules.ts'
 import type { PlacedSource } from '../types.ts'
 import { PlacementField } from './field.ts'
@@ -63,7 +59,7 @@ function tryCandidate(
     sourceOrigin,
     sourceDirection,
     'circle',
-    defaultSourcePeriodTicks(field.rules.elements, field.rules.tickMs),
+    field.rules.sourcePeriodTicks,
   )
 
   if (!field.footprintInBounds(source)) return
@@ -129,7 +125,7 @@ export function layoutStarterSources(
         candidate.sourceOrigin,
         candidate.sourceDirection,
         'circle',
-        defaultSourcePeriodTicks(rules.elements, rules.tickMs),
+        rules.sourcePeriodTicks,
       )
       if (occupied.sourceOverlapsOccupied(probe)) continue
       found = candidate
@@ -147,7 +143,7 @@ export function layoutStarterSources(
       direction: found.sourceDirection,
       shape: 'circle',
       role: elementId,
-      sourcePeriodTicks: sourcePeriodTicksForElement(rules.elements, rules.tickMs, el),
+      sourcePeriodTicks: el.source_period_ticks ?? rules.sourcePeriodTicks,
     })
     occupied.addOccupied({
       kind: 'source',

@@ -4,17 +4,6 @@ export {
   loadElementCatalog,
 } from './load-catalog.mjs'
 
-export {
-  craftTicksForRecipe,
-  defaultSourcePeriodTicks,
-  periodMsForRatePerMinute,
-  resolveRecipeRatePerMinute,
-  resolveSourceRatePerMinute,
-  sourcePeriodTicksForElement,
-  sourcePeriodTicksForRole,
-  ticksForRatePerMinute,
-} from './rate.ts'
-
 export type ElementMachineKind = {
   id: string
   name_pt: string
@@ -24,7 +13,6 @@ export type ElementMachineKind = {
   split_single_across_ports: boolean
   color: string
   decor: string
-  default_rate_per_minute: number
 }
 
 export type ElementChapter = {
@@ -57,11 +45,11 @@ export type ElementRecord = {
   outputs: string[]
   coproduct_of: string | null
   machine: string | null
-  rate_per_minute: number | null
+  craft_ticks: number | null
   productivity: number | null
   demand_chapter: number
   demand_required: number
-  source_rate_per_minute: number | null
+  source_period_ticks: number | null
   source_spawn_chance_percent: number | null
 }
 
@@ -69,8 +57,7 @@ export type ElementRecord = {
 export type ElementCatalogJson = {
   maxTier: number
   retainPriorDemands: boolean
-  defaultRatePerMinute: number
-  defaultSourceRatePerMinute: number
+  defaultCraftTicks: number
   defaultProductivity: number
   defaultGlyphSizePx: number
   defaultStroke: string

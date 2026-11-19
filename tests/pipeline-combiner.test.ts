@@ -6,6 +6,7 @@ import { CombinerMachine } from '../game-server/pipeline/machines/combiner-machi
 import { Packet } from '../game-server/pipeline/packets/packet.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
 import { approachCellForInput } from '../game-server/pipeline/world/chunks/sandbox-layout.ts'
+import { craftTicksForRecipe } from '../game-server/pipeline/elements/rate.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
 
 const rules = testPipelineRules()
@@ -44,12 +45,13 @@ test('combiner absorbs recipe inputs on input slots', () => {
   assert.equal(combiner.buffer.water, 1)
 })
 
-test('combiner crafts steam after craft_ticks when inputs are buffered', () => {
+test('combiner crafts steam after rate-based craft ticks when inputs are buffered', () => {
   const { match, combiner } = sandboxWithCombiner('steam')
   combiner.buffer = { water: 1, fire: 1 }
   const out = combiner.orderedOutputSlots()[0]!
   beltAt(match, out.cell, opposite(out.travel))
-  const ticks = rules.elements.elements.find((el) => el.id === 'steam')!.craft_ticks!
+  const steamRecipe = rules.elements.elements.find((el) => el.id === 'steam')!
+  const ticks = craftTicksForRecipe(rules.elements, rules.tickMs, steamRecipe)
   combiner.craftRemaining = ticks - 1
   for (let i = 0; i < ticks; i++) match.tick()
   const steam = match.packets.find((packet) => packet.shape === 'steam')
@@ -113,16 +115,14 @@ test('placeMachine accepts combiner footprint in owned sandbox cells', () => {
   assert.equal(match.combiners.length, 1)
 })
 
-test('placeMachine accepts combiner_3 even when recipe id is for combiner_2', () => {
+test('placeMachine rejects recipe that does not match the machine kind', () => {
   const match = Match.createSandbox('place3', rules)
   const error = match.placeMachine(
     { machineId: 'combiner_3', recipeId: 'steam', x: 30, y: 24, facing: 'east' },
     author,
   )
-  assert.equal(error, null)
-  assert.equal(match.combiners.length, 1)
-  assert.equal(match.combiners[0]!.machineId, 'combiner_3')
-  assert.notEqual(match.combiners[0]!.recipeId, 'steam')
+  assert.equal(error, 'Essa receita não usa essa máquina.')
+  assert.equal(match.combiners.length, 0)
 })
 
 test('remove deletes combiners and refuses cores and sources', () => {

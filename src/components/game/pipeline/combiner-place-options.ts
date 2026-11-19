@@ -2,15 +2,14 @@ import type { CombinerMachineId } from '../../../../game-server/pipeline/machine
 import type { Direction } from './model/frame'
 
 export type CombinerPlaceOptions = {
-  /** Null until the player picks a recipe in the place flow. */
-  recipeId: string | null
+  recipeId: string
   facing: Direction
 }
 
 const FACINGS: Direction[] = ['east', 'south', 'west', 'north']
 const listeners = new Set<() => void>()
 
-let options: CombinerPlaceOptions = { recipeId: null, facing: 'east' }
+let options: CombinerPlaceOptions = { recipeId: 'steam', facing: 'east' }
 
 function notify() {
   for (const listener of listeners) listener()
@@ -40,13 +39,14 @@ export function cycleCombinerFacing(step = 1) {
   return next
 }
 
-/** Drop the recipe when it does not belong to the selected machine kind. */
-export function clearCombinerRecipeIfInvalid(
+/** Keep recipe valid for the selected machine kind. */
+export function syncCombinerRecipeForMachine(
   machineId: CombinerMachineId,
-  recipeIds: readonly string[],
+  recipeIds: string[],
 ) {
-  if (options.recipeId == null) return
-  if (recipeIds.includes(options.recipeId)) return
-  options = { ...options, recipeId: null }
-  notify()
+  if (recipeIds.length === 0) return
+  if (!recipeIds.includes(options.recipeId)) {
+    options = { ...options, recipeId: recipeIds[0]! }
+    notify()
+  }
 }

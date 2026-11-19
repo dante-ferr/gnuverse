@@ -6,7 +6,6 @@ import { CombinerMachine } from '../machines/combiner-machine.ts'
 import { CoreMachine } from '../machines/core-machine.ts'
 import { SourceMachine } from '../machines/source-machine.ts'
 import { Packet } from '../packets/packet.ts'
-import { sourcePeriodTicksForRole } from '../elements/rate.ts'
 import type { PipelineRules } from '../rules.ts'
 import { cellChunkStateFromSets, chunkKeySet } from './chunks/coords.ts'
 import type { ChunkCoord } from './chunks/coords.ts'
@@ -311,7 +310,7 @@ export class Match {
         { x: spec.x, y: spec.y },
         spec.direction,
         spec.shape,
-        sourcePeriodTicksForRole(rules.elements, rules.tickMs, spec.role ?? spec.shape),
+        rules.sourcePeriodTicks,
         spec.cooldown,
       )
     })

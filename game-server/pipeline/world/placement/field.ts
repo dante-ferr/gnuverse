@@ -10,7 +10,6 @@ import {
 } from '../../geometry/clearance.ts'
 import { CoreMachine } from '../../machines/core-machine.ts'
 import { SourceMachine } from '../../machines/source-machine.ts'
-import { defaultSourcePeriodTicks } from '../../elements/rate.ts'
 import type { PipelineRules } from '../../rules.ts'
 import type { OccupiedMachine } from '../types.ts'
 
@@ -43,7 +42,7 @@ export class PlacementField {
       { x: 0, y: 0 },
       direction,
       'circle',
-      defaultSourcePeriodTicks(this.rules.elements, this.rules.tickMs),
+      this.rules.sourcePeriodTicks,
     )
     return clearanceDepths(portCountsBySide(probe), this.rules.machineClearanceMin)
   }
@@ -99,7 +98,7 @@ export class PlacementField {
       machine.origin,
       machine.direction,
       'circle',
-      defaultSourcePeriodTicks(this.rules.elements, this.rules.tickMs),
+      this.rules.sourcePeriodTicks,
     )
     return [this.freeRectForSource(source)]
   }

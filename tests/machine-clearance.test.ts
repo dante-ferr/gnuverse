@@ -9,7 +9,6 @@ import {
 import { CoreMachine } from '../game-server/pipeline/machines/core-machine.ts'
 import { SourceMachine } from '../game-server/pipeline/machines/source-machine.ts'
 import type { PipelineRules } from '../game-server/pipeline/rules.ts'
-import { defaultSourcePeriodTicks } from '../game-server/pipeline/elements/rate.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
 import type { Direction } from '../game-server/pipeline/geometry/direction.ts'
 import { layoutTwoStarterSources } from '../game-server/pipeline/world/placement/approach.ts'
@@ -66,7 +65,7 @@ function assertSourceApproachGap(
     sourceOrigin,
     sourceDirection,
     'circle',
-    defaultSourcePeriodTicks(rules.elements, rules.tickMs),
+    rules.sourcePeriodTicks,
   )
   const coreDepths = clearanceDepths(
     portCountsBySide(core),
@@ -128,7 +127,7 @@ test('port-only clearance extra 0 yields body gap 4 on default rules size', () =
     fire.origin,
     fire.direction,
     'circle',
-    defaultSourcePeriodTicks(tight.elements, tight.tickMs),
+    tight.sourcePeriodTicks,
   )
   const coreDepths = clearanceDepths(
     portCountsBySide(core),

@@ -87,16 +87,11 @@ test('deliveries count per shape and surface on frame demands', () => {
   assert.ok(circles > 0)
   assert.equal(match.deliveries, circles)
   const frame = match.toFrame()
-  assert.deepEqual(frame.demands, [
-    { shape: 'circle', received: circles, required: rules.elements.defaultDemandRequired },
-  ])
+  assert.deepEqual(frame.demands, [{ shape: 'circle', received: circles, required: rules.coreDemandCircle }])
 })
 
 test('core stops accepting a shape once its requirement is met', () => {
-  const match = connected({
-    ...rules,
-    elements: { ...rules.elements, defaultDemandRequired: 1 },
-  })
+  const match = connected({ ...rules, coreDemandCircle: 1 })
   for (let i = 0; i < 40; i++) match.tick()
   assert.equal(match.deliveryByShape.circle, 1)
   assert.equal(match.deliveries, 1)
@@ -282,10 +277,7 @@ test('all belts in a stroke are kept without a per-player cap', () => {
 })
 
 test('auto unlock bumps 0.1 to 0.2 when delivery milestones are met', () => {
-  const match = connected({
-    ...rules,
-    elements: { ...rules.elements, defaultDemandRequired: 3 },
-  })
+  const match = connected({ ...rules, coreDemandCircle: 3 })
   match.deliveryByShape = { circle: 3 }
   match.deliveries = 3
   assert.equal(match.version, '0.1')

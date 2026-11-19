@@ -12,11 +12,6 @@ import { useGameSession } from '../hooks/use-game-session'
 import { useRoomLobby } from '../hooks/use-room-lobby'
 import { pipelineRulesFrom } from './model/frame'
 import { usePipelineStream } from './hooks/use-pipeline-stream'
-import {
-  clearCombinerRecipeIfInvalid,
-  subscribeCombinerPlaceOptions,
-} from './combiner-place-options'
-import { CombinerRecipePicker, recipesForMachine } from './combiner-recipe-picker'
 import { RoomSidebar } from './room-sidebar'
 import { PipelineScene, type EditMode } from './scene/pipeline-scene'
 import {
@@ -25,7 +20,6 @@ import {
   type StructurePlaceRequest,
 } from './structures'
 import styles from '../game-shell.module.css'
-import type { CombinerMachineId } from '../../../../game-server/pipeline/machines/combiner-machine.ts'
 
 function roomLoginHref() {
   if (typeof window === 'undefined') return '/login/'
@@ -43,8 +37,6 @@ export function PipelineRoom() {
   const [editMode, setEditMode] = useState<EditMode>('create')
   const [structureId, setStructureId] = useState(defaultStructureId)
   const [placeEpoch, setPlaceEpoch] = useState(0)
-  const [recipePickerOpen, setRecipePickerOpen] = useState(false)
-  const [recipeRevision, setRecipeRevision] = useState(0)
   const chatMaxLength =
     typeof live.rules?.chatMessageMaxLength === 'number' && live.rules.chatMessageMaxLength > 0
       ? live.rules.chatMessageMaxLength
@@ -55,29 +47,9 @@ export function PipelineRoom() {
   useEffect(() => {
     setLoginHref(roomLoginHref())
   }, [lobby.roomId])
-  useEffect(() => {
-    return subscribeCombinerPlaceOptions(() => {
-      setRecipeRevision((n) => n + 1)
-      setPlaceEpoch((n) => n + 1)
-    })
-  }, [])
   const openLogin = () => {
     router.push(roomLoginHref())
   }
-  const isCombinerStructure =
-    structureId === 'combiner_2' || structureId === 'combiner_3'
-  const selectStructure = (id: string) => {
-    setStructureId(id)
-    if (id !== 'combiner_2' && id !== 'combiner_3') return
-    const machineId = id as CombinerMachineId
-    clearCombinerRecipeIfInvalid(
-      machineId,
-      recipesForMachine(rules, machineId).map((el) => el.id),
-    )
-    setRecipePickerOpen(true)
-    setEditMode('create')
-  }
-  void recipeRevision
   useEffect(() => {
     if (!session.user || !lobby.roomId) return
     void session.api.request(`/api/towers/${lobby.roomId}/join`, {}).catch(() => {})
@@ -240,22 +212,11 @@ export function PipelineRoom() {
               }
             />
           </div>
-          {recipePickerOpen && isCombinerStructure ? (
-            <CombinerRecipePicker
-              rules={rules}
-              machineId={structureId as CombinerMachineId}
-              onClose={() => setRecipePickerOpen(false)}
-              onPicked={() => {
-                setRecipePickerOpen(false)
-                setPlaceEpoch((n) => n + 1)
-              }}
-            />
-          ) : null}
           <RoomSidebar
             frame={live.frame.seed ? live.frame : null}
             rules={rules}
             structureId={structureId}
-            onSelectStructure={selectStructure}
+            onSelectStructure={setStructureId}
             editMode={editMode}
             onEditModeChange={setEditMode}
             onRotate={() => {

@@ -30,6 +30,8 @@ chat_cooldown_ms = 1000 # Min gap between sends per player
 
 # Simulation
 tick_ms = 250 # Authoritative tick interval
+source_period_ticks = 4 # Ticks between circle spawns per source
+core_demand_circle = 20 # Circle deliveries before next demand tier
 
 # World grid (new rooms)
 grid_width = 24

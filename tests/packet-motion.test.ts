@@ -9,10 +9,7 @@ import {
 import type { PipelineFrame, PipelineRules } from '../src/components/game/pipeline/model/frame.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
 
-const baseRules = testPipelineRules()
-const rules: PipelineRules = testPipelineRules({
-  elements: { ...baseRules.elements, defaultDemandRequired: 5 },
-})
+const rules: PipelineRules = testPipelineRules({ coreDemandCircle: 5 })
 
 function frame(tick: number, packets: PipelineFrame['packets']): PipelineFrame {
   return {

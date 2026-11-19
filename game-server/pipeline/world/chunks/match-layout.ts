@@ -1,7 +1,6 @@
 import type { Cell } from '../../geometry/cell.ts'
 import { CoreMachine } from '../../machines/core-machine.ts'
 import { SourceMachine } from '../../machines/source-machine.ts'
-import { defaultSourcePeriodTicks } from '../../elements/rate.ts'
 import type { PipelineRules } from '../../rules.ts'
 import { layoutStarterSources } from '../placement/approach.ts'
 import type { PlacedSource } from '../types.ts'
@@ -81,7 +80,7 @@ export function machinesFromLayout(
       spec.origin,
       spec.direction,
       spec.shape,
-      spec.sourcePeriodTicks ?? defaultSourcePeriodTicks(rules.elements, rules.tickMs),
+      spec.sourcePeriodTicks ?? rules.sourcePeriodTicks,
     )
   })
   return { core: new CoreMachine('core', layout.coreOrigin), sources, roles }

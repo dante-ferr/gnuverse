@@ -31,9 +31,9 @@ function requiredForShape(rules: PipelineRules, shape: PacketShape, sandbox = fa
   }
   switch (shape) {
     case 'circle':
-      return rules.elements.defaultDemandRequired
+      return rules.coreDemandCircle
     default:
-      return rules.elements.defaultDemandRequired
+      return rules.coreDemandCircle
   }
 }
 
