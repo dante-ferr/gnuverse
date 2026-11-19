@@ -1,7 +1,7 @@
-import { cellKey } from '../../geometry/cell.ts'
 import { Packet } from '../../packets/packet.ts'
 import type { PacketShape } from '../../packets/packet.ts'
 import type { Match } from '../match.ts'
+import { outputBeltAccepts } from './output-belt.ts'
 
 /** Ejects splitter buffers and advances underground tunnel queues. */
 export class Routing {
@@ -25,7 +25,7 @@ export class Routing {
     for (let i = 0; i < outputs.length; i++) {
       const index = ((start + i) % outputs.length) as 0 | 1 | 2
       const slot = outputs[index]
-      if (!slot || !this.canPlace(slot.cell)) continue
+      if (!slot || !outputBeltAccepts(this.match, slot.cell, slot.travel)) continue
       this.placePacket(slot.cell, splitter.buffer)
       splitter.buffer = null
       splitter.nextSplitPort = ((index + 1) % outputs.length) as 0 | 1 | 2
@@ -44,7 +44,7 @@ export class Routing {
     const out = exit.outputSlots()[0]
     if (!out) return
     const end = slots.length - 1
-    if (slots[end] && this.canPlace(out.cell)) {
+    if (slots[end] && outputBeltAccepts(this.match, out.cell, out.travel)) {
       this.placePacket(out.cell, slots[end]!)
       slots[end] = null
     }
@@ -54,11 +54,6 @@ export class Routing {
         slots[i - 1] = null
       }
     }
-  }
-
-  private canPlace(cell: { x: number; y: number }) {
-    if (!this.match.inBounds(cell) || !this.match.beltAt(cell)) return false
-    return !this.match.packets.some((packet) => cellKey(packet.cell) === cellKey(cell))
   }
 
   private placePacket(cell: { x: number; y: number }, shape: PacketShape) {

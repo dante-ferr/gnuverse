@@ -1,8 +1,8 @@
-import { cellKey } from '../../geometry/cell.ts'
 import { Packet } from '../../packets/packet.ts'
 import type { Match } from '../match.ts'
+import { outputBeltAccepts } from './output-belt.ts'
 
-/** Emits from each in-play source when its output belt cell is empty. */
+/** Emits from each in-play source when its output belt cell is empty and faces out. */
 export class Emission {
   private match: Match
 
@@ -19,11 +19,7 @@ export class Emission {
         source.ticksUntilEmit -= 1
         continue
       }
-      const occupied = this.match.packets.some(
-        (packet) => cellKey(packet.cell) === cellKey(output.cell),
-      )
-      const belt = this.match.beltAt(output.cell)
-      if (!belt || occupied) continue
+      if (!outputBeltAccepts(this.match, output.cell, output.travel)) continue
       this.match.packets.push(
         new Packet(`p${this.match.nextPacketId++}`, { ...output.cell }, source.shape),
       )

@@ -50,7 +50,7 @@ test('combiner crafts steam after rate-based craft ticks when inputs are buffere
   const { match, combiner } = sandboxWithCombiner()
   combiner.buffer = { water: 1, fire: 1 }
   const out = combiner.orderedOutputSlots()[0]!
-  beltAt(match, out.cell, opposite(out.travel))
+  beltAt(match, out.cell, out.travel)
   const steamRecipe = rules.elements.elements.find((el) => el.id === 'steam')!
   const ticks = craftTicksForRecipe(rules.elements, rules.tickMs, steamRecipe)
   combiner.activeRecipeId = 'steam'
@@ -68,7 +68,7 @@ test('dual-output craft ejects coupled or blocks when one port is full', () => {
   combiner.pendingOutputs = ['kiln', 'brick']
   const outputs = combiner.orderedOutputSlots()
   for (const slot of outputs) {
-    beltAt(match, slot.cell, opposite(slot.travel))
+    beltAt(match, slot.cell, slot.travel)
   }
   match.tick()
   assert.equal(match.packets.length, 2)
@@ -95,7 +95,7 @@ test('combiner_3 single-output alternates between output ports when both belts e
   const outputs = combiner.orderedOutputSlots()
   assert.equal(outputs.length, 2)
   for (const slot of outputs) {
-    beltAt(match, slot.cell, opposite(slot.travel))
+    beltAt(match, slot.cell, slot.travel)
   }
   combiner.activeRecipeId = 'crystal'
   combiner.pendingOutputs = ['crystal']

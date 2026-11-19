@@ -1,10 +1,11 @@
-import { cellKey } from '../../geometry/cell.ts'
 import type { ElementRecord } from '../../elements/index.ts'
 import { craftTicksForRecipe } from '../../elements/rate.ts'
+import type { Direction } from '../../geometry/direction.ts'
 import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
 import { Packet } from '../../packets/packet.ts'
 import type { PipelineRules } from '../../rules.ts'
 import type { Match } from '../match.ts'
+import { outputBeltAccepts } from './output-belt.ts'
 
 /** Runs combiner buffers, craft countdown, and output eject. */
 export class Craft {
@@ -108,11 +109,8 @@ export class Craft {
     return placements.every((plan) => this.canPlace(plan.slot, plan.shape))
   }
 
-  private canPlace(slot: { cell: { x: number; y: number } }, _shape: string) {
-    const key = cellKey(slot.cell)
-    if (!this.match.beltAt(slot.cell)) return false
-    if (this.match.packets.some((packet) => cellKey(packet.cell) === key)) return false
-    return true
+  private canPlace(slot: { cell: { x: number; y: number }; travel: Direction }, _shape: string) {
+    return outputBeltAccepts(this.match, slot.cell, slot.travel)
   }
 
   private placePacket(slot: { cell: { x: number; y: number } }, shape: string) {

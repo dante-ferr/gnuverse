@@ -77,6 +77,38 @@ test('splitter absorbs from approach belt regardless of belt facing', () => {
   assert.equal(match.packets.length, 0)
 })
 
+test('splitter does not eject onto a belt facing into the output', () => {
+  const { match, origin, splitter } = matchWithSplitter('east')
+  const forward = splitter.orderedOutputSlots().find((slot) => slot.travel === 'east')!
+  // Belt on the output cell points back at the splitter.
+  assert.equal(match.place([{ ...forward.cell, direction: 'west' }], author), null)
+  splitter.buffer = 'circle'
+  match.tick()
+  assert.equal(splitter.buffer, 'circle')
+  assert.equal(match.packets.length, 0)
+})
+
+test('side belt pointing at the splitter is not an input', () => {
+  const { match, origin, splitter } = matchWithSplitter('east')
+  const side = { x: origin.x, y: origin.y + 1 }
+  // South neighbor faces north, so its forward cell is the splitter tile.
+  assert.equal(match.place([{ ...side, direction: 'north' }], author), null)
+  match.packets.push(new Packet('p1', side, 'circle'))
+  match.tick()
+  assert.equal(splitter.buffer, null)
+  assert.equal(match.packets[0]!.cell.y, side.y)
+})
+
+test('splitter ejects onto a perpendicular belt on the output cell', () => {
+  const { match, origin, splitter } = matchWithSplitter('east')
+  const forward = splitter.orderedOutputSlots().find((slot) => slot.travel === 'east')!
+  assert.equal(match.place([{ ...forward.cell, direction: 'north' }], author), null)
+  splitter.buffer = 'circle'
+  match.tick()
+  assert.equal(splitter.buffer, null)
+  assert.ok(match.packets.some((p) => p.cell.x === forward.cell.x && p.cell.y === forward.cell.y))
+})
+
 test('approach pull round-robins with belt-forward flow', () => {
   const { match, origin, splitter } = matchWithSplitter('east')
   const inCell = { x: origin.x - 1, y: origin.y }

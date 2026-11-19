@@ -87,7 +87,7 @@ export class Movement {
     outputCell: { x: number; y: number },
     shape: PacketShape,
   ) {
-    const flow = this.destination(outputCell, shape)
+    const flow = this.destination(outputCell, shape, origin)
     const pull = this.pullFromApproach(origin, shape)
     if (!pull) return flow
     if (flow === 'blocked') return pull
@@ -155,30 +155,44 @@ export class Movement {
     return 'blocked'
   }
 
-  private destination(cell: { x: number; y: number }, shape: PacketShape) {
+  /**
+   * Forward hop from `from`. An input only accepts the hop when `from` is that
+   * input’s approach cell (directly behind it). Other belts that merely point
+   * at the slot stay blocked — they are not inputs.
+   */
+  private destination(
+    cell: { x: number; y: number },
+    shape: PacketShape,
+    from: { x: number; y: number },
+  ) {
     for (const core of this.match.cores) {
-      if (core.slotAt(cell, 'input')) {
-        if (!this.match.acceptsDelivery(shape)) return 'blocked'
-        return 'deliver'
-      }
+      const slot = core.slotAt(cell, 'input')
+      if (!slot) continue
+      if (!sameCell(from, ahead(slot.cell.x, slot.cell.y, opposite(slot.travel)))) return 'blocked'
+      if (!this.match.acceptsDelivery(shape)) return 'blocked'
+      return 'deliver'
     }
     for (const combiner of this.match.combiners) {
-      if (combiner.slotAt(cell, 'input')) {
-        if (!combinerAcceptsShape(combiner, this.match.rules, shape)) return 'blocked'
-        return `absorb:combiner:${combiner.id}`
-      }
+      const slot = combiner.slotAt(cell, 'input')
+      if (!slot) continue
+      if (!sameCell(from, ahead(slot.cell.x, slot.cell.y, opposite(slot.travel)))) return 'blocked'
+      if (!combinerAcceptsShape(combiner, this.match.rules, shape)) return 'blocked'
+      return `absorb:combiner:${combiner.id}`
     }
     for (const splitter of this.match.splitters) {
-      if (splitter.slotAt(cell, 'input')) {
-        if (splitter.buffer !== null) return 'blocked'
-        return `absorb:splitter:${splitter.id}`
-      }
+      const slot = splitter.slotAt(cell, 'input')
+      if (!slot) continue
+      if (!sameCell(from, ahead(slot.cell.x, slot.cell.y, opposite(slot.travel)))) return 'blocked'
+      if (splitter.buffer !== null) return 'blocked'
+      return `absorb:splitter:${splitter.id}`
     }
     for (const portal of this.match.tunnels) {
-      if (portal.role === 'entrance' && portal.slotAt(cell, 'input')) {
-        if (!tunnelCanAbsorb(this.match, portal.pairId)) return 'blocked'
-        return `absorb:tunnel:${portal.pairId}`
-      }
+      if (portal.role !== 'entrance') continue
+      const slot = portal.slotAt(cell, 'input')
+      if (!slot) continue
+      if (!sameCell(from, ahead(slot.cell.x, slot.cell.y, opposite(slot.travel)))) return 'blocked'
+      if (!tunnelCanAbsorb(this.match, portal.pairId)) return 'blocked'
+      return `absorb:tunnel:${portal.pairId}`
     }
     if (!this.match.inBounds(cell) || !this.match.beltAt(cell)) return 'blocked'
     return cellKey(cell)
