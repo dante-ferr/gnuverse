@@ -1,9 +1,9 @@
 import type { Direction } from '../model/frame.ts'
-import { directionBetween, orthogonalPath, projectStraightEnd } from './grid-math.ts'
+import { directionBetween, manhattanElbow } from './grid-math.ts'
 
 export type StrokeCell = { x: number; y: number; direction: Direction }
 
-/** Builds a straight horizontal or vertical conveyor stroke from a pointer drag. */
+/** Builds a straight or L-shaped conveyor stroke from a pointer drag. */
 export class BeltStroke {
   readonly cells: StrokeCell[] = []
   private origin: { x: number; y: number } | null = null
@@ -16,7 +16,7 @@ export class BeltStroke {
       this.cells.push({ x: cell.x, y: cell.y, direction: 'east' })
       return true
     }
-    return this.rebuild(projectStraightEnd(this.origin, cell))
+    return this.rebuild(cell)
   }
 
   private rebuild(end: { x: number; y: number }): boolean {
@@ -26,14 +26,19 @@ export class BeltStroke {
     if (end.x === origin.x && end.y === origin.y) {
       next.push({ x: origin.x, y: origin.y, direction: 'east' })
     } else {
-      const steps = orthogonalPath(origin, end)
-      const first = steps[0]
-      if (!first) return false
-      const direction = directionBetween(origin, first)
-      if (!direction) return false
-      next.push({ x: origin.x, y: origin.y, direction })
-      for (const step of steps) {
-        next.push({ x: step.x, y: step.y, direction })
+      const steps = manhattanElbow(origin, end)
+      const path = [origin, ...steps]
+      for (let i = 0; i < path.length; i++) {
+        const cell = path[i]!
+        const following = path[i + 1]
+        const previous = path[i - 1]
+        const direction = following
+          ? directionBetween(cell, following)
+          : previous
+            ? directionBetween(previous, cell)
+            : null
+        if (!direction) return false
+        next.push({ x: cell.x, y: cell.y, direction })
       }
     }
     if (sameStroke(this.cells, next)) return false

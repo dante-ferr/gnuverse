@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BeltStroke } from '../src/components/game/pipeline/scene/belt-stroke.ts'
-import { orthogonalPath, projectStraightEnd } from '../src/components/game/pipeline/scene/grid-math.ts'
+import {
+  manhattanElbow,
+  orthogonalPath,
+  projectStraightEnd,
+} from '../src/components/game/pipeline/scene/grid-math.ts'
 
 test('orthogonalPath fills skipped cells along a straight line', () => {
   assert.deepEqual(orthogonalPath({ x: 0, y: 0 }, { x: 0, y: 0 }), [])
@@ -16,6 +20,23 @@ test('projectStraightEnd snaps to the dominant axis', () => {
   assert.deepEqual(projectStraightEnd({ x: 0, y: 0 }, { x: 0, y: 0 }), { x: 0, y: 0 })
   assert.deepEqual(projectStraightEnd({ x: 0, y: 0 }, { x: 3, y: 1 }), { x: 3, y: 0 })
   assert.deepEqual(projectStraightEnd({ x: 0, y: 0 }, { x: 1, y: 3 }), { x: 0, y: 3 })
+})
+
+test('manhattanElbow builds an L on the dominant axis first', () => {
+  assert.deepEqual(manhattanElbow({ x: 0, y: 0 }, { x: 0, y: 0 }), [])
+  assert.deepEqual(manhattanElbow({ x: 0, y: 0 }, { x: 3, y: 2 }), [
+    { x: 1, y: 0 },
+    { x: 2, y: 0 },
+    { x: 3, y: 0 },
+    { x: 3, y: 1 },
+    { x: 3, y: 2 },
+  ])
+  assert.deepEqual(manhattanElbow({ x: 0, y: 0 }, { x: 1, y: 3 }), [
+    { x: 0, y: 1 },
+    { x: 0, y: 2 },
+    { x: 0, y: 3 },
+    { x: 1, y: 3 },
+  ])
 })
 
 test('BeltStroke spans a straight line when the pointer skips cells', () => {
@@ -33,7 +54,7 @@ test('BeltStroke spans a straight line when the pointer skips cells', () => {
   )
 })
 
-test('BeltStroke stays axis-aligned instead of freeform', () => {
+test('BeltStroke forms an L when the end is diagonal from the origin', () => {
   const stroke = new BeltStroke()
   stroke.push({ x: 0, y: 0 })
   stroke.push({ x: 2, y: 1 })
@@ -44,7 +65,9 @@ test('BeltStroke stays axis-aligned instead of freeform', () => {
       { x: 0, y: 0, direction: 'east' },
       { x: 1, y: 0, direction: 'east' },
       { x: 2, y: 0, direction: 'east' },
-      { x: 3, y: 0, direction: 'east' },
+      { x: 3, y: 0, direction: 'south' },
+      { x: 3, y: 1, direction: 'south' },
+      { x: 3, y: 2, direction: 'south' },
     ],
   )
 })

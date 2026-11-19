@@ -57,3 +57,42 @@ export function projectStraightEnd(
   if (Math.abs(dx) >= Math.abs(dy)) return { x: to.x, y: from.y }
   return { x: from.x, y: to.y }
 }
+
+/**
+ * Orthogonal L-path from `from` (exclusive) to `to` (inclusive).
+ * Travels the dominant axis fully, then the other — one corner, no staircases.
+ */
+export function manhattanElbow(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): { x: number; y: number }[] {
+  const cells: { x: number; y: number }[] = []
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  if (dx === 0 && dy === 0) return cells
+
+  let x = from.x
+  let y = from.y
+  const horizontalFirst = Math.abs(dx) >= Math.abs(dy)
+
+  if (horizontalFirst) {
+    while (x !== to.x) {
+      x += dx > 0 ? 1 : -1
+      cells.push({ x, y })
+    }
+    while (y !== to.y) {
+      y += dy > 0 ? 1 : -1
+      cells.push({ x, y })
+    }
+  } else {
+    while (y !== to.y) {
+      y += dy > 0 ? 1 : -1
+      cells.push({ x, y })
+    }
+    while (x !== to.x) {
+      x += dx > 0 ? 1 : -1
+      cells.push({ x, y })
+    }
+  }
+  return cells
+}
