@@ -1,3 +1,5 @@
+import type { ElementCatalogJson } from '../../../../../game-server/pipeline/elements/index.ts'
+
 export type Direction = 'north' | 'east' | 'south' | 'west'
 
 export type PipelineRules = {
@@ -39,13 +41,12 @@ export type PipelineRules = {
   mapChunkExtent: number
   chunkCostBase: number
   chunkCostStep: number
-  sourceSpawnChanceCirclePercent: number
-  sourceSpawnChanceFirePercent: number
-  sourceSpawnChanceWaterPercent: number
   slotInputDepthPercent: number
   slotOutputDepthPercent: number
   slotBracketThickPercent: number
   slotFlowMarkDepthPercent: number
+  /** Element catalog from `elements.toml` (same payload as the game-server). */
+  elements: ElementCatalogJson
 }
 
 export type CoreDemandRecord = {
@@ -56,7 +57,8 @@ export type CoreDemandRecord = {
 
 export type ChunkCoordRecord = { cx: number; cy: number }
 
-export type SourceRole = 'fire' | 'water' | 'circle'
+/** Catalog element id this source emits / represents. */
+export type SourceRole = string
 
 export type SourceRecord = {
   id: string

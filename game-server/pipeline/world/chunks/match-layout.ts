@@ -2,7 +2,7 @@ import type { Cell } from '../../geometry/cell.ts'
 import { CoreMachine } from '../../machines/core-machine.ts'
 import { SourceMachine } from '../../machines/source-machine.ts'
 import type { PipelineRules } from '../../rules.ts'
-import { layoutTwoStarterSources } from '../placement/approach.ts'
+import { layoutStarterSources } from '../placement/approach.ts'
 import type { PlacedSource } from '../types.ts'
 import {
   previewCoords,
@@ -48,17 +48,14 @@ export function layoutMatchFromSeed(rules: PipelineRules, seed: string): MatchLa
     y: starterLocal.y + coreInChunk.y,
   }
 
-  const [fireLocal, waterLocal] = layoutTwoStarterSources(rules, seed, coreInChunk, chunkSize)
+  const starterLocals = layoutStarterSources(rules, seed, coreInChunk, chunkSize)
   const shift = (spec: PlacedSource): PlacedSource => ({
     ...spec,
     origin: { x: spec.origin.x + starterLocal.x, y: spec.origin.y + starterLocal.y },
   })
-  const fire = shift(fireLocal)
-  const water = shift(waterLocal)
-  // Non-starter chunks stay empty for now. Probabilistic source spawn (TOML
-  // source_spawn_chance_*_percent + clearance) is documented; not wired until
-  // real element sources ship — chunks must not require a source.
-  const sources: PlacedSource[] = [fire, water]
+  // Non-starter chunks stay empty for now. Probabilistic spawn uses each base's
+  // source_spawn_chance_percent from elements.toml when that path is wired.
+  const sources: PlacedSource[] = starterLocals.map(shift)
 
   return {
     originChunk,
@@ -83,7 +80,7 @@ export function machinesFromLayout(
       spec.origin,
       spec.direction,
       spec.shape,
-      rules.sourcePeriodTicks,
+      spec.sourcePeriodTicks ?? rules.sourcePeriodTicks,
     )
   })
   return { core: new CoreMachine('core', layout.coreOrigin), sources, roles }

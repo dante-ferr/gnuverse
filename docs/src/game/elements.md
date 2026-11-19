@@ -6,10 +6,14 @@ Open Pipeline packets are **elements** defined in TOML under `game-server/config
 
 - Primary book: `game-server/config/elements.toml` (**36** ids, max tier **5**)
 - Optional extras: any `*.toml` under `game-server/config/elements/`
+- Shared loader: `game-server/pipeline/elements/load-catalog.mjs` (also used by the game-server `rules.elements` payload)
+- Globals in TOML: `max_tier`, `retain_prior_demands`, `default_craft_ticks`, `default_productivity`, `default_glyph_size_px`, `default_stroke`, `default_demand_required`, `starter_source_ids`
+- `[[machines]]`, `[[chapters]]` (`max_new_bases`, `required_multiplier`), `[preview]` layout sizes
+- Per element: `fill` / `stroke` / `glyph` / `family` / `sort_key`; bases add `source_period_ticks` and `source_spawn_chance_percent`; crafts add `machine`, `craft_ticks`, `productivity`
 - Crafted rows: `inputs` length **2 or 3**; `outputs` defaults to `[id]`, or two ids for dual products
 - Co-products: `coproduct_of = "primary_id"` (no `inputs`); must appear in the primary `outputs`
 - Tier rule: `tier = 1 + max(tier(inputs))`
-- `demand_chapter` assigns when the core starts requiring that element. Inputs must come from the same chapter or an earlier one. After chapter 1, at most one new tier-1 base per chapter.
+- `demand_chapter` assigns when the core starts requiring that element. Inputs must come from the same chapter or an earlier one. New bases per chapter are capped by that chapter’s `max_new_bases`
 - Preview rebuilds from TOML on every request
 
 ```bash
@@ -33,7 +37,7 @@ Status: **TOML catalog + preview layout updated** (2026-11-18). In-game combiner
 | Max tier | **5** | Authored |
 | Core quota | Across match progression, **every** element appears in core demand at least once | Chapter schedule authored in TOML; sim not wired yet |
 
-The core does **not** demand the whole low-tier book at match start. Chapter 1 asks only for water, fire, and steam. Later chapters add one branch at a time (at most one new base after chapter 1). Older demands stay active. Basics that no later recipe needs (pollen) and payoffs whose inputs have been around for a while (garden) wait until chapter 8, so early play is not a grind of every tier-2 formula. The recipe page lists each chapter under **Quando o núcleo pede cada elemento**.
+The core does **not** demand the whole low-tier book at match start. Chapter schedule and `max_new_bases` live in TOML (`retain_prior_demands` keeps older demands active). The current book opens with water, fire, and steam, then adds branches gradually; pollen and garden wait until chapter 8. The recipe page lists each chapter under **Quando o núcleo pede cada elemento**.
 
 ### Crafting by tier (planned)
 

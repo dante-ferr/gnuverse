@@ -7,54 +7,9 @@ import {
   syncPacketMotion,
 } from '../src/components/game/pipeline/scene/packet-motion.ts'
 import type { PipelineFrame, PipelineRules } from '../src/components/game/pipeline/model/frame.ts'
+import { testPipelineRules } from './helpers/pipeline-rules.ts'
 
-const rules: PipelineRules = {
-  tickMs: 250,
-  gridWidth: 24,
-  gridHeight: 24,
-  sourcePeriodTicks: 4,
-  colorBackground: '#0e171d',
-  colorGrid: '#23343c',
-  gridVisibleMinZoom: 1,
-  cameraZoomMin: 0.08,
-  cameraZoomMax: 3,
-  colorBelt: '#9eb0b7',
-  colorBeltChevron: '#6b7d87',
-  colorPacket: '#52d6c9',
-  colorCore: '#ffffff',
-  colorSource: '#52d6c9',
-  colorAccent: '#52d6c9',
-  colorDecor: '#1a4542',
-  decorDarkenPercent: 35,
-  outlineWidthPx: 3,
-  colorOutline: '#0a1014',
-  colorSurface: '#17252c',
-  colorMuted: '#6a7b83',
-  colorHighlight: '#86e7dd',
-  colorWarning: '#ff8b7d',
-  colorSuccess: '#5ed4b0',
-  colorInk: '#293c45',
-  decorStrokeWidth: 28,
-  resourceGlyphSizePx: 28,
-  resourceGlyphOrbitPx: 4,
-  resourceGlyphOrbitMs: 4000,
-  beltChevronStrokePx: 4,
-  beltChevronFlowMs: 900,
-  machineClearanceMin: 1,
-  coreClearanceExtra: 2,
-  coreDemandCircle: 5,
-  chunkSize: 24,
-  mapChunkExtent: 64,
-  chunkCostBase: 5,
-  chunkCostStep: 2,
-  sourceSpawnChanceCirclePercent: 0,
-  sourceSpawnChanceFirePercent: 0,
-  sourceSpawnChanceWaterPercent: 0,
-  slotInputDepthPercent: 22,
-  slotOutputDepthPercent: 34,
-  slotBracketThickPercent: 18,
-  slotFlowMarkDepthPercent: 12,
-}
+const rules: PipelineRules = testPipelineRules({ coreDemandCircle: 5 })
 
 function frame(tick: number, packets: PipelineFrame['packets']): PipelineFrame {
   return {

@@ -83,8 +83,9 @@ Full detail: [Element recipes](game/elements.md#planned-graph-machines-and-core-
 | Tier 5 | **3-input → 2 outputs** (`outputs` + `coproduct_of`) | TOML authored; tick rules TBD |
 | 3-in machine I/O | Always **3 in + 2 out ports**. Dual recipe → different packets per port. Single recipe → same packet on both ports; using both **halves** productivity | Design only |
 | Coupled dual output | Dual recipe ports eject together; one blocked belt stalls both | Design only |
-| Core demands | Full catalog required by the **last** chapter, not at match start. `demand_chapter` in TOML; inputs cannot be demanded later than the craft. After chapter 1, at most one new base per chapter | Schedule authored; sim TBD |
-| Preview graphs | Orthogonal gap routing + highway for long spans; no edges through balloons | Preview tooling updated |
+| Core demands | Full catalog required by the **last** chapter, not at match start. `demand_chapter` + `[[chapters]]` (`max_new_bases`, `required_multiplier`) in TOML; inputs cannot be demanded later than the craft | Schedule authored; sim TBD |
+| Catalog loader | One shared loader (`game-server/pipeline/elements/load-catalog.mjs`) for game-server and `make elements-serve`. Starters, craft rates, fill/stroke/glyph, machines, and chapter base caps live in TOML — not hardcoded in TS | Wired |
+| Preview graphs | Orthogonal gap routing + highway for long spans; layout sizes from `[preview]` in TOML | Preview tooling updated |
 
 Recipe book and visualizer: [Element recipes](game/elements.md). Edit TOML under `game-server/config/` (`elements.toml` and optional `elements/**/*.toml`), then `make elements-serve` (http://127.0.0.1:3010).
 
@@ -101,13 +102,13 @@ Locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and ma
 | Spend targets | Conveyors, machines, **area expansion**, later paid actions |
 | Map unit | Square **chunks**; side length `chunk_size` cells in `[pipeline]` |
 | Starter | Exactly **one** owned chunk; always the **central** index `floor((extent−1)/2)` |
-| Starter content | Central **5×5** core + **two** sources reserved for chapter 1 **fire** and **water** (see below) |
-| Starter packets (interim) | Both sources still emit **`circle`** until the element packet slice ships; placement/identity is fire + water |
+| Starter content | Central **5×5** core + sources listed in `elements.toml` `starter_source_ids` (currently fire + water) |
+| Starter packets (interim) | Starter sources still emit **`circle`** until the element packet slice ships; layout `role` is the catalog element id |
 | World limit | High extent (e.g. **64×64** chunks) from TOML |
 | Chunk price | **Linear:** `chunk_cost_base + chunk_cost_step * (ownedCount - 1)` |
 | Preview / buy | Only **edge-adjacent** (orthogonal) neighbors of owned chunks; visible but obscured until bought |
 | Generation | **Gradual** from room seed when a chunk first enters the preview set |
-| Non-starter sources | **Optional** — static per-type spawn chance in TOML (`source_spawn_chance_*_percent`); never mandatory; only on cells outside clearance free-rects (roll not wired until element sources ship) |
+| Non-starter sources | **Optional** — per-base `source_spawn_chance_percent` on tier-1 rows in `elements.toml`; never mandatory; only on cells outside clearance free-rects (roll not wired yet) |
 | Clearance | **On** at generation (`machine_clearance_min`, `core_clearance_extra`); belts may use pad cells afterward |
 
 ### Still open (narrow)

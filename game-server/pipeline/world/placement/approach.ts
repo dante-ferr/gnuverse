@@ -68,13 +68,29 @@ function tryCandidate(
   out.push({ sourceOrigin, sourceDirection })
 }
 
-/** Two clearance-separated circle sources around a core within a square field. */
-export function layoutTwoStarterSources(
+/**
+ * Places one starter source per id in `rules.elements.starterSourceIds`
+ * (from elements.toml), clearance-separated around the core.
+ */
+export function layoutStarterSources(
   rules: PipelineRules,
   seed: string,
   coreOrigin: Cell,
   fieldSize: number,
-): [PlacedSource, PlacedSource] {
+): PlacedSource[] {
+  const starterIds = rules.elements.starterSourceIds
+  if (starterIds.length < 1) {
+    throw new Error('elements.toml: starter_source_ids must list at least one base')
+  }
+
+  const byId = new Map(rules.elements.elements.map((el) => [el.id, el]))
+  for (const id of starterIds) {
+    const el = byId.get(id)
+    if (!el || el.tier !== 1) {
+      throw new Error(`elements.toml: starter_source_ids entry "${id}" must be a tier-1 base`)
+    }
+  }
+
   const field = new PlacementField(rules, fieldSize, fieldSize, [
     { kind: 'core', origin: coreOrigin },
   ])
@@ -83,10 +99,11 @@ export function layoutTwoStarterSources(
 
   const coreDepths = field.coreDepthsAt(coreOrigin)
   const candidates = collectLayoutCandidates(rules, coreOrigin, coreDepths, fieldSize, fieldSize)
-  if (candidates.length < 2)
+  if (candidates.length < starterIds.length) {
     throw new Error(
-      `Field ${fieldSize}×${fieldSize} is too small for core and two sources with clearance margins`,
+      `Field ${fieldSize}×${fieldSize} is too small for core and ${starterIds.length} starter sources with clearance`,
     )
+  }
 
   const rng = createSeedRng(seed)
   const order = [...candidates]
@@ -95,44 +112,67 @@ export function layoutTwoStarterSources(
     ;[order[i], order[j]] = [order[j]!, order[i]!]
   }
 
-  for (let a = 0; a < order.length; a++) {
-    const first = order[a]!
-    const withFirst = new PlacementField(rules, fieldSize, fieldSize, [
-      { kind: 'core', origin: coreOrigin },
-      { kind: 'source', origin: first.sourceOrigin, direction: first.sourceDirection },
-    ])
+  const placed: PlacedSource[] = []
+  const occupied = new PlacementField(rules, fieldSize, fieldSize, [
+    { kind: 'core', origin: coreOrigin },
+  ])
 
-    for (let b = a + 1; b < order.length; b++) {
-      const second = order[b]!
-      const sourceB = new SourceMachine(
-        'source-b',
-        second.sourceOrigin,
-        second.sourceDirection,
+  for (const elementId of starterIds) {
+    let found: LayoutCandidate | null = null
+    for (const candidate of order) {
+      const probe = new SourceMachine(
+        `source-${elementId}`,
+        candidate.sourceOrigin,
+        candidate.sourceDirection,
         'circle',
         rules.sourcePeriodTicks,
       )
-      if (withFirst.sourceOverlapsOccupied(sourceB)) continue
-
-      return [
-        {
-          id: 'source-fire',
-          origin: first.sourceOrigin,
-          direction: first.sourceDirection,
-          shape: 'circle',
-          role: 'fire',
-        },
-        {
-          id: 'source-water',
-          origin: second.sourceOrigin,
-          direction: second.sourceDirection,
-          shape: 'circle',
-          role: 'water',
-        },
-      ]
+      if (occupied.sourceOverlapsOccupied(probe)) continue
+      found = candidate
+      break
+    }
+    if (!found) {
+      throw new Error(
+        `Field ${fieldSize}×${fieldSize} has no clearance placement for starter source "${elementId}"`,
+      )
+    }
+    const el = byId.get(elementId)!
+    placed.push({
+      id: `source-${elementId}`,
+      origin: found.sourceOrigin,
+      direction: found.sourceDirection,
+      shape: 'circle',
+      role: elementId,
+      sourcePeriodTicks: el.source_period_ticks ?? rules.sourcePeriodTicks,
+    })
+    occupied.addOccupied({
+      kind: 'source',
+      origin: found.sourceOrigin,
+      direction: found.sourceDirection,
+    })
+    // Remove used candidate so the next starter picks a different pad.
+    const usedKey = `${found.sourceOrigin.x},${found.sourceOrigin.y},${found.sourceDirection}`
+    for (let i = order.length - 1; i >= 0; i--) {
+      const c = order[i]!
+      if (`${c.sourceOrigin.x},${c.sourceOrigin.y},${c.sourceDirection}` === usedKey) {
+        order.splice(i, 1)
+      }
     }
   }
 
-  throw new Error(
-    `Field ${fieldSize}×${fieldSize} has no pair of source placements with clearance around the core`,
-  )
+  return placed
+}
+
+/** @deprecated Prefer layoutStarterSources — kept for older call sites/tests. */
+export function layoutTwoStarterSources(
+  rules: PipelineRules,
+  seed: string,
+  coreOrigin: Cell,
+  fieldSize: number,
+): [PlacedSource, PlacedSource] {
+  const placed = layoutStarterSources(rules, seed, coreOrigin, fieldSize)
+  if (placed.length < 2) {
+    throw new Error('Expected at least two starter sources in elements.toml starter_source_ids')
+  }
+  return [placed[0]!, placed[1]!]
 }

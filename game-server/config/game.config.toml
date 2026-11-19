@@ -88,8 +88,5 @@ map_chunk_extent = 64 # Max chunk index span per axis
 chunk_cost_base = 5 # First purchased chunk
 chunk_cost_step = 2 # Added per later purchase
 
-# Chunk source spawn (reserved; not wired in sim). Chance 0–100 per type on new chunk.
-# Starter fire/water ignore these. One roll per type; placement respects clearance.
-source_spawn_chance_circle_percent = 0
-source_spawn_chance_fire_percent = 0
-source_spawn_chance_water_percent = 0
+# Starter sources and non-starter spawn odds live in elements.toml
+# (starter_source_ids + per-base source_spawn_chance_percent).

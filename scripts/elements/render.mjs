@@ -15,7 +15,7 @@ export function renderElementsPage(catalog, options = {}) {
   const recipeSections = byTier
     .map(([tier, recipes]) => {
       const cards = recipes
-        .map((el) => renderRecipeDetails(el, catalog.byId))
+        .map((el) => renderRecipeDetails(el, catalog))
         .join('\n')
       return `
 <section class="tier" data-tier="${tier}">
@@ -34,14 +34,17 @@ ${cards}
     })
     .join('\n')
 
+  const starters = new Set(catalog.starterSourceIds)
   const baseList = bases
     .map(
       (el) => `
-    <li class="base" style="--swatch:${escapeAttr(el.color)}">
+    <li class="base" style="--swatch:${escapeAttr(el.fill)}">
       <span class="swatch" aria-hidden="true"></span>
       <strong>${escapeHtml(el.name_pt)}</strong>
       <code>${escapeHtml(el.id)}</code>
-      <span class="muted">T${el.tier} · cap. ${el.demand_chapter}</span>
+      <span class="muted">T${el.tier} · cap. ${el.demand_chapter}${
+        starters.has(el.id) ? ' · starter' : ''
+      } · spawn ${el.source_spawn_chance_percent ?? 0}%</span>
     </li>`,
     )
     .join('\n')
@@ -69,8 +72,14 @@ ${PAGE_CSS}
       ${catalog.elements.length} elementos ·
       ${catalog.recipes.length} receitas ·
       tier máximo ${catalog.maxTier} ·
-      ${catalog.chapters.length} capítulos de demanda.
-      O núcleo começa só com o capítulo 1. Capítulos anteriores continuam ativos.
+      ${catalog.chapters.length} capítulos de demanda ·
+      starters: ${catalog.starterSourceIds.map(escapeHtml).join(', ')}.
+      O núcleo começa só com o capítulo 1.
+      ${
+        catalog.retainPriorDemands
+          ? 'Capítulos anteriores continuam ativos.'
+          : 'Capítulos anteriores são substituídos.'
+      }
       Gerado a partir dos TOML em <code>${escapeHtml(rootLabel)}</code>.
     </p>
     <div class="toolbar">
@@ -140,7 +149,7 @@ function renderProgression(catalog) {
             : el.inputs.length
               ? escapeHtml(el.inputs.map((id) => catalog.byId.get(id).name_pt).join(' + '))
               : 'fonte'
-          return `<li class="demand" style="--swatch:${escapeAttr(el.color)}">
+          return `<li class="demand" style="--swatch:${escapeAttr(el.fill)}">
             <span class="swatch" aria-hidden="true"></span>
             <span class="demand-name">${escapeHtml(el.name_pt)}</span>
             <span class="badge">${escapeHtml(kind)}</span>
@@ -148,10 +157,11 @@ function renderProgression(catalog) {
           </li>`
         })
         .join('\n')
+      const limit = chapter.max_new_bases
       const baseNote =
         newBases.length === 0
-          ? 'Nenhuma base nova — só fórmulas de fontes que já estão no jogo.'
-          : `Base nova: ${newBases.map((el) => escapeHtml(el.name_pt)).join(', ')}.`
+          ? `Nenhuma base nova (máx. ${limit}) — só fórmulas de fontes que já estão no jogo.`
+          : `Base nova: ${newBases.map((el) => escapeHtml(el.name_pt)).join(', ')} (máx. ${limit}).`
       return `<article class="chapter" id="chapter-${chapter.id}">
         <header class="chapter-head">
           <p class="eyebrow">Capítulo ${chapter.id}</p>
@@ -167,19 +177,22 @@ function renderProgression(catalog) {
   return `<section class="panel progression">
     <h2>Quando o núcleo pede cada elemento</h2>
     <p class="lede">
-      O capítulo 1 é o começo da partida. Cada capítulo seguinte soma poucas demandas
-      e mantém as anteriores. Uma fórmula só entra quando todos os ingredientes
-      já foram pedidos antes (ou no mesmo capítulo). Bases novas entram uma por capítulo
-      depois da ignição, e fórmulas básicas que ninguém mais usa esperam o fim.
+      O capítulo 1 é o começo da partida. Cada capítulo seguinte soma demandas
+      ${catalog.retainPriorDemands ? 'e mantém as anteriores' : 'e substitui as anteriores'}.
+      Uma fórmula só entra quando todos os ingredientes já foram pedidos antes
+      (ou no mesmo capítulo). O limite de bases novas por capítulo vem de
+      <code>max_new_bases</code> no TOML.
     </p>
     <div class="chapters">${cards}</div>
   </section>`
 }
 
-function renderRecipeDetails(output, byId) {
+function renderRecipeDetails(output, catalog) {
+  const byId = catalog.byId
   const inputs = output.inputs.map((id) => byId.get(id))
   const outputs = output.outputs.map((id) => byId.get(id))
   const outLabel = outputs.map((el) => el.name_pt).join(' + ')
+  const machine = output.machine ? catalog.machinesById.get(output.machine) : null
   return `
 <details class="recipe" data-tier="${output.tier}" data-chapter="${output.demand_chapter}" data-id="${escapeAttr(output.id)}">
   <summary>
@@ -190,14 +203,22 @@ function renderRecipeDetails(output, byId) {
   </summary>
   <div class="recipe-body">
     <p class="chart-caption">Caminho desde as bases até <strong>${escapeHtml(outLabel)}</strong></p>
-    ${renderPathChart(output, byId)}
+    ${renderPathChart(output, catalog)}
     <p class="chart-caption chart-caption--direct">Combinação direta desta receita</p>
-    ${renderRecipeChart(inputs, outputs)}
+    ${renderRecipeChart(inputs, outputs, catalog.preview)}
     <dl class="meta">
       <div><dt>Entradas</dt><dd>${inputs
         .map((el) => `<code>${escapeHtml(el.id)}</code> (${escapeHtml(el.name_pt)}, T${el.tier})`)
         .join(' + ')}</dd></div>
       <div><dt>Capítulo</dt><dd>${output.demand_chapter}</dd></div>
+      <div><dt>Máquina</dt><dd>${
+        machine
+          ? `${escapeHtml(machine.name_pt)} (<code>${escapeHtml(machine.id)}</code>)`
+          : '—'
+      }</dd></div>
+      <div><dt>Craft</dt><dd>${output.craft_ticks ?? '—'} ticks · produtividade ${
+        output.productivity ?? '—'
+      }</dd></div>
       <div><dt>Saídas</dt><dd>${outputs
         .map((el) => `<code>${escapeHtml(el.id)}</code> (${escapeHtml(el.name_pt)}, T${el.tier})`)
         .join(' + ')}</dd></div>
@@ -212,22 +233,24 @@ function renderRecipeDetails(output, byId) {
  * (never through node balloons).
  *
  * @param {import('./load.mjs').Element} target
- * @param {Map<string, import('./load.mjs').Element>} byId
+ * @param {import('./load.mjs').ElementCatalog} catalog
  */
-function renderPathChart(target, byId) {
+function renderPathChart(target, catalog) {
+  const byId = catalog.byId
+  const preview = catalog.preview
   const ancestry = collectAncestry(target, byId)
   if (ancestry.size <= 1) {
-    return renderRecipeChart([], [target])
+    return renderRecipeChart([], [target], preview)
   }
 
-  const nodeW = 104
-  const nodeH = 52
-  const colGap = 72
-  const rowGap = 18
+  const nodeW = preview.node_width
+  const nodeH = preview.node_height
+  const colGap = preview.column_gap
+  const rowGap = preview.row_gap
   const padX = 24
   const padTop = 36
   const padBottom = 28
-  const highwayLane = 16
+  const highwayLane = preview.highway_lane
 
   const tierColumns = layoutAncestryColumns(ancestry, byId)
   const rowById = assignAncestryRows(tierColumns, byId, ancestry)
@@ -269,12 +292,12 @@ function renderPathChart(target, byId) {
     .map((id) => {
       const el = byId.get(id)
       const pos = posById.get(id)
-      const ink = contrastInk(el.color)
+      const ink = contrastInk(el.fill)
       const isTarget = target.outputs.includes(id)
       return `
       <g transform="translate(${pos.x}, ${pos.y + yOffset})" data-id="${escapeAttr(id)}">
         <rect width="${nodeW}" height="${nodeH}" rx="10" ry="10"
-          fill="${escapeAttr(el.color)}" stroke="#0a1014" stroke-width="${isTarget ? 4 : 3}"
+          fill="${escapeAttr(el.fill)}" stroke="${escapeAttr(el.stroke)}" stroke-width="${isTarget ? 4 : 3}"
           class="${isTarget ? 'node result' : 'node'}" />
         <text x="${nodeW / 2}" y="22" text-anchor="middle" fill="${ink}" class="node-name">${escapeHtml(el.name_pt)}</text>
         <text x="${nodeW / 2}" y="40" text-anchor="middle" fill="${ink}" class="node-id">${escapeHtml(el.id)} · T${el.tier}</text>
@@ -509,10 +532,21 @@ function assignAncestryRows(tierColumns, byId, ancestry) {
 /**
  * @param {import('./load.mjs').Element[]} inputs
  * @param {import('./load.mjs').Element[]} outputs
+ * @param {import('./load.mjs').PreviewConfig} [preview]
  */
-function renderRecipeChart(inputs, outputs) {
-  const nodeW = 120
-  const nodeH = 58
+function renderRecipeChart(
+  inputs,
+  outputs,
+  preview = {
+    node_width: 120,
+    node_height: 58,
+    column_gap: 72,
+    row_gap: 18,
+    highway_lane: 16,
+  },
+) {
+  const nodeW = Math.max(120, preview.node_width)
+  const nodeH = Math.max(58, preview.node_height)
   const gap = 22
   const plusW = 22
   const arrowW = 36
@@ -556,11 +590,11 @@ function renderRecipeChart(inputs, outputs) {
         <polygon points="${ax + arrowW},${cy} ${ax + arrowW - 10},${cy - 6} ${ax + arrowW - 10},${cy + 6}" class="arrow-head" />`
       }
       const el = slot.el
-      const ink = contrastInk(el.color)
+      const ink = contrastInk(el.fill)
       return `
       <g transform="translate(${slot.x}, ${padY})">
         <rect width="${nodeW}" height="${nodeH}" rx="12" ry="12"
-          fill="${escapeAttr(el.color)}" stroke="#0a1014" stroke-width="3"
+          fill="${escapeAttr(el.fill)}" stroke="${escapeAttr(el.stroke)}" stroke-width="3"
           class="${slot.result ? 'node result' : 'node'}" />
         <text x="${nodeW / 2}" y="24" text-anchor="middle" fill="${ink}" class="node-name">${escapeHtml(el.name_pt)}</text>
         <text x="${nodeW / 2}" y="42" text-anchor="middle" fill="${ink}" class="node-id">${escapeHtml(el.id)} · T${el.tier}</text>

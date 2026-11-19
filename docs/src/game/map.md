@@ -42,7 +42,7 @@ game-server/pipeline/
 
 **Frame contract:** `PipelineFrame` in `game-server/pipeline/world/frame.ts` — live state on `Room.frame`; history in `Snapshot.frame`. Persisted under `State.rooms` in SQLite JSON (`game-store` still loads a legacy `towers` key when present).
 
-**Match layout:** `Match.create(seed, rules)` centers the core and places starter fire/water sources from `seed` via `world/chunks/match-layout.ts` and `world/placement/approach.ts` (clearance-separated procedural placement).
+**Match layout:** `Match.create(seed, rules)` centers the core and places sources from `rules.elements.starterSourceIds` via `world/chunks/match-layout.ts` and `world/placement/approach.ts` (clearance-separated procedural placement).
 
 ## Actions
 

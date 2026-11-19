@@ -51,7 +51,9 @@ export function tryPlaceCircleSourceInChunk(
       origin: source.origin,
       direction: source.direction,
       shape: 'circle',
+      // Interim placeholder until non-starter spawn reads base ids from elements.toml.
       role: 'circle',
+      sourcePeriodTicks: rules.sourcePeriodTicks,
     }
   }
   return null

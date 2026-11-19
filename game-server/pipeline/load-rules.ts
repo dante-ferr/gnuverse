@@ -1,3 +1,5 @@
+import { catalogToJson, loadElementCatalog } from './elements/load-catalog.mjs'
+import type { ElementCatalogJson } from './elements/index.ts'
 import type { PipelineRules } from './rules.ts'
 import { layoutMatchFromSeed } from './world/chunks/match-layout.ts'
 
@@ -40,9 +42,6 @@ const defaults = {
   map_chunk_extent: 64,
   chunk_cost_base: 5,
   chunk_cost_step: 2,
-  source_spawn_chance_circle_percent: 0,
-  source_spawn_chance_fire_percent: 0,
-  source_spawn_chance_water_percent: 0,
   slot_input_depth_percent: 22,
   slot_output_depth_percent: 34,
   slot_bracket_thick_percent: 18,
@@ -69,9 +68,6 @@ const integers = {
   map_chunk_extent: [3, 128],
   chunk_cost_base: [0, 1_000_000],
   chunk_cost_step: [0, 1_000_000],
-  source_spawn_chance_circle_percent: [0, 100],
-  source_spawn_chance_fire_percent: [0, 100],
-  source_spawn_chance_water_percent: [0, 100],
   slot_input_depth_percent: [5, 45],
   slot_output_depth_percent: [5, 45],
   slot_bracket_thick_percent: [5, 35],
@@ -123,16 +119,13 @@ const mappings = {
   map_chunk_extent: 'mapChunkExtent',
   chunk_cost_base: 'chunkCostBase',
   chunk_cost_step: 'chunkCostStep',
-  source_spawn_chance_circle_percent: 'sourceSpawnChanceCirclePercent',
-  source_spawn_chance_fire_percent: 'sourceSpawnChanceFirePercent',
-  source_spawn_chance_water_percent: 'sourceSpawnChanceWaterPercent',
   slot_input_depth_percent: 'slotInputDepthPercent',
   slot_output_depth_percent: 'slotOutputDepthPercent',
   slot_bracket_thick_percent: 'slotBracketThickPercent',
   slot_flow_mark_depth_percent: 'slotFlowMarkDepthPercent',
 } as const
 
-/** Reads the `[pipeline]` table. Missing keys use the v0.1 defaults. */
+/** Reads the `[pipeline]` table and loads `elements.toml` into `rules.elements`. */
 export function pipelineRulesFrom(section: unknown): PipelineRules {
   const values =
     section === undefined
@@ -141,7 +134,15 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
         ? (section as Record<string, unknown>)
         : null
   if (!values) throw new Error('pipeline deve ser uma tabela')
+
+  // Legacy per-element spawn keys lived in game.config; spawn odds now live on each base in elements.toml.
+  const ignoredLegacy = new Set([
+    'source_spawn_chance_circle_percent',
+    'source_spawn_chance_fire_percent',
+    'source_spawn_chance_water_percent',
+  ])
   for (const key of Object.keys(values)) {
+    if (ignoredLegacy.has(key)) continue
     if (!(key in defaults)) throw new Error(`Configuração de jogo desconhecida: pipeline.${key}`)
   }
   const result: Record<string, number | string> = {}
@@ -162,9 +163,21 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
     }
     result[mappings[key]] = value
   }
-  const rules = result as PipelineRules
+
+  let elements: ElementCatalogJson
+  try {
+    elements = catalogToJson(loadElementCatalog()) as ElementCatalogJson
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Catálogo de elementos inválido: ${message}`)
+  }
+
+  const rules = { ...(result as Omit<PipelineRules, 'elements'>), elements } as PipelineRules
   if (rules.cameraZoomMin >= rules.cameraZoomMax) {
     throw new Error('camera_zoom_min deve ser menor que camera_zoom_max')
+  }
+  if (rules.elements.starterSourceIds.length < 1) {
+    throw new Error('elements.toml: starter_source_ids deve listar ao menos uma base')
   }
   try {
     layoutMatchFromSeed(rules, 'config-check')

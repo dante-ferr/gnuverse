@@ -1,3 +1,5 @@
+import type { ElementCatalogJson } from './elements/index.ts'
+
 export type PipelineRules = {
   tickMs: number
   gridWidth: number
@@ -41,7 +43,7 @@ export type PipelineRules = {
   colorInk: string
   /** SVG stroke width in artboard units (512 viewBox); keep in sync with public/pipeline/*.svg. */
   decorStrokeWidth: number
-  /** Screen-space resource glyph diameter (px). */
+  /** Screen-space resource glyph diameter (px). Fallback when an element omits glyph_size_px. */
   resourceGlyphSizePx: number
   /** Orbit radius around source center (screen px). */
   resourceGlyphOrbitPx: number
@@ -53,7 +55,7 @@ export type PipelineRules = {
   beltChevronFlowMs: number
   machineClearanceMin: number
   coreClearanceExtra: number
-  /** v0.1 milestone: circle deliveries required before the next tier. */
+  /** Interim v0.1 circle milestone until chapter demands are wired from the element catalog. */
   coreDemandCircle: number
   /** Cells on one side of a purchasable map chunk (starter owned chunk uses the same size). */
   chunkSize: number
@@ -63,14 +65,6 @@ export type PipelineRules = {
   chunkCostBase: number
   /** Linear increment per further purchase index (see chunkPurchaseCost). */
   chunkCostStep: number
-  /**
-   * Chance (0–100) to attempt placing a circle source when generating a non-starter chunk.
-   * Reserved until probabilistic spawn is wired; starter layout ignores this.
-   */
-  sourceSpawnChanceCirclePercent: number
-  /** Same for fire (starter fire+water always place; ignore these odds). */
-  sourceSpawnChanceFirePercent: number
-  sourceSpawnChanceWaterPercent: number
   /** Input “[” bracket protrusion as percent of one cell (shallower = recess). */
   slotInputDepthPercent: number
   /** Output bracket protrusion as percent of one cell (deeper = nozzle). */
@@ -79,4 +73,9 @@ export type PipelineRules = {
   slotBracketThickPercent: number
   /** Chevron tip depth along travel, baked into the bracket spine (percent of one cell). */
   slotFlowMarkDepthPercent: number
+  /**
+   * Full element catalog from `elements.toml` (recipes, chapters, presentation, starters).
+   * Content and progression must come from this object — do not hardcode element ids in TS.
+   */
+  elements: ElementCatalogJson
 }
