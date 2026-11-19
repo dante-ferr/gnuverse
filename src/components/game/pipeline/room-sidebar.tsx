@@ -117,12 +117,7 @@ export function RoomSidebar({
               onEditModeChange={onEditModeChange}
               onRotate={onRotate}
             />
-            {frame?.sandbox ? (
-              <CombinerPlaceControls
-                rules={rules}
-                structureId={structureId}
-              />
-            ) : null}
+            {frame?.sandbox ? <CombinerPlaceControls structureId={structureId} /> : null}
             <CoreRequirementsSidebar frame={frame} rules={rules} />
           </div>
         ) : null}

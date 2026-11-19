@@ -18,6 +18,7 @@ import { parse } from 'smol-toml'
  *   split_single_across_ports: boolean,
  *   color: string,
  *   decor: string,
+ *   default_rate_per_minute: number,
  * }} MachineKind
  * @typedef {{
  *   id: number,
@@ -40,11 +41,11 @@ import { parse } from 'smol-toml'
  *   outputs: string[],
  *   coproduct_of: string | null,
  *   machine: string | null,
- *   craft_ticks: number | null,
+ *   rate_per_minute: number | null,
  *   productivity: number | null,
  *   demand_chapter: number,
  *   demand_required: number,
- *   source_period_ticks: number | null,
+ *   source_rate_per_minute: number | null,
  *   source_spawn_chance_percent: number | null,
  *   sourceFile: string,
  * }} Element
@@ -58,7 +59,8 @@ import { parse } from 'smol-toml'
  * @typedef {{
  *   maxTier: number,
  *   retainPriorDemands: boolean,
- *   defaultCraftTicks: number,
+ *   defaultRatePerMinute: number,
+ *   defaultSourceRatePerMinute: number,
  *   defaultProductivity: number,
  *   defaultGlyphSizePx: number,
  *   defaultStroke: string,
@@ -101,7 +103,8 @@ export function loadElementCatalog(configDir = defaultElementsConfigDir()) {
   const globals = {
     maxTier: 5,
     retainPriorDemands: true,
-    defaultCraftTicks: 4,
+    defaultRatePerMinute: 60,
+    defaultSourceRatePerMinute: 60,
     defaultProductivity: 1,
     defaultGlyphSizePx: 28,
     defaultStroke: '#0a1014',
@@ -122,7 +125,7 @@ export function loadElementCatalog(configDir = defaultElementsConfigDir()) {
     if (raw.preview && typeof raw.preview === 'object') {
       globals.preview = { ...globals.preview, ...normalizePreview(raw.preview) }
     }
-    for (const row of asArray(raw.machines)) machines.push(normalizeMachine(row, filePath))
+    for (const row of asArray(raw.machines)) machines.push(normalizeMachine(row, filePath, globals))
     for (const row of asArray(raw.chapters)) chapters.push(normalizeChapter(row, filePath))
     for (const row of asArray(raw.elements)) {
       elements.push(normalizeElement(row, filePath, globals))
@@ -167,7 +170,8 @@ export function loadElementCatalog(configDir = defaultElementsConfigDir()) {
   return {
     maxTier: globals.maxTier,
     retainPriorDemands: globals.retainPriorDemands,
-    defaultCraftTicks: globals.defaultCraftTicks,
+    defaultRatePerMinute: globals.defaultRatePerMinute,
+    defaultSourceRatePerMinute: globals.defaultSourceRatePerMinute,
     defaultProductivity: globals.defaultProductivity,
     defaultGlyphSizePx: globals.defaultGlyphSizePx,
     defaultStroke: globals.defaultStroke,
@@ -190,7 +194,8 @@ export function catalogToJson(catalog) {
   return {
     maxTier: catalog.maxTier,
     retainPriorDemands: catalog.retainPriorDemands,
-    defaultCraftTicks: catalog.defaultCraftTicks,
+    defaultRatePerMinute: catalog.defaultRatePerMinute,
+    defaultSourceRatePerMinute: catalog.defaultSourceRatePerMinute,
     defaultProductivity: catalog.defaultProductivity,
     defaultGlyphSizePx: catalog.defaultGlyphSizePx,
     defaultStroke: catalog.defaultStroke,
@@ -207,7 +212,15 @@ export function catalogToJson(catalog) {
 function mergeGlobals(globals, raw) {
   if (raw.max_tier != null) globals.maxTier = Number(raw.max_tier)
   if (raw.retain_prior_demands != null) globals.retainPriorDemands = Boolean(raw.retain_prior_demands)
-  if (raw.default_craft_ticks != null) globals.defaultCraftTicks = int(raw.default_craft_ticks, 'default_craft_ticks', 1)
+  if (raw.default_rate_per_minute != null) {
+    globals.defaultRatePerMinute = positiveRate(raw.default_rate_per_minute, 'default_rate_per_minute')
+  }
+  if (raw.default_source_rate_per_minute != null) {
+    globals.defaultSourceRatePerMinute = positiveRate(
+      raw.default_source_rate_per_minute,
+      'default_source_rate_per_minute',
+    )
+  }
   if (raw.default_productivity != null) {
     globals.defaultProductivity = Number(raw.default_productivity)
   }
@@ -234,8 +247,8 @@ function normalizePreview(row) {
   }
 }
 
-/** @param {Record<string, unknown>} row @param {string} sourceFile */
-function normalizeMachine(row, sourceFile) {
+/** @param {Record<string, unknown>} row @param {string} sourceFile @param {Partial<ElementCatalog>} globals */
+function normalizeMachine(row, sourceFile, globals) {
   const id = String(row.id ?? '').trim()
   if (!id) fail(`Machine missing id in ${sourceFile}.`)
   const inputSlots = int(row.input_slots, `machine ${id} input_slots`, 1)
@@ -252,6 +265,10 @@ function normalizeMachine(row, sourceFile) {
     split_single_across_ports: row.split_single_across_ports !== false,
     color,
     decor,
+    default_rate_per_minute:
+      row.default_rate_per_minute == null
+        ? globals.defaultRatePerMinute
+        : positiveRate(row.default_rate_per_minute, `machine ${id} default_rate_per_minute`),
   }
 }
 
@@ -329,12 +346,12 @@ function normalizeElement(row, sourceFile, globals) {
     outputs,
     coproduct_of: coproductOf,
     machine,
-    craft_ticks:
-      row.craft_ticks == null && !coproductOf && tier > 1
-        ? globals.defaultCraftTicks
-        : row.craft_ticks == null
+    rate_per_minute:
+      coproductOf || tier === 1
+        ? null
+        : row.rate_per_minute == null
           ? null
-          : int(row.craft_ticks, `Element ${id} craft_ticks`, 1),
+          : positiveRate(row.rate_per_minute, `Element ${id} rate_per_minute`),
     productivity:
       row.productivity == null && !coproductOf && tier > 1
         ? globals.defaultProductivity
@@ -347,9 +364,11 @@ function normalizeElement(row, sourceFile, globals) {
       `Element ${id} demand_required`,
       1,
     ),
-    source_period_ticks:
+    source_rate_per_minute:
       tier === 1 && !coproductOf
-        ? int(row.source_period_ticks ?? globals.defaultCraftTicks, `Element ${id} source_period_ticks`, 1)
+        ? row.source_rate_per_minute == null
+          ? null
+          : positiveRate(row.source_rate_per_minute, `Element ${id} source_rate_per_minute`)
         : null,
     source_spawn_chance_percent:
       tier === 1 && !coproductOf
@@ -564,6 +583,15 @@ function requireHexColor(value, label) {
     fail(`${label} must be hex #RRGGBB, got ${JSON.stringify(value)}.`)
   }
   return color
+}
+
+/** @param {unknown} value @param {string} label */
+function positiveRate(value, label) {
+  const n = Number(value)
+  if (!(n > 0) || !Number.isFinite(n)) {
+    fail(`${label} must be a positive number, got ${JSON.stringify(value)}`)
+  }
+  return n
 }
 
 /** @param {string} message */

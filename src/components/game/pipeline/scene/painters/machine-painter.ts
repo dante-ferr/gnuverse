@@ -11,6 +11,12 @@ import type { ElementMachineKind, ElementRecord } from '../../../../../../game-s
 import { glyphUrlForShape } from '../../model/frame.ts'
 import type { Direction, PipelineFrame, PipelineRules, SourceRecord } from '../../model/frame.ts'
 import type { PacketMotionState } from '../packet-motion.ts'
+import {
+  combinerCraftProgress,
+  resolveRecipeRatePerMinute,
+  sourceGlyphShouldOrbit,
+  sourcePeriodMsForGlyph,
+} from '../presentation-rates.ts'
 import { sourceIsExporting, sourceOutputCell } from '../source-exporting.ts'
 import { darkenHex } from './darken-hex.ts'
 import { cellSize } from './grid-painter.ts'
@@ -35,6 +41,7 @@ export type MachineDecorImages = {
 export class MachinePainter {
   private readonly tintCache = new Map<string, HTMLCanvasElement>()
   private readonly resourceGlyphPhaseRad = new Map<string, number>()
+  private readonly sourceLastExportAtMs = new Map<string, number>()
   private lastDrawTimeMs = 0
 
   constructor(private readonly images: MachineDecorImages) {}
@@ -100,6 +107,23 @@ export class MachinePainter {
       this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
         centerDecor: spec.machineId === 'combiner_3',
       })
+      const processing = spec.craftRemaining != null
+      const recipeRate = resolveRecipeRatePerMinute(rules, spec.recipeId)
+      const progress =
+        processing && spec.craftRemaining != null
+          ? combinerCraftProgress(spec.craftRemaining, recipeRate, rules.tickMs)
+          : undefined
+      this.drawOrbitingResourceGlyph(
+        ctx,
+        combiner,
+        spec.id,
+        spec.recipeId,
+        rules,
+        cameraZoom,
+        deltaMs,
+        processing,
+        progress,
+      )
     }
     for (const spec of specs) {
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
@@ -107,6 +131,14 @@ export class MachinePainter {
       const glyphId = sourceGlyphId(spec)
       const outputCell = sourceOutputCell(spec)
       const exporting = sourceIsExporting(outputCell, motion)
+      if (exporting) this.sourceLastExportAtMs.set(spec.id, timeMs)
+      const periodMs = sourcePeriodMsForGlyph(rules, glyphId)
+      const orbit = sourceGlyphShouldOrbit(
+        exporting,
+        this.sourceLastExportAtMs.get(spec.id),
+        timeMs,
+        periodMs,
+      )
       this.drawOrbitingResourceGlyph(
         ctx,
         source,
@@ -115,7 +147,7 @@ export class MachinePainter {
         rules,
         cameraZoom,
         deltaMs,
-        exporting,
+        orbit,
       )
     }
   }
@@ -256,29 +288,57 @@ export class MachinePainter {
   private drawOrbitingResourceGlyph(
     ctx: CanvasRenderingContext2D,
     machine: Machine,
-    sourceId: string,
+    glyphKey: string,
     glyphId: string,
     rules: PipelineRules,
     cameraZoom: number,
     deltaMs: number,
-    exporting: boolean,
+    orbit: boolean,
+    craftProgress?: number,
   ) {
     const worldCx = (machine.origin.x + machine.width / 2) * cellSize
     const worldCy = (machine.origin.y + machine.height / 2) * cellSize
-    let phase = this.resourceGlyphPhaseRad.get(sourceId) ?? 0
-    if (exporting && rules.resourceGlyphOrbitMs > 0) {
+    let phase = this.resourceGlyphPhaseRad.get(glyphKey) ?? 0
+    if (orbit && rules.resourceGlyphOrbitMs > 0) {
       phase += (2 * Math.PI * deltaMs) / rules.resourceGlyphOrbitMs
-      this.resourceGlyphPhaseRad.set(sourceId, phase)
+      this.resourceGlyphPhaseRad.set(glyphKey, phase)
     }
-    const ox = exporting ? Math.cos(phase) * rules.resourceGlyphOrbitPx : 0
-    const oy = exporting ? Math.sin(phase) * rules.resourceGlyphOrbitPx : 0
+    const ox = orbit ? Math.cos(phase) * rules.resourceGlyphOrbitPx : 0
+    const oy = orbit ? Math.sin(phase) * rules.resourceGlyphOrbitPx : 0
     const zoom = cameraZoom > 0 ? cameraZoom : 1
+    const glyphSize = resourceGlyphSizePx(rules, glyphId)
     ctx.save()
     ctx.translate(worldCx, worldCy)
     ctx.scale(1 / zoom, 1 / zoom)
     ctx.translate(ox, oy)
+    if (craftProgress !== undefined) {
+      this.drawCraftProgressWheel(ctx, rules, glyphSize, craftProgress)
+    }
     this.drawResourceGlyph(ctx, glyphId, rules)
     ctx.restore()
+  }
+
+  private drawCraftProgressWheel(
+    ctx: CanvasRenderingContext2D,
+    rules: PipelineRules,
+    glyphSizePx: number,
+    progress: number,
+  ) {
+    const radius = glyphSizePx / 2 + Math.max(rules.outlineWidthPx * 2, 4)
+    const lineWidth = rules.outlineWidthPx
+    ctx.beginPath()
+    ctx.arc(0, 0, radius, 0, Math.PI * 2)
+    ctx.strokeStyle = rules.colorOutline
+    ctx.lineWidth = lineWidth
+    ctx.stroke()
+    if (progress <= 0) return
+    const start = -Math.PI / 2
+    const end = start + Math.PI * 2 * Math.min(1, progress)
+    ctx.beginPath()
+    ctx.arc(0, 0, radius, start, end)
+    ctx.strokeStyle = rules.colorAccent
+    ctx.lineWidth = lineWidth
+    ctx.stroke()
   }
 
   private drawResourceGlyph(ctx: CanvasRenderingContext2D, glyphId: string, rules: PipelineRules) {

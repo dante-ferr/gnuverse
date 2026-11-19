@@ -74,28 +74,28 @@ required_multiplier = 1
 [[chapters]]
 id = 5
 name_pt = "Temporal"
-summary_pt = "A cinza só entra agora, porque a tempestade precisa dela."
+summary_pt = "A cinza só entra agora, porque a tempestade precisa dela — e a tempestade solta o raio."
 max_new_bases = 0
 required_multiplier = 1
 
 [[chapters]]
 id = 6
 name_pt = "Forno"
-summary_pt = "Lama, lava e a linha de barro até a fornalha. Nenhuma base nova."
+summary_pt = "Lama, lava e a linha de barro. A fornalha queima a argila e solta o tijolo."
 max_new_bases = 0
 required_multiplier = 1
 
 [[chapters]]
 id = 7
 name_pt = "Mina"
-summary_pt = "A última base é o minério. Cristal, liga e as máquinas de tier 4 dessa linha."
+summary_pt = "A última base é o minério. Cristal, liga, lente, bateria — e a fundição, que solta sucata."
 max_new_bases = 1
 required_multiplier = 1
 
 [[chapters]]
 id = 8
 name_pt = "Federação"
-summary_pt = "O que sobrou: pólen e jardim (fórmulas antigas) mais os dois pares de tier 5."
+summary_pt = "O que sobrou: pólen e jardim, mais os dois finais. O temporal recolhe o raio; a forja junta tijolo e sucata."
 max_new_bases = 0
 required_multiplier = 1
 
@@ -360,20 +360,6 @@ machine = "combiner_2"
 productivity = 1
 
 [[elements]]
-id = "brick"
-name_pt = "Tijolo"
-tier = 3
-family = "warm"
-sort_key = 320
-fill = "#c45c26"
-stroke = "#0a1014"
-glyph = "pipeline/elements/brick.svg"
-demand_chapter = 6
-inputs = ["mud", "ash"]
-machine = "combiner_2"
-productivity = 1
-
-[[elements]]
 id = "sprout"
 name_pt = "Broto"
 tier = 3
@@ -457,7 +443,7 @@ inputs = ["slag", "ore"]
 machine = "combiner_2"
 productivity = 1
 
-# --- Tier 4: 3 inputs → 1 output -------------------------------------------
+# --- Tier 4: 3 inputs → 1 output, or 1 output + 1 byproduct ----------------
 
 [[elements]]
 id = "storm"
@@ -469,23 +455,49 @@ fill = "#5b6abf"
 stroke = "#0a1014"
 glyph = "pipeline/elements/storm.svg"
 demand_chapter = 5
-inputs = ["cloud", "ash", "wind"]
+inputs = ["cloud", "ash", "ember"]
+outputs = ["storm", "lightning"]
 machine = "combiner_3"
 productivity = 1
 
 [[elements]]
-id = "forge"
-name_pt = "Forja"
+id = "lightning"
+name_pt = "Raio"
+tier = 4
+family = "warm"
+sort_key = 412
+fill = "#f4e285"
+stroke = "#0a1014"
+glyph = "pipeline/elements/lightning.svg"
+demand_chapter = 5
+coproduct_of = "storm"
+
+[[elements]]
+id = "foundry"
+name_pt = "Fundição"
 tier = 4
 family = "warm"
 sort_key = 420
-fill = "#d9480f"
+fill = "#9c2f1a"
 stroke = "#0a1014"
-glyph = "pipeline/elements/forge.svg"
+glyph = "pipeline/elements/foundry.svg"
 demand_chapter = 7
-inputs = ["brick", "lava", "slag"]
+inputs = ["alloy", "slag", "charcoal"]
+outputs = ["foundry", "scrap"]
 machine = "combiner_3"
 productivity = 1
+
+[[elements]]
+id = "scrap"
+name_pt = "Sucata"
+tier = 4
+family = "earth"
+sort_key = 422
+fill = "#7a6f66"
+stroke = "#0a1014"
+glyph = "pipeline/elements/scrap.svg"
+demand_chapter = 7
+coproduct_of = "foundry"
 
 [[elements]]
 id = "garden"
@@ -526,8 +538,21 @@ stroke = "#0a1014"
 glyph = "pipeline/elements/kiln.svg"
 demand_chapter = 6
 inputs = ["clay", "charcoal", "fire"]
+outputs = ["kiln", "brick"]
 machine = "combiner_3"
 productivity = 1
+
+[[elements]]
+id = "brick"
+name_pt = "Tijolo"
+tier = 4
+family = "warm"
+sort_key = 452
+fill = "#c45c26"
+stroke = "#0a1014"
+glyph = "pipeline/elements/brick.svg"
+demand_chapter = 6
+coproduct_of = "kiln"
 
 [[elements]]
 id = "lens"
@@ -543,7 +568,7 @@ inputs = ["glass", "crystal", "dust"]
 machine = "combiner_3"
 productivity = 1
 
-# --- Tier 5: 3 inputs → 2 outputs ------------------------------------------
+# --- Tier 5: 3 inputs → 1 output -------------------------------------------
 
 [[elements]]
 id = "tempest"
@@ -555,46 +580,20 @@ fill = "#3d4f9c"
 stroke = "#0a1014"
 glyph = "pipeline/elements/tempest.svg"
 demand_chapter = 8
-inputs = ["storm", "ember", "cloud"]
-outputs = ["tempest", "lightning"]
+inputs = ["storm", "lightning", "cloud"]
 machine = "combiner_3"
 productivity = 1
 
 [[elements]]
-id = "lightning"
-name_pt = "Raio"
+id = "forge"
+name_pt = "Forja"
 tier = 5
 family = "warm"
 sort_key = 520
-fill = "#f4e285"
+fill = "#d9480f"
 stroke = "#0a1014"
-glyph = "pipeline/elements/lightning.svg"
+glyph = "pipeline/elements/forge.svg"
 demand_chapter = 8
-coproduct_of = "tempest"
-
-[[elements]]
-id = "foundry"
-name_pt = "Fundição"
-tier = 5
-family = "warm"
-sort_key = 530
-fill = "#9c2f1a"
-stroke = "#0a1014"
-glyph = "pipeline/elements/foundry.svg"
-demand_chapter = 8
-inputs = ["forge", "alloy", "ore"]
-outputs = ["foundry", "scrap"]
+inputs = ["brick", "scrap", "lava"]
 machine = "combiner_3"
 productivity = 1
-
-[[elements]]
-id = "scrap"
-name_pt = "Sucata"
-tier = 5
-family = "earth"
-sort_key = 540
-fill = "#7a6f66"
-stroke = "#0a1014"
-glyph = "pipeline/elements/scrap.svg"
-demand_chapter = 8
-coproduct_of = "foundry"

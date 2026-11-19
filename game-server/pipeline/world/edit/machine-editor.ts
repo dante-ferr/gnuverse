@@ -1,6 +1,5 @@
 import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
 import type { Direction } from '../../geometry/direction.ts'
-import type { PipelineRules } from '../../rules.ts'
 import { recipeForId } from '../tick/craft.ts'
 import type { Match } from '../match.ts'
 
@@ -14,14 +13,6 @@ export type MachinePlaceRequest = {
   facing: Direction
 }
 
-/** First craft recipe for a machine kind (placement always allowed). */
-export function firstRecipeIdForMachine(rules: PipelineRules, machineId: string): string | null {
-  const hit = rules.elements.elements.find(
-    (el) => el.machine === machineId && el.inputs.length > 0 && !el.coproduct_of,
-  )
-  return hit?.id ?? null
-}
-
 /** Places and removes player combiners in sandbox matches. */
 export class MachineEditor {
   private match: Match
@@ -32,12 +23,13 @@ export class MachineEditor {
 
   place(spec: MachinePlaceRequest, author: Author) {
     if (!this.match.sandbox) return 'Combinadores só estão disponíveis na sala teste.'
-    let recipe = recipeForId(this.match.rules, spec.recipeId)
-    if (!recipe || recipe.machine !== spec.machineId) {
-      const fallbackId = firstRecipeIdForMachine(this.match.rules, spec.machineId)
-      recipe = fallbackId ? recipeForId(this.match.rules, fallbackId) : null
+    const recipe = recipeForId(this.match.rules, spec.recipeId)
+    if (!recipe || recipe.inputs.length === 0 || recipe.coproduct_of) {
+      return 'Escolha uma receita válida antes de colocar a máquina.'
     }
-    if (!recipe) return 'Nenhuma receita disponível para essa máquina.'
+    if (recipe.machine !== spec.machineId) {
+      return 'Essa receita não usa essa máquina.'
+    }
     const { width, height } = CombinerMachine.sizeFor(spec.machineId, spec.facing)
     if (!this.footprintInOwned(spec.x, spec.y, width, height)) {
       return 'Fora da área liberada.'

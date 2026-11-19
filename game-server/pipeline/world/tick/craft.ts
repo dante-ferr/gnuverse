@@ -1,4 +1,5 @@
 import { cellKey } from '../../geometry/cell.ts'
+import { craftTicksForRecipe } from '../../elements/index.ts'
 import type { ElementRecord } from '../../elements/index.ts'
 import { CombinerMachine } from '../../machines/combiner-machine.ts'
 import { Packet } from '../../packets/packet.ts'
@@ -42,7 +43,7 @@ export class Craft {
 
     if (bufferHasInputs(combiner, recipe)) {
       for (const input of recipe.inputs) combiner.buffer[input] = (combiner.buffer[input] ?? 0) - 1
-      const ticks = recipe.craft_ticks ?? this.match.rules.elements.defaultCraftTicks
+      const ticks = craftTicksForRecipe(this.match.rules.elements, this.match.rules.tickMs, recipe)
       if (ticks <= 1) {
         combiner.craftRemaining = 0
         combiner.pendingOutputs = outputShapes(recipe)

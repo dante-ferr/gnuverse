@@ -2,6 +2,7 @@ import type { Cell } from '../../geometry/cell.ts'
 import type { Direction } from '../../geometry/direction.ts'
 import { createSeedRng } from '../../geometry/seed-rng.ts'
 import { SourceMachine } from '../../machines/source-machine.ts'
+import { defaultSourcePeriodTicks } from '../../elements/rate.ts'
 import type { PipelineRules } from '../../rules.ts'
 import type { OccupiedMachine, PlacedSource } from '../types.ts'
 import { PlacementField } from './field.ts'
@@ -36,7 +37,7 @@ export function tryPlaceCircleSourceInChunk(
       { x: trial.x, y: trial.y },
       trial.direction,
       'circle',
-      rules.sourcePeriodTicks,
+      defaultSourcePeriodTicks(rules.elements, rules.tickMs),
     )
     if (source.origin.x < chunkOrigin.x || source.origin.y < chunkOrigin.y) continue
     const right = source.origin.x + source.width - 1
@@ -53,7 +54,7 @@ export function tryPlaceCircleSourceInChunk(
       shape: 'circle',
       // Interim placeholder until non-starter spawn reads base ids from elements.toml.
       role: 'circle',
-      sourcePeriodTicks: rules.sourcePeriodTicks,
+      sourcePeriodTicks: defaultSourcePeriodTicks(rules.elements, rules.tickMs),
     }
   }
   return null

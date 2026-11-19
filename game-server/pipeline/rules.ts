@@ -4,7 +4,6 @@ export type PipelineRules = {
   tickMs: number
   gridWidth: number
   gridHeight: number
-  sourcePeriodTicks: number
   colorBackground: string
   colorGrid: string
   /** Show per-cell grid strokes when camera zoom is at or above this factor (zoomed in). */
@@ -59,8 +58,6 @@ export type PipelineRules = {
   beltChevronFlowMs: number
   machineClearanceMin: number
   coreClearanceExtra: number
-  /** Interim v0.1 circle milestone until chapter demands are wired from the element catalog. */
-  coreDemandCircle: number
   /** Cells on one side of a purchasable map chunk (starter owned chunk uses the same size). */
   chunkSize: number
   /** Maximum chunks per axis in the world grid. */

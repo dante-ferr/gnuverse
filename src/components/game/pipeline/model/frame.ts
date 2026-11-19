@@ -8,7 +8,6 @@ export type PipelineRules = {
   tickMs: number
   gridWidth: number
   gridHeight: number
-  sourcePeriodTicks: number
   colorBackground: string
   colorGrid: string
   gridVisibleMinZoom: number
@@ -40,7 +39,6 @@ export type PipelineRules = {
   beltChevronFlowMs: number
   machineClearanceMin: number
   coreClearanceExtra: number
-  coreDemandCircle: number
   chunkSize: number
   mapChunkExtent: number
   chunkCostBase: number

@@ -22,7 +22,7 @@ Open Pipeline packets are **elements** defined in TOML under `game-server/config
 make elements-serve
 ```
 
-Open [http://127.0.0.1:3010](http://127.0.0.1:3010). Each recipe card shows an ancestry path chart (orthogonal edges in column gaps, long spans on top highways) plus a direct combination chart. Optional static snapshot: `npm run elements:build` → `game-server/config/elements-graph.html` (gitignored).
+Open [http://127.0.0.1:3010](http://127.0.0.1:3010). Each recipe card shows the same icon + label ancestry chart as the in-room overlay (`buildAncestryChart`) plus a short direct combination row with the same glyphs. Optional static snapshot: `npm run elements:build` → `game-server/config/elements-graph.html` (gitignored).
 
 Portuguese labels (`name_pt`) appear in the in-game UI (combiner picker, requirement overlay titles). This preview page remains a design tool.
 
@@ -82,14 +82,12 @@ The machine shape stays stable (always 3 in / 2 out). A tier-4 recipe may fill t
 
 ### Preview / ancestry charts
 
-Preview HTML: `scripts/elements/render.mjs`. In-room overlay: `src/components/game/pipeline/production-line/` (same layout rules, catalog from `rules.elements`).
+Preview HTML (`scripts/elements/render.mjs`) and the in-room overlay (`src/components/game/pipeline/production-line/`) both call **`buildAncestryChart`** in `ancestry-layout.ts` (preview uses `catalogToJson` from the TOML loader; the room uses `rules.elements`).
 
-- Layered columns by tier; barycenter + reverse sweep for row order
-- Orthogonal edges bent only inside the **gap** between columns
-- Non-adjacent spans use a **top highway** lane (never through node boxes)
-- Merge “+” at the gap in front of the crafted node
-- Dual outputs share one ancestry chart; co-product sits in the same tier column
-- Click a **Requisitos do núcleo** cell to open the overlay (glyph icons, name labels, direct arrows; inputs from earlier tiers are repeated in the previous column); non-catalog shapes (v0.1 `circle`) get a text fallback
+- Glyph mask icons with Portuguese name labels below
+- Layered columns by tier; **direct** arrows between columns; non-adjacent inputs **repeat** in the previous column
+- Dual outputs share one ancestry chart; co-product sits beside the primary with a “+” link
+- Click a **Requisitos do núcleo** cell to open the overlay; non-catalog shapes (v0.1 `circle`) get a text fallback
 
 ### Sandbox slice (implemented)
 

@@ -35,8 +35,9 @@ function isCombinerPayload(payload: unknown): payload is CombinerPayload {
 function previewMachineAt(
   machineId: CombinerMachineId,
   center: { x: number; y: number },
-): StructurePreviewMachine {
+): StructurePreviewMachine | null {
   const { recipeId, facing } = getCombinerPlaceOptions()
+  if (!recipeId) return null
   const { width, height } = CombinerMachine.sizeFor(machineId, facing)
   const origin = originFromCenter(center, width, height)
   return {
@@ -69,6 +70,7 @@ function createCombinerSession(machineId: CombinerMachineId): StructurePlacement
     finish() {
       if (!center) return null
       const ghost = previewMachineAt(machineId, center)
+      if (!ghost) return null
       return {
         structureId: machineId,
         payload: {
@@ -86,8 +88,9 @@ function createCombinerSession(machineId: CombinerMachineId): StructurePlacement
 function combinerHoverGhost(
   machineId: CombinerMachineId,
   cell: { x: number; y: number },
-): StructureHoverGhost {
-  return { machine: previewMachineAt(machineId, cell) }
+): StructureHoverGhost | null {
+  const machine = previewMachineAt(machineId, cell)
+  return machine ? { machine } : null
 }
 
 function registerCombiner(
