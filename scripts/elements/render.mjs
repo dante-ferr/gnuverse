@@ -3,6 +3,12 @@
  * One collapsible SVG chart per recipe — no Mermaid.
  */
 
+import {
+  ICON_LAYOUT,
+  buildAncestryChart,
+} from '../../src/components/game/pipeline/production-line/ancestry-layout.ts'
+import { catalogToJson } from './load.mjs'
+
 /**
  * @param {import('./load.mjs').ElementCatalog} catalog
  * @param {{ rootLabel?: string }} [options]
@@ -187,6 +193,16 @@ function renderProgression(catalog) {
   </section>`
 }
 
+function formatCraftRate(output, catalog) {
+  let rate = output.rate_per_minute
+  if (rate == null && output.machine) {
+    const machine = catalog.machinesById.get(output.machine)
+    rate = machine?.default_rate_per_minute ?? catalog.defaultRatePerMinute
+  }
+  if (rate == null) return '—'
+  return `${rate} peças/min`
+}
+
 function renderRecipeDetails(output, catalog) {
   const byId = catalog.byId
   const inputs = output.inputs.map((id) => byId.get(id))
@@ -205,7 +221,7 @@ function renderRecipeDetails(output, catalog) {
     <p class="chart-caption">Caminho desde as bases até <strong>${escapeHtml(outLabel)}</strong></p>
     ${renderPathChart(output, catalog)}
     <p class="chart-caption chart-caption--direct">Combinação direta desta receita</p>
-    ${renderRecipeChart(inputs, outputs, catalog.preview)}
+    ${renderDirectIconChart(inputs, outputs, output.id)}
     <dl class="meta">
       <div><dt>Entradas</dt><dd>${inputs
         .map((el) => `<code>${escapeHtml(el.id)}</code> (${escapeHtml(el.name_pt)}, T${el.tier})`)
@@ -216,7 +232,7 @@ function renderRecipeDetails(output, catalog) {
           ? `<span class="swatch" style="background:${escapeAttr(machine.color)}" aria-hidden="true"></span> ${escapeHtml(machine.name_pt)} (<code>${escapeHtml(machine.id)}</code>) <code class="muted">${escapeHtml(machine.decor)}</code>`
           : '—'
       }</dd></div>
-      <div><dt>Craft</dt><dd>${output.craft_ticks ?? '—'} ticks · produtividade ${
+      <div><dt>Craft</dt><dd>${formatCraftRate(output, catalog)} · produtividade ${
         output.productivity ?? '—'
       }</dd></div>
       <div><dt>Saídas</dt><dd>${outputs
@@ -229,398 +245,177 @@ function renderRecipeDetails(output, catalog) {
 }
 
 /**
- * Layered ancestry chart with orthogonal edges routed only in column gaps
- * (never through node balloons).
+ * Full ancestry chart (shared layout with the in-room overlay).
  *
  * @param {import('./load.mjs').Element} target
  * @param {import('./load.mjs').ElementCatalog} catalog
  */
 function renderPathChart(target, catalog) {
-  const byId = catalog.byId
-  const preview = catalog.preview
-  const ancestry = collectAncestry(target, byId)
-  if (ancestry.size <= 1) {
-    return renderRecipeChart([], [target], preview)
-  }
+  const chart = buildAncestryChart(target.id, catalogToJson(catalog))
+  if (!chart) return ''
+  return renderAncestryChartHtml(chart, target.id)
+}
 
-  const nodeW = preview.node_width
-  const nodeH = preview.node_height
-  const colGap = preview.column_gap
-  const rowGap = preview.row_gap
-  const padX = 24
-  const padTop = 36
-  const padBottom = 28
-  const highwayLane = preview.highway_lane
-
-  const tierColumns = layoutAncestryColumns(ancestry, byId)
-  const rowById = assignAncestryRows(tierColumns, byId, ancestry)
-  /** @type {Map<string, { x: number, y: number, w: number, h: number, col: number, row: number }>} */
-  const posById = new Map()
-
-  let maxRows = 0
-  for (const id of ancestry) maxRows = Math.max(maxRows, (rowById.get(id) ?? 0) + 1)
-
-  for (let colIndex = 0; colIndex < tierColumns.length; colIndex++) {
-    const col = tierColumns[colIndex]
-    for (const id of col.ids) {
-      const row = rowById.get(id) ?? 0
-      posById.set(id, {
-        x: padX + colIndex * (nodeW + colGap),
-        y: padTop + row * (nodeH + rowGap),
-        w: nodeW,
-        h: nodeH,
-        col: colIndex,
-        row,
-      })
-    }
-  }
-
-  const contentBottom = padTop + maxRows * nodeH + Math.max(0, maxRows - 1) * rowGap
-  const edges = buildOrthogonalEdges(target, ancestry, byId, posById, {
-    colGap,
-    highwayLane,
-    contentBottom,
-  })
-
-  const highwayExtra = edges.maxHighway * highwayLane
-  const width = padX * 2 + tierColumns.length * nodeW + (tierColumns.length - 1) * colGap
-  const height = contentBottom + padBottom + highwayExtra
-  const yOffset = highwayExtra
-
-  const nodeShapes = [...ancestry]
-    .sort((a, b) => byId.get(a).tier - byId.get(b).tier || a.localeCompare(b))
-    .map((id) => {
-      const el = byId.get(id)
-      const pos = posById.get(id)
-      const ink = contrastInk(el.fill)
-      const isTarget = target.outputs.includes(id)
-      return `
-      <g transform="translate(${pos.x}, ${pos.y + yOffset})" data-id="${escapeAttr(id)}">
-        <rect width="${nodeW}" height="${nodeH}" rx="10" ry="10"
-          fill="${escapeAttr(el.fill)}" stroke="${escapeAttr(el.stroke)}" stroke-width="${isTarget ? 4 : 3}"
-          class="${isTarget ? 'node result' : 'node'}" />
-        <text x="${nodeW / 2}" y="22" text-anchor="middle" fill="${ink}" class="node-name">${escapeHtml(el.name_pt)}</text>
-        <text x="${nodeW / 2}" y="40" text-anchor="middle" fill="${ink}" class="node-id">${escapeHtml(el.id)} · T${el.tier}</text>
-      </g>`
-    })
-    .join('\n')
-
-  const tierLabels = tierColumns
-    .map((col, i) => {
-      const x = padX + i * (nodeW + colGap) + nodeW / 2
-      return `<text x="${x}" y="${14 + yOffset}" text-anchor="middle" class="tier-label">T${col.tier}</text>`
-    })
-    .join('\n')
-
-  const edgeShapes = edges.paths
-    .map((d) => `<path class="path-edge" fill="none" stroke="#0a1014" stroke-width="2.25" d="${d}" />`)
-    .join('\n')
-  const plusMarks = edges.pluses
+/**
+ * @param {import('../../src/components/game/pipeline/production-line/ancestry-layout.ts').AncestryChartModel} chart
+ * @param {string} chartId
+ */
+function renderAncestryChartHtml(chart, chartId) {
+  const markerId = `arrow-${chartMarkerId(chartId)}`
+  const edgeShapes = chart.edges
     .map(
-      (p) =>
-        `<text x="${p.x}" y="${p.y + yOffset + 5}" class="op" text-anchor="middle">+</text>`,
+      (edge) =>
+        `<path class="chart-edge" fill="none" d="${edge.d}"${
+          edge.arrow ? ` marker-end="url(#${markerId})"` : ''
+        } />`,
     )
     .join('\n')
-
-  const bases = [...ancestry].filter((id) => byId.get(id).tier === 1)
-  const aria = `Caminho: bases ${bases.map((id) => byId.get(id).name_pt).join(', ')} até ${target.outputs.map((id) => byId.get(id).name_pt).join(' + ')}`
+  const plusShapes = chart.plusMarks
+    .map(
+      (mark) =>
+        `<text x="${mark.x}" y="${mark.y + 4}" class="chart-op" text-anchor="middle">+</text>`,
+    )
+    .join('\n')
+  const nodes = chart.nodes.map((node) => renderChartIconNode(node)).join('\n')
 
   return `
-<figure class="chart chart--path">
-  <svg viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="${escapeAttr(aria)}">
-    ${tierLabels}
-    <g transform="translate(0, ${yOffset})">${edgeShapes}</g>
-    ${plusMarks}
-    ${nodeShapes}
+<figure class="chart chart--icons" style="width:${chart.width}px;height:${chart.height}px" aria-label="${escapeAttr(chart.ariaLabel)}">
+  <svg class="chart-edges" width="${chart.width}" height="${chart.height}" aria-hidden="true">
+    <defs>
+      <marker id="${markerId}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0 0 L7 3.5 L0 7 Z" class="chart-arrow-head" />
+      </marker>
+    </defs>
+    ${edgeShapes}
+    ${plusShapes}
   </svg>
+  ${nodes}
 </figure>`
 }
 
 /**
- * @param {import('./load.mjs').Element} target
- * @param {Set<string>} ancestry
- * @param {Map<string, import('./load.mjs').Element>} byId
- * @param {Map<string, { x: number, y: number, w: number, h: number, col: number, row: number }>} posById
- * @param {{ colGap: number, highwayLane: number, contentBottom: number }} opts
+ * @param {import('../../src/components/game/pipeline/production-line/ancestry-layout.ts').AncestryNode} node
  */
-function buildOrthogonalEdges(target, ancestry, byId, posById, opts) {
-  /** @type {string[]} */
-  const paths = []
-  /** @type {{ x: number, y: number }[]} */
-  const pluses = []
-  let maxHighway = 0
-  /** @type {Map<string, number>} */
-  const trackCounters = new Map()
-
-  const crafted = [...ancestry]
-    .map((id) => byId.get(id))
-    .filter((el) => el.inputs.length > 0)
-
-  for (const el of crafted) {
-    const outIds = el.outputs.filter((id) => ancestry.has(id))
-    const primaryOut = outIds.includes(el.id) ? el.id : outIds[0]
-    const outPos = posById.get(primaryOut)
-    if (!outPos) continue
-
-    const inputCenters = el.inputs
-      .filter((inputId) => ancestry.has(inputId))
-      .map((inputId) => {
-        const inp = posById.get(inputId)
-        return { id: inputId, x: inp.x + inp.w, y: inp.y + inp.h / 2, col: inp.col }
-      })
-
-    const mergeX = outPos.x - opts.colGap / 2
-    const outY = outPos.y + outPos.h / 2
-    const outLeft = outPos.x
-
-    if (inputCenters.length > 1) {
-      const midY =
-        inputCenters.reduce((s, c) => s + c.y, 0) / inputCenters.length
-      pluses.push({ x: mergeX, y: midY })
-    }
-
-    for (const center of inputCenters) {
-      const span = outPos.col - center.col
-      if (span <= 1) {
-        const trackKey = `${center.col}->${outPos.col}`
-        const track = trackCounters.get(trackKey) ?? 0
-        trackCounters.set(trackKey, track + 1)
-        const bend = mergeX - 8 + (track % 3) * 6 - 6
-        paths.push(
-          `M ${center.x} ${center.y} L ${bend} ${center.y} L ${bend} ${outY} L ${outLeft} ${outY}`,
-        )
-      } else {
-        maxHighway += 1
-        const lane = maxHighway
-        const highwayY = -lane * opts.highwayLane
-        const leaveX = center.x + 10
-        const enterX = outLeft - 10
-        paths.push(
-          `M ${center.x} ${center.y} L ${leaveX} ${center.y} L ${leaveX} ${highwayY} L ${enterX} ${highwayY} L ${enterX} ${outY} L ${outLeft} ${outY}`,
-        )
-      }
-    }
-
-    // Fan from primary output box to sibling co-products in the same column.
-    for (const outId of outIds) {
-      if (outId === primaryOut) continue
-      const sib = posById.get(outId)
-      if (!sib) continue
-      const fromY = outPos.y + outPos.h
-      const toY = sib.y
-      const midX = outPos.x + outPos.w / 2
-      paths.push(
-        `M ${midX} ${fromY} L ${midX} ${(fromY + toY) / 2} L ${sib.x + sib.w / 2} ${(fromY + toY) / 2} L ${sib.x + sib.w / 2} ${toY}`,
-      )
-    }
-  }
-
-  return { paths, pluses, maxHighway }
+function renderChartIconNode(node) {
+  const classes = [
+    'icon-node',
+    node.isTarget ? 'icon-node--target' : '',
+    node.isRepeat ? 'icon-node--repeat' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const glyph = escapeAttr(node.glyph)
+  return `
+  <div class="${classes}" style="left:${node.x}px;top:${node.y}px;width:${node.w}px">
+    <span class="icon-glyph" style="width:${node.iconSize}px;height:${node.iconSize}px;background-color:${escapeAttr(node.fill)};mask-image:url(${glyph});-webkit-mask-image:url(${glyph})" aria-hidden="true"></span>
+    <span class="icon-label">${escapeHtml(node.namePt)}</span>
+  </div>`
 }
 
 /**
- * @param {import('./load.mjs').Element} target
- * @param {Map<string, import('./load.mjs').Element>} byId
- * @returns {Set<string>}
+ * @param {import('./load.mjs').Element} el
+ * @param {number} left
+ * @param {number} top
+ * @param {{ target?: boolean }} [opts]
  */
-function collectAncestry(target, byId) {
-  const nodes = new Set()
-  const recipe = target.coproduct_of ? byId.get(target.coproduct_of) : target
+function renderElementIconNode(el, left, top, opts = {}) {
+  const { nodeWidth: nodeW, iconSize } = ICON_LAYOUT
+  const glyph = glyphUrlForElement(el)
+  const classes = ['icon-node', opts.target ? 'icon-node--target' : ''].filter(Boolean).join(' ')
+  return `
+  <div class="${classes}" style="left:${left}px;top:${top}px;width:${nodeW}px">
+    <span class="icon-glyph" style="width:${iconSize}px;height:${iconSize}px;background-color:${escapeAttr(el.fill)};mask-image:url(${escapeAttr(glyph)});-webkit-mask-image:url(${escapeAttr(glyph)})" aria-hidden="true"></span>
+    <span class="icon-label">${escapeHtml(el.name_pt)}</span>
+  </div>`
+}
 
-  /** @param {string} id */
-  function walk(id) {
-    if (nodes.has(id)) return
-    nodes.add(id)
-    const el = byId.get(id)
-    if (el.coproduct_of) {
-      walk(el.coproduct_of)
-      return
-    }
-    for (const inputId of el.inputs) walk(inputId)
-    for (const outputId of el.outputs) nodes.add(outputId)
-  }
-
-  walk(recipe.id)
-  for (const outputId of recipe.outputs) nodes.add(outputId)
-  return nodes
+/** @param {import('./load.mjs').Element} el */
+function glyphUrlForElement(el) {
+  if (!el.glyph) return '/pipeline/resource-circle.svg'
+  return el.glyph.startsWith('/') ? el.glyph : `/${el.glyph}`
 }
 
 /**
- * @param {Set<string>} ancestry
- * @param {Map<string, import('./load.mjs').Element>} byId
- * @returns {{ tier: number, ids: string[] }[]}
- */
-function layoutAncestryColumns(ancestry, byId) {
-  /** @type {Map<number, string[]>} */
-  const byTier = new Map()
-  for (const id of ancestry) {
-    const tier = byId.get(id).tier
-    const list = byTier.get(tier) ?? []
-    list.push(id)
-    byTier.set(tier, list)
-  }
-  return [...byTier.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([tier, ids]) => ({ tier, ids: [...ids].sort() }))
-}
-
-/**
- * Barycenter heuristic + reverse sweep to reduce crossings.
+ * One-step recipe row (inputs → outputs) with icon nodes.
  *
- * @param {{ tier: number, ids: string[] }[]} tierColumns
- * @param {Map<string, import('./load.mjs').Element>} byId
- * @param {Set<string>} ancestry
- * @returns {Map<string, number>}
- */
-function assignAncestryRows(tierColumns, byId, ancestry) {
-  /** @type {Map<string, number>} */
-  const rowById = new Map()
-
-  const median = (values) => {
-    if (values.length === 0) return 0
-    const sorted = [...values].sort((a, b) => a - b)
-    const mid = Math.floor(sorted.length / 2)
-    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-  }
-
-  for (let pass = 0; pass < 2; pass++) {
-    for (const col of tierColumns) {
-      const scored = col.ids.map((id) => {
-        const el = byId.get(id)
-        /** @type {number[]} */
-        const refs = []
-        if (el.inputs.length) {
-          for (const inputId of el.inputs) {
-            if (ancestry.has(inputId) && rowById.has(inputId)) refs.push(rowById.get(inputId))
-          }
-        }
-        if (el.coproduct_of && rowById.has(el.coproduct_of)) {
-          refs.push(rowById.get(el.coproduct_of) + 0.5)
-        }
-        for (const other of ancestry) {
-          const o = byId.get(other)
-          if (o.outputs.includes(id) && o.id !== id && rowById.has(o.id)) {
-            refs.push(rowById.get(o.id) + 0.45)
-          }
-        }
-        return { id, score: refs.length ? median(refs) : id.charCodeAt(0) }
-      })
-      scored.sort((a, b) => a.score - b.score || a.id.localeCompare(b.id))
-      scored.forEach((item, row) => rowById.set(item.id, row))
-    }
-
-    // Reverse sweep: pull parents toward children.
-    for (let i = tierColumns.length - 2; i >= 0; i--) {
-      const col = tierColumns[i]
-      const scored = col.ids.map((id) => {
-        /** @type {number[]} */
-        const childRows = []
-        for (const other of ancestry) {
-          const o = byId.get(other)
-          if (o.inputs.includes(id) && rowById.has(other)) childRows.push(rowById.get(other))
-        }
-        return { id, score: childRows.length ? median(childRows) : rowById.get(id) }
-      })
-      scored.sort((a, b) => a.score - b.score || a.id.localeCompare(b.id))
-      scored.forEach((item, row) => rowById.set(item.id, row))
-    }
-  }
-
-  return rowById
-}
-
-/**
  * @param {import('./load.mjs').Element[]} inputs
  * @param {import('./load.mjs').Element[]} outputs
- * @param {import('./load.mjs').PreviewConfig} [preview]
+ * @param {string} chartId
  */
-function renderRecipeChart(
-  inputs,
-  outputs,
-  preview = {
-    node_width: 120,
-    node_height: 58,
-    column_gap: 72,
-    row_gap: 18,
-    highway_lane: 16,
-  },
-) {
-  const nodeW = Math.max(120, preview.node_width)
-  const nodeH = Math.max(58, preview.node_height)
-  const gap = 22
-  const plusW = 22
-  const arrowW = 36
+function renderDirectIconChart(inputs, outputs, chartId) {
+  const { nodeWidth: nodeW, iconSize, labelHeight } = ICON_LAYOUT
+  const nodeH = iconSize + labelHeight
   const padX = 16
-  const padY = 18
-  const slots = []
+  const padY = 12
+  const slotGap = 24
+  const plusW = 18
+  const arrowW = 40
+  const markerId = `arrow-direct-${chartMarkerId(chartId)}`
+
+  /** @type {{ kind: 'plus' | 'arrow', x: number, w?: number }[]} */
+  const decorators = []
+  /** @type {{ el: import('./load.mjs').Element, x: number, target: boolean }[]} */
+  const placed = []
   let x = padX
 
   for (let i = 0; i < inputs.length; i++) {
     if (i > 0) {
-      slots.push({ kind: 'plus', x })
-      x += plusW + gap / 2
+      decorators.push({ kind: 'plus', x: x + plusW / 2 })
+      x += plusW + slotGap / 2
     }
-    slots.push({ kind: 'node', el: inputs[i], x })
-    x += nodeW + gap / 2
+    placed.push({ el: inputs[i], x, target: false })
+    x += nodeW + slotGap / 2
   }
-  slots.push({ kind: 'arrow', x })
-  x += arrowW + gap / 2
+  const arrowX = x
+  decorators.push({ kind: 'arrow', x: arrowX, w: arrowW })
+  x += arrowW + slotGap / 2
+
   for (let i = 0; i < outputs.length; i++) {
     if (i > 0) {
-      slots.push({ kind: 'plus', x })
-      x += plusW + gap / 2
+      decorators.push({ kind: 'plus', x: x + plusW / 2 })
+      x += plusW + slotGap / 2
     }
-    slots.push({ kind: 'node', el: outputs[i], x, result: true })
-    x += nodeW + (i < outputs.length - 1 ? gap / 2 : padX)
+    placed.push({ el: outputs[i], x, target: true })
+    x += nodeW + (i < outputs.length - 1 ? slotGap / 2 : padX)
   }
 
   const width = x
-  const height = nodeH + padY * 2
-  const cy = height / 2
+  const height = padY * 2 + nodeH
+  const iconCy = padY + iconSize / 2
 
-  const shapes = slots
+  const svgDecor = decorators
     .map((slot) => {
       if (slot.kind === 'plus') {
-        return `<text x="${slot.x + plusW / 2}" y="${cy + 6}" class="op" text-anchor="middle">+</text>`
+        return `<text x="${slot.x}" y="${iconCy + 5}" class="chart-op" text-anchor="middle">+</text>`
       }
-      if (slot.kind === 'arrow') {
-        const ax = slot.x
-        return `
-        <line x1="${ax}" y1="${cy}" x2="${ax + arrowW - 8}" y2="${cy}" class="arrow-line" />
-        <polygon points="${ax + arrowW},${cy} ${ax + arrowW - 10},${cy - 6} ${ax + arrowW - 10},${cy + 6}" class="arrow-head" />`
-      }
-      const el = slot.el
-      const ink = contrastInk(el.fill)
+      const ax = slot.x
+      const aw = slot.w ?? arrowW
       return `
-      <g transform="translate(${slot.x}, ${padY})">
-        <rect width="${nodeW}" height="${nodeH}" rx="12" ry="12"
-          fill="${escapeAttr(el.fill)}" stroke="${escapeAttr(el.stroke)}" stroke-width="3"
-          class="${slot.result ? 'node result' : 'node'}" />
-        <text x="${nodeW / 2}" y="24" text-anchor="middle" fill="${ink}" class="node-name">${escapeHtml(el.name_pt)}</text>
-        <text x="${nodeW / 2}" y="42" text-anchor="middle" fill="${ink}" class="node-id">${escapeHtml(el.id)} · T${el.tier}</text>
-      </g>`
+      <line x1="${ax}" y1="${iconCy}" x2="${ax + aw - 10}" y2="${iconCy}" class="chart-edge chart-edge--line" />
+      <path d="M ${ax + aw} ${iconCy} L ${ax + aw - 9} ${iconCy - 5} L ${ax + aw - 9} ${iconCy + 5} Z" class="chart-arrow-head chart-arrow-head--solid" />`
     })
     .join('\n')
 
+  const nodes = placed.map((slot) => renderElementIconNode(slot.el, slot.x, padY, { target: slot.target })).join('\n')
+  const aria = `${inputs.map((e) => e.name_pt).join(' + ')} → ${outputs.map((e) => e.name_pt).join(' + ')}`
+
   return `
-<figure class="chart chart--direct">
-  <svg viewBox="0 0 ${width} ${height}" width="100%" role="img"
-    aria-label="${escapeAttr(inputs.map((e) => e.name_pt).join(' + ') + ' → ' + outputs.map((e) => e.name_pt).join(' + '))}">
-    ${shapes}
+<figure class="chart chart--icons chart--direct" style="width:${width}px;height:${height}px" aria-label="${escapeAttr(aria)}">
+  <svg class="chart-edges" width="${width}" height="${height}" aria-hidden="true">
+    <defs>
+      <marker id="${markerId}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0 0 L7 3.5 L0 7 Z" class="chart-arrow-head" />
+      </marker>
+    </defs>
+    ${svgDecor}
   </svg>
+  ${nodes}
 </figure>`
 }
 
-/** @param {string} hex */
-function contrastInk(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
-  if (!m) return '#0a1014'
-  const n = Number.parseInt(m[1], 16)
-  const r = (n >> 16) & 255
-  const g = (n >> 8) & 255
-  const b = n & 255
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
-  return luminance > 0.55 ? '#0a1014' : '#f4f7f8'
+/** @param {string} id */
+function chartMarkerId(id) {
+  return id.replace(/[^a-zA-Z0-9_-]/g, '_')
 }
 
 /** @param {string} absolute @param {string} rootLabel */
@@ -809,21 +604,78 @@ button:hover { border-color: var(--accent); }
   background: #f3f6f7;
   border-radius: 10px;
   padding: 0.5rem;
+  max-width: 100%;
 }
-.chart--path { min-height: 7rem; }
-.tier-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+.chart--icons {
+  position: relative;
+  margin-left: 0;
+  margin-right: auto;
+}
+.chart-edges {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+  overflow: visible;
+}
+.chart-edge {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chart-edge--line {
+  stroke-width: 2;
+}
+.chart-arrow-head {
   fill: var(--muted);
-  text-transform: uppercase;
 }
-.path-edge { opacity: 0.9; }
-.node-name { font-size: 14px; font-weight: 700; }
-.node-id { font-size: 11px; opacity: 0.85; }
-.op { font-size: 22px; font-weight: 700; fill: var(--muted); }
-.arrow-line { stroke: #0a1014; stroke-width: 3; }
-.arrow-head { fill: #0a1014; }
+.chart-arrow-head--solid {
+  stroke: none;
+}
+.chart-op {
+  fill: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.icon-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 1;
+}
+.icon-node--target .icon-glyph {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.icon-node--repeat {
+  opacity: 0.92;
+}
+.icon-glyph {
+  display: block;
+  flex: none;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+.icon-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--ink);
+}
 .meta { margin: 0; display: grid; gap: 0.35rem; }
 .meta div { display: grid; grid-template-columns: 6rem 1fr; gap: 0.5rem; }
 .meta dt { margin: 0; color: var(--muted); font-size: 0.85rem; }
