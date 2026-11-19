@@ -1,0 +1,51 @@
+.overlay {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: clamp(20px, 4vw, 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 30%);
+}
+
+.overlay::backdrop {
+  background: rgb(0 0 0 / 60%);
+  backdrop-filter: blur(4px);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 16px;
+}
+
+.header h2 {
+  font-size: 23px;
+  font-family: var(--display-font);
+  font-weight: 400;
+  margin: 0;
+}
+
+.close {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.close:hover,
+.close:focus-visible {
+  color: var(--accent);
+}
+
+.body {
+  min-width: 0;
+}

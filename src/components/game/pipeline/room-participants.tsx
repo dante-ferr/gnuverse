@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import type { GameApi } from '../api/game-api'
-import type { Member, User } from '../model/types'
+import type { GameEvent, Member, User } from '../model/types'
 import type { PipelineFrame } from './model/frame'
+import { playerAchievements } from '../player-history/achievements'
+import { PlayerHistoryOverlay } from '../player-history/player-history-overlay'
 import styles from '../game-shell.module.css'
 
 type Props = {
@@ -12,6 +14,7 @@ type Props = {
   user: User | null
   creatorId: string
   members: Member[]
+  events: GameEvent[]
   collaborators: PipelineFrame['collaborators']
   busy?: boolean
   onRefresh: () => Promise<void>
@@ -30,6 +33,7 @@ export function RoomParticipants({
   user,
   creatorId,
   members,
+  events,
   collaborators,
   busy,
   onRefresh,
@@ -37,6 +41,7 @@ export function RoomParticipants({
 }: Props) {
   const [targetId, setTargetId] = useState('')
   const [reason, setReason] = useState('')
+  const [historyMember, setHistoryMember] = useState<Member | null>(null)
   const collaboratorIds = new Set(collaborators.map((person) => person.id))
   const peopleById = new Map<string, Member>()
   for (const member of members) peopleById.set(member.id, member)
@@ -92,18 +97,25 @@ export function RoomParticipants({
         <div className={styles.members}>
           {people.map((member) => (
             <article key={member.id}>
-              <span className={styles.avatar} aria-hidden>
-                {letterAvatar(member.nickname)}
-              </span>
-              <div>
-                <strong>{member.nickname}</strong>
-                <small>
-                  {member.contributions} contribuições
-                  {collaboratorIds.has(member.id) ? ' · colaborador' : ''}
-                  {member.banned ? ' · suspenso' : ''}
-                  {member.id === creatorId ? ' · BDFL' : ''}
-                </small>
-              </div>
+              <button
+                type="button"
+                className={styles.memberRowButton}
+                onClick={() => setHistoryMember(member)}
+                aria-label={`Ver histórico de ${member.nickname}`}
+              >
+                <span className={styles.avatar} aria-hidden>
+                  {letterAvatar(member.nickname)}
+                </span>
+                <span className={styles.memberRowText}>
+                  <strong>{member.nickname}</strong>
+                  <small>
+                    {member.contributions} contribuições
+                    {collaboratorIds.has(member.id) ? ' · colaborador' : ''}
+                    {member.banned ? ' · suspenso' : ''}
+                    {member.id === creatorId ? ' · BDFL' : ''}
+                  </small>
+                </span>
+              </button>
             </article>
           ))}
         </div>
@@ -138,6 +150,13 @@ export function RoomParticipants({
       ) : (
         <p className={styles.quiet}>Entre para propor uma suspensão.</p>
       )}
+      {historyMember ? (
+        <PlayerHistoryOverlay
+          nickname={historyMember.nickname}
+          events={playerAchievements(events, historyMember.id)}
+          onClose={() => setHistoryMember(null)}
+        />
+      ) : null}
     </section>
   )
 }
