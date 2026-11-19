@@ -120,6 +120,19 @@ export function PipelineScene({
     const underPreview = belts.filter((belt) => !previewKeys.has(cellKey(belt)))
     const drawnBelts = [...underPreview, ...previewVisible]
     beltPainter.current.draw(ctx, drawnBelts, palette, timeMs)
+    const eraseBox = eraseStroke.current?.bounds()
+    if (eraseBox) {
+      ctx.save()
+      ctx.globalAlpha = 0.22
+      ctx.fillStyle = palette.colorWarning
+      ctx.fillRect(
+        eraseBox.minX * cellSize,
+        eraseBox.minY * cellSize,
+        (eraseBox.maxX - eraseBox.minX + 1) * cellSize,
+        (eraseBox.maxY - eraseBox.minY + 1) * cellSize,
+      )
+      ctx.restore()
+    }
     const packets = current.packets.filter(
       (packet) =>
         packet.x >= bounds.minX &&
@@ -243,14 +256,7 @@ export function PipelineScene({
   const visibleBelts = (current: PipelineFrame) =>
     current.belts.filter((belt) => !hiddenBelts.current.has(cellKey(belt)))
 
-  const tryEraseCell = (cell: { x: number; y: number }) => {
-    const current = frameRef.current
-    if (!current) return
-    const key = cellKey(cell)
-    if (hiddenBelts.current.has(key)) return
-    if (!current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y)) return
-    hiddenBelts.current.add(key)
-    onRemove([cell])
+  const syncErasePreview = () => {
     requestPaint()
   }
 
@@ -265,13 +271,30 @@ export function PipelineScene({
   }
 
   const revertPendingRemovals = () => {
+    hiddenBelts.current.clear()
+    requestPaint()
+  }
+
+  const commitErase = () => {
+    const stroke = eraseStroke.current
+    eraseStroke.current = null
+    if (!stroke) return
     const current = frameRef.current
-    if (!current) return
-    for (const key of [...hiddenBelts.current]) {
-      const cell = parseCellKey(key)
-      if (!cell) continue
-      if (current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y)) hiddenBelts.current.delete(key)
+    if (!current) {
+      hiddenBelts.current.clear()
+      requestPaint()
+      return
     }
+    const targets = stroke.cells().filter((cell) =>
+      current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y),
+    )
+    if (targets.length === 0) {
+      hiddenBelts.current.clear()
+      requestPaint()
+      return
+    }
+    for (const cell of targets) hiddenBelts.current.add(cellKey(cell))
+    onRemove(targets)
     requestPaint()
   }
 
@@ -374,21 +397,23 @@ export function PipelineScene({
 
   const trackEraseCell = (cell: { x: number; y: number }) => {
     if (!eraseStroke.current?.push(cell)) return
-    tryEraseCell(cell)
+    syncErasePreview()
   }
 
   const beginPan = (event: { clientX: number; clientY: number }) => {
     pan.current = { x: event.clientX, y: event.clientY }
     placement.current = null
-    eraseStroke.current = null
+    if (eraseStroke.current) {
+      eraseStroke.current = null
+      revertPendingRemovals()
+    }
     cancelLongPress()
   }
 
   const beginErase = (event: ReactPointerEvent<HTMLCanvasElement>, cell: { x: number; y: number }) => {
     event.preventDefault()
     canvasRef.current?.setPointerCapture(event.pointerId)
-    const next = new BeltEraseStroke()
-    eraseStroke.current = next
+    eraseStroke.current = new BeltEraseStroke()
     trackEraseCell(cell)
     placement.current = null
     cancelLongPress()
@@ -480,8 +505,10 @@ export function PipelineScene({
           pointers.current.delete(event.pointerId)
           pinchDistance.current = null
           pan.current = null
-          eraseStroke.current = null
-          revertPendingRemovals()
+          if (eraseStroke.current) {
+            commitErase()
+            return
+          }
           if (longPress.current.fired) {
             placement.current = null
             cancelLongPress()
