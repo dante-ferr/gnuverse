@@ -170,9 +170,8 @@ test('a machine alone does not insert a tunnel', () => {
   assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 1, 3, 4])
 })
 
-test('shift-drag commit places the tunnel before the remaining belts', async () => {
+test('belt commit places the tunnel before the remaining belts', async () => {
   setBeltCrossQuery({
-    enabled: () => true,
     maxGap: () => 8,
     occupancy: () => ({ conveyors: keys({ x: 2, y: 0 }), blocked: keys() }),
   })

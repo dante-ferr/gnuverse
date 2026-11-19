@@ -298,7 +298,6 @@ export function PipelineScene({
   const pan = useRef<{ x: number; y: number } | null>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const heldKeys = useRef(new Set<string>())
-  const shiftHeldRef = useRef(false)
 
   const visibleBelts = (current: PipelineFrame) =>
     current.belts.filter((belt) => !hiddenBelts.current.has(cellKey(belt)))
@@ -394,10 +393,6 @@ export function PipelineScene({
 
   useEffect(() => {
     setBeltCrossQuery({
-      enabled: () =>
-        shiftHeldRef.current &&
-        editModeRef.current === 'create' &&
-        structureIdRef.current === 'belt',
       maxGap: () => rulesRef.current?.tunnelMaxGap ?? 8,
       occupancy: () => occupancyFromFrame(frameRef.current),
     })
@@ -408,10 +403,6 @@ export function PipelineScene({
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Shift') {
-        shiftHeldRef.current = true
-        return
-      }
       if (typingTarget(event.target)) return
       const key = event.key.toLowerCase()
       if (key === 'e' && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -432,13 +423,11 @@ export function PipelineScene({
     }
 
     const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === 'Shift') shiftHeldRef.current = false
       heldKeys.current.delete(event.key.toLowerCase())
     }
 
     const onBlur = () => {
       heldKeys.current.clear()
-      shiftHeldRef.current = false
     }
 
     let frameId = 0
@@ -565,17 +554,7 @@ export function PipelineScene({
         }}
         onPointerDown={(event) => {
           pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
-          shiftHeldRef.current = event.shiftKey
-          const beltShiftDraw =
-            event.button === 0 &&
-            event.shiftKey &&
-            editModeRef.current === 'create' &&
-            structureIdRef.current === 'belt' &&
-            pointers.current.size === 1
-          if (
-            !beltShiftDraw &&
-            (event.button === 1 || event.button === 2 || event.shiftKey || pointers.current.size > 1)
-          ) {
+          if (event.button === 1 || event.button === 2 || event.shiftKey || pointers.current.size > 1) {
             if (event.button === 2) event.preventDefault()
             beginPan(event)
             return
@@ -601,7 +580,6 @@ export function PipelineScene({
             return
           }
           pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
-          shiftHeldRef.current = event.shiftKey
           if (pan.current) {
             cameraRef.current.pan(event.clientX - pan.current.x, event.clientY - pan.current.y)
             pan.current = { x: event.clientX, y: event.clientY }
@@ -622,7 +600,6 @@ export function PipelineScene({
           requestPaint()
         }}
         onPointerUp={(event) => {
-          shiftHeldRef.current = event.shiftKey
           if (eraseStroke.current || placement.current) {
             canvasRef.current?.releasePointerCapture(event.pointerId)
           }

@@ -35,13 +35,11 @@ export type BeltOccupancy = {
 const EMPTY_OCCUPANCY: BeltOccupancy = { conveyors: new Set(), blocked: new Set() }
 
 export type BeltCrossQuery = {
-  enabled: () => boolean
   maxGap: () => number
   occupancy: () => BeltOccupancy
 }
 
 let beltCrossQuery: BeltCrossQuery = {
-  enabled: () => false,
   maxGap: () => 8,
   occupancy: () => EMPTY_OCCUPANCY,
 }
@@ -52,7 +50,6 @@ export function setBeltCrossQuery(next: BeltCrossQuery) {
 
 export function resetBeltCrossQuery() {
   beltCrossQuery = {
-    enabled: () => false,
     maxGap: () => 8,
     occupancy: () => EMPTY_OCCUPANCY,
   }
@@ -91,7 +88,7 @@ export function occupancyFromFrame(frame: PipelineFrame | null): BeltOccupancy {
 }
 
 /**
- * While Shift is held, replace crossings with tunnel pairs.
+ * Replace crossings with tunnel pairs when a belt stroke overlaps existing belts.
  * A run thicker than `maxGap`, or a run with no free portal cell, is left
  * alone: those cells are omitted and no tunnel is emitted.
  */

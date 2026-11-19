@@ -40,7 +40,6 @@ function createBeltSession(): StructurePlacementSession {
 
   const plan = () => {
     const query = readBeltCrossQuery()
-    if (!query.enabled()) return { belts: stroke.cells, tunnels: [] as PlannedTunnel[] }
     const { conveyors, blocked } = query.occupancy()
     return planBeltCrossings(stroke.cells, conveyors, blocked, query.maxGap())
   }
