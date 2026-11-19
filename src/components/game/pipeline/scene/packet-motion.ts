@@ -1,5 +1,7 @@
 import { ahead, opposite } from '../../../../../game-server/pipeline/geometry/direction.ts'
+import { CombinerMachine } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
 import { CoreMachine } from '../../../../../game-server/pipeline/machines/core-machine.ts'
+import { SourceMachine } from '../../../../../game-server/pipeline/machines/source-machine.ts'
 import type { PipelineFrame, PipelineRules } from '../model/frame.ts'
 
 export type PacketSink = {
@@ -80,10 +82,39 @@ export function syncPacketMotion(
   state.syncedAtMs = nowMs
 }
 
+/**
+ * Invented previous cell for a packet that just appeared on a belt.
+ * Prefer the machine port behind an output slot so sideways / parallel belts
+ * still animate out of the machine instead of from empty air behind the belt.
+ */
 function spawnOrigin(frame: PipelineFrame, x: number, y: number) {
+  const fromPort = outputPortOrigin(frame, x, y)
+  if (fromPort) return fromPort
   const belt = beltAt(frame, x, y)
   if (!belt) return { x, y }
   return ahead(x, y, opposite(belt.direction))
+}
+
+function outputPortOrigin(frame: PipelineFrame, x: number, y: number) {
+  const cell = { x, y }
+  const sources = frame.sources?.length ? frame.sources : [frame.source]
+  for (const spec of sources) {
+    const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
+    const slot = source.slotAt(cell, 'output')
+    if (slot) return ahead(x, y, opposite(slot.travel))
+  }
+  for (const spec of frame.combiners ?? []) {
+    const machine = new CombinerMachine(
+      spec.id,
+      spec.machineId,
+      spec.recipeId,
+      { x: spec.x, y: spec.y },
+      spec.facing,
+    )
+    const slot = machine.slotAt(cell, 'output')
+    if (slot) return ahead(x, y, opposite(slot.travel))
+  }
+  return null
 }
 
 function beltAt(frame: PipelineFrame, x: number, y: number) {

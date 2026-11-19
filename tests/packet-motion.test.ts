@@ -60,6 +60,22 @@ test('packetDisplayCenter coasts along belt after one tickMs', () => {
   assert.equal(coastMid.px, 3 * cell)
 })
 
+test('spawnOrigin exits the source even when the belt is parallel to the output face', () => {
+  const motion = createPacketMotionState()
+  // Source at (0,0) facing east → output cell (3,1). Belt runs north along that face.
+  const f = frame(1, [{ id: 'p1', x: 3, y: 1, shape: 'circle' }])
+  f.belts = [
+    { id: 'b0', x: 3, y: 1, direction: 'north', authorId: 'a', authorNickname: 'n', placedAt: 0 },
+  ]
+  f.source = { id: 'source', x: 0, y: 0, direction: 'east', shape: 'circle' }
+  syncPacketMotion(motion, f, rules, 1000, cell)
+
+  const start = packetDisplayCenter({ id: 'p1', x: 3, y: 1, shape: 'circle' }, f, rules, motion, 1000, cell)
+  // Machine rim behind the east output is (2,1), not empty air south of the belt (3,2).
+  assert.equal(start.px, 2.5 * cell)
+  assert.equal(start.py, 1.5 * cell)
+})
+
 test('syncPacketMotion starts a sink when a packet is consumed by the core', () => {
   const motion = createPacketMotionState()
   const core = { id: 'core', x: 10, y: 10 }
