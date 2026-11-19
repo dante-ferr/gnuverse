@@ -7,6 +7,7 @@ import { Packet } from '../game-server/pipeline/packets/packet.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
 import { approachCellForInput } from '../game-server/pipeline/world/chunks/sandbox-layout.ts'
 import { craftTicksForRecipe } from '../game-server/pipeline/elements/rate.ts'
+import { matchRecipeFromBuffer } from '../game-server/pipeline/world/tick/craft.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
 
 const rules = testPipelineRules()
@@ -26,15 +27,15 @@ function beltAt(
   )
 }
 
-function sandboxWithCombiner(recipeId: string, facing: Direction = 'east') {
+function sandboxWithCombiner(machineId: 'combiner_2' | 'combiner_3' = 'combiner_2', facing: Direction = 'east') {
   const match = Match.createSandbox('combiner', rules)
-  const combiner = new CombinerMachine('c1', 'combiner_2', recipeId, { x: 25, y: 24 }, facing)
+  const combiner = new CombinerMachine('c1', machineId, { x: 25, y: 24 }, facing)
   match.combiners.push(combiner)
   return { match, combiner }
 }
 
 test('combiner absorbs recipe inputs on input slots', () => {
-  const { match, combiner } = sandboxWithCombiner('steam')
+  const { match, combiner } = sandboxWithCombiner()
   const waterSlot = combiner.inputSlots()[0]!
   const approach = ahead(waterSlot.cell.x, waterSlot.cell.y, opposite(waterSlot.travel))
   beltAt(match, approach, waterSlot.travel)
@@ -46,12 +47,13 @@ test('combiner absorbs recipe inputs on input slots', () => {
 })
 
 test('combiner crafts steam after rate-based craft ticks when inputs are buffered', () => {
-  const { match, combiner } = sandboxWithCombiner('steam')
+  const { match, combiner } = sandboxWithCombiner()
   combiner.buffer = { water: 1, fire: 1 }
   const out = combiner.orderedOutputSlots()[0]!
   beltAt(match, out.cell, opposite(out.travel))
   const steamRecipe = rules.elements.elements.find((el) => el.id === 'steam')!
   const ticks = craftTicksForRecipe(rules.elements, rules.tickMs, steamRecipe)
+  combiner.activeRecipeId = 'steam'
   combiner.craftRemaining = ticks - 1
   for (let i = 0; i < ticks; i++) match.tick()
   const steam = match.packets.find((packet) => packet.shape === 'steam')
@@ -60,8 +62,9 @@ test('combiner crafts steam after rate-based craft ticks when inputs are buffere
 
 test('dual-output craft ejects coupled or blocks when one port is full', () => {
   const match = Match.createSandbox('dual', rules)
-  const combiner = new CombinerMachine('c1', 'combiner_3', 'kiln', { x: 25, y: 24 }, 'east')
+  const combiner = new CombinerMachine('c1', 'combiner_3', { x: 25, y: 24 }, 'east')
   match.combiners.push(combiner)
+  combiner.activeRecipeId = 'kiln'
   combiner.pendingOutputs = ['kiln', 'brick']
   const outputs = combiner.orderedOutputSlots()
   for (const slot of outputs) {
@@ -71,6 +74,7 @@ test('dual-output craft ejects coupled or blocks when one port is full', () => {
   assert.equal(match.packets.length, 2)
   assert.equal(combiner.pendingOutputs, null)
 
+  combiner.activeRecipeId = 'kiln'
   combiner.pendingOutputs = ['kiln', 'brick']
   match.packets.push(new Packet('block', { ...outputs[0]!.cell }, 'kiln'))
   match.tick()
@@ -79,26 +83,28 @@ test('dual-output craft ejects coupled or blocks when one port is full', () => {
 })
 
 test('combiner_2 exposes one output port', () => {
-  const combiner = new CombinerMachine('c', 'combiner_2', 'steam', { x: 5, y: 5 }, 'east')
+  const combiner = new CombinerMachine('c', 'combiner_2', { x: 5, y: 5 }, 'east')
   assert.equal(combiner.inputSlots().length, 2)
   assert.equal(combiner.outputSlots().length, 1)
 })
 
 test('combiner_3 single-output alternates between output ports when both belts exist', () => {
   const match = Match.createSandbox('split', rules)
-  const combiner = new CombinerMachine('c1', 'combiner_3', 'crystal', { x: 25, y: 24 }, 'east')
+  const combiner = new CombinerMachine('c1', 'combiner_3', { x: 25, y: 24 }, 'east')
   match.combiners.push(combiner)
   const outputs = combiner.orderedOutputSlots()
   assert.equal(outputs.length, 2)
   for (const slot of outputs) {
     beltAt(match, slot.cell, opposite(slot.travel))
   }
+  combiner.activeRecipeId = 'crystal'
   combiner.pendingOutputs = ['crystal']
   match.tick()
   const firstPort = combiner.nextSplitPort === 1 ? 1 : 0
   const first = outputs[firstPort === 0 ? 1 : 0]!.cell
   assert.ok(match.packets.some((packet) => packet.shape === 'crystal' && packet.cell.x === first.x))
 
+  combiner.activeRecipeId = 'crystal'
   combiner.pendingOutputs = ['crystal']
   match.tick()
   const second = outputs[firstPort]!.cell
@@ -108,28 +114,26 @@ test('combiner_3 single-output alternates between output ports when both belts e
 test('placeMachine accepts combiner footprint in owned sandbox cells', () => {
   const match = Match.createSandbox('place', rules)
   const error = match.placeMachine(
-    { machineId: 'combiner_2', recipeId: 'steam', x: 25, y: 24, facing: 'east' },
+    { machineId: 'combiner_2', x: 25, y: 24, facing: 'east' },
     author,
   )
   assert.equal(error, null)
   assert.equal(match.combiners.length, 1)
+  assert.equal(match.combiners[0]!.activeRecipeId, null)
 })
 
-test('placeMachine rejects recipe that does not match the machine kind', () => {
-  const match = Match.createSandbox('place3', rules)
-  const error = match.placeMachine(
-    { machineId: 'combiner_3', recipeId: 'steam', x: 30, y: 24, facing: 'east' },
-    author,
-  )
-  assert.equal(error, 'Essa receita não usa essa máquina.')
-  assert.equal(match.combiners.length, 0)
+test('matchRecipeFromBuffer resolves steam when water and fire are buffered', () => {
+  const combiner = new CombinerMachine('c', 'combiner_2', { x: 5, y: 5 }, 'east')
+  combiner.buffer = { water: 1, fire: 1 }
+  const recipe = matchRecipeFromBuffer(rules, combiner)
+  assert.equal(recipe?.id, 'steam')
 })
 
 test('remove deletes combiners and refuses cores and sources', () => {
   const match = Match.createSandbox('remove', rules)
   assert.equal(
     match.placeMachine(
-      { machineId: 'combiner_2', recipeId: 'steam', x: 25, y: 24, facing: 'east' },
+      { machineId: 'combiner_2', x: 25, y: 24, facing: 'east' },
       author,
     ),
     null,
@@ -147,7 +151,7 @@ test('remove deletes combiners and refuses cores and sources', () => {
 })
 
 test('approachCellForInput is one step outside the combiner input travel', () => {
-  const combiner = new CombinerMachine('c', 'combiner_2', 'steam', { x: 5, y: 5 }, 'east')
+  const combiner = new CombinerMachine('c', 'combiner_2', { x: 5, y: 5 }, 'east')
   const slot = combiner.inputSlots()[0]!
   const approach = approachCellForInput(combiner)
   const expected = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
@@ -159,12 +163,12 @@ test('CombinerMachine constructs valid slots for every facing', () => {
   const facings = ['east', 'south', 'west', 'north'] as const
   for (const facing of facings) {
     assert.doesNotThrow(
-      () => new CombinerMachine('c2', 'combiner_2', 'steam', { x: 10, y: 10 }, facing),
+      () => new CombinerMachine('c2', 'combiner_2', { x: 10, y: 10 }, facing),
     )
     assert.doesNotThrow(
-      () => new CombinerMachine('c3', 'combiner_3', 'tempest', { x: 10, y: 10 }, facing),
+      () => new CombinerMachine('c3', 'combiner_3', { x: 10, y: 10 }, facing),
     )
-    const c3 = new CombinerMachine('c3b', 'combiner_3', 'tempest', { x: 10, y: 10 }, facing)
+    const c3 = new CombinerMachine('c3b', 'combiner_3', { x: 10, y: 10 }, facing)
     const size = CombinerMachine.sizeFor('combiner_3', facing)
     assert.equal(c3.width, size.width)
     assert.equal(c3.height, size.height)

@@ -1,7 +1,7 @@
 import { cellKey } from '../../geometry/cell.ts'
 import type { ElementRecord } from '../../elements/index.ts'
 import { craftTicksForRecipe } from '../../elements/rate.ts'
-import { CombinerMachine } from '../../machines/combiner-machine.ts'
+import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
 import { Packet } from '../../packets/packet.ts'
 import type { PipelineRules } from '../../rules.ts'
 import type { Match } from '../match.ts'
@@ -19,38 +19,42 @@ export class Craft {
   }
 
   private tickCombiner(combiner: CombinerMachine) {
-    const recipe = recipeForId(this.match.rules, combiner.recipeId)
-    if (!recipe) return
+    const active = combiner.activeRecipeId
+      ? recipeForId(this.match.rules, combiner.activeRecipeId)
+      : null
 
     if (combiner.pendingOutputs?.length) {
-      const kept = this.tryEject(combiner, recipe)
+      if (!active) return
+      const kept = this.tryEject(combiner, active)
       if (kept) return
     }
 
     if (combiner.craftRemaining !== null && combiner.craftRemaining > 0) {
       combiner.craftRemaining -= 1
-      if (combiner.craftRemaining === 0) {
-        combiner.pendingOutputs = outputShapes(recipe)
+      if (combiner.craftRemaining === 0 && active) {
+        combiner.pendingOutputs = outputShapes(active)
       }
       return
     }
 
-    if (combiner.craftRemaining === 0) {
+    if (combiner.craftRemaining === 0 && active) {
+      combiner.pendingOutputs = outputShapes(active)
+      this.tryEject(combiner, active)
+      return
+    }
+
+    const recipe = matchRecipeFromBuffer(this.match.rules, combiner)
+    if (!recipe) return
+
+    for (const input of recipe.inputs) combiner.buffer[input] = (combiner.buffer[input] ?? 0) - 1
+    combiner.activeRecipeId = recipe.id
+    const ticks = craftTicksForRecipe(this.match.rules.elements, this.match.rules.tickMs, recipe)
+    if (ticks <= 1) {
+      combiner.craftRemaining = 0
       combiner.pendingOutputs = outputShapes(recipe)
       this.tryEject(combiner, recipe)
-      return
-    }
-
-    if (bufferHasInputs(combiner, recipe)) {
-      for (const input of recipe.inputs) combiner.buffer[input] = (combiner.buffer[input] ?? 0) - 1
-      const ticks = craftTicksForRecipe(this.match.rules.elements, this.match.rules.tickMs, recipe)
-      if (ticks <= 1) {
-        combiner.craftRemaining = 0
-        combiner.pendingOutputs = outputShapes(recipe)
-        this.tryEject(combiner, recipe)
-      } else {
-        combiner.craftRemaining = ticks - 1
-      }
+    } else {
+      combiner.craftRemaining = ticks - 1
     }
   }
 
@@ -72,6 +76,7 @@ export class Craft {
       for (const plan of placements) this.placePacket(plan.slot, plan.shape)
       combiner.pendingOutputs = null
       combiner.craftRemaining = null
+      combiner.activeRecipeId = null
       return false
     }
 
@@ -95,6 +100,7 @@ export class Craft {
 
     combiner.pendingOutputs = null
     combiner.craftRemaining = null
+    combiner.activeRecipeId = null
     return false
   }
 
@@ -138,16 +144,38 @@ function outputShapes(recipe: ElementRecord): string[] {
   return [recipe.id]
 }
 
-function bufferHasInputs(combiner: CombinerMachine, recipe: ElementRecord) {
-  for (const input of recipe.inputs) {
-    if ((combiner.buffer[input] ?? 0) < 1) return false
+/** Catalog recipes craftable on this machine kind (primary rows only). */
+export function recipesForMachine(rules: PipelineRules, machineId: CombinerMachineId): ElementRecord[] {
+  return rules.elements.elements.filter(
+    (el) => el.machine === machineId && el.inputs?.length > 0 && !el.coproduct_of,
+  )
+}
+
+function bufferMatchesRecipeExactly(combiner: CombinerMachine, recipe: ElementRecord) {
+  const inputs = recipe.inputs
+  const keys = Object.keys(combiner.buffer)
+  if (keys.length !== inputs.length) return false
+  for (const input of inputs) {
+    if ((combiner.buffer[input] ?? 0) !== 1) return false
   }
   return true
 }
 
+/** Picks the catalog recipe whose input multiset matches the combiner buffer (count 1 each). */
+export function matchRecipeFromBuffer(
+  rules: PipelineRules,
+  combiner: CombinerMachine,
+): ElementRecord | null {
+  for (const recipe of recipesForMachine(rules, combiner.machineId)) {
+    if (bufferMatchesRecipeExactly(combiner, recipe)) return recipe
+  }
+  return null
+}
+
 export function combinerAcceptsShape(combiner: CombinerMachine, rules: PipelineRules, shape: string) {
-  const recipe = recipeForId(rules, combiner.recipeId)
-  if (!recipe) return false
-  if (!recipe.inputs.includes(shape)) return false
+  if (combiner.craftRemaining !== null && combiner.craftRemaining > 0) return false
+  if (combiner.pendingOutputs?.length) return false
+  const allowed = recipesForMachine(rules, combiner.machineId).some((recipe) => recipe.inputs.includes(shape))
+  if (!allowed) return false
   return (combiner.buffer[shape] ?? 0) < 1
 }

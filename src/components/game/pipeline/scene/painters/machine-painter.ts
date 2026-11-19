@@ -67,7 +67,6 @@ export class MachinePainter {
     const combiner = new CombinerMachine(
       'ghost',
       spec.machineId,
-      null,
       { x: spec.x, y: spec.y },
       spec.facing,
     )
@@ -103,7 +102,6 @@ export class MachinePainter {
       const combiner = new CombinerMachine(
         spec.id,
         spec.machineId,
-        spec.recipeId ?? null,
         { x: spec.x, y: spec.y },
         spec.facing,
       )

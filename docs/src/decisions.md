@@ -64,7 +64,7 @@ Locked design direction (2026-11-18; **planned expansion recorded 2026-11-18**, 
 | Choice | Rule |
 | :--- | :--- |
 | Identity | Each packet has one element `id` from TOML under `game-server/config/` |
-| Discoverability | Every recipe is visible in the room GUI recipe picker before placing a machine (output listed with its fixed inputs). Core requirements in the Jogo sidebar are clickable and open a production-line ancestry overlay. No hidden alchemy |
+| Discoverability | Recipes are visible via the elements preview (`make elements-serve`) and in-room help—not via a place-time recipe picker. Sandbox combiners infer output from buffered inputs (exact input-set match to catalog recipes for that machine kind). Core requirements in the Jogo sidebar are clickable and open a production-line ancestry overlay. No hidden alchemy |
 | Glyphs | Simple silhouettes with **thick outlines** (SVG). Generate later (Quiver); until then procedural placeholders may stand in |
 | Scope | Ship the element graph **with combiners** (not before). v0.1 may keep the current single circle packet until that slice |
 | Metaphor | FOSS analogy stays in the logistics / collaboration format; element flavor does not need a strict software metaphor |

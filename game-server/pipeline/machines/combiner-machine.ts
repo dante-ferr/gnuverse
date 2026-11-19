@@ -9,7 +9,8 @@ export type CombinerMachineId = 'combiner_2' | 'combiner_3'
 export class CombinerMachine extends Machine {
   readonly kind = 'combiner'
   readonly machineId: CombinerMachineId
-  readonly recipeId: string
+  /** Set when a buffered recipe match starts crafting; cleared after eject. */
+  activeRecipeId: string | null = null
   readonly facing: Direction
   buffer: Record<string, number> = {}
   craftRemaining: number | null = null
@@ -19,14 +20,12 @@ export class CombinerMachine extends Machine {
   constructor(
     id: string,
     machineId: CombinerMachineId,
-    recipeId: string,
     origin: Cell,
     facing: Direction = 'east',
   ) {
     const { width, height } = CombinerMachine.sizeFor(machineId, facing)
     super(id, origin, width, height)
     this.machineId = machineId
-    this.recipeId = recipeId
     this.facing = facing
     const inputCount = machineId === 'combiner_2' ? 2 : 3
     const outputCount = machineId === 'combiner_2' ? 1 : 2

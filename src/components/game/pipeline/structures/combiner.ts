@@ -15,7 +15,6 @@ import type {
 
 type CombinerPayload = {
   machineId: CombinerMachineId
-  recipeId: string
   x: number
   y: number
   facing: Direction
@@ -26,7 +25,6 @@ function isCombinerPayload(payload: unknown): payload is CombinerPayload {
   const record = payload as CombinerPayload
   return (
     (record.machineId === 'combiner_2' || record.machineId === 'combiner_3') &&
-    typeof record.recipeId === 'string' &&
     typeof record.x === 'number' &&
     typeof record.y === 'number'
   )
@@ -36,12 +34,11 @@ function previewMachineAt(
   machineId: CombinerMachineId,
   center: { x: number; y: number },
 ): StructurePreviewMachine {
-  const { recipeId, facing } = getCombinerPlaceOptions()
+  const { facing } = getCombinerPlaceOptions()
   const { width, height } = CombinerMachine.sizeFor(machineId, facing)
   const origin = originFromCenter(center, width, height)
   return {
     machineId,
-    recipeId,
     x: origin.x,
     y: origin.y,
     facing,
@@ -73,7 +70,6 @@ function createCombinerSession(machineId: CombinerMachineId): StructurePlacement
         structureId: machineId,
         payload: {
           machineId,
-          recipeId: ghost.recipeId,
           x: ghost.x,
           y: ghost.y,
           facing: ghost.facing,
@@ -110,7 +106,6 @@ function registerCombiner(
       if (!isCombinerPayload(payload)) return
       await ctx.request(`/api/towers/${ctx.roomId}/place-machine`, {
         machineId: payload.machineId,
-        recipeId: payload.recipeId,
         x: payload.x,
         y: payload.y,
         facing: payload.facing,

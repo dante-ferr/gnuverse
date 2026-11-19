@@ -1,13 +1,11 @@
 import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
 import type { Direction } from '../../geometry/direction.ts'
-import { recipeForId } from '../tick/craft.ts'
 import type { Match } from '../match.ts'
 
 type Author = { id: string; nickname: string }
 
 export type MachinePlaceRequest = {
   machineId: CombinerMachineId
-  recipeId: string
   x: number
   y: number
   facing: Direction
@@ -23,13 +21,6 @@ export class MachineEditor {
 
   place(spec: MachinePlaceRequest, author: Author) {
     if (!this.match.sandbox) return 'Combinadores só estão disponíveis na sala teste.'
-    const recipe = recipeForId(this.match.rules, spec.recipeId)
-    if (!recipe || recipe.inputs.length === 0 || recipe.coproduct_of) {
-      return 'Escolha uma receita válida antes de colocar a máquina.'
-    }
-    if (recipe.machine !== spec.machineId) {
-      return 'Essa receita não usa essa máquina.'
-    }
     const { width, height } = CombinerMachine.sizeFor(spec.machineId, spec.facing)
     if (!this.footprintInOwned(spec.x, spec.y, width, height)) {
       return 'Fora da área liberada.'
@@ -42,7 +33,7 @@ export class MachineEditor {
     }
     const id = `c${this.match.nextCombinerSeq++}`
     this.match.combiners.push(
-      new CombinerMachine(id, spec.machineId, recipe.id, { x: spec.x, y: spec.y }, spec.facing),
+      new CombinerMachine(id, spec.machineId, { x: spec.x, y: spec.y }, spec.facing),
     )
     this.match.noteCollaborator(author)
     return null

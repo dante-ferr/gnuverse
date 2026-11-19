@@ -16,7 +16,6 @@ export type StructurePreviewBelt = {
 
 export type StructurePreviewMachine = {
   machineId: CombinerMachineId
-  recipeId: string
   x: number
   y: number
   facing: Direction

@@ -280,7 +280,7 @@ export class Match {
       combiners: this.combiners.map((machine) => ({
         id: machine.id,
         machineId: machine.machineId,
-        recipeId: machine.recipeId,
+        recipeId: machine.activeRecipeId,
         x: machine.origin.x,
         y: machine.origin.y,
         facing: machine.facing,
@@ -365,10 +365,10 @@ export class Match {
         const machine = new CombinerMachine(
           spec.id,
           spec.machineId,
-          spec.recipeId,
           { x: spec.x, y: spec.y },
           spec.facing,
         )
+        machine.activeRecipeId = spec.recipeId ?? null
         machine.buffer = { ...spec.buffer }
         machine.craftRemaining = spec.craftRemaining
         machine.pendingOutputs = spec.pendingOutputs ? [...spec.pendingOutputs] : null

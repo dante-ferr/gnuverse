@@ -107,7 +107,6 @@ function outputPortOrigin(frame: PipelineFrame, x: number, y: number) {
     const machine = new CombinerMachine(
       spec.id,
       spec.machineId,
-      spec.recipeId,
       { x: spec.x, y: spec.y },
       spec.facing,
     )

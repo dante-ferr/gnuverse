@@ -196,11 +196,9 @@ export class RoomService {
       fail(400, 'Máquina inválida.')
     }
     if (!isDirection(body.facing)) fail(400, 'Direção inválida.')
-    const recipeId = text(body.recipeId, 1, 40, 'Receita')
     const error = match.placeMachine(
       {
         machineId: machineId as CombinerMachineId,
-        recipeId,
         x: integer(body.x, 0, match.width - 1, 'X'),
         y: integer(body.y, 0, match.height - 1, 'Y'),
         facing: body.facing,

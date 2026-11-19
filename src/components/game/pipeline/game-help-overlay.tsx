@@ -74,9 +74,9 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
           <section className={styles.section}>
             <h3>Combinadores (sandbox)</h3>
             <p>
-              Ao escolher um combinador, selecione a receita pelo produto de saída. As entradas
-              exigidas vêm só dessa receita. Depois clique no centro da máquina na grade para
-              posicionar.
+              Escolha o combinador, ajuste a orientação e clique no centro da grade para posicionar.
+              Você não escolhe receita ao colocar a máquina: a saída segue o conjunto de entradas
+              que chegar aos slots.
             </p>
             <ul className={styles.list} aria-label="Combinadores">
               <li>
@@ -85,7 +85,7 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
               </li>
               <li>
                 <span className={styles.key}>Tri-combinador</span>
-                <span>A receita define as três entradas e as saídas.</span>
+                <span>Três entradas; saídas simples ou duplas conforme o que você alimentar.</span>
               </li>
             </ul>
           </section>
