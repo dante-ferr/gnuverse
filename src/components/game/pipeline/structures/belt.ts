@@ -13,9 +13,7 @@ function createBeltSession(): StructurePlacementSession {
   const stroke = new BeltStroke()
   return {
     push(cell) {
-      const before = stroke.cells.length
-      stroke.push(cell)
-      return stroke.cells.length > before
+      return stroke.push(cell)
     },
     previewBelts(): StructurePreviewBelt[] {
       return stroke.cells.map((cell, index) => ({

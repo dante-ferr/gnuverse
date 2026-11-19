@@ -83,6 +83,9 @@ export function PipelineScene({
   structureIdRef.current = structureId
   onToggleEditModeRef.current = onToggleEditMode
 
+  const catalogMachineDecorKey =
+    rules?.elements?.machines?.map((m) => `${m.id}:${m.decor}`).join('|') ?? ''
+
   const paint = () => {
     const canvas = canvasRef.current
     const current = frameRef.current
@@ -165,6 +168,15 @@ export function PipelineScene({
     images.current = loadMachineDecor(() => requestPaint())
     machinePainter.current = new MachinePainter(images.current)
   }, [])
+
+  useEffect(() => {
+    if (!catalogMachineDecorKey) return
+    const kinds = rulesRef.current?.elements?.machines
+    if (!kinds?.length) return
+    images.current = loadMachineDecor(() => requestPaint(), kinds)
+    machinePainter.current = new MachinePainter(images.current)
+    requestPaint()
+  }, [catalogMachineDecorKey])
 
   useEffect(() => {
     if (!frame) return
@@ -392,6 +404,8 @@ export function PipelineScene({
       requestPaint()
       return
     }
+    event.preventDefault()
+    canvasRef.current?.setPointerCapture(event.pointerId)
     if (current) {
       const belt = beltAt(current, cell)
       if (belt) scheduleLongPress(belt, event.clientX, event.clientY)
@@ -460,7 +474,9 @@ export function PipelineScene({
           }
         }}
         onPointerUp={(event) => {
-          if (eraseStroke.current) canvasRef.current?.releasePointerCapture(event.pointerId)
+          if (eraseStroke.current || placement.current) {
+            canvasRef.current?.releasePointerCapture(event.pointerId)
+          }
           pointers.current.delete(event.pointerId)
           pinchDistance.current = null
           pan.current = null
@@ -478,6 +494,7 @@ export function PipelineScene({
           if (request) onPlace(request)
         }}
         onPointerLeave={(event) => {
+          // Keep placement capture active; only erase cancels when leaving the canvas.
           if (eraseStroke.current) {
             canvasRef.current?.releasePointerCapture(event.pointerId)
             eraseStroke.current = null
