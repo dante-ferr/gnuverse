@@ -149,8 +149,13 @@ export function resolveGameConfigPath(configPath?: string): string {
     new URL('./game.config.toml', import.meta.url),
   )
   const projectRootPath = fileURLToPath(new URL('../../', import.meta.url))
+  // Empty `GAME_CONFIG_PATH=` from .env must not win over the default: `??`
+  // only skips null/undefined, so "" was resolved as the repo root and the
+  // watcher looked for `../elements.toml` outside the project.
   const selectedPath =
-    configPath ?? (process.env.GAME_CONFIG_PATH || defaultConfigPath)
+    configPath?.trim() ||
+    process.env.GAME_CONFIG_PATH?.trim() ||
+    defaultConfigPath
   return path.isAbsolute(selectedPath)
     ? selectedPath
     : path.resolve(projectRootPath, selectedPath)
