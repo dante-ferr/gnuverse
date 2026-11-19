@@ -16,6 +16,8 @@ import { parse } from 'smol-toml'
  *   output_slots: number,
  *   coupled_dual_output: boolean,
  *   split_single_across_ports: boolean,
+ *   color: string,
+ *   decor: string,
  * }} MachineKind
  * @typedef {{
  *   id: number,
@@ -238,6 +240,9 @@ function normalizeMachine(row, sourceFile) {
   if (!id) fail(`Machine missing id in ${sourceFile}.`)
   const inputSlots = int(row.input_slots, `machine ${id} input_slots`, 1)
   const outputSlots = int(row.output_slots, `machine ${id} output_slots`, 1)
+  const color = requireHexColor(row.color, `machine ${id} color`)
+  const decor = String(row.decor ?? '').trim()
+  if (!decor) fail(`machine ${id}: decor is required (e.g. pipeline/combiner-2-decor.svg).`)
   return {
     id,
     name_pt: String(row.name_pt ?? id),
@@ -245,6 +250,8 @@ function normalizeMachine(row, sourceFile) {
     output_slots: outputSlots,
     coupled_dual_output: row.coupled_dual_output !== false,
     split_single_across_ports: row.split_single_across_ports !== false,
+    color,
+    decor,
   }
 }
 
@@ -548,6 +555,15 @@ function int(value, label, min) {
 function numOr(value, fallback) {
   const n = Number(value)
   return Number.isFinite(n) ? n : fallback
+}
+
+/** @param {unknown} value @param {string} label */
+function requireHexColor(value, label) {
+  const color = String(value ?? '').trim()
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
+    fail(`${label} must be hex #RRGGBB, got ${JSON.stringify(value)}.`)
+  }
+  return color
 }
 
 /** @param {string} message */

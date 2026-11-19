@@ -6,6 +6,7 @@ import {
 import { SourceMachine } from '../../../../../../game-server/pipeline/machines/source-machine.ts'
 import type { Machine } from '../../../../../../game-server/pipeline/machines/machine.ts'
 import type { PacketShape } from '../../../../../../game-server/pipeline/packets/packet.ts'
+import type { ElementMachineKind } from '../../../../../../game-server/pipeline/elements/index.ts'
 import type { PipelineFrame, PipelineRules } from '../../model/frame.ts'
 import { darkenHex } from './darken-hex.ts'
 import { cellSize } from './grid-painter.ts'
@@ -16,8 +17,12 @@ const resourceDecorSrc: Record<PacketShape, string> = {
 }
 
 export type MachineDecorImages = {
-  core: HTMLImageElement | null
+  coreFrame: HTMLImageElement | null
+  coreGearOuter: HTMLImageElement | null
+  coreGearInner: HTMLImageElement | null
   source: HTMLImageElement | null
+  /** Craft machines from `rules.elements.machines` (keyed by machine id). */
+  byKind: Record<string, HTMLImageElement | null>
   resources: Partial<Record<PacketShape, HTMLImageElement | null>>
 }
 
@@ -37,12 +42,75 @@ export class MachinePainter {
     const core = new CoreMachine(frame.core.id, { x: frame.core.x, y: frame.core.y })
     const specs = frame.sources?.length ? frame.sources : [frame.source]
     const bracketStyle = slotBracketStyleFromRules(rules)
-    this.machine(ctx, core, rules.colorCore, this.images.core, rules, bracketStyle)
+    this.drawCore(ctx, core, rules, bracketStyle, timeMs)
     for (const spec of specs) {
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
-      this.machine(ctx, source, rules.colorSource, this.images.source, rules, bracketStyle)
+      this.drawSource(ctx, source, rules, bracketStyle)
       this.drawOrbitingResourceGlyph(ctx, source, spec.shape, rules, cameraZoom, timeMs)
     }
+  }
+
+  private drawCore(
+    ctx: CanvasRenderingContext2D,
+    machine: Machine,
+    rules: PipelineRules,
+    bracketStyle: SlotBracketStyle,
+    timeMs: number,
+  ) {
+    const { px, py, width, height } = machineRect(machine)
+    this.drawMachineBody(ctx, machine, rules.colorCore, rules, bracketStyle, px, py, width, height)
+
+    const frameInk = darkenHex(rules.colorCore, rules.decorDarkenPercent)
+    drawTintedDecor(ctx, this.images.coreFrame, frameInk, px, py, width, height, this.tintCache)
+
+    const outerAngle = (2 * Math.PI * timeMs) / rules.coreGearOuterMs
+    drawTintedDecorRotated(
+      ctx,
+      this.images.coreGearOuter,
+      rules.colorAccent,
+      px,
+      py,
+      width,
+      height,
+      outerAngle,
+      this.tintCache,
+    )
+
+    const innerInk = darkenHex(rules.colorAccent, rules.decorDarkenPercent)
+    const innerAngle = (-2 * Math.PI * timeMs) / rules.coreGearInnerMs
+    drawTintedDecorRotated(
+      ctx,
+      this.images.coreGearInner,
+      innerInk,
+      px,
+      py,
+      width,
+      height,
+      innerAngle,
+      this.tintCache,
+    )
+  }
+
+  private drawSource(
+    ctx: CanvasRenderingContext2D,
+    machine: SourceMachine,
+    rules: PipelineRules,
+    bracketStyle: SlotBracketStyle,
+  ) {
+    const { px, py, width, height } = machineRect(machine)
+    const cx = px + width / 2
+    const cy = py + height / 2
+    const radius = width / 2
+    ctx.beginPath()
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+    ctx.fillStyle = rules.colorSource
+    ctx.fill()
+    ctx.strokeStyle = rules.colorOutline
+    ctx.lineWidth = rules.outlineWidthPx
+    ctx.stroke()
+    this.drawSlotBrackets(ctx, machine, rules.colorSource, rules, bracketStyle)
+    const decorInk = darkenHex(rules.colorSource, rules.decorDarkenPercent)
+    drawTintedDecor(ctx, this.images.source, decorInk, px, py, width, height, this.tintCache)
   }
 
   private machine(
@@ -53,26 +121,50 @@ export class MachinePainter {
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
   ) {
-    const px = machine.origin.x * cellSize
-    const py = machine.origin.y * cellSize
-    const width = machine.width * cellSize
-    const height = machine.height * cellSize
+    const { px, py, width, height } = machineRect(machine)
+    this.drawMachineBody(ctx, machine, bodyColor, rules, bracketStyle, px, py, width, height)
+    const decorInk = darkenHex(bodyColor, rules.decorDarkenPercent)
+    drawTintedDecor(ctx, decor, decorInk, px, py, width, height, this.tintCache)
+  }
+
+  private drawMachineBody(
+    ctx: CanvasRenderingContext2D,
+    machine: Machine,
+    bodyColor: string,
+    rules: PipelineRules,
+    bracketStyle: SlotBracketStyle,
+    px: number,
+    py: number,
+    width: number,
+    height: number,
+  ) {
     ctx.fillStyle = bodyColor
     ctx.fillRect(px, py, width, height)
     ctx.strokeStyle = rules.colorOutline
     ctx.lineWidth = rules.outlineWidthPx
     ctx.strokeRect(px, py, width, height)
+    this.drawSlotBrackets(ctx, machine, bodyColor, rules, bracketStyle)
+  }
+
+  private drawSlotBrackets(
+    ctx: CanvasRenderingContext2D,
+    machine: Machine,
+    bodyColor: string,
+    rules: PipelineRules,
+    bracketStyle: SlotBracketStyle,
+  ) {
     for (const slot of machine.slots) {
       const path = machine.slotBracket(slot, cellSize, bracketStyle)
       ctx.beginPath()
       ctx.moveTo(path[0]!.x, path[0]!.y)
       for (let i = 1; i < path.length; i++) ctx.lineTo(path[i]!.x, path[i]!.y)
       ctx.closePath()
+      ctx.fillStyle = bodyColor
       ctx.fill()
+      ctx.strokeStyle = rules.colorOutline
+      ctx.lineWidth = rules.outlineWidthPx
       ctx.stroke()
     }
-    const decorInk = darkenHex(bodyColor, rules.decorDarkenPercent)
-    drawTintedDecor(ctx, decor, decorInk, px, py, width, height, this.tintCache)
   }
 
   private drawOrbitingResourceGlyph(
@@ -118,14 +210,50 @@ export class MachinePainter {
   }
 }
 
-/** Prefetch core and source decor; resource glyphs are optional fallbacks. */
-export function loadMachineDecor(onLoad: () => void): MachineDecorImages {
-  const core = new Image()
-  core.src = '/pipeline/core-decor.svg'
-  core.onload = onLoad
+function machineRect(machine: Machine) {
+  const px = machine.origin.x * cellSize
+  const py = machine.origin.y * cellSize
+  const width = machine.width * cellSize
+  const height = machine.height * cellSize
+  return { px, py, width, height }
+}
+
+/** Public URL for a TOML decor path (`pipeline/...` → `/pipeline/...`). */
+export function publicDecorUrl(decorPath: string): string {
+  const trimmed = decorPath.trim()
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+}
+
+/** Decor image for a catalog craft machine; pairing with `kind.color` is the caller’s job. */
+export function decorForKind(images: MachineDecorImages, machineId: string): HTMLImageElement | null {
+  return images.byKind[machineId] ?? null
+}
+
+/** Prefetch core/source decor and optional catalog craft machines; resource glyphs are fallbacks. */
+export function loadMachineDecor(
+  onLoad: () => void,
+  machineKinds?: readonly Pick<ElementMachineKind, 'id' | 'decor'>[],
+): MachineDecorImages {
+  const coreFrame = new Image()
+  coreFrame.src = '/pipeline/core-frame.svg'
+  coreFrame.onload = onLoad
+  const coreGearOuter = new Image()
+  coreGearOuter.src = '/pipeline/core-gear-outer.svg'
+  coreGearOuter.onload = onLoad
+  const coreGearInner = new Image()
+  coreGearInner.src = '/pipeline/core-gear-inner.svg'
+  coreGearInner.onload = onLoad
   const source = new Image()
   source.src = '/pipeline/source-decor.svg'
   source.onload = onLoad
+  const byKind: MachineDecorImages['byKind'] = {}
+  for (const kind of machineKinds ?? []) {
+    if (byKind[kind.id]) continue
+    const image = new Image()
+    image.src = publicDecorUrl(kind.decor)
+    image.onload = onLoad
+    byKind[kind.id] = image
+  }
   const resources: MachineDecorImages['resources'] = {}
   for (const [shape, src] of Object.entries(resourceDecorSrc) as [PacketShape, string][]) {
     const image = new Image()
@@ -133,7 +261,7 @@ export function loadMachineDecor(onLoad: () => void): MachineDecorImages {
     image.onload = onLoad
     resources[shape] = image
   }
-  return { core, source, resources }
+  return { coreFrame, coreGearOuter, coreGearInner, source, byKind, resources }
 }
 
 function drawTintedDecor(
@@ -162,4 +290,24 @@ function drawTintedDecor(
     cache.set(key, tinted)
   }
   ctx.drawImage(tinted, x, y, width, height)
+}
+
+function drawTintedDecorRotated(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | null,
+  ink: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  angleRad: number,
+  cache: Map<string, HTMLCanvasElement>,
+) {
+  const cx = x + width / 2
+  const cy = y + height / 2
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(angleRad)
+  drawTintedDecor(ctx, image, ink, -width / 2, -height / 2, width, height, cache)
+  ctx.restore()
 }

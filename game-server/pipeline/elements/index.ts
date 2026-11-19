@@ -11,6 +11,8 @@ export type ElementMachineKind = {
   output_slots: number
   coupled_dual_output: boolean
   split_single_across_ports: boolean
+  color: string
+  decor: string
 }
 
 export type ElementChapter = {

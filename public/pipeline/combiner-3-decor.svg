@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" fill="none" viewBox="0 0 512 512">
+  <!-- QuiverAI tri-combiner; stroke family with combiner-2 / core. -->
+  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m438.2 482.8h-364.4c-25.4 0-48.2-20.2-48.2-46v-362.4c0-25.8 21-45.8 46.2-45.8h365.2c25.2 0 45.4 20 45.4 45.8v362.4c0 25.8-21.6 46-48.2 46z" stroke-width="26"/>
+    <path d="m426.4 453.8h-340.6c-15.2 0-27.8-12-27.8-27.4v-341.2c0-15.4 12.4-27.8 27.8-27.8h340.6c15.2 0 27.8 12.2 27.8 27.8v341c0 15.4-12.8 27.6-27.8 27.6z" stroke-width="11.2"/>
+    <path d="m129 79h-42.4c-3.6 0-6.4 2.4-6.4 6.4v40m0 258.4v38.4c0 3.8 2.8 6.4 6.4 6.4h42.4" stroke-width="13.4"/>
+    <circle cx="110" cy="151.6" r="7" fill="#000000" stroke="none"/>
+    <circle cx="110" cy="172.8" r="7" fill="#000000" stroke="none"/>
+    <circle cx="110" cy="194.4" r="7" fill="#000000" stroke="none"/>
+    <path d="m83.2 228.8h40.2m-40.2 20.4h40.2m-40.2 20.4h40.2m-40.2 20.4h40.2" stroke-width="12"/>
+    <path d="m383 79h42.8c3.6 0 6.4 2.4 6.4 6.4v40m0 258.4v38.4c0 3.8-2.8 6.4-6.4 6.4h-42.8" stroke-width="13.4"/>
+    <circle cx="402" cy="151.6" r="7" fill="#000000" stroke="none"/>
+    <circle cx="402" cy="172.8" r="7" fill="#000000" stroke="none"/>
+    <circle cx="402" cy="194.4" r="7" fill="#000000" stroke="none"/>
+    <path d="m428.8 228.8h-40m40 20.4h-40m40 20.4h-40m40 20.4h-40" stroke-width="12"/>
+    <path d="m223.4 136.8-43 44.2a11.6 11.6 0 0 0-3.2 8.6v140.6c0 3.2 1 6.2 3.2 8.4l41.8 44" stroke-width="14.4"/>
+    <path d="m287.8 136.8 43.8 44.2a12 12 0 0 1 3.4 8.8v140.4c0 3.2-1 6.4-3.2 8.4l-41.6 44" stroke-width="14.4"/>
+    <path d="m224.4 104.4v34.4h63v-34.4h-63z" stroke-width="12.8"/>
+    <rect x="213.4" y="84.6" width="85.4" height="19.8" rx="9.6" stroke-width="12"/>
+    <path d="m237.8 139-16.4 45c-0.6 1.6-0.8 3.2-0.8 4.8v52m53.8-101.8 16.4 44.4c0.6 1.6 1 3.2 1 4.8v52m-71.2 21.6v90.4c0 2 0.6 4 1.6 5.6l14.6 25.8m58.2-121.8v90.4c0 2-0.6 4-1.6 5.6l-14.6 25.8" stroke-width="11"/>
+    <circle cx="255.8" cy="253.4" r="22.6" stroke-width="9.8"/>
+    <circle cx="255.8" cy="253.8" r="9.6" fill="#000000" stroke="none"/>
+    <path d="m236.2 241.2h-67.8m0 19.8h67.8m39.6-39.8h67.8m0 19.8h-67.8" stroke-width="12"/>
+    <rect x="202.6" y="407.2" width="105.8" height="21.6" rx="10.8" stroke-width="11.8"/>
+    <rect x="215.2" y="383.6" width="81.6" height="23.4" rx="11.2" stroke-width="12"/>
+  </g>
+</svg>

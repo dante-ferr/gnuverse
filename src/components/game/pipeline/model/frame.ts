@@ -32,6 +32,8 @@ export type PipelineRules = {
   resourceGlyphSizePx: number
   resourceGlyphOrbitPx: number
   resourceGlyphOrbitMs: number
+  coreGearOuterMs: number
+  coreGearInnerMs: number
   beltChevronStrokePx: number
   beltChevronFlowMs: number
   machineClearanceMin: number

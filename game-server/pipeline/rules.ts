@@ -49,6 +49,10 @@ export type PipelineRules = {
   resourceGlyphOrbitPx: number
   /** Full orbit period (ms). */
   resourceGlyphOrbitMs: number
+  /** Core outer gear full clockwise turn (ms). */
+  coreGearOuterMs: number
+  /** Core inner gear full counter-clockwise turn (ms). */
+  coreGearInnerMs: number
   /** Belt chevron stroke width (px, zoomed with the grid). */
   beltChevronStrokePx: number
   /** Ms for chevrons to drift one grid cell along the belt. */

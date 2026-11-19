@@ -213,7 +213,7 @@ function renderRecipeDetails(output, catalog) {
       <div><dt>Capítulo</dt><dd>${output.demand_chapter}</dd></div>
       <div><dt>Máquina</dt><dd>${
         machine
-          ? `${escapeHtml(machine.name_pt)} (<code>${escapeHtml(machine.id)}</code>)`
+          ? `<span class="swatch" style="background:${escapeAttr(machine.color)}" aria-hidden="true"></span> ${escapeHtml(machine.name_pt)} (<code>${escapeHtml(machine.id)}</code>) <code class="muted">${escapeHtml(machine.decor)}</code>`
           : '—'
       }</dd></div>
       <div><dt>Craft</dt><dd>${output.craft_ticks ?? '—'} ticks · produtividade ${

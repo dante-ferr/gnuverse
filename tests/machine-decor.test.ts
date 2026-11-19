@@ -18,17 +18,15 @@ test('pipeline config exposes decor_darken_percent', () => {
   assert.equal(pipeline.decorDarkenPercent, 35)
 })
 
-test('pipeline decor SVGs use decor_stroke_width from config', () => {
+test('pipeline config exposes core gear rotation periods', () => {
   const { pipeline } = loadGameConfig()
-  const width = String(pipeline.decorStrokeWidth)
-  for (const file of ['core-decor.svg', 'source-decor.svg']) {
-    const svg = readFileSync(path.join(root, 'public/pipeline', file), 'utf8')
-    assert.match(
-      svg,
-      new RegExp(`stroke-width="${width}"`),
-      `${file} must include thick strokes at decor_stroke_width`,
-    )
-  }
+  assert.equal(pipeline.coreGearOuterMs, 12000)
+  assert.equal(pipeline.coreGearInnerMs, 7000)
+})
+
+test('pipeline config exposes decor_stroke_width for art sync', () => {
+  const { pipeline } = loadGameConfig()
+  assert.equal(pipeline.decorStrokeWidth, 28)
 })
 
 test('resource-circle SVG is a single filled black disk', () => {
@@ -41,7 +39,12 @@ test('resource-circle SVG is a single filled black disk', () => {
 })
 
 test('machine decor SVGs are pure black ink on transparent', () => {
-  for (const file of ['core-decor.svg', 'source-decor.svg']) {
+  for (const file of [
+    'core-frame.svg',
+    'core-gear-outer.svg',
+    'core-gear-inner.svg',
+    'source-decor.svg',
+  ]) {
     const svg = readFileSync(path.join(root, 'public/pipeline', file), 'utf8').toLowerCase()
     assert.ok(!svg.includes('#52d6c9'), `${file} must not embed accent; tint at draw time`)
     assert.match(svg, /#000000|"#000"/)

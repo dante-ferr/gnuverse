@@ -8,7 +8,7 @@ Open Pipeline packets are **elements** defined in TOML under `game-server/config
 - Optional extras: any `*.toml` under `game-server/config/elements/`
 - Shared loader: `game-server/pipeline/elements/load-catalog.mjs` (also used by the game-server `rules.elements` payload)
 - Globals in TOML: `max_tier`, `retain_prior_demands`, `default_craft_ticks`, `default_productivity`, `default_glyph_size_px`, `default_stroke`, `default_demand_required`, `starter_source_ids`
-- `[[machines]]`, `[[chapters]]` (`max_new_bases`, `required_multiplier`), `[preview]` layout sizes
+- `[[machines]]` (`color`, `decor` under `public/pipeline/` like element glyphs; core/source colors stay in `[pipeline]`), `[[chapters]]` (`max_new_bases`, `required_multiplier`), `[preview]` layout sizes
 - Per element: `fill` / `stroke` / `glyph` / `family` / `sort_key`; bases add `source_period_ticks` and `source_spawn_chance_percent`; crafts add `machine`, `craft_ticks`, `productivity`
 - Crafted rows: `inputs` length **2 or 3**; `outputs` defaults to `[id]`, or two ids for dual products
 - Co-products: `coproduct_of = "primary_id"` (no `inputs`); must appear in the primary `outputs`

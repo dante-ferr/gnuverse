@@ -37,6 +37,8 @@ export function testPipelineRules(overrides: Partial<PipelineRules> = {}): Pipel
     resourceGlyphSizePx: 28,
     resourceGlyphOrbitPx: 4,
     resourceGlyphOrbitMs: 4000,
+    coreGearOuterMs: 12000,
+    coreGearInnerMs: 7000,
     beltChevronStrokePx: 4,
     beltChevronFlowMs: 900,
     machineClearanceMin: 1,

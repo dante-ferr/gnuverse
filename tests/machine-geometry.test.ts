@@ -81,6 +81,20 @@ test('slotBracket uses shallower input depth and deeper output depth', () => {
   assert.ok(outputProtrusion > inputProtrusion)
 })
 
+test('source output slotBracket back edge insets into the footprint', () => {
+  const cellPx = 100
+  const source = new SourceMachine('source', { x: 0, y: 0 }, 'east', 'circle', 4)
+  const output = source.outputSlots()[0]!
+  const outPath = source.slotBracket(output, cellPx)
+  const rimX = output.cell.x * cellPx
+  const expectedInset = (SourceMachine.outputBracketInsetPercent / 100) * cellPx
+  const backXs = outPath
+    .filter((point) => point.y === output.cell.y * cellPx || point.y === (output.cell.y + 1) * cellPx)
+    .map((point) => point.x)
+  assert.ok(backXs.length >= 2)
+  assert.equal(Math.min(...backXs), rimX - expectedInset)
+})
+
 test('output slotBracket spine chevron points along slot travel', () => {
   const cellPx = 100
   const source = new SourceMachine('source', { x: 0, y: 0 }, 'east', 'circle', 4)
