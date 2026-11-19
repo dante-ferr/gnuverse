@@ -33,3 +33,15 @@ test('members without admin role use the normal wallet cap', () => {
   assert.equal(view.balance, 3)
   assert.equal(view.cap, 5)
 })
+
+test('spend deducts member coins and leaves admin balance untouched', () => {
+  const wallet = new WalletService(createRules(), () => 0)
+  const member = user(['member'], 4)
+  const after = wallet.spend(member, 2)
+  assert.equal(after.balance, 2)
+  assert.equal(member.balance, 2)
+  const admin = user(['admin', 'member'], 0)
+  const adminView = wallet.spend(admin, 99)
+  assert.equal(adminView.balance, Number.MAX_SAFE_INTEGER)
+  assert.equal(admin.balance, 0)
+})

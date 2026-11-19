@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react'
-import type { BeltRecord, PipelineFrame } from '../model/frame.ts'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import type { BeltRecord, PipelineFrame, PipelineRules } from '../model/frame.ts'
 import { getStructure, type StructurePlacementSession, type StructurePlaceRequest } from '../structures'
 import { BeltEraseStroke } from './belt-erase-stroke.ts'
 import { GridCamera } from './grid-camera.ts'
@@ -15,11 +15,22 @@ import styles from '../../game-shell.module.css'
 
 export type EditMode = 'create' | 'delete'
 
+type ChunkBuyAnchor = {
+  key: string
+  cx: number
+  cy: number
+  x: number
+  y: number
+}
+
 type Props = {
   frame: PipelineFrame | null
   rules: PipelineRules | null
   editMode: EditMode
   structureId: string
+  chunkCost: number | null
+  buyBusy?: boolean
+  onBuyChunk: (coord: { cx: number; cy: number }) => void
   onPlace: (request: StructurePlaceRequest) => void
   onRemove: (cells: { x: number; y: number }[]) => void
   onToggleEditMode: () => void
@@ -37,6 +48,9 @@ export function PipelineScene({
   rules,
   editMode,
   structureId,
+  chunkCost,
+  buyBusy,
+  onBuyChunk,
   onPlace,
   onRemove,
   onToggleEditMode,
@@ -48,6 +62,7 @@ export function PipelineScene({
   const editModeRef = useRef(editMode)
   const structureIdRef = useRef(structureId)
   const onToggleEditModeRef = useRef(onToggleEditMode)
+  const originChunkRef = useRef<{ cx: number; cy: number } | null>(null)
   const images = useRef(loadMachineDecor(() => {}))
   const machinePainter = useRef(new MachinePainter(images.current))
   const gridPainter = useRef(new GridPainter())
@@ -58,6 +73,10 @@ export function PipelineScene({
   const viewSize = useRef<ViewSize>({ width: 1, height: 1, left: 0, top: 0 })
   const paintScheduled = useRef(false)
   const animateFrameId = useRef(0)
+  const buyAnchorSig = useRef('')
+  /** Keeps the buy button visible while the pointer moves from the canvas onto the button. */
+  const pinnedBuyChunk = useRef<{ cx: number; cy: number } | null>(null)
+  const [buyAnchors, setBuyAnchors] = useState<ChunkBuyAnchor[]>([])
   frameRef.current = frame
   rulesRef.current = rules
   editModeRef.current = editMode
@@ -112,6 +131,25 @@ export function PipelineScene({
     const hover = pinnedBlame.current ?? hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
     readoutPainter.current.draw(ctx, current, palette, hover)
     ctx.restore()
+    syncBuyAnchors(current, palette, camera, view)
+  }
+
+  const syncBuyAnchors = (
+    current: PipelineFrame,
+    palette: PipelineRules,
+    camera: GridCamera,
+    view: ViewSize,
+  ) => {
+    const hovered =
+      pinnedBuyChunk.current ??
+      previewChunkUnderPointer(current, palette, camera, lastPointer.current)
+    const next = hovered
+      ? previewBuyAnchor(current, palette, camera, view, hovered)
+      : []
+    const signature = next.map((item) => `${item.key}:${item.x}:${item.y}`).join('|')
+    if (signature === buyAnchorSig.current) return
+    buyAnchorSig.current = signature
+    setBuyAnchors(next)
   }
 
   const requestPaint = () => {
@@ -130,9 +168,22 @@ export function PipelineScene({
 
   useEffect(() => {
     if (!frame) return
-    cameraRef.current.setWorldSize(frame.width, frame.height)
+    const origin = frame.originChunk ?? { cx: 0, cy: 0 }
+    const previous = originChunkRef.current
+    const chunkSize = rulesRef.current?.chunkSize ?? 24
+    if (previous) {
+      const dx = (previous.cx - origin.cx) * chunkSize
+      const dy = (previous.cy - origin.cy) * chunkSize
+      if (dx !== 0 || dy !== 0) {
+        cameraRef.current.compensateOriginShift(dx, dy, cellSize)
+      }
+      cameraRef.current.setWorldSize(frame.width, frame.height, { keepView: true })
+    } else {
+      cameraRef.current.setWorldSize(frame.width, frame.height)
+    }
+    originChunkRef.current = { ...origin }
     requestPaint()
-  }, [frame?.width, frame?.height])
+  }, [frame?.width, frame?.height, frame?.originChunk?.cx, frame?.originChunk?.cy])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -353,11 +404,7 @@ export function PipelineScene({
   }
 
   return (
-    <>
-      <p className={styles.sceneHud} aria-live="polite">
-        <span>{editMode === 'create' ? 'Criar' : 'Apagar'}</span>
-        <span>E alterna</span>
-      </p>
+    <div className={styles.sceneStack}>
       <canvas
         ref={canvasRef}
         className={`${styles.pipelineCanvas} ${
@@ -436,7 +483,12 @@ export function PipelineScene({
             eraseStroke.current = null
             revertPendingRemovals()
           }
+          const next = event.relatedTarget
+          if (next instanceof Element && next.closest(`.${styles.chunkBuyButton}`)) {
+            return
+          }
           lastPointer.current = null
+          pinnedBuyChunk.current = null
           requestPaint()
         }}
         onWheel={(event) => {
@@ -447,7 +499,31 @@ export function PipelineScene({
           requestPaint()
         }}
       />
-    </>
+      {chunkCost != null && buyAnchors.length > 0 ? (
+        <div className={styles.chunkBuyLayer} aria-label="Comprar trechos">
+          {buyAnchors.map((anchor) => (
+            <button
+              key={anchor.key}
+              type="button"
+              className={styles.chunkBuyButton}
+              style={{ left: anchor.x, top: anchor.y }}
+              disabled={buyBusy}
+              onPointerEnter={() => {
+                pinnedBuyChunk.current = { cx: anchor.cx, cy: anchor.cy }
+              }}
+              onPointerLeave={() => {
+                pinnedBuyChunk.current = null
+                lastPointer.current = null
+                requestPaint()
+              }}
+              onClick={() => onBuyChunk({ cx: anchor.cx, cy: anchor.cy })}
+            >
+              Comprar · {chunkCost}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -487,4 +563,57 @@ function parseCellKey(key: string) {
   const y = Number(ys)
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null
   return { x, y }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function previewChunkUnderPointer(
+  frame: PipelineFrame,
+  rules: PipelineRules,
+  camera: GridCamera,
+  pointer: { x: number; y: number } | null,
+): { cx: number; cy: number } | null {
+  if (!pointer) return null
+  const cell = camera.cellAt(pointer.x, pointer.y, cellSize)
+  if (cell.x < 0 || cell.y < 0 || cell.x >= frame.width || cell.y >= frame.height) return null
+  const origin = frame.originChunk ?? { cx: 0, cy: 0 }
+  const chunkSize = rules.chunkSize
+  const coord = {
+    cx: origin.cx + Math.floor(cell.x / chunkSize),
+    cy: origin.cy + Math.floor(cell.y / chunkSize),
+  }
+  const key = `${coord.cx},${coord.cy}`
+  if (!(frame.previewChunks ?? []).some((item) => `${item.cx},${item.cy}` === key)) return null
+  return coord
+}
+
+function previewBuyAnchor(
+  frame: PipelineFrame,
+  rules: PipelineRules,
+  camera: GridCamera,
+  view: ViewSize,
+  coord: { cx: number; cy: number },
+): ChunkBuyAnchor[] {
+  const origin = frame.originChunk ?? { cx: 0, cy: 0 }
+  const chunkSize = rules.chunkSize
+  const pad = 36
+  const localX = (coord.cx - origin.cx) * chunkSize
+  const localY = (coord.cy - origin.cy) * chunkSize
+  const left = camera.x + localX * cellSize * camera.zoom
+  const top = camera.y + localY * cellSize * camera.zoom
+  const extent = chunkSize * cellSize * camera.zoom
+  if (left >= view.width || top >= view.height || left + extent <= 0 || top + extent <= 0) return []
+  const centerX = left + extent / 2
+  const centerY = top + extent / 2
+  return [
+    {
+      key: `${coord.cx},${coord.cy}`,
+      cx: coord.cx,
+      cy: coord.cy,
+      x: Math.round(clamp(centerX, pad, Math.max(pad, view.width - pad))),
+      y: Math.round(clamp(centerY, pad, Math.max(pad, view.height - pad))),
+    },
+  ]
 }

@@ -14,6 +14,8 @@ type Props = {
   members: Member[]
   proposals: Proposal[]
   busy?: boolean
+  canAdvance?: boolean
+  onAdvance?: () => void
   onRefresh: () => Promise<void>
   onError: (message: string) => void
 }
@@ -27,6 +29,8 @@ export function RoomDecisions({
   members,
   proposals,
   busy,
+  canAdvance,
+  onAdvance,
   onRefresh,
   onError,
 }: Props) {
@@ -54,6 +58,17 @@ export function RoomDecisions({
       <h2 id="room-decisions-heading" className={styles.sidebarSectionTitle}>
         Decisões
       </h2>
+      {canAdvance && onAdvance ? (
+        <div className={styles.form}>
+          <p className={styles.quiet}>
+            A versão sobe sozinha quando as demandas são cumpridas. Administradores podem forçar o
+            próximo marco.
+          </p>
+          <button type="button" className={styles.secondary} disabled={busy} onClick={onAdvance}>
+            Avançar versão
+          </button>
+        </div>
+      ) : null}
       <div className={styles.proposals}>
         {proposals.length === 0 ? (
           <p className={styles.quiet}>Nenhuma proposta ainda.</p>

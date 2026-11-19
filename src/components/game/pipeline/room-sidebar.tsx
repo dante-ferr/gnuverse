@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { GameApi } from '../api/game-api'
-import type { ChatMessage, Member, Proposal, User } from '../model/types'
+import type { ChatMessage, GameEvent, Member, Proposal, User } from '../model/types'
 import type { EditMode } from './scene/pipeline-scene'
 import type { PipelineFrame, PipelineRules } from './model/frame'
 import { CoreRequirementsSidebar } from './core-requirements-sidebar'
@@ -27,10 +27,13 @@ type Props = {
   creatorId: string
   members: Member[]
   proposals: Proposal[]
+  events: GameEvent[]
   chat: ChatMessage[]
   loginHref: string
   chatMaxLength: number
   busy?: boolean
+  canAdvance?: boolean
+  onAdvance?: () => void
   onRefresh: () => Promise<void>
   onError: (message: string) => void
   onSendChat: (text: string) => void
@@ -56,10 +59,13 @@ export function RoomSidebar({
   creatorId,
   members,
   proposals,
+  events,
   chat,
   loginHref,
   chatMaxLength,
   busy,
+  canAdvance,
+  onAdvance,
   onRefresh,
   onError,
   onSendChat,
@@ -100,6 +106,7 @@ export function RoomSidebar({
             user={user}
             creatorId={creatorId}
             members={members}
+            events={events}
             collaborators={frame?.collaborators ?? []}
             busy={busy}
             onRefresh={onRefresh}
@@ -115,6 +122,8 @@ export function RoomSidebar({
             members={members}
             proposals={proposals}
             busy={busy}
+            canAdvance={canAdvance}
+            onAdvance={onAdvance}
             onRefresh={onRefresh}
             onError={onError}
           />

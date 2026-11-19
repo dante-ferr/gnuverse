@@ -79,6 +79,20 @@ export function PipelineRoom() {
       await live.refresh()
     })
   }
+  const buyChunk = (coord: { cx: number; cy: number }) => {
+    if (!session.user) {
+      router.push(loginHref)
+      return
+    }
+    void feedback.run(async () => {
+      const result = await session.api.request<{
+        frame: unknown
+        wallet: NonNullable<typeof session.wallet>
+      }>(`/api/towers/${lobby.roomId}/buy-chunk`, coord)
+      if (result.wallet) session.setWallet(result.wallet)
+      await live.refresh()
+    })
+  }
   const sendChat = (text: string) => {
     if (!session.user) {
       router.push(loginHref)
@@ -135,9 +149,6 @@ export function PipelineRoom() {
               router.push('/jogo/')
             })
           }
-          canAdvance={Boolean(lobby.roomId && isAdmin)}
-          onAdvance={advance}
-          busy={feedback.busy}
         />
         <AccountBanner
           user={session.user}
@@ -184,6 +195,15 @@ export function PipelineRoom() {
               rules={rules}
               editMode={editMode}
               structureId={structureId}
+              chunkCost={
+                rules
+                  ? rules.chunkCostBase +
+                    rules.chunkCostStep *
+                      Math.max(0, (live.frame.ownedChunks?.length ?? 1) - 1)
+                  : null
+              }
+              buyBusy={feedback.busy}
+              onBuyChunk={buyChunk}
               onPlace={place}
               onRemove={remove}
               onToggleEditMode={() =>
@@ -204,10 +224,13 @@ export function PipelineRoom() {
             creatorId={live.creatorId}
             members={live.members}
             proposals={live.proposals}
+            events={live.events}
             chat={live.chat}
             loginHref={loginHref}
             chatMaxLength={chatMaxLength}
             busy={feedback.busy}
+            canAdvance={Boolean(lobby.roomId && isAdmin)}
+            onAdvance={advance}
             onRefresh={live.refresh}
             onError={feedback.setError}
             onSendChat={sendChat}

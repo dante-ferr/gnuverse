@@ -33,16 +33,16 @@ export class Match {
   nextBeltSeq = 1
   readonly rules: PipelineRules
   readonly seed: string
-  readonly width: number
-  readonly height: number
-  readonly originChunk: ChunkCoord
+  width: number
+  height: number
+  originChunk: ChunkCoord
   readonly ownedChunks: ChunkCoord[]
   readonly previewChunks: ChunkCoord[]
   readonly sources: SourceMachine[]
   readonly sourceRoles: Record<string, SourceRole>
   readonly core: CoreMachine
-  private readonly ownedChunkKeys: Set<string>
-  private readonly previewChunkKeys: Set<string>
+  private ownedChunkKeys: Set<string>
+  private previewChunkKeys: Set<string>
 
   constructor(
     rules: PipelineRules,
@@ -110,6 +110,12 @@ export class Match {
 
   inPlayableBounds(cell: Cell) {
     return this.inBounds(cell) && this.isOwnedCell(cell)
+  }
+
+  /** Refresh membership sets after owned/preview arrays change (chunk purchase). */
+  rebuildChunkKeys() {
+    this.ownedChunkKeys = chunkKeySet(this.ownedChunks)
+    this.previewChunkKeys = chunkKeySet(this.previewChunks)
   }
 
   sourceEmitsInPlay(source: SourceMachine) {

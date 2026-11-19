@@ -1,4 +1,6 @@
 import type { Rules, User } from '../domain/types.ts'
+import { fail } from '../domain/validation.ts'
+
 export class WalletService {
   private rules: Readonly<Rules>
   private now: () => number
@@ -41,5 +43,16 @@ export class WalletService {
           : user.coinAt + this.rules.intervalMs,
       intervalMs: this.rules.intervalMs,
     }
+  }
+  /** Accrue passive coins, then deduct. Admins / infinite wallets skip the debit. */
+  spend(user: User, amount: number) {
+    if (!Number.isInteger(amount) || amount < 0)
+      fail(400, 'Custo inválido.')
+    if (amount === 0) return this.read(user)
+    if (this.unlimited(user)) return this.read(user)
+    const view = this.read(user)
+    if (view.balance < amount) fail(402, 'Moedas insuficientes.')
+    user.balance -= amount
+    return this.read(user)
   }
 }

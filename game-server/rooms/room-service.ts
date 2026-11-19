@@ -10,6 +10,10 @@ import { Match } from '../pipeline/world/match.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import { canManageRoom } from '../../core/authz/policy.ts'
 import { forceAdvance } from '../pipeline/world/progression/unlock.ts'
+import {
+  buyPreviewChunk,
+  nextChunkCost,
+} from '../pipeline/world/chunks/purchase.ts'
 
 export class RoomService {
   private store: GameStore
@@ -217,6 +221,23 @@ export class RoomService {
     this.runtime.afterAction(room)
     return { frame: room.frame }
   }
+  buyChunk(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(room)
+    const extent = this.rules.pipeline.mapChunkExtent
+    const cx = integer(body.cx, 0, extent - 1, 'Chunk X')
+    const cy = integer(body.cy, 0, extent - 1, 'Chunk Y')
+    const cost = nextChunkCost(match)
+    const error = buyPreviewChunk(match, { cx, cy })
+    if (error) fail(409, error)
+    const wallet = this.wallet.spend(user, cost)
+    room.frame = match.toFrame()
+    participant.contributions++
+    room.actionCount++
+    room.lastActorId = user.id
+    this.history.event(room, 'chunk-buy', user.id, { cx, cy, cost })
+    this.runtime.afterAction(room)
+    return { frame: room.frame, wallet, cost }
+  }
   chat(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     this.editable(room)
     const now = this.now()
@@ -295,7 +316,10 @@ export class RoomService {
       participant.contributions >= room.minContributions
     )
       participant.eligible = true
-    this.history.event(room, eventType, user.id, { belts: room.beltCount })
+    this.history.event(room, eventType, user.id, {
+      structure: 'belt',
+      belts: room.beltCount,
+    })
     this.runtime.afterAction(room)
     return { frame: room.frame }
   }

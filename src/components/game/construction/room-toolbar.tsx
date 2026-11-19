@@ -8,9 +8,6 @@ type Props = {
   onCreate: () => void
   canDelete: boolean
   onDelete: () => void
-  canAdvance?: boolean
-  onAdvance?: () => void
-  busy?: boolean
 }
 
 export function RoomToolbar({
@@ -19,9 +16,6 @@ export function RoomToolbar({
   onCreate,
   canDelete,
   onDelete,
-  canAdvance,
-  onAdvance,
-  busy,
 }: Props) {
   return (
     <div className={styles.detailToolbar}>
@@ -36,11 +30,6 @@ export function RoomToolbar({
         <i />
         {connection === 'live' ? 'Ao vivo' : connection === 'connecting' ? 'Conectando' : 'Offline'}
       </span>
-      {canAdvance && onAdvance ? (
-        <button type="button" className={styles.quiet} disabled={busy} onClick={onAdvance}>
-          Avançar versão
-        </button>
-      ) : null}
       <button className={styles.secondary} onClick={onCreate}>
         Nova sala
       </button>

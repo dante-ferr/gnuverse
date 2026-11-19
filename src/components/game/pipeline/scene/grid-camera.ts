@@ -20,11 +20,17 @@ export class GridCamera {
     this.zoom = Math.min(this.zoomMax, Math.max(this.zoomMin, this.zoom))
   }
 
-  setWorldSize(columns: number, rows: number) {
+  setWorldSize(columns: number, rows: number, options?: { keepView?: boolean }) {
     if (columns === this.columns && rows === this.rows) return
     this.columns = columns
     this.rows = rows
-    this.fitted = false
+    if (!options?.keepView) this.fitted = false
+  }
+
+  /** Shift the camera so remapped local cells stay under the same screen point. */
+  compensateOriginShift(dxCells: number, dyCells: number, cell: number) {
+    this.x -= dxCells * cell * this.zoom
+    this.y -= dyCells * cell * this.zoom
   }
 
   fit(viewWidth: number, viewHeight: number, cell: number) {
