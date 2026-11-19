@@ -5,6 +5,12 @@ import { cellSize } from './grid-painter.ts'
 
 /** Packets are clipped to belt cells so they never paint over machines. */
 export class PacketPainter {
+  private resourceGlyphs: Record<string, HTMLImageElement | null> = {}
+
+  setResourceGlyphs(glyphs: Record<string, HTMLImageElement | null>) {
+    this.resourceGlyphs = glyphs
+  }
+
   draw(
     ctx: CanvasRenderingContext2D,
     frame: PipelineFrame,
@@ -58,8 +64,7 @@ export class PacketPainter {
   ) {
     const el = rules.elements.elements.find((item) => item.id === shape)
     if (!el?.glyph) return false
-    const src = el.glyph.startsWith('/') ? el.glyph : `/${el.glyph}`
-    const image = (globalThis as { __packetGlyphs?: Record<string, HTMLImageElement> }).__packetGlyphs?.[src]
+    const image = this.resourceGlyphs[shape]
     if (!image?.complete || image.naturalWidth <= 0) return false
     const size = el.glyph_size_px ?? rules.resourceGlyphSizePx
     ctx.drawImage(image, px - size / 2, py - size / 2, size, size)

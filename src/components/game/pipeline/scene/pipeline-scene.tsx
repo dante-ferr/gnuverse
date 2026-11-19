@@ -93,8 +93,10 @@ export function PipelineScene({
   structureIdRef.current = structureId
   onToggleEditModeRef.current = onToggleEditMode
 
-  const catalogMachineDecorKey =
-    rules?.elements?.machines?.map((m) => `${m.id}:${m.decor}`).join('|') ?? ''
+  const catalogDecorKey = [
+    rules?.elements?.machines?.map((m) => `${m.id}:${m.decor}`).join('|') ?? '',
+    rules?.elements?.elements?.map((e) => `${e.id}:${e.glyph}`).join('|') ?? '',
+  ].join('//')
 
   const paint = () => {
     const canvas = canvasRef.current
@@ -157,7 +159,7 @@ export function PipelineScene({
     )
     const packetFrame = packets.length === current.packets.length ? current : { ...current, packets }
     packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs)
-    machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs)
+    machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs, packetMotion.current)
     const machineGhost: StructurePreviewMachine | null | undefined =
       hoverGhost?.machine ??
       (editModeRef.current === 'create' ? placement.current?.previewMachine?.() : null)
@@ -204,13 +206,16 @@ export function PipelineScene({
   }, [])
 
   useEffect(() => {
-    if (!catalogMachineDecorKey) return
-    const kinds = rulesRef.current?.elements?.machines
-    if (!kinds?.length) return
-    images.current = loadMachineDecor(() => requestPaint(), kinds)
+    if (!catalogDecorKey) return
+    const palette = rulesRef.current
+    const kinds = palette?.elements?.machines
+    const elements = palette?.elements?.elements
+    if (!kinds?.length && !elements?.length) return
+    images.current = loadMachineDecor(() => requestPaint(), kinds, elements, palette)
     machinePainter.current = new MachinePainter(images.current)
+    packetPainter.current.setResourceGlyphs(images.current.resources)
     requestPaint()
-  }, [catalogMachineDecorKey])
+  }, [catalogDecorKey])
 
   useEffect(() => {
     if (!frame) return

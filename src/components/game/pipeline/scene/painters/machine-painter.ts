@@ -7,8 +7,11 @@ import { SourceMachine } from '../../../../../../game-server/pipeline/machines/s
 import type { Machine } from '../../../../../../game-server/pipeline/machines/machine.ts'
 import { CombinerMachine } from '../../../../../../game-server/pipeline/machines/combiner-machine.ts'
 import type { PacketShape } from '../../../../../../game-server/pipeline/packets/packet.ts'
-import type { ElementMachineKind } from '../../../../../../game-server/pipeline/elements/index.ts'
-import type { Direction, PipelineFrame, PipelineRules } from '../../model/frame.ts'
+import type { ElementMachineKind, ElementRecord } from '../../../../../../game-server/pipeline/elements/index.ts'
+import { glyphUrlForShape } from '../../model/frame.ts'
+import type { Direction, PipelineFrame, PipelineRules, SourceRecord } from '../../model/frame.ts'
+import type { PacketMotionState } from '../packet-motion.ts'
+import { sourceIsExporting, sourceOutputCell } from '../source-exporting.ts'
 import { darkenHex } from './darken-hex.ts'
 import { cellSize } from './grid-painter.ts'
 
@@ -24,12 +27,15 @@ export type MachineDecorImages = {
   source: HTMLImageElement | null
   /** Craft machines from `rules.elements.machines` (keyed by machine id). */
   byKind: Record<string, HTMLImageElement | null>
-  resources: Partial<Record<PacketShape, HTMLImageElement | null>>
+  /** Element and legacy packet-shape glyphs keyed by catalog id. */
+  resources: Record<string, HTMLImageElement | null>
 }
 
 /** Draws machine bodies (cell-fit rects), “[” slots, tinted decor SVGs, and orbiting glyphs. */
 export class MachinePainter {
   private readonly tintCache = new Map<string, HTMLCanvasElement>()
+  private readonly resourceGlyphPhaseRad = new Map<string, number>()
+  private lastDrawTimeMs = 0
 
   constructor(private readonly images: MachineDecorImages) {}
 
@@ -49,7 +55,7 @@ export class MachinePainter {
     const combiner = new CombinerMachine(
       'ghost',
       spec.machineId,
-      spec.recipeId || 'steam',
+      spec.recipeId,
       { x: spec.x, y: spec.y },
       spec.facing,
     )
@@ -70,7 +76,10 @@ export class MachinePainter {
     rules: PipelineRules,
     cameraZoom: number,
     timeMs: number,
+    motion: PacketMotionState,
   ) {
+    const deltaMs = this.lastDrawTimeMs > 0 ? Math.max(0, timeMs - this.lastDrawTimeMs) : 0
+    this.lastDrawTimeMs = timeMs
     const coreSpecs = frame.cores?.length ? frame.cores : [frame.core]
     const specs = frame.sources?.length ? frame.sources : [frame.source]
     const bracketStyle = slotBracketStyleFromRules(rules)
@@ -95,7 +104,19 @@ export class MachinePainter {
     for (const spec of specs) {
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
       this.drawSource(ctx, source, rules, bracketStyle)
-      this.drawOrbitingResourceGlyph(ctx, source, spec.shape, rules, cameraZoom, timeMs)
+      const glyphId = sourceGlyphId(spec)
+      const outputCell = sourceOutputCell(spec)
+      const exporting = sourceIsExporting(outputCell, motion)
+      this.drawOrbitingResourceGlyph(
+        ctx,
+        source,
+        spec.id,
+        glyphId,
+        rules,
+        cameraZoom,
+        deltaMs,
+        exporting,
+      )
     }
   }
 
@@ -235,28 +256,34 @@ export class MachinePainter {
   private drawOrbitingResourceGlyph(
     ctx: CanvasRenderingContext2D,
     machine: Machine,
-    shape: PacketShape,
+    sourceId: string,
+    glyphId: string,
     rules: PipelineRules,
     cameraZoom: number,
-    timeMs: number,
+    deltaMs: number,
+    exporting: boolean,
   ) {
     const worldCx = (machine.origin.x + machine.width / 2) * cellSize
     const worldCy = (machine.origin.y + machine.height / 2) * cellSize
-    const angle = (2 * Math.PI * timeMs) / rules.resourceGlyphOrbitMs
-    const ox = Math.cos(angle) * rules.resourceGlyphOrbitPx
-    const oy = Math.sin(angle) * rules.resourceGlyphOrbitPx
+    let phase = this.resourceGlyphPhaseRad.get(sourceId) ?? 0
+    if (exporting && rules.resourceGlyphOrbitMs > 0) {
+      phase += (2 * Math.PI * deltaMs) / rules.resourceGlyphOrbitMs
+      this.resourceGlyphPhaseRad.set(sourceId, phase)
+    }
+    const ox = exporting ? Math.cos(phase) * rules.resourceGlyphOrbitPx : 0
+    const oy = exporting ? Math.sin(phase) * rules.resourceGlyphOrbitPx : 0
     const zoom = cameraZoom > 0 ? cameraZoom : 1
     ctx.save()
     ctx.translate(worldCx, worldCy)
     ctx.scale(1 / zoom, 1 / zoom)
     ctx.translate(ox, oy)
-    this.drawResourceGlyph(ctx, shape, rules)
+    this.drawResourceGlyph(ctx, glyphId, rules)
     ctx.restore()
   }
 
-  private drawResourceGlyph(ctx: CanvasRenderingContext2D, shape: PacketShape, rules: PipelineRules) {
-    const size = rules.resourceGlyphSizePx
-    if (shape === 'circle') {
+  private drawResourceGlyph(ctx: CanvasRenderingContext2D, glyphId: string, rules: PipelineRules) {
+    const size = resourceGlyphSizePx(rules, glyphId)
+    if (glyphId === 'circle') {
       // Single filled disk + dark outline only (no inner rings or nested circles).
       const radius = size / 2
       ctx.beginPath()
@@ -268,11 +295,21 @@ export class MachinePainter {
       ctx.stroke()
       return
     }
-    const image = this.images.resources[shape]
+    const image = this.images.resources[glyphId]
     if (image?.complete && image.naturalWidth > 0) {
       ctx.drawImage(image, -size / 2, -size / 2, size, size)
     }
   }
+}
+
+function sourceGlyphId(spec: SourceRecord): string {
+  return spec.role ?? spec.shape
+}
+
+function resourceGlyphSizePx(rules: PipelineRules, glyphId: string): number {
+  if (glyphId === 'circle') return rules.resourceGlyphSizePx
+  const el = rules.elements.elements.find((item) => item.id === glyphId)
+  return el?.glyph_size_px ?? rules.resourceGlyphSizePx
 }
 
 function machineRect(machine: Machine) {
@@ -294,10 +331,12 @@ export function decorForKind(images: MachineDecorImages, machineId: string): HTM
   return images.byKind[machineId] ?? null
 }
 
-/** Prefetch core/source decor and optional catalog craft machines; resource glyphs are fallbacks. */
+/** Prefetch core/source decor, catalog craft machines, and element resource glyphs. */
 export function loadMachineDecor(
   onLoad: () => void,
   machineKinds?: readonly Pick<ElementMachineKind, 'id' | 'decor'>[],
+  catalogElements?: readonly Pick<ElementRecord, 'id' | 'glyph'>[],
+  rules?: PipelineRules | null,
 ): MachineDecorImages {
   const coreFrame = new Image()
   coreFrame.src = '/pipeline/core-frame.svg'
@@ -325,6 +364,14 @@ export function loadMachineDecor(
     image.src = src
     image.onload = onLoad
     resources[shape] = image
+  }
+  for (const el of catalogElements ?? []) {
+    if (!el.glyph || resources[el.id]) continue
+    const url = glyphUrlForShape(rules ?? null, el.id) ?? publicDecorUrl(el.glyph)
+    const image = new Image()
+    image.src = url
+    image.onload = onLoad
+    resources[el.id] = image
   }
   return { coreFrame, coreGearOuter, coreGearInner, source, byKind, resources }
 }
