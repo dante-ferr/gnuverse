@@ -51,6 +51,8 @@ export function testPipelineRules(overrides: Partial<PipelineRules> = {}): Pipel
     resourceGlyphOutlineOuterWidthPx: 3,
     resourceGlyphOutlineInnerWidthPx: 3,
     resourceGlyphOutlineSpread: 1.35,
+    craftProgressWheelWidthPx: 5,
+    craftProgressWheelMinZoom: 0.3,
     coreGearOuterMs: 12000,
     coreGearInnerMs: 7000,
     coreGearActiveMs: 3500,

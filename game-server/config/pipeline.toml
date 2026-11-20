@@ -71,6 +71,9 @@ resource_glyph_outline_blur = "#0a1014"
 resource_glyph_outline_outer_width_px = 2
 resource_glyph_outline_inner_width_px = 2
 resource_glyph_outline_spread = 1.5 # Silhouette offset multiplier (≥0.5)
+# Combiner craft progress wheel (screen px / zoom). Stroke uses the output element fill + dark outline.
+craft_progress_wheel_width_px = 5
+craft_progress_wheel_min_zoom = 0.3 # Hide the wheel below this zoom (glyph still draws)
 
 # Core decor gears (full turn period, ms)
 core_gear_outer_ms = 12000 # Clockwise

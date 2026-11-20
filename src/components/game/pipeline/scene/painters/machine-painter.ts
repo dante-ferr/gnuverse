@@ -687,7 +687,12 @@ export class MachinePainter {
     ctx.save()
     ctx.translate(worldCx, worldCy)
     ctx.scale(space, space)
-    if (crafting && spec.recipeId && spec.craftRemaining != null) {
+    if (
+      crafting &&
+      spec.recipeId &&
+      spec.craftRemaining != null &&
+      cameraZoom >= rules.craftProgressWheelMinZoom
+    ) {
       const recipeRate = resolveRecipeRatePerMinute(rules, spec.recipeId)
       const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
       const tickPhase =
@@ -698,7 +703,8 @@ export class MachinePainter {
         rules.tickMs,
         tickPhase,
       )
-      drawCraftProgressWheel(ctx, wheelRadius, progress, rules)
+      const fill = elementFill(rules, glyphId) ?? rules.colorPacket
+      drawCraftProgressWheel(ctx, wheelRadius, progress, fill, rules)
     }
     this.drawResourceGlyph(ctx, glyphId, rules)
     ctx.restore()
@@ -808,54 +814,32 @@ function combinerOutputGlyphId(rules: PipelineRules, spec: CombinerRecord): stri
   return el.id
 }
 
-/** Progress arc with white outer / black inner outline (screen-space). */
+/** Progress arc in the output element fill, with a dark outline (screen-space). */
 function drawCraftProgressWheel(
   ctx: CanvasRenderingContext2D,
   radius: number,
   progress: number,
+  fill: string,
   rules: PipelineRules,
 ) {
   const amount = Math.min(1, Math.max(0, progress))
   if (amount <= 0) return
   const start = -Math.PI / 2
   const end = start + amount * Math.PI * 2
-  const core = Math.max(rules.resourceGlyphOutlineInnerWidthPx, 1)
-  const ring = Math.max(rules.resourceGlyphOutlineOuterWidthPx, 0)
+  const core = Math.max(rules.craftProgressWheelWidthPx, 1)
+  const ring = Math.max(rules.resourceGlyphOutlineOuterWidthPx, 1)
   ctx.save()
   ctx.lineCap = 'round'
-  if (rules.resourceGlyphOutlineMode === 'single') {
-    ctx.beginPath()
-    ctx.arc(0, 0, radius, start, end)
-    ctx.strokeStyle =
-      rules.resourceGlyphOutlineInnerWidthPx > 0
-        ? rules.resourceGlyphOutlineInner
-        : rules.resourceGlyphOutlineOuter
-    ctx.lineWidth = Math.max(core, ring, 1)
-    ctx.stroke()
-  } else if (rules.resourceGlyphOutlineMode === 'blur') {
-    ctx.shadowColor = rules.resourceGlyphOutlineBlur
-    ctx.shadowBlur = Math.max(core, ring, 2) * rules.resourceGlyphOutlineSpread
-    ctx.beginPath()
-    ctx.arc(0, 0, radius, start, end)
-    ctx.strokeStyle = rules.resourceGlyphOutlineBlur
-    ctx.lineWidth = Math.max(core, 1)
-    ctx.stroke()
-  } else {
-    if (ring > 0 || core > 0) {
-      ctx.beginPath()
-      ctx.arc(0, 0, radius, start, end)
-      ctx.strokeStyle = rules.resourceGlyphOutlineOuter
-      ctx.lineWidth = core + ring * 2
-      ctx.stroke()
-    }
-    if (core > 0) {
-      ctx.beginPath()
-      ctx.arc(0, 0, radius, start, end)
-      ctx.strokeStyle = rules.resourceGlyphOutlineInner
-      ctx.lineWidth = core
-      ctx.stroke()
-    }
-  }
+  ctx.beginPath()
+  ctx.arc(0, 0, radius, start, end)
+  ctx.strokeStyle = rules.colorOutline
+  ctx.lineWidth = core + ring * 2
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(0, 0, radius, start, end)
+  ctx.strokeStyle = fill
+  ctx.lineWidth = core
+  ctx.stroke()
   ctx.restore()
 }
 

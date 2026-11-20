@@ -55,6 +55,10 @@ export type PipelineRules = {
   resourceGlyphOutlineOuterWidthPx: number
   resourceGlyphOutlineInnerWidthPx: number
   resourceGlyphOutlineSpread: number
+  /** Combiner craft progress wheel stroke (screen px). */
+  craftProgressWheelWidthPx: number
+  /** Hide the craft progress wheel below this camera zoom. */
+  craftProgressWheelMinZoom: number
   coreGearOuterMs: number
   coreGearInnerMs: number
   /** Keep gears spinning this long after last intake on that core (ms). */

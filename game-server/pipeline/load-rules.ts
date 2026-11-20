@@ -47,6 +47,8 @@ const defaults = {
   resource_glyph_outline_outer_width_px: 3,
   resource_glyph_outline_inner_width_px: 3,
   resource_glyph_outline_spread: 1.35,
+  craft_progress_wheel_width_px: 5,
+  craft_progress_wheel_min_zoom: 0.3,
   core_gear_outer_ms: 12000,
   core_gear_inner_ms: 7000,
   core_gear_active_ms: 3500,
@@ -95,6 +97,7 @@ const integers = {
   resource_glyph_orbit_ms: [500, 20_000],
   resource_glyph_outline_outer_width_px: [0, 16],
   resource_glyph_outline_inner_width_px: [0, 16],
+  craft_progress_wheel_width_px: [1, 24],
   core_gear_outer_ms: [1000, 60_000],
   core_gear_inner_ms: [1000, 60_000],
   core_gear_active_ms: [0, 60_000],
@@ -139,6 +142,7 @@ const floats = {
   lod_structure_min_zoom: [0, 10],
   resource_glyph_world_min_zoom: [0.05, 10],
   resource_glyph_outline_spread: [0.5, 4],
+  craft_progress_wheel_min_zoom: [0, 10],
 } as const
 
 /** Positive safe integers with no max (presentation knobs tuned freely in TOML). */
@@ -192,6 +196,8 @@ const mappings = {
   resource_glyph_outline_outer_width_px: 'resourceGlyphOutlineOuterWidthPx',
   resource_glyph_outline_inner_width_px: 'resourceGlyphOutlineInnerWidthPx',
   resource_glyph_outline_spread: 'resourceGlyphOutlineSpread',
+  craft_progress_wheel_width_px: 'craftProgressWheelWidthPx',
+  craft_progress_wheel_min_zoom: 'craftProgressWheelMinZoom',
   core_gear_outer_ms: 'coreGearOuterMs',
   core_gear_inner_ms: 'coreGearInnerMs',
   core_gear_active_ms: 'coreGearActiveMs',

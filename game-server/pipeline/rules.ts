@@ -84,6 +84,10 @@ export type PipelineRules = {
   resourceGlyphOutlineInnerWidthPx: number
   /** Multiplier for silhouette offset rings (larger = thicker halo). */
   resourceGlyphOutlineSpread: number
+  /** Combiner craft progress wheel stroke width (screen px). */
+  craftProgressWheelWidthPx: number
+  /** Hide the craft progress wheel below this camera zoom (glyph still draws). */
+  craftProgressWheelMinZoom: number
   /** Core outer gear full clockwise turn (ms). */
   coreGearOuterMs: number
   /** Core inner gear full counter-clockwise turn (ms). */
