@@ -111,7 +111,7 @@ fill = "#4aa8ff"
 stroke = "#0a1014"
 glyph = "pipeline/elements/water.svg"
 demand_chapter = 1
-source_spawn_chance_percent = 0
+source_spawn_chance_percent = 15
 
 [[elements]]
 id = "fire"
@@ -123,7 +123,7 @@ fill = "#ff6b3d"
 stroke = "#0a1014"
 glyph = "pipeline/elements/fire.svg"
 demand_chapter = 1
-source_spawn_chance_percent = 0
+source_spawn_chance_percent = 15
 
 [[elements]]
 id = "grass"

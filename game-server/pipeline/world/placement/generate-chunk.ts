@@ -106,19 +106,19 @@ function shiftToMatchOrigin(spec: PlacedSource, chunkLocalOrigin: Cell): PlacedS
   }
 }
 
-function tierOneRollable(rules: PipelineRules, startersOnlyOnStarter: boolean) {
-  const starters = new Set(rules.elements.starterSourceIds)
+/** Tier-1 bases with a positive outer-chunk spawn chance (including starter ids). */
+function tierOneRollable(rules: PipelineRules) {
   return rules.elements.elements.filter((el) => {
     if (el.tier !== 1) return false
-    if (startersOnlyOnStarter && starters.has(el.id)) return false
     const chance = el.source_spawn_chance_percent ?? 0
     return chance > 0
   })
 }
 
 /**
- * Probabilistic tier-1 bases for one chunk. Starter chunk uses `layoutStarterSources`;
- * grass chunks force grass when the roll misses.
+ * Probabilistic tier-1 bases for one chunk. Starter chunk uses `layoutStarterSources`
+ * (spawn odds ignored there); other chunks roll every tier-1 base with chance > 0,
+ * including `starter_source_ids`. Grass chunks force grass when the roll misses.
  */
 export function generateChunkSources(
   rules: PipelineRules,
@@ -161,7 +161,7 @@ export function generateChunkSources(
   }
 
   const rng = createSeedRng(`${subSeed}:spawn`)
-  const rollables = tierOneRollable(rules, true)
+  const rollables = tierOneRollable(rules)
   let hasGrass = false
 
   for (const el of rollables) {

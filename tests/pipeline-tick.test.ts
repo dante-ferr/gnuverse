@@ -395,12 +395,15 @@ test('belt placement on a preview chunk is rejected', () => {
 test('preview and owned chunks may host generated tier-1 sources', () => {
   const match = Match.create('layout-preview-empty', rules)
   assert.ok(match.sources.length > 2)
-  for (const source of match.sources.filter((machine) =>
-    new Set(rules.elements.starterSourceIds).has(
-      match.sourceRoles[machine.id] ?? machine.shape,
-    ),
-  )) {
-    assert.equal(match.isOwnedCell(source.origin), true)
+  const starterIds = new Set(rules.elements.starterSourceIds)
+  const ownedStarterRoles = new Set(
+    match.sources
+      .filter((machine) => match.isOwnedCell(machine.origin))
+      .map((machine) => match.sourceRoles[machine.id] ?? machine.shape)
+      .filter((role) => starterIds.has(role)),
+  )
+  for (const id of starterIds) {
+    assert.ok(ownedStarterRoles.has(id), `starter chunk must place ${id}`)
   }
 })
 

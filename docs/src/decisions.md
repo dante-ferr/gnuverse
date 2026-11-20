@@ -116,7 +116,7 @@ Locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and ma
 | Chunk price | **Linear:** `chunk_cost_base + chunk_cost_step * (ownedCount - 1)` |
 | Preview / buy | Only **edge-adjacent** (orthogonal) neighbors of owned chunks; visible but obscured until bought |
 | Generation | **Gradual** from room seed when a chunk first enters the preview set; grass preview neighbor forced at create; satellite cores spawn on first preview of their reserved chunk |
-| Non-starter sources | **Optional** rolls via `source_spawn_chance_percent`, except the grass guarantee above |
+| Non-starter sources | **Optional** rolls via `source_spawn_chance_percent` for every tier-1 base (including starters), except the grass guarantee above |
 | Clearance | **On** at generation (`machine_clearance_min`, `core_clearance_extra`); belts may use pad cells afterward |
 
 ### Still open (narrow)

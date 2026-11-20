@@ -73,7 +73,7 @@ The full extent is **not** materialized when the room starts.
 
 Non-starter chunks are **not required** to contain any source (except the **grass** edge-adjacent preview guarantee in [progression](progression.md)). A chunk may be empty of machines.
 
-Generation rolls **per tier-1 base** using `source_spawn_chance_percent` on that row in `elements.toml` (0–100). Starter placement ignores spawn odds.
+Generation rolls **per tier-1 base** (including `starter_source_ids`) using `source_spawn_chance_percent` on that row in `elements.toml` (0–100). Starter-chunk placement still ignores spawn odds and always places those starters.
 
 **Algorithm (planned, not wired yet):** for each non-starter chunk the first time it enters the preview set (and for the grass-neighbor preview at create), for each base with chance `P > 0`, draw once from the chunk sub-seed. On a hit, pick a random footprint origin inside that chunk whose **clearance free-rect** does not overlap any already placed machine free-rect (`machine_clearance_min` / `core_clearance_extra` via `geometry/clearance.ts`). If no valid origin exists, skip — do not force a source. The grass guarantee overrides the skip for one edge-adjacent preview neighbor.
 

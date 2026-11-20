@@ -36,7 +36,7 @@ Sandbox rooms may keep a compact multi-core layout for prototype play; productio
 | :--- | :--- |
 | Starter chunk | Always places `starter_source_ids` (**fire**, **water**) — spawn odds ignored |
 | Grass guarantee | At least one **grass** source in an **edge-adjacent** (N/E/S/W) neighbor of the starter. Match create generates that preview chunk with grass; it stays locked until bought (never a satellite-core chunk) |
-| Other bases | Per-base `source_spawn_chance_percent` on non-starter generated chunks (see [Coins and map expansion](economy-expansion.md)) |
+| Outer bases | Every tier-1 base with `source_spawn_chance_percent` > 0 may roll on non-starter generated chunks, including fire and water (see [Coins and map expansion](economy-expansion.md)) |
 
 ## Chapters and unlock
 
