@@ -18,21 +18,25 @@ function withToml(contents: string, run: (configPath: string) => void) {
 }
 
 test('loads the game-server configuration TOML and returns validated camelCase rules', () => {
-  const { rules } = loadGameConfig()
-  assert.equal(rules.balanceCap, 5)
-  assert.equal(rules.initialBalance, 5)
-  assert.equal(rules.coinIntervalMs, 6_000)
+  const { rules, pipeline } = loadGameConfig()
+  assert.equal(rules.initialBalance, 120)
+  assert.equal(pipeline.passiveCap, 120)
+  assert.equal(pipeline.walletCap, 1_000_000_000)
+  assert.equal(pipeline.coinsPerMinute, 12)
+  assert.equal(pipeline.beltCost, 1)
+  assert.equal(pipeline.fastTunnelCost, 18)
   assert.equal(rules.sessionDurationMs, 604_800_000)
 })
 
 test('loads an explicit TOML path and maps configured values', () => {
   withToml(
-    'balance_cap = 42\ninitial_balance = 12\ncoin_interval_ms = 45000\n',
+    'initial_balance = 12\n[pipeline]\nwallet_cap = 42\npassive_cap = 20\ncoins_per_minute = 2\n',
     (configPath) => {
-      const { rules } = loadGameConfig(configPath)
-      assert.equal(rules.balanceCap, 42)
+      const { rules, pipeline } = loadGameConfig(configPath)
       assert.equal(rules.initialBalance, 12)
-      assert.equal(rules.coinIntervalMs, 45_000)
+      assert.equal(pipeline.walletCap, 42)
+      assert.equal(pipeline.passiveCap, 20)
+      assert.equal(pipeline.coinsPerMinute, 2)
     },
   )
 })
@@ -62,10 +66,16 @@ test('rejects unknown TOML fields instead of silently ignoring them', () => {
 })
 
 test('rejects values outside rule bounds and inconsistent rules', () => {
-  withToml('balance_cap = 10\ninitial_balance = 11\n', (configPath) => {
+  withToml('initial_balance = 11\n[pipeline]\npassive_cap = 10\nwallet_cap = 100\n', (configPath) => {
     assert.throws(
       () => loadGameConfig(configPath),
-      /initial_balance não pode exceder balance_cap/,
+      /initial_balance não pode exceder passive_cap/,
+    )
+  })
+  withToml('[pipeline]\npassive_cap = 50\nwallet_cap = 10\n', (configPath) => {
+    assert.throws(
+      () => loadGameConfig(configPath),
+      /passive_cap não pode exceder wallet_cap/,
     )
   })
   withToml('bdfl_veto = true\n', (configPath) => {

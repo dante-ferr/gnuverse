@@ -98,6 +98,24 @@ export type PipelineRules = {
   chunkCostBase: number
   /** Linear increment per further purchase index (see chunkPurchaseCost). */
   chunkCostStep: number
+  /** Passive income stops at this balance. Refunds may sit above it. */
+  passiveCap: number
+  /** Absolute wallet maximum. */
+  walletCap: number
+  /** Passive coins granted per minute, including while the player is away. */
+  coinsPerMinute: number
+  /** Coin cost of one normal belt cell. */
+  beltCost: number
+  /** Coin cost of one fast belt cell. */
+  fastBeltCost: number
+  /** Coin cost of one splitter. */
+  splitterCost: number
+  /** Coin cost of one combiner. */
+  combinerCost: number
+  /** Coin cost of one tunnel pair. */
+  tunnelCost: number
+  /** Coin cost of one fast tunnel pair. */
+  fastTunnelCost: number
   /** Satellite cores besides the central one (normal rooms). */
   satelliteCoreCount: number
   /** Inclusive Chebyshev min ring from starter chunk. */

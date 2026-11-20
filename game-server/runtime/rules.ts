@@ -8,10 +8,11 @@ export function createRules(
   const loaded = loadGameConfig()
   const configured = loaded.rules
   const { pipeline: pipelineOverride, ...rest } = overrides
+  const pipeline = { ...loaded.pipeline, ...pipelineOverride }
   const rules: Readonly<Rules> = Object.freeze({
-    cap: configured.balanceCap,
+    cap: pipeline.walletCap,
     initialBalance: configured.initialBalance,
-    intervalMs: configured.coinIntervalMs,
+    intervalMs: Math.max(1, Math.round(60_000 / pipeline.coinsPerMinute)),
     cooldownMs: configured.actionCooldownMs,
     defaultCost: configured.defaultCost,
     maxCost: configured.maxCost,
@@ -28,7 +29,7 @@ export function createRules(
       process.env.NODE_ENV !== 'production' &&
       process.env.GAME_INFINITE_COINS === 'true',
     bdflVeto: configured.bdflVeto,
-    pipeline: { ...loaded.pipeline, ...pipelineOverride },
+    pipeline,
     ...rest,
   })
   for (const key of [
@@ -63,7 +64,11 @@ export function createRules(
     )
       throw new Error(`Invalid rule: ${key}`)
   }
-  if (rules.initialBalance > rules.cap || rules.maxBelts > 500)
+  if (
+    rules.initialBalance > rules.pipeline.passiveCap ||
+    rules.pipeline.passiveCap > rules.pipeline.walletCap ||
+    rules.maxBelts > 500
+  )
     throw new Error('Invalid economy rules')
   if (rules.bdflVeto) throw new Error('Veto do BDFL não é suportado.')
   return rules

@@ -1,7 +1,10 @@
 export type User = { id: string; nickname: string; roles?: readonly import('../../../../core/authz/policy').Role[] }
 export type Wallet = {
   balance: number
+  /** Passive-income cap shown in the HUD. */
   cap: number
+  /** Absolute balance maximum. */
+  absoluteCap?: number
   nextCoinAt: number | null
   intervalMs: number
 }

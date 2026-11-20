@@ -1,13 +1,11 @@
 # GNUverse local prototype rules. Durations in ms unless noted. [pipeline] colors are #RRGGBB.
 # game:dev hot-reloads [pipeline] on save; invalid edits keep the previous rules.
 
-# Wallet and placement economy
-balance_cap = 5 # Max coins in the tower wallet
-initial_balance = 5 # Starting coins (cannot exceed balance_cap)
-coin_interval_ms = 6000 # Passive +1 coin interval while in a room
+# Account wallet. Income rate, caps, and structure prices live in [pipeline].
+initial_balance = 120 # Starting coins (cannot exceed passive_cap)
 action_cooldown_ms = 0 # Min gap between billable placements (0 = none)
-default_cost = 1 # Default placement cost when structure omits one
-max_cost = 20 # Cap for per-structure costs in code
+default_cost = 1 # Lobby reference cost for a new room
+max_cost = 20 # Cap for that lobby reference cost
 
 # Proposals and participation
 min_contributions = 3 # Distinct contributors to advance a proposal
@@ -105,6 +103,15 @@ chunk_size = 32 # Cells per chunk side
 map_chunk_extent = 64 # Max chunk index span per axis
 chunk_cost_base = 5 # First purchased chunk
 chunk_cost_step = 2 # Added per later purchase
+passive_cap = 120 # Time income stops here (12/min fills this in 10 minutes)
+wallet_cap = 1000000000 # Absolute balance maximum
+coins_per_minute = 12 # Passive coins, including while away, until passive_cap
+belt_cost = 1 # Per belt cell
+fast_belt_cost = 4 # Per fast belt cell
+splitter_cost = 10
+combiner_cost = 15
+tunnel_cost = 6 # Per entrance–exit pair
+fast_tunnel_cost = 18 # Per fast pair
 satellite_core_count = 2
 satellite_core_ring_min = 3
 satellite_core_ring_max = 4

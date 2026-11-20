@@ -1,10 +1,37 @@
 import type { EditMode } from './scene/pipeline-scene'
-import type { PipelineFrame } from './model/frame'
+import type { PipelineFrame, PipelineRules } from './model/frame'
 import { getStructure, listStructures } from './structures'
 import styles from '../game-shell.module.css'
 
+function structurePriceLabel(
+  id: string,
+  rules: PipelineRules | null,
+  sandbox: boolean,
+): string | null {
+  if (!rules) return null
+  if (sandbox) return 'grátis'
+  switch (id) {
+    case 'belt':
+      return `${rules.beltCost} / célula`
+    case 'fast_belt':
+      return `${rules.fastBeltCost} / célula`
+    case 'splitter':
+      return String(rules.splitterCost)
+    case 'combiner_2':
+    case 'combiner_3':
+      return String(rules.combinerCost)
+    case 'tunnel':
+      return `${rules.tunnelCost} / par`
+    case 'fast_tunnel':
+      return `${rules.fastTunnelCost} / par`
+    default:
+      return null
+  }
+}
+
 type Props = {
   frame: PipelineFrame | null
+  rules: PipelineRules | null
   selectedStructureId: string
   onSelectStructure: (id: string) => void
   editMode: EditMode
@@ -15,6 +42,7 @@ type Props = {
 /** Placeable structures from the registry, plus create/delete mode. */
 export function StructurePalette({
   frame,
+  rules,
   selectedStructureId,
   onSelectStructure,
   editMode,
@@ -33,6 +61,7 @@ export function StructurePalette({
       <div className={styles.structureList} role="list">
         {structures.map((structure) => {
           const selected = structure.id === selectedStructureId
+          const price = structurePriceLabel(structure.id, rules, sandbox)
           return (
             <button
               key={structure.id}
@@ -51,6 +80,7 @@ export function StructurePalette({
                 aria-hidden
               />
               <span className={styles.structureLabel}>{structure.label}</span>
+              {price ? <span className={styles.structureCost}>{price}</span> : null}
             </button>
           )
         })}

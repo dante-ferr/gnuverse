@@ -57,6 +57,15 @@ export type PipelineRules = {
   mapChunkExtent: number
   chunkCostBase: number
   chunkCostStep: number
+  passiveCap: number
+  walletCap: number
+  coinsPerMinute: number
+  beltCost: number
+  fastBeltCost: number
+  splitterCost: number
+  combinerCost: number
+  tunnelCost: number
+  fastTunnelCost: number
   satelliteCoreCount: number
   satelliteCoreRingMin: number
   satelliteCoreRingMax: number
@@ -152,6 +161,13 @@ export type BeltRecord = {
   placedAt: number
 }
 
+export type ChunkPledgeRecord = {
+  cx: number
+  cy: number
+  paid: number
+  backers?: { userId: string; amount: number }[]
+}
+
 export type PipelineFrame = {
   kind: 'pipeline'
   version: string
@@ -170,6 +186,7 @@ export type PipelineFrame = {
   originChunk?: ChunkCoordRecord
   ownedChunks?: ChunkCoordRecord[]
   previewChunks?: ChunkCoordRecord[]
+  chunkPledges?: ChunkPledgeRecord[]
   sources?: SourceRecord[]
   source: { id: string; x: number; y: number; direction: Direction; shape: PacketShape }
   core: CoreRecord

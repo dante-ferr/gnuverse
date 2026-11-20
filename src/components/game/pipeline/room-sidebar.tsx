@@ -102,6 +102,7 @@ export function RoomSidebar({
           <div className={styles.sidebarPageStack}>
             <StructurePalette
               frame={frame}
+              rules={rules}
               selectedStructureId={structureId}
               onSelectStructure={onSelectStructure}
               editMode={editMode}

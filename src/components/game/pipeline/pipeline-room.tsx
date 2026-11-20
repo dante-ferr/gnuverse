@@ -11,6 +11,7 @@ import { useActionFeedback } from '../hooks/use-action-feedback'
 import { useGameSession } from '../hooks/use-game-session'
 import { useRoomLobby } from '../hooks/use-room-lobby'
 import { pipelineRulesFrom } from './model/frame'
+import type { Wallet } from '../model/types'
 import { usePipelineStream } from './hooks/use-pipeline-stream'
 import { RoomChatSidebar } from './room-chat-sidebar'
 import { RoomSidebar } from './room-sidebar'
@@ -56,6 +57,11 @@ export function PipelineRoom() {
     if (!session.user || !lobby.roomId) return
     void session.api.request(`/api/towers/${lobby.roomId}/join`, {}).catch(() => {})
   }, [session.user, session.api, lobby.roomId])
+  const applyWallet = (result: unknown) => {
+    if (!result || typeof result !== 'object' || !('wallet' in result)) return
+    const wallet = (result as { wallet?: Wallet | null }).wallet
+    if (wallet) session.setWallet(wallet)
+  }
   const place = (request: StructurePlaceRequest) => {
     const structure = getStructure(request.structureId)
     if (!structure) return
@@ -67,7 +73,11 @@ export function PipelineRoom() {
       await structure.commit(
         {
           roomId: lobby.roomId,
-          request: (path, body, method) => session.api.request(path, body, method),
+          request: async (path, body, method) => {
+            const result = await session.api.request(path, body, method)
+            applyWallet(result)
+            return result
+          },
         },
         request.payload,
       )
@@ -82,7 +92,7 @@ export function PipelineRoom() {
       await live.refresh()
     })
   }
-  const buyChunk = (coord: { cx: number; cy: number }) => {
+  const contributeChunk = (coord: { cx: number; cy: number }, amount: number) => {
     if (!session.user) {
       router.push(loginHref)
       return
@@ -91,8 +101,8 @@ export function PipelineRoom() {
       const result = await session.api.request<{
         frame: unknown
         wallet: NonNullable<typeof session.wallet>
-      }>(`/api/towers/${lobby.roomId}/buy-chunk`, coord)
-      if (result.wallet) session.setWallet(result.wallet)
+      }>(`/api/towers/${lobby.roomId}/buy-chunk`, { ...coord, amount })
+      applyWallet(result)
       await live.refresh()
     })
   }
@@ -116,6 +126,7 @@ export function PipelineRoom() {
     for (const cell of cells) {
       void session.api
         .request(`/api/towers/${lobby.roomId}/remove`, cell)
+        .then((result) => applyWallet(result))
         .catch((cause) => {
           if (!failed) {
             failed = true
@@ -220,7 +231,7 @@ export function PipelineRoom() {
                   : null
               }
               buyBusy={feedback.busy}
-              onBuyChunk={buyChunk}
+              onContributeChunk={contributeChunk}
               onPlace={place}
               onRemove={remove}
               placeEpoch={placeEpoch}

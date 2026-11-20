@@ -100,6 +100,9 @@ export function applyOwnedChunks(match: Match, ownedChunks: ChunkCoord[]): void 
   match.ownedChunks.push(...ownedChunks.map((coord) => ({ ...coord })))
   match.previewChunks.length = 0
   match.previewChunks.push(...previewChunks.map((coord) => ({ ...coord })))
+  match.chunkPledges = match.chunkPledges.filter((pledge) =>
+    previewChunks.some((preview) => chunkKey(preview) === chunkKey(pledge)),
+  )
   match.rebuildChunkKeys()
   generatePendingPreviewChunks(match)
 }
@@ -121,4 +124,81 @@ export function nextChunkCost(match: Match): number {
     match.rules.chunkCostBase,
     match.rules.chunkCostStep,
   )
+}
+
+export type ChunkQuote =
+  | { ok: true; cost: number; paid: number; remaining: number }
+  | { ok: false; status: 400 | 409; error: string }
+
+/** Own every preview chunk whose pooled coins already meet the current price. */
+export function settleFundedPledges(match: Match): void {
+  let progressed = true
+  while (progressed) {
+    progressed = false
+    const cost = nextChunkCost(match)
+    const ready = match.chunkPledges.find(
+      (pledge) =>
+        pledge.paid >= cost &&
+        match.previewChunks.some((preview) => chunkKey(preview) === chunkKey(pledge)),
+    )
+    if (!ready) break
+    match.chunkPledges = match.chunkPledges.filter((pledge) => chunkKey(pledge) !== chunkKey(ready))
+    if (buyPreviewChunk(match, ready)) break
+    progressed = true
+  }
+}
+
+/** Check a contribution without spending or writing. Call after `settleFundedPledges`. */
+export function quoteChunkContribution(
+  match: Match,
+  coord: ChunkCoord,
+  amount: number,
+): ChunkQuote {
+  const key = chunkKey(coord)
+  if (!match.previewChunks.some((item) => chunkKey(item) === key)) {
+    return { ok: false, status: 409, error: 'Esse trecho não está à venda.' }
+  }
+  if (!Number.isInteger(amount) || amount < 1) {
+    return { ok: false, status: 400, error: 'Informe quantas moedas aportar.' }
+  }
+  const cost = nextChunkCost(match)
+  const paid = match.chunkPledges.find((pledge) => chunkKey(pledge) === key)?.paid ?? 0
+  const remaining = cost - paid
+  if (remaining <= 0) {
+    return { ok: false, status: 409, error: 'Esse trecho já está pago.' }
+  }
+  if (amount > remaining) {
+    return {
+      ok: false,
+      status: 400,
+      error: `Esse trecho precisa de mais ${remaining} moedas.`,
+    }
+  }
+  return { ok: true, cost, paid, remaining }
+}
+
+/** Add `amount` to a preview chunk. Completes ownership when the pool meets the price. */
+export function applyChunkContribution(
+  match: Match,
+  coord: ChunkCoord,
+  userId: string,
+  amount: number,
+): { cost: number; paid: number; completed: boolean } {
+  const key = chunkKey(coord)
+  const cost = nextChunkCost(match)
+  let pledge = match.chunkPledges.find((item) => chunkKey(item) === key)
+  if (!pledge) {
+    pledge = { cx: coord.cx, cy: coord.cy, paid: 0, backers: [] }
+    match.chunkPledges.push(pledge)
+  }
+  pledge.paid += amount
+  const backer = pledge.backers.find((item) => item.userId === userId)
+  if (backer) backer.amount += amount
+  else pledge.backers.push({ userId, amount })
+  if (pledge.paid < cost) return { cost, paid: pledge.paid, completed: false }
+  const paid = pledge.paid
+  match.chunkPledges = match.chunkPledges.filter((item) => chunkKey(item) !== key)
+  const error = buyPreviewChunk(match, coord)
+  if (error) throw new Error(error)
+  return { cost, paid, completed: true }
 }

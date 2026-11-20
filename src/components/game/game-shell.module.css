@@ -1162,6 +1162,49 @@
   opacity: 0.55;
   cursor: wait;
 }
+.chunkBuyForm {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 132px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--ink);
+  font: 12px var(--display-font);
+}
+.chunkPledgeRow {
+  display: flex;
+  gap: 6px;
+}
+.chunkPledgeInput {
+  width: 4.5rem;
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.chunkPledgeSubmit {
+  flex: 1;
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.chunkPledgeSubmit:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
 .pipelineCanvasCreate {
   cursor: crosshair;
 }
@@ -1764,6 +1807,12 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.structureCost {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
   white-space: nowrap;
 }
 .editModeRow {

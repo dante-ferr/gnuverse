@@ -12,12 +12,15 @@ Version advance (`0.1 → 0.2` and later) uses **delivery milestones only**. Map
 
 | Topic | Rule |
 | :--- | :--- |
-| Pool | **Per-player** account wallet (existing `WalletService` / root TOML `balance_cap`, `initial_balance`, `coin_interval_ms`) |
-| Earn (now) | **Passive regen** toward the cap (current wallet behavior) |
+| Pool | **Per-player** account wallet (`WalletService`) |
+| Earn (now) | **Passive regen** of `coins_per_minute`, including while the player is away, until `passive_cap` |
+| Above the passive cap | Refunds may sit here. Passive income stays off until the balance is under `passive_cap`. Nothing else grants coins yet |
+| Absolute max | `wallet_cap` (pseudo-infinite storage ceiling) |
+| Starting balance | Root `initial_balance`, at most `passive_cap` |
 | Earn (later) | Criteria-based bonuses on top of passive regen (not specified yet) |
 | Spends | Belts, machines, **chunk expansion**, and later paid actions |
 
-Belts do not spend coins in the current build; coin costs for placement are part of this change.
+Structure prices live in `[pipeline]`: `belt_cost` and `fast_belt_cost` per cell, `splitter_cost`, `combiner_cost`, and `tunnel_cost` / `fast_tunnel_cost` per pair. A stroke the player cannot fully afford is rejected. Redrawing the same belt speed, including a direction change, is free. Switching normal ↔ fast charges the new cell price and does not refund the old cell. Deleting your own structure refunds half the list price, rounded down (a 1-coin belt refunds 0). Deleting someone else's machine refunds nothing. Sandbox placement is free. Sandbox chunk contributions still cost coins.
 
 ## Version unlock
 
@@ -44,13 +47,17 @@ Absolute world limit: `chunk_size * map_chunk_extent` cells per axis. Legacy `gr
 
 Diagonals are **not** previewed and **not** purchasable until they become edge-adjacent after another buy.
 
-### Cost (linear)
+### Cost (linear, pooled)
 
 With `ownedCount` including the free starter (`ownedCount >= 1`):
 
 `nextCost = chunk_cost_base + chunk_cost_step * (ownedCount - 1)`
 
 Example (`base = 5`, `step = 2`): first buy **5**, second **7**, third **9**, …
+
+Several preview chunks can collect coins at once. Any signed-in player chooses an amount from 1 up to the coins still needed and their balance. Coins leave the wallet immediately and cannot be withdrawn. When the pool reaches the current price, the chunk becomes owned.
+
+The price is not locked. Completing one chunk raises `nextCost` for every chunk still collecting. Coins already added stay, and players cover the new remainder. One player's passive cap can be below a late chunk price; other players add the rest.
 
 ### Gradual generation (seed)
 
@@ -96,7 +103,7 @@ Generation rolls **per tier-1 base** (including `starter_source_ids`) using `sou
 | Frame | Owned + generated/preview sets; `sources[]` with `role` = element id |
 | Sim | `Match.inBounds` / `BeltEditor` / `Emission` honor owned cells and every source |
 | Client | Dim overlay for preview chunks; sync `GridCamera` from frame size |
-| Coins | Deduct via `WalletService.spend` on chunk buy (`POST …/buy-chunk`); belt/machine spend still TODO |
+| Coins | `WalletService.spend` / `credit` on place, delete, and `POST …/buy-chunk` (`amount` added to that chunk's pool) |
 
 ## Related
 

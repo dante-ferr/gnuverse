@@ -6,9 +6,7 @@ import { pipelineRulesFrom } from '../pipeline/load-rules.ts'
 import type { PipelineRules } from '../pipeline/rules.ts'
 
 export type GameRules = {
-  balanceCap: number
   initialBalance: number
-  coinIntervalMs: number
   actionCooldownMs: number
   defaultCost: number
   maxCost: number
@@ -30,9 +28,7 @@ export type LoadedGameConfig = {
 }
 
 const economyDefaults = {
-  balance_cap: 5,
-  initial_balance: 5,
-  coin_interval_ms: 6_000,
+  initial_balance: 120,
   action_cooldown_ms: 0,
   default_cost: 1,
   max_cost: 20,
@@ -49,9 +45,7 @@ const economyDefaults = {
 } satisfies Record<string, number | boolean>
 
 const economyMappings = {
-  balance_cap: 'balanceCap',
   initial_balance: 'initialBalance',
-  coin_interval_ms: 'coinIntervalMs',
   action_cooldown_ms: 'actionCooldownMs',
   default_cost: 'defaultCost',
   max_cost: 'maxCost',
@@ -68,9 +62,7 @@ const economyMappings = {
 } as const
 
 const economyIntegerRules: Record<string, { min: number; max: number }> = {
-  balance_cap: { min: 1, max: 1_000_000 },
-  initial_balance: { min: 0, max: 1_000_000 },
-  coin_interval_ms: { min: 1_000, max: 31_536_000_000 },
+  initial_balance: { min: 0, max: 1_000_000_000_000 },
   action_cooldown_ms: { min: 0, max: 86_400_000 },
   default_cost: { min: 0, max: 1_000_000 },
   max_cost: { min: 0, max: 1_000_000 },
@@ -112,9 +104,6 @@ function validateEconomy(values: Record<string, unknown>): GameRules {
     result[economyMappings[key as keyof typeof economyMappings]] = value
   }
   const rules = result as GameRules
-  if (rules.initialBalance > rules.balanceCap) {
-    throw new Error('initial_balance não pode exceder balance_cap')
-  }
   if (rules.defaultCost > rules.maxCost) {
     throw new Error('default_cost não pode exceder max_cost')
   }
@@ -131,10 +120,12 @@ function parseConfig(contents: Record<string, unknown>): LoadedGameConfig {
     if (!knownKeys.has(key))
       throw new Error(`Configuração de jogo desconhecida: ${key}`)
   }
-  return {
-    rules: validateEconomy(contents),
-    pipeline: pipelineRulesFrom(contents.pipeline),
+  const rules = validateEconomy(contents)
+  const pipeline = pipelineRulesFrom(contents.pipeline)
+  if (rules.initialBalance > pipeline.passiveCap) {
+    throw new Error('initial_balance não pode exceder passive_cap')
   }
+  return { rules, pipeline }
 }
 
 function readGameConfigFromDisk(absolutePath: string): LoadedGameConfig {

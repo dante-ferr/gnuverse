@@ -1,6 +1,6 @@
 import type { GameEvent } from '../model/types'
 
-const ACHIEVEMENT_TYPES = new Set(['place', 'chunk-buy', 'machine-place'])
+const ACHIEVEMENT_TYPES = new Set(['place', 'chunk-buy', 'chunk-fund', 'machine-place'])
 
 export function isAchievementEvent(event: GameEvent): boolean {
   return ACHIEVEMENT_TYPES.has(event.type)
@@ -33,16 +33,27 @@ export function formatAchievementLabel(event: GameEvent): string {
   const detail = detailRecord(event.detail)
   if (event.type === 'place') {
     const structure = detail?.structure
-    if (structure === 'belt' || structure == null) return 'Colocou esteiras'
-    return `Colocou ${String(structure)}`
+    const cost = typeof detail?.cost === 'number' ? ` · ${detail.cost} moedas` : ''
+    if (structure === 'fast_belt') return `Colocou esteiras rápidas${cost}`
+    if (structure === 'belt' || structure == null) return `Colocou esteiras${cost}`
+    return `Colocou ${String(structure)}${cost}`
   }
   if (event.type === 'machine-place') {
     const id = detail?.structure ?? detail?.machine
+    const cost = typeof detail?.cost === 'number' ? ` · ${detail.cost} moedas` : ''
     if (typeof id === 'string' && id) {
-      const label = MACHINE_PLACE_LABELS[id]
-      return label ? `Colocou ${label}` : `Colocou a máquina ${id}`
+      const label = MACHINE_PLACE_LABELS[id] ?? (id === 'fast_tunnel' ? 'Túnel rápido' : undefined)
+      return label ? `Colocou ${label}${cost}` : `Colocou a máquina ${id}${cost}`
     }
     return 'Colocou uma máquina'
+  }
+  if (event.type === 'chunk-fund') {
+    const amount = detail?.amount
+    const cx = detail?.cx
+    const cy = detail?.cy
+    const coord = typeof cx === 'number' && typeof cy === 'number' ? ` (${cx}, ${cy})` : ''
+    const coins = typeof amount === 'number' ? `${amount} moedas` : 'moedas'
+    return `Aportou ${coins} no trecho${coord}`
   }
   if (event.type === 'chunk-buy') {
     const cx = detail?.cx

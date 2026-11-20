@@ -104,9 +104,9 @@ Locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and ma
 | :--- | :--- |
 | Progression currency | **Coins**, not unique collaborator count |
 | Coin pool | **Per-player** account wallet (`WalletService`) |
-| Earn | **Passive regen** now; criteria-based earning later |
+| Earn | **Passive regen** of `coins_per_minute`, including while away, until `passive_cap`. Refunds may exceed that cap up to `wallet_cap`. Criteria-based earning later |
 | Version unlock | **Deliveries only** (no collaborator gate, no coin spend to advance) |
-| Spend targets | Conveyors, machines, **area expansion**, later paid actions |
+| Spend targets | Conveyors (per cell), machines (per building or tunnel pair), **pooled area expansion**, later paid actions. Same-speed redraws are free. Own deletions refund half, rounded down. Sandbox placement is free |
 | Map unit | Square **chunks**; side length `chunk_size` cells in `[pipeline]` |
 | Starter | Central index `floor((extent−1)/2)` on both axes |
 | Owned at create | **Starter chunk only**. Satellite core chunks are **not** owned until bought after discovery |
@@ -114,7 +114,7 @@ Locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and ma
 | Neighbor grass | At least one **grass** source in an edge-adjacent preview neighbor of the starter (forced at create; buy to unlock emission) |
 | Starter packets | Element ids on the belt in normal rooms |
 | World limit | High extent (e.g. **64×64** chunks) from TOML |
-| Chunk price | **Linear:** `chunk_cost_base + chunk_cost_step * (ownedCount - 1)` |
+| Chunk price | **Linear and pooled:** `chunk_cost_base + chunk_cost_step * (ownedCount - 1)`. Players add chosen amounts. Completing a chunk raises the price of chunks still funded; prior coins stay |
 | Preview / buy | Only **edge-adjacent** (orthogonal) neighbors of owned chunks; visible but obscured until bought |
 | Generation | **Gradual** from room seed when a chunk first enters the preview set; grass preview neighbor forced at create; satellite cores spawn on first preview of their reserved chunk |
 | Non-starter sources | **Optional** rolls via `source_spawn_chance_percent` for every tier-1 base (including starters), except the grass guarantee above |
@@ -124,7 +124,6 @@ Locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and ma
 
 | Choice | Why it matters |
 | :--- | :--- |
-| Belt / chunk unit prices | Exact TOML costs for place and expand beyond `chunk_cost_*` |
 | Criteria-based earn rules | Deferred; do not invent bonuses yet |
 
 ## 12. Core gear activity
@@ -140,6 +139,6 @@ Locked 2026-11-20. Core decor gears rotate only while that core is receiving pac
 | `game-server` hosting with a volume | Before `/jogo/` in production |
 | 14 posts + logbook + accessibility | By delivery (2026-12-02) |
 | Aligned human editorial criteria | Before batch publishing |
-| Place/expand coin prices (§11) | Before shipping economy/expansion gameplay |
+| Criteria-based coin bonuses (§11) | Before adding income other than passive regen and refunds |
 
 Operational detail: [Roadmap](engineering/roadmap.md).

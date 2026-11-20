@@ -24,12 +24,24 @@ export function AccountBanner({
         <>
           <p className={styles.accountLine}>
             <strong>{user.nickname}</strong>
-            <span title={wallet ? `${wallet.balance} de ${wallet.cap} moedas` : undefined}>
+            <span
+              title={
+                wallet
+                  ? wallet.balance > wallet.cap
+                    ? `${wallet.balance} moedas. O rendimento por tempo para em ${wallet.cap}.`
+                    : `${wallet.balance} de ${wallet.cap} moedas`
+                  : undefined
+              }
+            >
               {wallet ? `${wallet.balance}/${wallet.cap}` : '…'}
             </span>
             {wallet && (
               <small title="Tempo até a próxima moeda">
-                {wallet.balance >= wallet.cap ? 'cheia' : `${secondsToCoin}s`}
+                {wallet.balance > wallet.cap
+                  ? 'renda pausada'
+                  : wallet.balance === wallet.cap
+                    ? 'cheia'
+                    : `${secondsToCoin}s`}
               </small>
             )}
           </p>

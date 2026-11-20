@@ -25,6 +25,16 @@ export type CollaboratorRecord = { id: string; nickname: string }
 
 export type ChunkCoordRecord = { cx: number; cy: number }
 
+export type ChunkBackerRecord = { userId: string; amount: number }
+
+/** Coins already added toward one preview chunk. The price is not stored; it follows the room's next chunk cost. */
+export type ChunkPledgeRecord = {
+  cx: number
+  cy: number
+  paid: number
+  backers: ChunkBackerRecord[]
+}
+
 export type SourceRecord = {
   id: string
   x: number
@@ -112,6 +122,8 @@ export type PipelineFrame = {
   originChunk: ChunkCoordRecord
   ownedChunks: ChunkCoordRecord[]
   previewChunks: ChunkCoordRecord[]
+  /** Partial funding for preview chunks. Omitted on older saves. */
+  chunkPledges?: ChunkPledgeRecord[]
   generatedChunkKeys?: string[]
   /** Reserved satellite core chunks (`"cx,cy"`); cores spawn when previewed. */
   satelliteChunkKeys?: string[]

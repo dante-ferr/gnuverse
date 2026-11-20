@@ -58,6 +58,15 @@ const defaults = {
   map_chunk_extent: 64,
   chunk_cost_base: 5,
   chunk_cost_step: 2,
+  passive_cap: 120,
+  wallet_cap: 1_000_000_000,
+  coins_per_minute: 12,
+  belt_cost: 1,
+  fast_belt_cost: 4,
+  splitter_cost: 10,
+  combiner_cost: 15,
+  tunnel_cost: 6,
+  fast_tunnel_cost: 18,
   satellite_core_count: 2,
   satellite_core_ring_min: 3,
   satellite_core_ring_max: 4,
@@ -95,6 +104,15 @@ const integers = {
   map_chunk_extent: [3, 128],
   chunk_cost_base: [0, 1_000_000],
   chunk_cost_step: [0, 1_000_000],
+  passive_cap: [1, 1_000_000_000_000],
+  wallet_cap: [1, 1_000_000_000_000],
+  coins_per_minute: [1, 60],
+  belt_cost: [0, 1_000_000],
+  fast_belt_cost: [0, 1_000_000],
+  splitter_cost: [0, 1_000_000],
+  combiner_cost: [0, 1_000_000],
+  tunnel_cost: [0, 1_000_000],
+  fast_tunnel_cost: [0, 1_000_000],
   satellite_core_count: [0, 8],
   satellite_core_ring_min: [1, 32],
   satellite_core_ring_max: [1, 32],
@@ -166,6 +184,15 @@ const mappings = {
   map_chunk_extent: 'mapChunkExtent',
   chunk_cost_base: 'chunkCostBase',
   chunk_cost_step: 'chunkCostStep',
+  passive_cap: 'passiveCap',
+  wallet_cap: 'walletCap',
+  coins_per_minute: 'coinsPerMinute',
+  belt_cost: 'beltCost',
+  fast_belt_cost: 'fastBeltCost',
+  splitter_cost: 'splitterCost',
+  combiner_cost: 'combinerCost',
+  tunnel_cost: 'tunnelCost',
+  fast_tunnel_cost: 'fastTunnelCost',
   satellite_core_count: 'satelliteCoreCount',
   satellite_core_ring_min: 'satelliteCoreRingMin',
   satellite_core_ring_max: 'satelliteCoreRingMax',
@@ -228,6 +255,9 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
   }
   if (rules.satelliteCoreRingMin > rules.satelliteCoreRingMax) {
     throw new Error('satellite_core_ring_min must be <= satellite_core_ring_max')
+  }
+  if (rules.passiveCap > rules.walletCap) {
+    throw new Error('passive_cap não pode exceder wallet_cap')
   }
   if (rules.elements.starterSourceIds.length < 1) {
     throw new Error('elements.toml: starter_source_ids deve listar ao menos uma base')

@@ -42,7 +42,12 @@ export type TunnelPlaceRequest = {
 
 export type MachinePlaceRequest = CombinerPlaceRequest | SplitterPlaceRequest | TunnelPlaceRequest
 
-export type RemoveKind = 'combiner' | 'splitter' | 'tunnel' | null
+export type Removal = {
+  kind: 'combiner' | 'splitter' | 'tunnel'
+  authorId: string
+  listPrice: number
+  speed: number
+}
 
 /** Places and removes player machines (combiner, splitter, tunnel). */
 export class MachineEditor {
@@ -61,33 +66,50 @@ export class MachineEditor {
   }
 
   /** Removes a player machine under `cell`. Returns which kind, or null. */
-  removeAt(cell: { x: number; y: number }, author: Author): RemoveKind {
+  removeAt(cell: { x: number; y: number }, author: Author): Removal | null {
     const splitterIndex = this.match.splitters.findIndex((machine) => machine.covers(cell))
     if (splitterIndex >= 0) {
-      const [removed] = this.match.splitters.splice(splitterIndex, 1)
-      if (removed) {
-        this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
+      const removed = this.match.splitters[splitterIndex]!
+      const removal: Removal = {
+        kind: 'splitter',
+        authorId: removed.authorId,
+        listPrice: this.match.rules.splitterCost,
+        speed: 1,
       }
+      this.match.splitters.splice(splitterIndex, 1)
+      this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
       this.match.noteCollaborator(author)
-      return 'splitter'
+      return removal
     }
 
     const tunnel = this.match.tunnels.find((portal) => portal.covers(cell))
     if (tunnel) {
+      const fast = tunnel.speed === this.match.rules.beltSpeedFast
+      const removal: Removal = {
+        kind: 'tunnel',
+        authorId: tunnel.authorId,
+        listPrice: fast ? this.match.rules.fastTunnelCost : this.match.rules.tunnelCost,
+        speed: tunnel.speed,
+      }
       const pairId = tunnel.pairId
       this.match.tunnels = this.match.tunnels.filter((portal) => portal.pairId !== pairId)
       this.match.noteCollaborator(author)
-      return 'tunnel'
+      return removal
     }
 
     const index = this.match.combiners.findIndex((machine) => machine.covers(cell))
     if (index < 0) return null
-    const [removed] = this.match.combiners.splice(index, 1)
-    if (removed) {
-      this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
+    const removed = this.match.combiners[index]!
+    const removal: Removal = {
+      kind: 'combiner',
+      authorId: removed.authorId,
+      listPrice: this.match.rules.combinerCost,
+      speed: 1,
     }
+    this.match.combiners.splice(index, 1)
+    this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
     this.match.noteCollaborator(author)
-    return 'combiner'
+    return removal
   }
 
   private placeCombiner(spec: CombinerPlaceRequest, author: Author) {

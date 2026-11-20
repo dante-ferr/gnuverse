@@ -6,8 +6,10 @@ import { SplitterMachine } from '../game-server/pipeline/machines/splitter-machi
 import { TunnelPortalMachine } from '../game-server/pipeline/machines/tunnel-machine.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
 import {
+  applyChunkContribution,
   buyPreviewChunk,
   nextChunkCost,
+  quoteChunkContribution,
 } from '../game-server/pipeline/world/chunks/purchase.ts'
 import { starterChunkCoord } from '../game-server/pipeline/world/chunks/coords.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
@@ -140,4 +142,28 @@ test('buyPreviewChunk rejects chunks that are not currently previewed', () => {
   assert.equal(buyPreviewChunk(match, far), 'Esse trecho não está à venda.')
   assert.equal(buyPreviewChunk(match, center), 'Esse trecho não está à venda.')
   assert.equal(nextChunkCost(match), rules.chunkCostBase + rules.chunkCostStep * (match.ownedChunks.length - 1))
+})
+
+test('chunk pledges pool until the price is met and a later buy raises the other target', () => {
+  const rules = testPipelineRules({ chunkSize: 24, mapChunkExtent: 64, chunkCostBase: 5, chunkCostStep: 2 })
+  const match = Match.create('chunk-pledge', rules)
+  const west = pickPreviewNeighbor(match, 'west')
+  const east = pickPreviewNeighbor(match, 'east')
+  assert.ok(west && east)
+  assert.equal(quoteChunkContribution(match, west, 6).ok, false)
+  assert.equal(applyChunkContribution(match, west, 'a', 2).completed, false)
+  assert.equal(applyChunkContribution(match, west, 'b', 1).paid, 3)
+  assert.equal(applyChunkContribution(match, east, 'a', 4).completed, false)
+  const finished = applyChunkContribution(match, west, 'b', 2)
+  assert.equal(finished.completed, true)
+  assert.equal(finished.cost, 5)
+  assert.ok(match.ownedChunks.some((coord) => coord.cx === west.cx && coord.cy === west.cy))
+  assert.equal(match.chunkPledges.length, 1)
+  assert.equal(match.chunkPledges[0]!.paid, 4)
+  const raised = quoteChunkContribution(match, east, 1)
+  assert.equal(raised.ok, true)
+  if (raised.ok) {
+    assert.equal(raised.cost, 7)
+    assert.equal(raised.remaining, 3)
+  }
 })

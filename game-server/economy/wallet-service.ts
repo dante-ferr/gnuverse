@@ -1,6 +1,16 @@
 import type { Rules, User } from '../domain/types.ts'
 import { fail } from '../domain/validation.ts'
 
+export type WalletView = {
+  balance: number
+  /** Passive-income cap. The HUD fills toward this number. */
+  cap: number
+  /** Absolute balance maximum. */
+  absoluteCap: number
+  nextCoinAt: number | null
+  intervalMs: number
+}
+
 export class WalletService {
   private rules: Readonly<Rules>
   private now: () => number
@@ -9,50 +19,78 @@ export class WalletService {
     this.now = now
   }
   unlimited(user: User) {
-    return (
-      this.rules.infiniteCoins ||
-      (user.roles ?? []).includes('admin')
-    )
+    return this.rules.infiniteCoins || (user.roles ?? []).includes('admin')
   }
-  read(user: User) {
+  private passiveCap() {
+    return this.rules.pipeline.passiveCap
+  }
+  private absoluteCap() {
+    return this.rules.pipeline.walletCap
+  }
+  private intervalMs() {
+    const rate = this.rules.pipeline.coinsPerMinute
+    if (!Number.isSafeInteger(rate) || rate < 1) return 60_000
+    return Math.max(1, Math.round(60_000 / rate))
+  }
+  read(user: User): WalletView {
+    const intervalMs = this.intervalMs()
     if (this.unlimited(user)) {
       return {
         balance: Number.MAX_SAFE_INTEGER,
         cap: Number.MAX_SAFE_INTEGER,
+        absoluteCap: Number.MAX_SAFE_INTEGER,
         nextCoinAt: null,
-        intervalMs: this.rules.intervalMs,
+        intervalMs,
       }
     }
-    user.balance = Math.min(user.balance, this.rules.cap)
-    const elapsed = Math.max(0, this.now() - user.coinAt)
-    const earned = Math.floor(elapsed / this.rules.intervalMs)
-    if (user.balance >= this.rules.cap) user.coinAt = this.now()
-    else if (earned) {
-      user.balance = Math.min(this.rules.cap, user.balance + earned)
-      user.coinAt =
-        user.balance === this.rules.cap
-          ? this.now()
-          : user.coinAt + earned * this.rules.intervalMs
+    const passiveCap = this.passiveCap()
+    const absoluteCap = this.absoluteCap()
+    if (user.balance > absoluteCap) user.balance = absoluteCap
+    if (user.balance >= passiveCap) {
+      user.coinAt = this.now()
+    } else {
+      const elapsed = Math.max(0, this.now() - user.coinAt)
+      const room = passiveCap - user.balance
+      const earned = Math.min(room, Math.floor(elapsed / intervalMs))
+      if (earned > 0) {
+        user.balance += earned
+        user.coinAt =
+          user.balance >= passiveCap
+            ? this.now()
+            : user.coinAt + earned * intervalMs
+      }
     }
     return {
       balance: user.balance,
-      cap: this.rules.cap,
+      cap: passiveCap,
+      absoluteCap,
       nextCoinAt:
-        user.balance >= this.rules.cap
-          ? null
-          : user.coinAt + this.rules.intervalMs,
-      intervalMs: this.rules.intervalMs,
+        user.balance >= passiveCap ? null : user.coinAt + intervalMs,
+      intervalMs,
     }
   }
-  /** Accrue passive coins, then deduct. Admins / infinite wallets skip the debit. */
+  /** Accrue passive coins, then deduct. Admins and infinite wallets skip the debit. */
   spend(user: User, amount: number) {
-    if (!Number.isInteger(amount) || amount < 0)
-      fail(400, 'Custo inválido.')
+    if (!Number.isInteger(amount) || amount < 0) fail(400, 'Custo inválido.')
     if (amount === 0) return this.read(user)
     if (this.unlimited(user)) return this.read(user)
     const view = this.read(user)
     if (view.balance < amount) fail(402, 'Moedas insuficientes.')
     user.balance -= amount
+    return this.read(user)
+  }
+  /**
+   * Add coins that are not time income (a refund).
+   * The sum may pass the passive cap and stops at the absolute cap.
+   * Passive income stays off while the balance is at or above the passive cap.
+   */
+  credit(user: User, amount: number) {
+    if (!Number.isInteger(amount) || amount < 0) fail(400, 'Custo inválido.')
+    if (amount === 0 || this.unlimited(user)) return this.read(user)
+    this.read(user)
+    const absoluteCap = this.absoluteCap()
+    const room = absoluteCap - user.balance
+    user.balance += Math.min(room, amount)
     return this.read(user)
   }
 }

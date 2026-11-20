@@ -16,21 +16,38 @@ export class BeltEditor {
   }
 
   place(cells: Stroke[], author: Author, speed = 1) {
-    if (cells.length === 0) return 'Escolha ao menos uma célula.'
+    return this.placeBilling(cells, author, speed).error
+  }
+
+  /**
+   * Places the stroke. `billableCells` counts cells that were empty or changed
+   * speed. Redrawing the same speed, including a direction change, is free.
+   */
+  placeBilling(cells: Stroke[], author: Author, speed = 1) {
+    if (cells.length === 0) {
+      return { error: 'Escolha ao menos uma célula.', billableCells: 0 }
+    }
     if (speed !== 1 && speed !== this.match.rules.beltSpeedFast) {
-      return 'Velocidade da esteira inválida.'
+      return { error: 'Velocidade da esteira inválida.', billableCells: 0 }
     }
     const allowed: Stroke[] = []
     for (const cell of cells) {
       if (this.onMachine(cell)) continue
       const error = this.validate(cell, author, allowed)
-      if (error) return error
+      if (error) return { error, billableCells: 0 }
       allowed.push(cell)
     }
-    if (allowed.length === 0) return 'Essa célula pertence a uma máquina.'
-    for (const cell of allowed) this.write(cell, author, speed)
+    if (allowed.length === 0) {
+      return { error: 'Essa célula pertence a uma máquina.', billableCells: 0 }
+    }
+    let billableCells = 0
+    for (const cell of allowed) {
+      const existing = this.match.beltAt(cell)
+      if (!existing || existing.speed !== speed) billableCells += 1
+      this.write(cell, author, speed)
+    }
     this.match.noteCollaborator(author)
-    return null
+    return { error: null, billableCells }
   }
 
   remove(cell: { x: number; y: number }, author: Author) {

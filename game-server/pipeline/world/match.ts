@@ -14,6 +14,7 @@ import { cellChunkStateFromSets, chunkKeySet } from './chunks/coords.ts'
 import type { ChunkCoord } from './chunks/coords.ts'
 import { layoutMatchFromSeed, machinesFromLayout } from './chunks/match-layout.ts'
 import { layoutSandboxFromSeed, sandboxMachinesFromLayout } from './chunks/sandbox-layout.ts'
+import { beltListPrice } from '../../economy/prices.ts'
 import { BeltEditor } from './edit/belt-editor.ts'
 import { MachineEditor, type MachinePlaceRequest } from './edit/machine-editor.ts'
 import { Craft } from './tick/craft.ts'
@@ -21,7 +22,12 @@ import { Emission } from './tick/emission.ts'
 import { Routing } from './tick/routing.ts'
 import type { PacketShape } from '../packets/packet.ts'
 import { coreAcceptsShape } from './progression/demands.ts'
-import type { CollaboratorRecord, PipelineFrame, SourceRecord } from './frame.ts'
+import type {
+  ChunkPledgeRecord,
+  CollaboratorRecord,
+  PipelineFrame,
+  SourceRecord,
+} from './frame.ts'
 import type { SourceRole } from './types.ts'
 import { Movement } from './tick/movement.ts'
 import { chapterFromVersion, chapterToVersion, coreDemands } from './progression/demands.ts'
@@ -66,6 +72,7 @@ export class Match {
   combiners: CombinerMachine[] = []
   splitters: SplitterMachine[] = []
   tunnels: TunnelPortalMachine[] = []
+  chunkPledges: ChunkPledgeRecord[] = []
   private ownedChunkKeys: Set<string>
   private previewChunkKeys: Set<string>
 
@@ -212,27 +219,56 @@ export class Match {
     author: CollaboratorRecord,
     speed = 1,
   ) {
-    return new BeltEditor(this).place(cells, author, speed)
+    return this.placeBilling(cells, author, speed).error
+  }
+
+  placeBilling(
+    cells: { x: number; y: number; direction: Direction }[],
+    author: CollaboratorRecord,
+    speed = 1,
+  ) {
+    return new BeltEditor(this).placeBilling(cells, author, speed)
   }
 
   /**
    * Removes a belt or player machine under `cell`.
    * Cores and sources cannot be deleted.
+   * `listPrice` is the structure's full price. The caller refunds half to the author.
    */
   remove(
     cell: Cell,
     author: CollaboratorRecord,
-  ): { error: string | null; kind: 'belt' | 'combiner' | 'splitter' | 'tunnel' | null } {
+  ): {
+    error: string | null
+    kind: 'belt' | 'combiner' | 'splitter' | 'tunnel' | null
+    authorId: string | null
+    listPrice: number
+    speed: number
+  } {
+    const empty = {
+      kind: null,
+      authorId: null,
+      listPrice: 0,
+      speed: 1,
+    }
     if (this.cores.some((core) => core.covers(cell))) {
-      return { error: 'Não é possível apagar o núcleo.', kind: null }
+      return { ...empty, error: 'Não é possível apagar o núcleo.' }
     }
     if (this.sources.some((source) => source.covers(cell))) {
-      return { error: 'Não é possível apagar fontes.', kind: null }
+      return { ...empty, error: 'Não é possível apagar fontes.' }
     }
-    const machineKind = new MachineEditor(this).removeAt(cell, author)
-    if (machineKind) return { error: null, kind: machineKind }
+    const machine = new MachineEditor(this).removeAt(cell, author)
+    if (machine) return { error: null, ...machine }
+    const belt = this.beltAt(cell)
     const error = new BeltEditor(this).remove(cell, author)
-    return { error, kind: error ? null : 'belt' }
+    if (error || !belt) return { ...empty, error }
+    return {
+      error: null,
+      kind: 'belt',
+      authorId: belt.authorId,
+      listPrice: beltListPrice(this.rules, belt.speed),
+      speed: belt.speed,
+    }
   }
 
   placeMachine(spec: MachinePlaceRequest, author: CollaboratorRecord) {
@@ -327,6 +363,12 @@ export class Match {
       originChunk: { ...this.originChunk },
       ownedChunks: this.ownedChunks.map((coord) => ({ ...coord })),
       previewChunks: this.previewChunks.map((coord) => ({ ...coord })),
+      chunkPledges: this.chunkPledges.map((pledge) => ({
+        cx: pledge.cx,
+        cy: pledge.cy,
+        paid: pledge.paid,
+        backers: pledge.backers.map((backer) => ({ ...backer })),
+      })),
       sources,
       source: { ...sources[0]! },
       core: { ...cores[0]! },
@@ -456,6 +498,7 @@ export class Match {
     )
     match.mergeLast = frame.mergeLast ? { ...frame.mergeLast } : {}
     match.pullLast = frame.pullLast ? { ...frame.pullLast } : {}
+    match.chunkPledges = pledgesFromFrame(frame)
     match.combiners = (frame.combiners ?? []).map(
       (spec) => {
         const machine = new CombinerMachine(
@@ -506,4 +549,30 @@ export class Match {
     })
     return match
   }
+}
+
+function pledgesFromFrame(frame: PipelineFrame): ChunkPledgeRecord[] {
+  const raw = frame.chunkPledges
+  if (!Array.isArray(raw)) return []
+  const pledges: ChunkPledgeRecord[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const cx = item.cx
+    const cy = item.cy
+    const paid = item.paid
+    if (!Number.isInteger(cx) || !Number.isInteger(cy) || !Number.isInteger(paid) || paid < 0) {
+      continue
+    }
+    const backers = Array.isArray(item.backers)
+      ? item.backers.flatMap((backer) => {
+          if (!backer || typeof backer !== 'object') return []
+          if (typeof backer.userId !== 'string' || !Number.isInteger(backer.amount) || backer.amount < 0) {
+            return []
+          }
+          return [{ userId: backer.userId, amount: backer.amount }]
+        })
+      : []
+    pledges.push({ cx, cy, paid, backers })
+  }
+  return pledges
 }

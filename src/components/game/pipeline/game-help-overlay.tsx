@@ -65,8 +65,10 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
         <section className={styles.section}>
           <h3>Mapa</h3>
           <p>
-            Nas bordas do terreno liberado, use <strong>Comprar</strong> para expandir o mapa. O custo
-            em moedas sobe a cada trecho novo.
+            Cada jogador ganha moedas com o tempo, até um limite. Apagar uma estrutura sua devolve
+            metade do custo. Nas bordas do terreno liberado, aporte moedas num trecho. Quando o total
+            chega ao preço, o trecho libera. Liberar um trecho aumenta o preço dos outros, e as moedas
+            já aportadas ficam nele.
           </p>
         </section>
 

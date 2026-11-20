@@ -43,7 +43,7 @@ type Props = {
   userId?: string | null
   chunkCost: number | null
   buyBusy?: boolean
-  onBuyChunk: (coord: { cx: number; cy: number }) => void
+  onContributeChunk: (coord: { cx: number; cy: number }, amount: number) => void
   onPlace: (request: StructurePlaceRequest) => void
   /** `revert` undoes the optimistic hide if auth or the API rejects the removal. */
   onRemove: (cells: { x: number; y: number }[], options: { revert: () => void }) => void
@@ -67,7 +67,7 @@ export function PipelineScene({
   userId = null,
   chunkCost,
   buyBusy,
-  onBuyChunk,
+  onContributeChunk,
   onPlace,
   onRemove,
   onToggleEditMode,
@@ -694,27 +694,55 @@ export function PipelineScene({
         }}
       />
       {chunkCost != null && buyAnchors.length > 0 ? (
-        <div className={styles.chunkBuyLayer} aria-label="Comprar trechos">
-          {buyAnchors.map((anchor) => (
-            <button
-              key={anchor.key}
-              type="button"
-              className={styles.chunkBuyButton}
-              style={{ left: anchor.x, top: anchor.y }}
-              disabled={buyBusy}
-              onPointerEnter={() => {
-                pinnedBuyChunk.current = { cx: anchor.cx, cy: anchor.cy }
-              }}
-              onPointerLeave={() => {
-                pinnedBuyChunk.current = null
-                lastPointer.current = null
-                requestPaint()
-              }}
-              onClick={() => onBuyChunk({ cx: anchor.cx, cy: anchor.cy })}
-            >
-              Comprar · {chunkCost}
-            </button>
-          ))}
+        <div className={styles.chunkBuyLayer} aria-label="Aportar em trechos">
+          {buyAnchors.map((anchor) => {
+            const paid =
+              frame?.chunkPledges?.find((pledge) => pledge.cx === anchor.cx && pledge.cy === anchor.cy)
+                ?.paid ?? 0
+            const remaining = Math.max(0, chunkCost - paid)
+            return (
+              <form
+                key={anchor.key}
+                className={styles.chunkBuyForm}
+                style={{ left: anchor.x, top: anchor.y }}
+                onPointerEnter={() => {
+                  pinnedBuyChunk.current = { cx: anchor.cx, cy: anchor.cy }
+                }}
+                onPointerLeave={() => {
+                  pinnedBuyChunk.current = null
+                  lastPointer.current = null
+                  requestPaint()
+                }}
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  const data = new FormData(event.currentTarget)
+                  const amount = Number(data.get('amount'))
+                  if (!Number.isInteger(amount) || amount < 1) return
+                  onContributeChunk({ cx: anchor.cx, cy: anchor.cy }, amount)
+                }}
+              >
+                <span>
+                  {paid}/{chunkCost} moedas
+                </span>
+                <div className={styles.chunkPledgeRow}>
+                  <input
+                    className={styles.chunkPledgeInput}
+                    name="amount"
+                    type="number"
+                    min={1}
+                    max={remaining || undefined}
+                    step={1}
+                    defaultValue={1}
+                    aria-label="Moedas para aportar"
+                    disabled={buyBusy || remaining < 1}
+                  />
+                  <button className={styles.chunkPledgeSubmit} type="submit" disabled={buyBusy || remaining < 1}>
+                    Aportar
+                  </button>
+                </div>
+              </form>
+            )
+          })}
         </div>
       ) : null}
     </div>
