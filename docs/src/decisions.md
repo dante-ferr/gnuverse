@@ -108,7 +108,7 @@ Locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and ma
 | Coin pool | **Per-player** account wallet (`WalletService`) |
 | Earn | **Passive regen** of `coins_per_minute`, including while away, until `passive_cap`. Refunds may exceed that cap up to `wallet_cap`. Criteria-based earning later |
 | Version unlock | **Deliveries only** (no collaborator gate, no coin spend to advance) |
-| Spend targets | Conveyors (per cell), machines (per building or tunnel pair), **pooled area expansion**, later paid actions. Same-speed redraws are free. Own deletions refund half, rounded down. Sandbox placement is free |
+| Spend targets | Conveyors (per cell), machines (per building or tunnel pair), **pooled area expansion**, later paid actions. Same-speed redraws are free. Click (or drag along) an owned belt/tunnel with the normal or fast tool selected to change speed: upgrades charge the fast list price; owned fast→normal downgrades and own deletions refund `⌊price × refund_percent / 100⌋` from `[pipeline]` (`refund_percent`, default 50; downgrade uses `fast − normal`). Sandbox placement is free |
 | Map unit | Square **chunks**; side length `chunk_size` cells in `[pipeline]` |
 | Starter | Central index `floor((extent−1)/2)` on both axes |
 | Owned at create | **Starter chunk only**. Satellite core chunks are **not** owned until bought after discovery |

@@ -111,6 +111,7 @@ trashcan_cost = 8
 combiner_cost = 15
 tunnel_cost = 6 # Per entrance–exit pair
 fast_tunnel_cost = 18 # Per fast pair
+refund_percent = 50 # Own delete / fast→normal downgrade: ⌊price × percent / 100⌋
 satellite_core_count = 2
 satellite_core_ring_min = 3
 satellite_core_ring_max = 4

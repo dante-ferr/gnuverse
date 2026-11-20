@@ -20,34 +20,42 @@ export class BeltEditor {
   }
 
   /**
-   * Places the stroke. `billableCells` counts cells that were empty or changed
-   * speed. Redrawing the same speed, including a direction change, is free.
+   * Places the stroke.
+   * - `billableCells`: empty cells or upgrades (charge the new unit price).
+   * - `refundCells`: owned fast → normal downgrades (`refund_percent` of fast − normal).
+   * Same-speed redraws, including a direction change, are free.
    */
   placeBilling(cells: Stroke[], author: Author, speed = 1) {
     if (cells.length === 0) {
-      return { error: 'Escolha ao menos uma célula.', billableCells: 0 }
+      return { error: 'Escolha ao menos uma célula.', billableCells: 0, refundCells: 0 }
     }
     if (speed !== 1 && speed !== this.match.rules.beltSpeedFast) {
-      return { error: 'Velocidade da esteira inválida.', billableCells: 0 }
+      return { error: 'Velocidade da esteira inválida.', billableCells: 0, refundCells: 0 }
     }
     const allowed: Stroke[] = []
     for (const cell of cells) {
       if (this.onMachine(cell)) continue
       const error = this.validate(cell, author, allowed)
-      if (error) return { error, billableCells: 0 }
+      if (error) return { error, billableCells: 0, refundCells: 0 }
       allowed.push(cell)
     }
     if (allowed.length === 0) {
-      return { error: 'Essa célula pertence a uma máquina.', billableCells: 0 }
+      return { error: 'Essa célula pertence a uma máquina.', billableCells: 0, refundCells: 0 }
     }
+    const fast = this.match.rules.beltSpeedFast
     let billableCells = 0
+    let refundCells = 0
     for (const cell of allowed) {
       const existing = this.match.beltAt(cell)
-      if (!existing || existing.speed !== speed) billableCells += 1
+      if (!existing) billableCells += 1
+      else if (existing.speed !== speed) {
+        if (speed === 1 && existing.speed === fast) refundCells += 1
+        else billableCells += 1
+      }
       this.write(cell, author, speed)
     }
     this.match.noteCollaborator(author)
-    return { error: null, billableCells }
+    return { error: null, billableCells, refundCells }
   }
 
   remove(cell: { x: number; y: number }, author: Author) {

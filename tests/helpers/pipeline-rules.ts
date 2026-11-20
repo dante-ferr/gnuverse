@@ -86,6 +86,7 @@ export function testPipelineRules(overrides: Partial<PipelineRules> = {}): Pipel
     combinerCost: 15,
     tunnelCost: 6,
     fastTunnelCost: 18,
+    refundPercent: 50,
     satelliteCoreCount: 2,
     satelliteCoreRingMin: 3,
     satelliteCoreRingMax: 4,

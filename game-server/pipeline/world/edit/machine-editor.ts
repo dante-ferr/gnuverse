@@ -7,6 +7,7 @@ import {
   TunnelPortalMachine,
   tunnelPairGeometry,
 } from '../../machines/tunnel-machine.ts'
+import type { PacketShape } from '../../packets/packet.ts'
 import {
   logisticContactBlocked,
   matchBuildingMachines,
@@ -61,6 +62,14 @@ export type Removal = {
   speed: number
 }
 
+export type MachinePlaceResult = {
+  error: string | null
+  /** True for new placements and upgrades (charge list price). */
+  billable: boolean
+  /** True when an owned fast tunnel is downgraded to normal (`refund_percent` of fast − normal). */
+  refund: boolean
+}
+
 /** Places and removes player machines (combiner, splitter, tunnel). */
 export class MachineEditor {
   private match: Match
@@ -70,12 +79,23 @@ export class MachineEditor {
   }
 
   place(spec: MachinePlaceRequest, author: Author) {
+    return this.placeBilling(spec, author).error
+  }
+
+  placeBilling(spec: MachinePlaceRequest, author: Author): MachinePlaceResult {
     if (spec.machineId === 'tunnel' || spec.machineId === 'fast_tunnel') {
       return this.placeTunnel(spec, author)
     }
-    if (spec.machineId === 'splitter') return this.placeSplitter(spec, author)
-    if (spec.machineId === 'trashcan') return this.placeTrashcan(spec, author)
-    return this.placeCombiner(spec, author)
+    if (spec.machineId === 'splitter') {
+      const error = this.placeSplitter(spec, author)
+      return { error, billable: error == null, refund: false }
+    }
+    if (spec.machineId === 'trashcan') {
+      const error = this.placeTrashcan(spec, author)
+      return { error, billable: error == null, refund: false }
+    }
+    const error = this.placeCombiner(spec, author)
+    return { error, billable: error == null, refund: false }
   }
 
   /** Removes a player machine under `cell`. Returns which kind, or null. */
@@ -246,28 +266,40 @@ export class MachineEditor {
     return null
   }
 
-  private placeTunnel(spec: TunnelPlaceRequest, author: Author) {
+  private placeTunnel(spec: TunnelPlaceRequest, author: Author): MachinePlaceResult {
     const entrance = { x: spec.entranceX, y: spec.entranceY }
     const exit = { x: spec.exitX, y: spec.exitY }
     // Prefer the stroke / client facing so a portal on a perpendicular belt still
     // travels along the planned axis. Fall back to belts on the portal cells.
     const facing = this.resolveTunnelFacing(entrance, exit, spec.facing)
-    if (!facing) return 'Direção inválida.'
+    if (!facing) return { error: 'Direção inválida.', billable: false, refund: false }
     const geometry = tunnelPairGeometry(
       entrance,
       exit,
       facing,
       this.match.rules.tunnelMaxGap,
     )
-    if (!geometry.ok) return geometry.reason
-    if (!this.footprintInOwned(entrance.x, entrance.y, 1, 1)) return 'Fora da área liberada.'
-    if (!this.footprintInOwned(exit.x, exit.y, 1, 1)) return 'Fora da área liberada.'
-    if (this.overlapsMachines(entrance.x, entrance.y, 1, 1) || this.overlapsMachines(exit.x, exit.y, 1, 1)) {
-      return 'Espaço ocupado por outra estrutura.'
+    if (!geometry.ok) return { error: geometry.reason, billable: false, refund: false }
+    if (!this.footprintInOwned(entrance.x, entrance.y, 1, 1)) {
+      return { error: 'Fora da área liberada.', billable: false, refund: false }
+    }
+    if (!this.footprintInOwned(exit.x, exit.y, 1, 1)) {
+      return { error: 'Fora da área liberada.', billable: false, refund: false }
+    }
+    const speed = spec.machineId === 'fast_tunnel' ? this.match.rules.beltSpeedFast : 1
+    const replace = this.ownTunnelPairAt(entrance, exit, author)
+    if (replace.error) return { error: replace.error, billable: false, refund: false }
+    if (!replace.pairId) {
+      if (
+        this.overlapsMachines(entrance.x, entrance.y, 1, 1) ||
+        this.overlapsMachines(exit.x, exit.y, 1, 1)
+      ) {
+        return { error: 'Espaço ocupado por outra estrutura.', billable: false, refund: false }
+      }
     }
     const portals = [entrance, exit]
     const beltError = this.assertReplaceableBelts(portals, author)
-    if (beltError) return beltError
+    if (beltError) return { error: beltError, billable: false, refund: false }
     const probeIn = new TunnelPortalMachine(
       'probe:in',
       entrance,
@@ -297,24 +329,36 @@ export class MachineEditor {
         linkedTunnelSlots: tunnelSlots,
       })
     ) {
-      return 'Entradas ou saídas sobrepõem outra estrutura.'
+      return { error: 'Entradas ou saídas sobrepõem outra estrutura.', billable: false, refund: false }
+    }
+    let priorSpeed = 0
+    let priorQueue: (PacketShape | null)[] | null = null
+    if (replace.pairId) {
+      const existing = this.match.tunnels.filter((portal) => portal.pairId === replace.pairId)
+      const existingEntrance = existing.find((portal) => portal.role === 'entrance')
+      priorSpeed = existingEntrance?.speed ?? existing[0]?.speed ?? 1
+      priorQueue = existingEntrance ? [...existingEntrance.queue] : null
+      this.match.tunnels = this.match.tunnels.filter((portal) => portal.pairId !== replace.pairId)
     }
     // Gap belts stay on the surface. Only the portal cells are replaced.
     this.clearBeltsAt(portals)
-    const pairId = `t${this.match.nextTunnelSeq++}`
-    const speed = spec.machineId === 'fast_tunnel' ? this.match.rules.beltSpeedFast : 1
+    const pairId = replace.pairId ?? `t${this.match.nextTunnelSeq++}`
     const authorRecord = { id: author.id, nickname: author.nickname }
+    const entrancePortal = new TunnelPortalMachine(
+      `${pairId}:in`,
+      entrance,
+      'entrance',
+      pairId,
+      facing,
+      authorRecord,
+      geometry.gap,
+      speed,
+    )
+    if (priorQueue && priorQueue.length === entrancePortal.queue.length) {
+      entrancePortal.queue = priorQueue
+    }
     this.match.tunnels.push(
-      new TunnelPortalMachine(
-        `${pairId}:in`,
-        entrance,
-        'entrance',
-        pairId,
-        facing,
-        authorRecord,
-        geometry.gap,
-        speed,
-      ),
+      entrancePortal,
       new TunnelPortalMachine(
         `${pairId}:out`,
         exit,
@@ -327,7 +371,41 @@ export class MachineEditor {
       ),
     )
     this.match.noteCollaborator(author)
-    return null
+    if (!replace.pairId) return { error: null, billable: true, refund: false }
+    if (priorSpeed === speed) return { error: null, billable: false, refund: false }
+    const fast = this.match.rules.beltSpeedFast
+    if (speed === 1 && priorSpeed === fast) {
+      return { error: null, billable: false, refund: true }
+    }
+    return { error: null, billable: true, refund: false }
+  }
+
+  /**
+   * When both cells are the same owned pair (either portal order), allow replace
+   * / speed upgrade. Foreign or mismatched portals return an error.
+   */
+  private ownTunnelPairAt(
+    entrance: Cell,
+    exit: Cell,
+    author: Author,
+  ): { pairId: string | null; error: string | null } {
+    const atEntrance = this.match.tunnels.find((portal) => portal.covers(entrance))
+    const atExit = this.match.tunnels.find((portal) => portal.covers(exit))
+    if (!atEntrance && !atExit) return { pairId: null, error: null }
+    if (!atEntrance || !atExit) {
+      return { pairId: null, error: 'Espaço ocupado por outra estrutura.' }
+    }
+    if (atEntrance.pairId !== atExit.pairId) {
+      return { pairId: null, error: 'Espaço ocupado por outra estrutura.' }
+    }
+    if (atEntrance.authorId !== author.id) {
+      return { pairId: null, error: 'Esse túnel é de outra pessoa.' }
+    }
+    const roles = new Set([atEntrance.role, atExit.role])
+    if (!roles.has('entrance') || !roles.has('exit')) {
+      return { pairId: null, error: 'Espaço ocupado por outra estrutura.' }
+    }
+    return { pairId: atEntrance.pairId, error: null }
   }
 
   /** Stroke facing first; portal belts only when that axis is illegal. */

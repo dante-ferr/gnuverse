@@ -152,6 +152,11 @@ export type PipelineRules = {
   tunnelCost: number
   /** Coin cost of one fast tunnel pair. */
   fastTunnelCost: number
+  /**
+   * Percent of list price (or fast−normal delta) refunded on own delete /
+   * owned fast→normal downgrade. Rounded down.
+   */
+  refundPercent: number
   /** Satellite cores besides the central one (normal rooms). */
   satelliteCoreCount: number
   /** Inclusive Chebyshev min ring from starter chunk. */

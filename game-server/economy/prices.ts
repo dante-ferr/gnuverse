@@ -24,8 +24,26 @@ export function machineListPrice(rules: PipelineRules, machineId: string): numbe
   }
 }
 
-/** Half the list price, rounded down. A 1-coin belt refunds 0. */
-export function halfRefund(listPrice: number): number {
+/**
+ * Coins returned when an owned fast belt/tunnel is downgraded to normal.
+ * Applies `refund_percent` to (`fast − normal`).
+ */
+export function speedDowngradeRefund(
+  rules: PipelineRules,
+  kind: 'belt' | 'tunnel',
+): number {
+  const fast = kind === 'belt' ? rules.fastBeltCost : rules.fastTunnelCost
+  const normal = kind === 'belt' ? rules.beltCost : rules.tunnelCost
+  return structureRefund(rules, fast - normal)
+}
+
+/**
+ * Own-structure refund from `refund_percent` in `[pipeline]`.
+ * Rounded down. A price of 1 with 50% refunds 0.
+ */
+export function structureRefund(rules: PipelineRules, listPrice: number): number {
   if (!Number.isInteger(listPrice) || listPrice <= 0) return 0
-  return Math.floor(listPrice / 2)
+  const percent = rules.refundPercent
+  if (!Number.isInteger(percent) || percent <= 0) return 0
+  return Math.floor((listPrice * percent) / 100)
 }

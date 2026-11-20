@@ -265,6 +265,65 @@ test('remove either portal removes the pair', () => {
   assert.equal(match.tunnels.length, 0)
 })
 
+test('placeMachine upgrades an owned tunnel pair to fast and redraws are free', () => {
+  const match = Match.create('tunnel-upgrade', rules)
+  const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const { error, exit } = placeTunnelPair(match, entrance, 2)
+  assert.equal(error, null)
+  const portal = match.tunnels.find((item) => item.role === 'entrance')!
+  portal.queue[0] = 'circle'
+  const upgraded = match.placeMachineBilling(
+    {
+      machineId: 'fast_tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exit.x,
+      exitY: exit.y,
+      facing: 'east',
+    },
+    author,
+  )
+  assert.equal(upgraded.error, null)
+  assert.equal(upgraded.billable, true)
+  assert.equal(match.tunnels.length, 2)
+  assert.ok(match.tunnels.every((item) => item.speed === rules.beltSpeedFast))
+  assert.equal(match.tunnels.find((item) => item.role === 'entrance')!.queue[0], 'circle')
+  const redraw = match.placeMachineBilling(
+    {
+      machineId: 'fast_tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exit.x,
+      exitY: exit.y,
+      facing: 'east',
+    },
+    author,
+  )
+  assert.equal(redraw.error, null)
+  assert.equal(redraw.billable, false)
+})
+
+test('placeMachine rejects upgrading another player tunnel', () => {
+  const match = Match.create('tunnel-upgrade-foreign', rules)
+  const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const { error, exit } = placeTunnelPair(match, entrance, 2)
+  assert.equal(error, null)
+  const other = { id: 'u2', nickname: 'Bob' }
+  const denied = match.placeMachineBilling(
+    {
+      machineId: 'fast_tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exit.x,
+      exitY: exit.y,
+      facing: 'east',
+    },
+    other,
+  )
+  assert.equal(denied.error, 'Esse túnel é de outra pessoa.')
+  assert.ok(match.tunnels.every((item) => item.speed === 1))
+})
+
 test('a one-cell gap between a splitter output and a tunnel does not transfer', () => {
   const match = Match.createSandbox('tunnel-one-gap', rules)
   assert.equal(

@@ -61,16 +61,28 @@ function previewPortal(
   }
 }
 
+export type BeltRedirectOptions = {
+  /**
+   * Speed written on commit. Defaults to the clicked belt's speed.
+   * Pass the selected tool speed so a click or drag upgrades or downgrades.
+   */
+  placeSpeed?: number
+}
+
 /**
- * Drag from an owned belt: reorient only that first cell, and tunnel any later
- * conveyors the stroke crosses (same rules as a new belt drag).
+ * Drag from an owned belt: reorient the first cell, rewrite owned belts along
+ * the stroke at `placeSpeed`, and tunnel any later conveyors the stroke crosses.
  */
-export function createBeltRedirectSession(belt: RedirectBelt): StructurePlacementSession {
+export function createBeltRedirectSession(
+  belt: RedirectBelt,
+  options?: BeltRedirectOptions,
+): StructurePlacementSession {
   const stroke = new BeltStroke(belt.direction)
   stroke.push({ x: belt.x, y: belt.y })
   const initialDirection = belt.direction
-  const beltSpeed = belt.speed ?? 1
-  const fast = beltSpeed > 1
+  const existingSpeed = belt.speed ?? 1
+  const placeSpeed = options?.placeSpeed ?? existingSpeed
+  const fast = placeSpeed > 1
   const structureId = fast ? 'fast_belt' : 'belt'
   const tunnelMachineId = fast ? 'fast_tunnel' : 'tunnel'
 
@@ -89,7 +101,7 @@ export function createBeltRedirectSession(belt: RedirectBelt): StructurePlacemen
       query.ports?.() ?? [],
     )
     const withOrigin = keepOriginBelt(stroke.cells, crossed)
-    return bridgeFollowingConveyors(
+    const bridged = bridgeFollowingConveyors(
       stroke.cells,
       withOrigin,
       conveyors,
@@ -97,6 +109,9 @@ export function createBeltRedirectSession(belt: RedirectBelt): StructurePlacemen
       query.maxGap(),
       belt.authorId,
     )
+    // Crossing planner omits solid owned runs that cannot become tunnels. Put
+    // those cells back so a held drag can upgrade/downgrade a stretch.
+    return includeOwnedStrokeBelts(stroke.cells, bridged, belt.authorId)
   }
 
   return {
@@ -109,7 +124,7 @@ export function createBeltRedirectSession(belt: RedirectBelt): StructurePlacemen
         x: cell.x,
         y: cell.y,
         direction: cell.direction,
-        ...(beltSpeed > 1 ? { speed: beltSpeed } : {}),
+        ...(placeSpeed > 1 ? { speed: placeSpeed } : {}),
         authorId: '',
         authorNickname: '',
         placedAt: index,
@@ -127,20 +142,67 @@ export function createBeltRedirectSession(belt: RedirectBelt): StructurePlacemen
     finish(): StructurePlaceRequest | null {
       const next = plan()
       if (next.belts.length === 0 && next.tunnels.length === 0) return null
-      const onlyOrigin =
-        next.tunnels.length === 0 &&
-        next.belts.length === 1 &&
-        next.belts[0]?.x === belt.x &&
-        next.belts[0]?.y === belt.y &&
-        next.belts[0]?.direction === initialDirection
-      if (onlyOrigin) return null
+      if (isNoOpBeltPaint(next, belt, initialDirection, placeSpeed)) return null
       const payload: BeltPayload = { cells: next.belts }
-      if (fast) payload.speed = beltSpeed
+      if (fast) payload.speed = placeSpeed
       if (next.tunnels.length > 0) payload.tunnels = next.tunnels
       if (next.clearBelts.length > 0) payload.clearBelts = next.clearBelts
       return { structureId, payload }
     },
   }
+}
+
+/** Re-add owned belts the crossing planner omitted so a drag can re-speed them. */
+function includeOwnedStrokeBelts(
+  cells: readonly StrokeCell[],
+  planned: RedirectPlan,
+  ownerId: string | undefined,
+): RedirectPlan {
+  if (!ownerId) return planned
+  const records = readBeltCrossQuery().belts?.() ?? []
+  const covered = tunnelSpanKeys(cells, planned.tunnels)
+  const byKey = new Map(planned.belts.map((cell) => [cellKey(cell), cell]))
+  let added = false
+  for (const cell of cells) {
+    const key = cellKey(cell)
+    if (byKey.has(key) || covered.has(key) || portalUses(planned.tunnels, cell)) continue
+    const existing = records.find((item) => item.x === cell.x && item.y === cell.y)
+    if (!existing || existing.authorId !== ownerId) continue
+    byKey.set(key, cell)
+    added = true
+  }
+  if (!added) return planned
+  const ordered = cells.filter((cell) => byKey.has(cellKey(cell))).map((cell) => byKey.get(cellKey(cell))!)
+  return { ...planned, belts: ordered }
+}
+
+function isNoOpBeltPaint(
+  planned: RedirectPlan,
+  origin: RedirectBelt,
+  initialDirection: Direction,
+  placeSpeed: number,
+) {
+  if (planned.tunnels.length > 0 || planned.clearBelts.length > 0) return false
+  const records = readBeltCrossQuery().belts?.() ?? []
+  if (planned.belts.length === 0) return true
+  if (
+    planned.belts.length === 1 &&
+    planned.belts[0]?.x === origin.x &&
+    planned.belts[0]?.y === origin.y &&
+    planned.belts[0]?.direction === initialDirection &&
+    placeSpeed === (origin.speed ?? 1)
+  ) {
+    return true
+  }
+  return planned.belts.every((cell) => {
+    const existing = records.find((item) => item.x === cell.x && item.y === cell.y)
+    if (!existing) return false
+    return (
+      existing.authorId === origin.authorId &&
+      (existing.speed ?? 1) === placeSpeed &&
+      existing.direction === cell.direction
+    )
+  })
 }
 
 /** The clicked belt keeps the stroke facing unless a portal already uses that cell. */

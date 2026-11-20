@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { createGameServer } from '../game-server/server.ts'
 import { createTestIdentityProvider } from './helpers/identity-provider.ts'
 
-test('belt placement spends coins, same-speed redraws are free, and delete refunds half', async () => {
+test('belt placement spends coins, same-speed redraws are free, and refunds use refund_percent', async () => {
   const time = 1_000_000
   const folder = await mkdtemp(join(tmpdir(), 'gnuverse-economy-'))
   const identityProvider = createTestIdentityProvider({ now: () => time })
@@ -70,9 +70,29 @@ test('belt placement spends coins, same-speed redraws are free, and delete refun
       body: JSON.stringify({ cells: [cell], speed: 3 }),
     })
     assert.equal(upgraded.status, 200)
-    const upgradedBody = (await upgraded.json()) as { wallet: { balance: number }; cost: number }
+    const upgradedBody = (await upgraded.json()) as {
+      wallet: { balance: number }
+      cost: number
+      refund: number
+    }
     assert.equal(upgradedBody.cost, 4)
+    assert.equal(upgradedBody.refund, 0)
     assert.equal(upgradedBody.wallet.balance, 25)
+
+    const downgraded = await fetch(`${base}/api/rooms/${room.id}/place`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ cells: [cell] }),
+    })
+    assert.equal(downgraded.status, 200)
+    const downgradedBody = (await downgraded.json()) as {
+      wallet: { balance: number }
+      cost: number
+      refund: number
+    }
+    assert.equal(downgradedBody.cost, 0)
+    assert.equal(downgradedBody.refund, 1)
+    assert.equal(downgradedBody.wallet.balance, 26)
 
     const removed = await fetch(`${base}/api/rooms/${room.id}/remove`, {
       method: 'POST',
@@ -81,8 +101,8 @@ test('belt placement spends coins, same-speed redraws are free, and delete refun
     })
     assert.equal(removed.status, 200)
     const removedBody = (await removed.json()) as { wallet: { balance: number }; refund: number }
-    assert.equal(removedBody.refund, 2)
-    assert.equal(removedBody.wallet.balance, 27)
+    assert.equal(removedBody.refund, 0)
+    assert.equal(removedBody.wallet.balance, 26)
   } finally {
     await game.close()
     await rm(folder, { recursive: true, force: true })

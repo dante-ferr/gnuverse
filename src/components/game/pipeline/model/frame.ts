@@ -88,6 +88,8 @@ export type PipelineRules = {
   combinerCost: number
   tunnelCost: number
   fastTunnelCost: number
+  /** Own delete / fast→normal downgrade refund percent (`refund_percent`). */
+  refundPercent: number
   satelliteCoreCount: number
   satelliteCoreRingMin: number
   satelliteCoreRingMax: number

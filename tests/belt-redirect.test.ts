@@ -14,6 +14,88 @@ test('deriveDirectionFromDrag uses the dominant axis from the origin', () => {
   assert.equal(deriveDirectionFromDrag({ x: 2, y: 2 }, { x: 1, y: 0 }), 'north')
 })
 
+test('BeltRedirectSession upgrades speed on a click when placeSpeed differs', () => {
+  setBeltCrossQuery({
+    occupancy: () => ({ conveyors: new Set(), blocked: new Set() }),
+    maxGap: () => 3,
+  })
+  try {
+    const session = createBeltRedirectSession(
+      { x: 4, y: 4, direction: 'east', speed: 1 },
+      { placeSpeed: 3 },
+    )
+    assert.equal(session.push({ x: 4, y: 4 }), false)
+    assert.deepEqual(session.finish(), {
+      structureId: 'fast_belt',
+      payload: {
+        cells: [{ x: 4, y: 4, direction: 'east' }],
+        speed: 3,
+      },
+    })
+  } finally {
+    resetBeltCrossQuery()
+  }
+})
+
+test('BeltRedirectSession downgrades speed on a click when placeSpeed is 1', () => {
+  setBeltCrossQuery({
+    occupancy: () => ({ conveyors: new Set(['4,4']), blocked: new Set() }),
+    maxGap: () => 3,
+    belts: () => [{ x: 4, y: 4, direction: 'east', authorId: 'me', speed: 3 }],
+  })
+  try {
+    const session = createBeltRedirectSession(
+      { x: 4, y: 4, direction: 'east', authorId: 'me', speed: 3 },
+      { placeSpeed: 1 },
+    )
+    assert.deepEqual(session.finish(), {
+      structureId: 'belt',
+      payload: {
+        cells: [{ x: 4, y: 4, direction: 'east' }],
+      },
+    })
+  } finally {
+    resetBeltCrossQuery()
+  }
+})
+
+test('BeltRedirectSession upgrades an owned stretch when the pointer is held and dragged', () => {
+  setBeltCrossQuery({
+    occupancy: () => ({
+      conveyors: new Set(['0,0', '1,0', '2,0', '3,0']),
+      blocked: new Set(),
+    }),
+    maxGap: () => 8,
+    belts: () => [
+      { x: 0, y: 0, direction: 'east', authorId: 'me', speed: 1 },
+      { x: 1, y: 0, direction: 'east', authorId: 'me', speed: 1 },
+      { x: 2, y: 0, direction: 'east', authorId: 'me', speed: 1 },
+      { x: 3, y: 0, direction: 'east', authorId: 'me', speed: 1 },
+    ],
+  })
+  try {
+    const session = createBeltRedirectSession(
+      { x: 0, y: 0, direction: 'east', authorId: 'me', speed: 1 },
+      { placeSpeed: 3 },
+    )
+    assert.equal(session.push({ x: 3, y: 0 }), true)
+    assert.deepEqual(session.finish(), {
+      structureId: 'fast_belt',
+      payload: {
+        cells: [
+          { x: 0, y: 0, direction: 'east' },
+          { x: 1, y: 0, direction: 'east' },
+          { x: 2, y: 0, direction: 'east' },
+          { x: 3, y: 0, direction: 'east' },
+        ],
+        speed: 3,
+      },
+    })
+  } finally {
+    resetBeltCrossQuery()
+  }
+})
+
 test('BeltRedirectSession places a stroke along the drag and skips a no-op release', () => {
   setBeltCrossQuery({
     occupancy: () => ({ conveyors: new Set(), blocked: new Set() }),
@@ -140,7 +222,7 @@ test('BeltRedirectSession still tunnels a later crossing on empty portal cells',
   }
 })
 
-test('BeltRedirectSession keeps the origin belt in the stroke when it already exists on the map', () => {
+test('BeltRedirectSession rewrites owned belts along a redirect stroke', () => {
   setBeltCrossQuery({
     occupancy: () => ({
       conveyors: new Set(['4,4', '4,3']),
@@ -166,10 +248,10 @@ test('BeltRedirectSession keeps the origin belt in the stroke when it already ex
       direction: cell.direction,
     }))
     assert.deepEqual(cells[0], { x: 4, y: 4, direction: 'north' })
-    assert.ok(cells.some((cell) => cell.x === 4 && cell.y === 4 && cell.direction === 'north'))
     assert.deepEqual(session.finish()?.payload, {
       cells: [
         { x: 4, y: 4, direction: 'north' },
+        { x: 4, y: 3, direction: 'north' },
         { x: 4, y: 2, direction: 'north' },
         { x: 4, y: 1, direction: 'north' },
       ],

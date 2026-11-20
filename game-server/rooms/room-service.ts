@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { ChatMessage, Member, Rules, Room, User } from '../domain/types.ts'
 import { fail, text, integer, mode } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
-import { halfRefund, machineListPrice } from '../economy/prices.ts'
+import { machineListPrice, speedDowngradeRefund, structureRefund } from '../economy/prices.ts'
 import { WalletService } from '../economy/wallet-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { HistoryService } from './history-service.ts'
@@ -218,13 +218,15 @@ export class RoomService {
     } else {
       fail(400, 'Máquina inválida.')
     }
-    const error = match.placeMachine(spec, { id: user.id, nickname: user.nickname })
-    if (error) fail(409, error)
+    const placed = match.placeMachineBilling(spec, { id: user.id, nickname: user.nickname })
+    if (placed.error) fail(409, placed.error)
     const listPrice = machineListPrice(match.rules, String(machineId))
-    const cost = match.sandbox ? 0 : listPrice
-    const wallet = this.pay(user, cost)
-    const committed = this.commitMachine(room, user, participant, match, String(machineId), cost)
-    return { ...committed, wallet, cost }
+    const cost = match.sandbox || !placed.billable ? 0 : listPrice
+    const refund =
+      match.sandbox || !placed.refund ? 0 : speedDowngradeRefund(match.rules, 'tunnel')
+    const wallet = this.settle(user, cost, refund)
+    const committed = this.commitMachine(room, user, participant, match, String(machineId), cost, refund)
+    return { ...committed, wallet, cost, refund }
   }
   place(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
@@ -246,10 +248,16 @@ export class RoomService {
     if (placed.error) fail(409, placed.error)
     const unit = speed === match.rules.beltSpeedFast ? match.rules.fastBeltCost : match.rules.beltCost
     const cost = match.sandbox ? 0 : placed.billableCells * unit
-    const wallet = this.pay(user, cost)
+    const refund = match.sandbox
+      ? 0
+      : placed.refundCells * speedDowngradeRefund(match.rules, 'belt')
+    const wallet = this.settle(user, cost, refund)
     const structure = speed === match.rules.beltSpeedFast ? 'fast_belt' : 'belt'
-    const committed = this.commit(room, user, participant, match, 'place', structure, { cost })
-    return { ...committed, wallet, cost }
+    const committed = this.commit(room, user, participant, match, 'place', structure, {
+      cost,
+      refund,
+    })
+    return { ...committed, wallet, cost, refund }
   }
   removeBelt(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
@@ -262,7 +270,9 @@ export class RoomService {
     )
     if (result.error) fail(409, result.error)
     const refund =
-      match.sandbox || result.authorId !== user.id ? 0 : halfRefund(result.listPrice)
+      match.sandbox || result.authorId !== user.id
+        ? 0
+        : structureRefund(match.rules, result.listPrice)
     const wallet = this.refund(user, refund)
     const structure =
       result.kind === 'belt'
@@ -431,6 +441,11 @@ export class RoomService {
     if (amount <= 0) return this.wallet.read(user)
     return this.wallet.credit(user, amount)
   }
+  /** Spend then credit so a mixed stroke can charge some cells and refund others. */
+  private settle(user: User, cost: number, refund: number) {
+    this.pay(user, cost)
+    return this.refund(user, refund)
+  }
   private commitMachine(
     room: Room,
     user: User,
@@ -438,6 +453,7 @@ export class RoomService {
     match: Match,
     structure: string,
     cost = 0,
+    refund = 0,
   ) {
     room.frame = match.toFrame()
     participant.contributions++
@@ -446,6 +462,7 @@ export class RoomService {
     this.history.event(room, 'machine-place', user.id, {
       structure,
       cost,
+      refund,
       combiners: match.combiners.length,
       splitters: match.splitters.length,
       trashcans: match.trashcans.length,

@@ -16,6 +16,11 @@ import { machinesFromFrame } from '../placement-building-slots.ts'
 import { occupancyFromFrame, setBeltCrossQuery, resetBeltCrossQuery } from './belt-cross.ts'
 import { BeltEraseStroke } from './belt-erase-stroke.ts'
 import { createBeltRedirectSession } from './belt-redirect.ts'
+import {
+  createTunnelUpgradeSession,
+  tunnelSpeedChangeFromClick,
+} from './tunnel-upgrade.ts'
+import { clearTunnelPlacement, tunnelPlacementPending } from '../structures/tunnel.ts'
 import { CoreMachine } from '../../../../../game-server/pipeline/machines/core-machine.ts'
 import { loadSavedCamera, saveSavedCamera } from './camera-memory.ts'
 import { GridCamera } from './grid-camera.ts'
@@ -781,9 +786,33 @@ export function PipelineScene({
       ownerId &&
       belt.authorId === ownerId
     ) {
-      placement.current = createBeltRedirectSession(belt)
+      const placeSpeed =
+        structureIdRef.current === 'fast_belt'
+          ? (rulesRef.current?.beltSpeedFast ?? 2)
+          : 1
+      placement.current = createBeltRedirectSession(belt, { placeSpeed })
       eraseStroke.current = null
       return
+    }
+    if (
+      (structureIdRef.current === 'tunnel' || structureIdRef.current === 'fast_tunnel') &&
+      current &&
+      ownerId &&
+      !tunnelPlacementPending()
+    ) {
+      const change = tunnelSpeedChangeFromClick(
+        current,
+        cell,
+        ownerId,
+        rulesRef.current,
+        structureIdRef.current,
+      )
+      if (change) {
+        clearTunnelPlacement()
+        placement.current = createTunnelUpgradeSession(change)
+        eraseStroke.current = null
+        return
+      }
     }
     const session = structure.createSession()
     session.push(cell)

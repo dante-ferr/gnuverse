@@ -257,7 +257,7 @@ export class Match {
   /**
    * Removes a belt or player machine under `cell`.
    * Cores and sources cannot be deleted.
-   * `listPrice` is the structure's full price. The caller refunds half to the author.
+   * `listPrice` is the structure's full price. The caller applies `refund_percent`.
    */
   remove(
     cell: Cell,
@@ -296,7 +296,11 @@ export class Match {
   }
 
   placeMachine(spec: MachinePlaceRequest, author: CollaboratorRecord) {
-    return new MachineEditor(this).place(spec, author)
+    return this.placeMachineBilling(spec, author).error
+  }
+
+  placeMachineBilling(spec: MachinePlaceRequest, author: CollaboratorRecord) {
+    return new MachineEditor(this).placeBilling(spec, author)
   }
 
   acceptsDelivery(shape: PacketShape) {

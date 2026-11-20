@@ -31,6 +31,7 @@ test('loads the game-server configuration TOML and returns validated camelCase r
   assert.equal(pipeline.coinsPerMinute, 12)
   assert.equal(pipeline.beltCost, 1)
   assert.equal(pipeline.fastTunnelCost, 18)
+  assert.equal(pipeline.refundPercent, 50)
   assert.equal(rules.sessionDurationMs, 604_800_000)
 })
 
