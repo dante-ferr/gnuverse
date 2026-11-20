@@ -97,18 +97,18 @@ test('many free cells between short runs still use one tunnel under maxGap', () 
   assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 9, 10])
 })
 
-test('two tunnels when a single span would exceed maxGap', () => {
+test('two short tunnels when a single span would exceed maxGap', () => {
   const xs = [2, 3, 12, 13]
   const conveyors = keys(...xs.map((x) => ({ x, y: 0 })))
   const plan = planBeltCrossings(east(0, 15), conveyors, keys(), 8)
   assert.deepEqual(
     plan.tunnels.map((tunnel) => [tunnel.entranceX, tunnel.exitX]),
     [
-      [1, 10],
+      [1, 4],
       [11, 14],
     ],
   )
-  assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 15])
+  assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 5, 6, 7, 8, 9, 10, 15])
 })
 
 test('two empty cells stay inside one tunnel when the span fits', () => {

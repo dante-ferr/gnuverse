@@ -171,9 +171,9 @@ function planLeg(
 }
 
 /**
- * Tunnel from the free cell before `start` through the following solid runs.
- * Picks the farthest legal exit within `maxGap`; free cells between runs do
- * not force a split. Returns null when no span can be a legal pair.
+ * Tunnel from the free cell before `start` through following solid runs.
+ * Merges runs while the pair stays within `maxGap` (few tunnels), then places
+ * the exit on the first free cell after that cover (short span).
  */
 function coverCluster(
   leg: readonly StrokeCell[],
@@ -195,7 +195,6 @@ function coverCluster(
   const backedByPort = portFeedsTunnelEntrance(ports, portal, portal.direction)
   if (!backedByBelt && !backedByStrokeStart && !backedByPort) return null
 
-  const sign = portal.direction === 'east' || portal.direction === 'south' ? 1 : -1
   const hasConveyorInSpan = (exitIndex: number) => {
     const lo = Math.min(start, exitIndex)
     const hi = Math.max(start, exitIndex)
@@ -214,18 +213,17 @@ function coverCluster(
     return tunnelPairGeometry(portal, exit, portal.direction, maxGap).ok
   }
 
-  const farther = (left: number, right: number) => (sign > 0 ? left > right : left < right)
-
-  const maxExtent = Math.max(0, Math.min(leg.length - 1, start + sign * maxGap))
-  let best: number | null = null
+  // Grow through later solid runs while a short exit after the merged cover fits.
+  // Intermediate solid ends may not be valid exits (next cell is more solid).
   let solidStart = start
+  let lastValidExit: number | null = null
   while (solidStart < leg.length) {
     let solidEnd = solidStart
     while (solidEnd < leg.length && kind(leg[solidEnd]!, conveyors, blocked) !== 'free') {
       solidEnd += 1
     }
     if (solidEnd >= leg.length) break
-    if (validExit(solidEnd) && (best === null || farther(solidEnd, best))) best = solidEnd
+    if (validExit(solidEnd)) lastValidExit = solidEnd
 
     let nextSolid = solidEnd + 1
     while (nextSolid < leg.length && kind(leg[nextSolid]!, conveyors, blocked) === 'free') {
@@ -238,18 +236,13 @@ function coverCluster(
       peekEnd += 1
     }
     if (peekEnd >= leg.length) break
-    const peekGeom = tunnelPairGeometry(
-      portal,
-      leg[peekEnd]!,
-      portal.direction,
-      maxGap,
-    )
-    if (!peekGeom.ok || peekGeom.gap > maxGap) break
+    // Merge only when the short exit after the next run is still a legal pair.
+    if (!validExit(peekEnd)) break
     solidStart = nextSolid
   }
 
-  if (validExit(maxExtent) && (best === null || farther(maxExtent, best))) best = maxExtent
-  return best === null ? null : { entrance, exit: best }
+  if (lastValidExit === null) return null
+  return { entrance, exit: lastValidExit }
 }
 
 /**
