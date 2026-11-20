@@ -23,9 +23,15 @@ export class TunnelPortalMachine extends Machine {
    * Null entries are empty; packets shift toward the exit each tick.
    */
   queue: (PacketShape | null)[] = []
+  /** Packet waiting on the entrance tile (gap ≥ 1). */
+  pendingIngress: PacketShape | null = null
+  /** True until the first routing step after absorb — entrance dwell. */
+  ingressHold = false
+  /** Packet waiting on the exit tile before ejection (gap ≥ 1). */
+  pendingEgress: PacketShape | null = null
   /**
    * Shapes absorbed since `beginTick`. Cleared at the start of the next tick.
-   * A snapshot reports the ones that already left the queue as `transit`.
+   * A snapshot reports the ones that already left the lane as `transit`.
    */
   private ingress: PacketShape[] = []
 
@@ -78,7 +84,9 @@ export class TunnelPortalMachine extends Machine {
    */
   transitShapes(): PacketShape[] {
     const pool: PacketShape[] = []
+    if (this.pendingIngress) pool.push(this.pendingIngress)
     for (const slot of this.queue) if (slot) pool.push(slot)
+    if (this.pendingEgress) pool.push(this.pendingEgress)
     const transit: PacketShape[] = []
     for (const shape of this.ingress) {
       const index = pool.indexOf(shape)

@@ -98,10 +98,14 @@ export type TunnelPortalRecord = {
   speed?: number
   authorId: string
   authorNickname: string
-  /** Entrance only: underground lane occupancy (null = empty). */
+  /** Entrance only: underground gap cells (null = empty). */
   queue?: (PacketShape | null)[]
+  /** Entrance only: packet dwelling on the entrance tile (gap ≥ 1). */
+  pendingIngress?: PacketShape | null
+  /** Entrance only: packet dwelling on the exit tile (gap ≥ 1). */
+  pendingEgress?: PacketShape | null
   /**
-   * Entrance only: shapes that entered this tick and already left the queue
+   * Entrance only: shapes that entered this tick and already left the lane
    * (gap 0, or a short lane that cleared before the snapshot).
    */
   transit?: PacketShape[]

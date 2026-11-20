@@ -454,6 +454,8 @@ export class Match {
         authorId: portal.authorId,
         authorNickname: portal.authorNickname,
         queue: portal.role === 'entrance' ? [...portal.queue] : undefined,
+        pendingIngress: portal.role === 'entrance' ? portal.pendingIngress : undefined,
+        pendingEgress: portal.role === 'entrance' ? portal.pendingEgress : undefined,
         transit: portal.role === 'entrance' ? portal.transitShapes() : undefined,
       })),
     }
@@ -609,8 +611,11 @@ export class Match {
         capacity,
         spec.speed ?? 1,
       )
-      if (spec.role === 'entrance' && spec.queue) {
-        portal.queue = [...spec.queue]
+      if (spec.role === 'entrance') {
+        if (spec.queue) portal.queue = [...spec.queue]
+        portal.pendingIngress = spec.pendingIngress ?? null
+        portal.pendingEgress = spec.pendingEgress ?? null
+        portal.ingressHold = false
       }
       return portal
     })

@@ -193,7 +193,9 @@ export type TunnelPortalRecord = {
   authorId: string
   authorNickname: string
   queue?: (PacketShape | null)[]
-  /** Shapes that crossed this tick without remaining in the queue. */
+  pendingIngress?: PacketShape | null
+  pendingEgress?: PacketShape | null
+  /** Shapes that crossed this tick without remaining in the lane. */
   transit?: PacketShape[]
 }
 

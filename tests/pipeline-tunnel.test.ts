@@ -190,11 +190,43 @@ test('tunnel carries packet underground under a surface belt', () => {
   // Surface belt crossing the underground gap must not block the tunnel.
   assert.equal(match.place([{ ...overGap, direction: 'south' }], author), null)
   match.packets.push(new Packet('p1', inCell, 'circle'))
-  match.tick() // absorb into underground lane 0
+  match.tick() // absorb — dwells on entrance before gap lane
   const portal = match.tunnels.find((p) => p.role === 'entrance')!
-  assert.ok(portal.queue.some((slot) => slot === 'circle'))
+  assert.ok(portal.pendingIngress === 'circle' || portal.queue.some((slot) => slot === 'circle'))
   assert.equal(match.packets.length, 0)
   for (let i = 0; i < gap + 2; i++) match.tick()
+  assert.ok(match.packets.some((packet) => packet.cell.x === outCell.x && packet.cell.y === outCell.y))
+})
+
+test('tunnel dwells on entrance and exit tiles like conveyors', () => {
+  const match = Match.create('tunnel-dwell', rules)
+  const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const gap = 2
+  const { error, exit } = placeTunnelPair(match, entrance, gap)
+  assert.equal(error, null)
+  const inCell = { x: entrance.x - 1, y: entrance.y }
+  const outCell = { x: exit.x + 1, y: exit.y }
+  assert.equal(match.place([{ ...inCell, direction: 'east' }], author), null)
+  assert.equal(match.place([{ ...outCell, direction: 'east' }], author), null)
+  match.packets.push(new Packet('p1', inCell, 'circle'))
+  match.tick()
+  const portal = match.tunnels.find((p) => p.role === 'entrance')!
+  assert.equal(portal.pendingIngress, 'circle')
+  assert.deepEqual(portal.queue, [null, null])
+  assert.equal(portal.pendingEgress, null)
+  match.tick()
+  assert.equal(portal.pendingIngress, null)
+  assert.deepEqual(portal.queue, ['circle', null])
+  assert.equal(portal.pendingEgress, null)
+  match.tick()
+  assert.deepEqual(portal.queue, [null, 'circle'])
+  assert.equal(portal.pendingEgress, null)
+  match.tick()
+  assert.deepEqual(portal.queue, [null, null])
+  assert.equal(portal.pendingEgress, 'circle')
+  assert.equal(match.packets.length, 0)
+  match.tick()
+  assert.equal(portal.pendingEgress, null)
   assert.ok(match.packets.some((packet) => packet.cell.x === outCell.x && packet.cell.y === outCell.y))
 })
 
@@ -480,7 +512,7 @@ test('a belt on that one-cell gap carries the packet into the tunnel', () => {
   match.tick()
   match.tick()
   const entrance = match.tunnels.find((portal) => portal.role === 'entrance')!
-  assert.ok(entrance.queue.some((slot) => slot === 'fire'))
+  assert.ok(entrance.pendingIngress === 'fire' || entrance.queue.some((slot) => slot === 'fire'))
 })
 
 test('a tunnel sitting on a splitter output still receives the packet', () => {
@@ -507,7 +539,8 @@ test('a tunnel sitting on a splitter output still receives the packet', () => {
   match.tick()
   assert.equal(match.splitters[0]!.buffer, null)
   const entrance = match.tunnels.find((portal) => portal.role === 'entrance')!
-  assert.ok(entrance.queue.some((slot) => slot === 'fire'))
+  assert.equal(entrance.pendingIngress, 'fire')
+  assert.ok(!entrance.queue.some((slot) => slot === 'fire'))
 })
 
 test('gap 0 pass-through is reported as transit for the client', () => {

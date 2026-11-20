@@ -55,13 +55,27 @@ export class Routing {
     const out = exit.outputSlots()[0]
     if (!out) return
     const end = slots.length - 1
-    if (slots[end] && deliverTunnelExit(this.match, exit.origin, out, slots[end]!)) {
+    if (
+      entrance.pendingEgress &&
+      deliverTunnelExit(this.match, exit.origin, out, entrance.pendingEgress)
+    ) {
+      entrance.pendingEgress = null
+    }
+    if (!entrance.pendingEgress && slots[end]) {
+      entrance.pendingEgress = slots[end]!
       slots[end] = null
     }
     for (let i = end; i > 0; i--) {
       if (!slots[i] && slots[i - 1]) {
         slots[i] = slots[i - 1]!
         slots[i - 1] = null
+      }
+    }
+    if (entrance.pendingIngress && slots[0] == null) {
+      if (entrance.ingressHold) entrance.ingressHold = false
+      else {
+        slots[0] = entrance.pendingIngress
+        entrance.pendingIngress = null
       }
     }
   }
@@ -226,7 +240,7 @@ export function tunnelCanAbsorb(match: Match, pairId: string, shape?: PacketShap
     (portal) => portal.pairId === pairId && portal.role === 'entrance',
   )
   if (!entrance) return false
-  if (entrance.queue.length > 0) return entrance.queue[0] == null
+  if (entrance.queue.length > 0) return entrance.pendingIngress == null
   const exit = match.tunnels.find(
     (portal) => portal.pairId === pairId && portal.role === 'exit',
   )
@@ -242,8 +256,9 @@ export function tunnelAbsorb(match: Match, pairId: string, shape: PacketShape) {
   )
   if (!entrance) return false
   if (entrance.queue.length > 0) {
-    if (entrance.queue[0] != null) return false
-    entrance.queue[0] = shape
+    if (entrance.pendingIngress != null) return false
+    entrance.pendingIngress = shape
+    entrance.ingressHold = true
     entrance.noteIngress(shape)
     return true
   }
