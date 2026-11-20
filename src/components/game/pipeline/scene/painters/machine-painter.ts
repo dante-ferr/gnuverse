@@ -42,7 +42,7 @@ import type { PacketMotionState } from '../packet-motion.ts'
 import { sourceIsExporting, sourceOutputCell } from '../source-exporting.ts'
 import { darkenHex } from './darken-hex.ts'
 import { elementFill } from './element-fill.ts'
-import type { MachineLod } from '../scene-lod.ts'
+import { glyphSpaceScale, type MachineLod } from '../scene-lod.ts'
 import { cellSize, type CellBounds } from './grid-painter.ts'
 import {
   drawOutlinedResourceDisk,
@@ -230,12 +230,11 @@ export class MachinePainter {
       const core = new CoreMachine(coreSpec.id, { x: coreSpec.x, y: coreSpec.y })
       this.drawCore(ctx, core, rules, bracketStyle, timeMs, deltaMs, drawBodies, drawMotion, gearSamples)
     }
-    if (!showNonCore) return
     for (const spec of frame.combiners ?? []) {
       const size = CombinerMachine.sizeFor(spec.machineId, spec.facing)
       if (!footprintVisible(spec.x, spec.y, size.width, size.height, bounds)) continue
       const combiner = new CombinerMachine(spec.id, spec.machineId, { x: spec.x, y: spec.y }, spec.facing)
-      if (drawBodies) {
+      if (drawBodies && showNonCore) {
         const body = this.machineColor(rules, spec.machineId)
         if (flat) {
           this.drawFlatPlate(ctx, combiner, body, rules)
@@ -245,11 +244,10 @@ export class MachinePainter {
           })
         }
       }
-      if (drawMotion && detail) {
-        this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, motion)
-      }
+      // Craft / output glyphs stay visible at every zoom band.
+      if (drawMotion) this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, motion)
     }
-    if (drawBodies && ports) {
+    if (drawBodies && showNonCore && ports) {
       for (const spec of frame.splitters ?? []) {
         if (!footprintVisible(spec.x, spec.y, 1, 1, bounds)) continue
         this.drawSplitter(ctx, spec, rules, bracketStyle, ports)
@@ -258,7 +256,7 @@ export class MachinePainter {
         if (!footprintVisible(spec.x, spec.y, 1, 1, bounds)) continue
         this.drawTunnelPortal(ctx, spec, rules, bracketStyle, ports)
       }
-    } else if (drawBodies && flat) {
+    } else if (drawBodies && showNonCore && flat) {
       for (const spec of frame.splitters ?? []) {
         if (!footprintVisible(spec.x, spec.y, 1, 1, bounds)) continue
         const splitter = new SplitterMachine(
@@ -289,11 +287,12 @@ export class MachinePainter {
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
       const glyphId = sourceGlyphId(spec)
       const body = elementFill(rules, glyphId) ?? rules.colorSource
-      if (drawBodies) {
+      if (drawBodies && showNonCore) {
         if (flat) this.drawFlatSource(ctx, source, body, rules)
         else this.drawSource(ctx, source, body, rules, bracketStyle)
       }
-      if (!drawMotion || !detail) continue
+      if (!drawMotion) continue
+      // Source glyphs stay visible at every zoom band (bodies may be omitted).
       const outputCell = sourceOutputCell(spec)
       const exporting = sourceIsExporting(outputCell, motion)
       const periodMs = sourcePeriodMsForGlyph(rules, glyphId)
@@ -642,14 +641,14 @@ export class MachinePainter {
       spec.craftRemaining != null && spec.craftRemaining > 0 && Boolean(spec.recipeId)
     const worldCx = (machine.origin.x + machine.width / 2) * cellSize
     const worldCy = (machine.origin.y + machine.height / 2) * cellSize
-    const zoom = cameraZoom > 0 ? cameraZoom : 1
+    const space = glyphSpaceScale(cameraZoom, rules)
     const glyphSize = resourceGlyphSizePx(rules, glyphId)
-    // Screen-space radius around the glyph so the wheel tracks zoom with the icon.
+    // Wheel radius matches the glyph space (screen-fixed or world-scaled).
     const wheelRadius = glyphSize * 0.72
 
     ctx.save()
     ctx.translate(worldCx, worldCy)
-    ctx.scale(1 / zoom, 1 / zoom)
+    ctx.scale(space, space)
     if (crafting && spec.recipeId && spec.craftRemaining != null) {
       const recipeRate = resolveRecipeRatePerMinute(rules, spec.recipeId)
       const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
@@ -686,10 +685,10 @@ export class MachinePainter {
     }
     const ox = shouldOrbit ? Math.cos(phase) * rules.resourceGlyphOrbitPx : 0
     const oy = shouldOrbit ? Math.sin(phase) * rules.resourceGlyphOrbitPx : 0
-    const zoom = cameraZoom > 0 ? cameraZoom : 1
+    const space = glyphSpaceScale(cameraZoom, rules)
     ctx.save()
     ctx.translate(worldCx, worldCy)
-    ctx.scale(1 / zoom, 1 / zoom)
+    ctx.scale(space, space)
     ctx.translate(ox, oy)
     this.drawResourceGlyph(ctx, glyphId, rules)
     ctx.restore()

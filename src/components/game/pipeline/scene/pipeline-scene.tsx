@@ -229,7 +229,16 @@ export function PipelineScene({
           packet.y <= bounds.maxY,
       )
       const packetFrame = packets.length === visible.packets.length ? visible : { ...visible, packets }
-      packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs, lod)
+      packetPainter.current.draw(
+        ctx,
+        packetFrame,
+        drawnBelts,
+        palette,
+        packetMotion.current,
+        timeMs,
+        lod,
+        camera.zoom,
+      )
     })
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.drawImage(machineLayer.current.canvas, 0, 0)

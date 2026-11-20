@@ -39,6 +39,7 @@ export function testPipelineRules(overrides: Partial<PipelineRules> = {}): Pipel
     colorInk: '#2a3c44',
     decorStrokeWidth: 28,
     resourceGlyphSizePx: 28,
+    resourceGlyphWorldMinZoom: 1.25,
     resourceGlyphOrbitPx: 4,
     resourceGlyphOrbitMs: 4000,
     resourceGlyphOutlineOuter: '#ffffff',

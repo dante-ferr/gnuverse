@@ -35,6 +35,7 @@ const defaults = {
   color_ink: '#2a3c44',
   decor_stroke_width: 28,
   resource_glyph_size_px: 28,
+  resource_glyph_world_min_zoom: 1.25,
   resource_glyph_orbit_px: 4,
   resource_glyph_orbit_ms: 4000,
   resource_glyph_outline_outer: '#ffffff',
@@ -130,6 +131,7 @@ const floats = {
   camera_zoom_max: [0.5, 10],
   lod_detail_min_zoom: [0, 10],
   lod_structure_min_zoom: [0, 10],
+  resource_glyph_world_min_zoom: [0.05, 10],
   resource_glyph_outline_spread: [0.5, 4],
 } as const
 
@@ -165,6 +167,7 @@ const mappings = {
   color_ink: 'colorInk',
   decor_stroke_width: 'decorStrokeWidth',
   resource_glyph_size_px: 'resourceGlyphSizePx',
+  resource_glyph_world_min_zoom: 'resourceGlyphWorldMinZoom',
   resource_glyph_orbit_px: 'resourceGlyphOrbitPx',
   resource_glyph_orbit_ms: 'resourceGlyphOrbitMs',
   resource_glyph_outline_outer: 'resourceGlyphOutlineOuter',

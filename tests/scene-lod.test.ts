@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { sceneLod } from '../src/components/game/pipeline/scene/scene-lod.ts'
+import { glyphSpaceScale, sceneLod } from '../src/components/game/pipeline/scene/scene-lod.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
 
 test('sceneLod uses detail, structure, and cores bands from rules', () => {
@@ -30,4 +30,12 @@ test('sceneLod uses detail, structure, and cores bands from rules', () => {
     beltChevrons: false,
     machines: 'cores',
   })
+})
+
+test('glyphSpaceScale stays screen-fixed until resourceGlyphWorldMinZoom', () => {
+  const rules = testPipelineRules({ resourceGlyphWorldMinZoom: 1.25 })
+  assert.equal(glyphSpaceScale(0.5, rules), 2)
+  assert.equal(glyphSpaceScale(1, rules), 1)
+  assert.equal(glyphSpaceScale(1.25, rules), 1)
+  assert.equal(glyphSpaceScale(2, rules), 1)
 })

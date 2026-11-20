@@ -1,7 +1,7 @@
 import type { BeltRecord, PipelineFrame, PipelineRules, PacketShape } from '../../model/frame.ts'
 import type { PacketMotionState } from '../packet-motion.ts'
 import { packetClipCells, packetDisplayCenter, packetSinkCenter } from '../packet-motion.ts'
-import type { SceneLod } from '../scene-lod.ts'
+import { glyphSpaceScale, type SceneLod } from '../scene-lod.ts'
 import { cellSize } from './grid-painter.ts'
 import { elementFill } from './element-fill.ts'
 import {
@@ -28,6 +28,7 @@ export class PacketPainter {
     motion: PacketMotionState,
     timeMs: number,
     lod: SceneLod = { packetGlyphs: true, beltChevrons: true, machines: 'full' },
+    cameraZoom = 1,
   ) {
     const radius = cellSize * (lod.packetGlyphs ? 0.22 : 0.2)
     const outline = resourceGlyphOutline(rules)
@@ -39,8 +40,13 @@ export class PacketPainter {
           innerWidthPx: Math.min(outline.innerWidthPx, 1),
         }
     const clipPackets = lod.packetGlyphs
+    const space = glyphSpaceScale(cameraZoom, rules)
     const drawPacket = (px: number, py: number, shape: PacketShape) => {
-      if (lod.packetGlyphs && shape !== 'circle' && this.drawElementGlyph(ctx, shape, rules, px, py, outline)) {
+      if (
+        lod.packetGlyphs &&
+        shape !== 'circle' &&
+        this.drawElementGlyph(ctx, shape, rules, px, py, outline, space)
+      ) {
         return
       }
       const fill = elementFill(rules, shape) ?? rules.colorPacket
@@ -77,6 +83,7 @@ export class PacketPainter {
     px: number,
     py: number,
     outline: ResourceGlyphOutline,
+    space: number,
   ) {
     const el = rules.elements.elements.find((item) => item.id === shape)
     if (!el?.glyph) return false
@@ -84,7 +91,15 @@ export class PacketPainter {
     if (!image?.complete || image.naturalWidth <= 0) return false
     const size = el.glyph_size_px ?? rules.resourceGlyphSizePx
     const fill = el.fill || rules.colorPacket
-    drawOutlinedResourceGlyph(ctx, image, fill, px, py, size, outline, this.tintCache)
+    if (space !== 1) {
+      ctx.save()
+      ctx.translate(px, py)
+      ctx.scale(space, space)
+      drawOutlinedResourceGlyph(ctx, image, fill, 0, 0, size, outline, this.tintCache)
+      ctx.restore()
+    } else {
+      drawOutlinedResourceGlyph(ctx, image, fill, px, py, size, outline, this.tintCache)
+    }
     return true
   }
 }

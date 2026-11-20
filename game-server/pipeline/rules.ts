@@ -52,9 +52,14 @@ export type PipelineRules = {
   colorInk: string
   /** SVG stroke width in artboard units (512 viewBox); keep in sync with public/pipeline/*.svg. */
   decorStrokeWidth: number
-  /** Screen-space resource glyph diameter (px). Fallback when an element omits glyph_size_px. */
+  /** Resource glyph diameter (px). Fallback when an element omits glyph_size_px. */
   resourceGlyphSizePx: number
-  /** Orbit radius around source center (screen px). */
+  /**
+   * Below this camera zoom, glyph diameter stays screen-fixed.
+   * At/above, glyphs scale with the world (no 1/zoom counter-scale).
+   */
+  resourceGlyphWorldMinZoom: number
+  /** Orbit radius around source center (same space as the glyph diameter). */
   resourceGlyphOrbitPx: number
   /** Full orbit period (ms). */
   resourceGlyphOrbitMs: number

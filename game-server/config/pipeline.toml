@@ -15,7 +15,7 @@ camera_zoom_min = 0.08 # Zoomed out limit (see more map)
 camera_zoom_max = 3 # Zoomed in limit
 # Scene LOD (client). At/above detail: glyphs, chevrons, full machines.
 # Between structure and detail: element-fill disks, no chevrons, flat machine fills + cores.
-# Below structure: disks, no chevrons, cores only.
+# Below structure: disks, no chevrons, cores only (source/combiner glyphs still draw).
 lod_detail_min_zoom = 0.3
 lod_structure_min_zoom = 0
 
@@ -56,6 +56,8 @@ tunnel_max_gap = 8 # Empty cells between portals (0 = adjacent; Factorio-style)
 
 # Resource glyphs at sources / belts (dual outline: white outer, black inner)
 resource_glyph_size_px = 28
+# Below this zoom, glyph diameter stays screen-fixed; at/above, glyphs scale with the world.
+resource_glyph_world_min_zoom = 1.25
 resource_glyph_orbit_px = 4
 resource_glyph_orbit_ms = 4000
 resource_glyph_outline_outer = "#000000"
