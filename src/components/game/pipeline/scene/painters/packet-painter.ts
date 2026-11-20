@@ -1,6 +1,6 @@
 import type { BeltRecord, PipelineFrame, PipelineRules, PacketShape } from '../../model/frame.ts'
 import type { PacketMotionState } from '../packet-motion.ts'
-import { packetDisplayCenter, packetSinkCenter } from '../packet-motion.ts'
+import { packetClipCells, packetDisplayCenter, packetSinkCenter } from '../packet-motion.ts'
 import { cellSize } from './grid-painter.ts'
 import { elementFill } from './element-fill.ts'
 import {
@@ -36,17 +36,16 @@ export class PacketPainter {
     }
 
     if (frame.packets.length > 0 && belts.length > 0) {
-      ctx.save()
-      ctx.beginPath()
-      for (const belt of belts) {
-        ctx.rect(belt.x * cellSize, belt.y * cellSize, cellSize, cellSize)
-      }
-      ctx.clip()
       for (const packet of frame.packets) {
         const { px, py } = packetDisplayCenter(packet, frame, rules, motion, timeMs, cellSize)
+        const cells = packetClipCells(packet, motion)
+        ctx.save()
+        ctx.beginPath()
+        for (const cell of cells) ctx.rect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize)
+        ctx.clip()
         drawPacket(px, py, packet.shape)
+        ctx.restore()
       }
-      ctx.restore()
     }
 
     for (const sink of motion.sinks) {

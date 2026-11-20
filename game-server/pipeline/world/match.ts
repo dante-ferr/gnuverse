@@ -42,6 +42,9 @@ import { tryAutoUnlock } from './progression/unlock.ts'
 /** One Open Pipeline match. The server tick is the only writer. */
 export class Match {
   belts: BeltMachine[] = []
+  /** Rebuilt when `belts` is replaced. Tick movement looks belts up by cell. */
+  private beltIndex: Map<string, BeltMachine> | null = null
+  private beltIndexSource: BeltMachine[] | null = null
   packets: Packet[] = []
   collaborators: CollaboratorRecord[] = []
   /** Destination cell key → last inbound cell key admitted by merge RR. */
@@ -50,8 +53,10 @@ export class Match {
   pullLast: Record<string, 'pull' | 'flow'> = {}
   version = '0.1'
   chapter = 1
-  /** Clears completed; crafts escalate with mild geometry. Tier-1 bases ignore this. */
+  /** Room clears completed (sidebar Onda). Crafts use per-shape waves below. */
   escalationWave = 0
+  /** Per-shape craft escalation wave; unset shapes stay at base quota. */
+  escalationWaveByShape: Partial<Record<PacketShape, number>> = {}
   tickIndex = 0
   deliveries = 0
   deliveryByShape: Partial<Record<PacketShape, number>> = {}
@@ -202,8 +207,13 @@ export class Match {
   }
 
   beltAt(cell: Cell) {
-    const key = cellKey(cell)
-    return this.belts.find((belt) => cellKey(belt.origin) === key)
+    if (this.beltIndexSource !== this.belts || !this.beltIndex) {
+      const index = new Map<string, BeltMachine>()
+      for (const belt of this.belts) index.set(cellKey(belt.origin), belt)
+      this.beltIndex = index
+      this.beltIndexSource = this.belts
+    }
+    return this.beltIndex.get(cellKey(cell))
   }
 
   machineAt(cell: Cell) {
@@ -346,6 +356,7 @@ export class Match {
       waveDeliveryByShape: { ...this.waveDeliveryByShape },
       chapter: this.chapter,
       escalationWave: this.escalationWave,
+      escalationWaveByShape: { ...this.escalationWaveByShape },
       generatedChunkKeys: [...this.generatedChunkKeys],
       satelliteChunkKeys: [...this.satelliteChunkKeys],
       grassChunkKey: this.grassChunkKey ?? undefined,
@@ -476,6 +487,9 @@ export class Match {
     match.chapter = frame.chapter ?? chapterFromVersion(frame.version ?? '0.1')
     match.version = frame.version ?? chapterToVersion(match.chapter)
     match.escalationWave = frame.escalationWave ?? 0
+    match.escalationWaveByShape = frame.escalationWaveByShape
+      ? { ...frame.escalationWaveByShape }
+      : {}
     match.waveDeliveryByShape = frame.waveDeliveryByShape
       ? { ...frame.waveDeliveryByShape }
       : {}

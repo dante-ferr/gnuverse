@@ -4,7 +4,7 @@ import { SplitterMachine } from '../../../../../game-server/pipeline/machines/sp
 import { TunnelPortalMachine } from '../../../../../game-server/pipeline/machines/tunnel-machine.ts'
 import { CoreMachine } from '../../../../../game-server/pipeline/machines/core-machine.ts'
 import { SourceMachine } from '../../../../../game-server/pipeline/machines/source-machine.ts'
-import type { PipelineFrame, PipelineRules } from '../model/frame.ts'
+import type { BeltRecord, PipelineFrame, PipelineRules } from '../model/frame.ts'
 
 export type PacketSink = {
   id: string
@@ -25,10 +25,25 @@ export type PacketMotionState = {
   at: Map<string, { x: number; y: number; shape: string }>
   /** Packets absorbed by a machine input, animating under the machine body. */
   sinks: PacketSink[]
+  /** Belt at each cell for the latest tick. Lookups stay O(1) while interpolating. */
+  beltByCell: Map<string, BeltRecord>
+  /** Belt walk for the current tick, filled on first use and cleared when the tick changes. */
+  paths: Map<string, { x: number; y: number }[]>
+  /** Geometry stamp for `beltByCell`. Updates when belts change without a new tick. */
+  layoutStamp: number
 }
 
 export function createPacketMotionState(): PacketMotionState {
-  return { lastTick: -1, syncedAtMs: 0, from: new Map(), at: new Map(), sinks: [] }
+  return {
+    lastTick: -1,
+    syncedAtMs: 0,
+    from: new Map(),
+    at: new Map(),
+    sinks: [],
+    beltByCell: new Map(),
+    paths: new Map(),
+    layoutStamp: -1,
+  }
 }
 
 /** Call once per paint when the pipeline frame tick advances (or on first frame). */
@@ -42,13 +57,20 @@ export function syncPacketMotion(
   const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
   state.sinks = state.sinks.filter((sink) => nowMs - sink.startedAtMs < tickMs)
 
+  const stamp = beltLayoutStamp(frame.belts)
+  if (stamp !== state.layoutStamp) {
+    state.beltByCell = indexBelts(frame)
+    state.layoutStamp = stamp
+    state.paths = new Map()
+  }
+
   if (frame.tick === state.lastTick) return
 
   const nextIds = new Set(frame.packets.map((packet) => packet.id))
 
   for (const [id, prev] of state.at) {
     if (nextIds.has(id)) continue
-    const belt = beltAt(frame, prev.x, prev.y)
+    const belt = beltAt(frame, prev.x, prev.y, state.beltByCell)
     if (!belt) continue
     const dest = ahead(prev.x, prev.y, belt.direction)
     if (!isMachineInputCell(frame, dest)) continue
@@ -70,10 +92,11 @@ export function syncPacketMotion(
     })
   }
 
+  state.paths = new Map()
   const nextFrom = new Map<string, { x: number; y: number }>()
   for (const packet of frame.packets) {
     const prev = state.at.get(packet.id)
-    nextFrom.set(packet.id, prev ?? spawnOrigin(frame, packet.x, packet.y))
+    nextFrom.set(packet.id, prev ?? spawnOrigin(frame, packet.x, packet.y, state.beltByCell))
   }
   state.from = nextFrom
   state.at = new Map(
@@ -88,10 +111,15 @@ export function syncPacketMotion(
  * Prefer the machine port behind an output slot so sideways / parallel belts
  * still animate out of the machine instead of from empty air behind the belt.
  */
-function spawnOrigin(frame: PipelineFrame, x: number, y: number) {
+function spawnOrigin(
+  frame: PipelineFrame,
+  x: number,
+  y: number,
+  belts?: Map<string, BeltRecord>,
+) {
   const fromPort = outputPortOrigin(frame, x, y)
   if (fromPort) return fromPort
-  const belt = beltAt(frame, x, y)
+  const belt = beltAt(frame, x, y, belts)
   if (!belt) return { x, y }
   return ahead(x, y, opposite(belt.direction))
 }
@@ -140,8 +168,41 @@ function outputPortOrigin(frame: PipelineFrame, x: number, y: number) {
   return null
 }
 
-function beltAt(frame: PipelineFrame, x: number, y: number) {
+function beltLayoutStamp(belts: BeltRecord[]) {
+  let h = belts.length
+  for (const belt of belts) {
+    h = Math.imul(h, 33) ^ belt.x
+    h = Math.imul(h, 33) ^ belt.y
+    h = Math.imul(h, 33) ^ belt.direction.charCodeAt(0)
+    h = Math.imul(h, 33) ^ (belt.speed ?? 1)
+  }
+  return h >>> 0
+}
+
+function indexBelts(frame: PipelineFrame) {
+  const index = new Map<string, BeltRecord>()
+  for (const belt of frame.belts) index.set(`${belt.x},${belt.y}`, belt)
+  return index
+}
+
+function beltAt(frame: PipelineFrame, x: number, y: number, index?: Map<string, BeltRecord>) {
+  if (index) return index.get(`${x},${y}`)
   return frame.belts.find((belt) => belt.x === x && belt.y === y)
+}
+
+/** Cells a packet may paint in this tick: the belt walk, plus the coast target. */
+export function packetClipCells(
+  packet: { id: string; x: number; y: number },
+  state: PacketMotionState,
+) {
+  const path = state.paths.get(packet.id)
+  const cells = path && path.length > 0 ? path.slice() : [{ x: packet.x, y: packet.y }]
+  const belt = state.beltByCell.get(`${packet.x},${packet.y}`)
+  if (!belt) return cells
+  const next = ahead(packet.x, packet.y, belt.direction)
+  const last = cells[cells.length - 1]!
+  if (last.x !== next.x || last.y !== next.y) cells.push(next)
+  return cells
 }
 
 /** True when `cell` is an input slot that can absorb a packet (core, craft, splitter, tunnel). */
@@ -221,6 +282,7 @@ function findBeltPath(
   from: { x: number; y: number },
   to: { x: number; y: number },
   maxSteps: number,
+  belts?: Map<string, BeltRecord>,
 ): { x: number; y: number }[] | null {
   if (sameCell(from, to)) return [from]
   type Node = { cell: { x: number; y: number }; path: { x: number; y: number }[] }
@@ -229,7 +291,7 @@ function findBeltPath(
   while (queue.length > 0) {
     const { cell, path } = queue.shift()!
     if (path.length > maxSteps + 1) continue
-    const belt = beltAt(frame, cell.x, cell.y)
+    const belt = beltAt(frame, cell.x, cell.y, belts)
     const nexts = belt ? [ahead(cell.x, cell.y, belt.direction)] : neighbors4(cell)
     for (const next of nexts) {
       const key = cellKey(next)
@@ -294,14 +356,17 @@ export function packetDisplayCenter(
 
   if (phase < 1) {
     const maxSteps = Math.max(rules.beltSpeedFast, 1) + 2
-    const path = findBeltPath(frame, from, to, maxSteps)
+    if (!state.paths.has(packet.id)) {
+      state.paths.set(packet.id, findBeltPath(frame, from, to, maxSteps, state.beltByCell) ?? [])
+    }
+    const path = state.paths.get(packet.id)
     if (path && path.length >= 2) return lerpAlongCells(path, phase, cellSize)
     const a = cellCenter(from.x, from.y, cellSize)
     const b = cellCenter(to.x, to.y, cellSize)
     return { px: lerp(a.px, b.px, phase), py: lerp(a.py, b.py, phase) }
   }
 
-  const belt = beltAt(frame, to.x, to.y)
+  const belt = beltAt(frame, to.x, to.y, state.beltByCell)
   if (!belt) {
     return cellCenter(to.x, to.y, cellSize)
   }

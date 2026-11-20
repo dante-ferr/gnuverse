@@ -17,7 +17,8 @@ import { BeltEraseStroke } from './belt-erase-stroke.ts'
 import { createBeltRedirectSession } from './belt-redirect.ts'
 import { GridCamera } from './grid-camera.ts'
 import { BeltPainter } from './painters/belt-painter.ts'
-import { cellSize, GridPainter } from './painters/grid-painter.ts'
+import { cellSize, type CellBounds, GridPainter } from './painters/grid-painter.ts'
+import { paintSceneLayer, type SceneLayer } from './scene-layer.ts'
 import { loadMachineDecor, MachinePainter } from './painters/machine-painter.ts'
 import { PacketPainter } from './painters/packet-painter.ts'
 import { ReadoutPainter } from './painters/readout-painter.ts'
@@ -58,6 +59,13 @@ const KEY_PAN_SPEED = 10
 const PAN_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'])
 const MAX_DEVICE_PIXEL_RATIO = 2
 
+/** Phones spend most of their frame budget filling pixels. Cap the backing store there. */
+function scenePixelRatio() {
+  const dpr = window.devicePixelRatio || 1
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false
+  return Math.min(dpr, coarse ? 1.5 : MAX_DEVICE_PIXEL_RATIO)
+}
+
 type ViewSize = { width: number; height: number; left: number; top: number }
 
 /** Full-viewport grid. Core requirements sit in the room sidebar. */
@@ -92,6 +100,8 @@ export function PipelineScene({
   const packetPainter = useRef(new PacketPainter())
   const readoutPainter = useRef(new ReadoutPainter())
   const packetMotion = useRef(createPacketMotionState())
+  const groundLayer = useRef<SceneLayer | null>(null)
+  const machineLayer = useRef<SceneLayer | null>(null)
   const viewSize = useRef<ViewSize>({ width: 1, height: 1, left: 0, top: 0 })
   const paintScheduled = useRef(false)
   const animateFrameId = useRef(0)
@@ -121,90 +131,141 @@ export function PipelineScene({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     const view = viewSize.current
-    const ratio = Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO)
+    const ratio = scenePixelRatio()
     const nextWidth = Math.max(1, Math.floor(view.width * ratio))
     const nextHeight = Math.max(1, Math.floor(view.height * ratio))
     if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
       canvas.width = nextWidth
       canvas.height = nextHeight
     }
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
     const camera = cameraRef.current
     camera.setZoomLimits({ min: palette.cameraZoomMin, max: palette.cameraZoomMax })
     camera.fit(view.width, view.height, cellSize)
-    ctx.clearRect(0, 0, view.width, view.height)
-    ctx.save()
-    ctx.translate(camera.x, camera.y)
-    ctx.scale(camera.zoom, camera.zoom)
-    gridPainter.current.draw(ctx, current, palette, camera.zoom)
+    const timeMs = performance.now()
+    syncPacketMotion(packetMotion.current, current, palette, timeMs, cellSize)
+    const bounds = camera.visibleCellBounds(view.width, view.height, cellSize, 3)
+    const visible = frameWithoutPendingRemovals(current, pendingRemovals.current)
     const strokePreview = placement.current?.previewBelts() ?? []
     const hoverGhost =
       editModeRef.current === 'create' && !placement.current && !eraseStroke.current
         ? hoverStructureGhost(structureIdRef.current, current, camera, lastPointer.current)
         : null
     const preview = [...strokePreview, ...(hoverGhost?.belts ?? [])]
-    const timeMs = performance.now()
-    syncPacketMotion(packetMotion.current, current, palette, timeMs, cellSize)
-    const bounds = camera.visibleCellBounds(view.width, view.height, cellSize)
-    const belts = cullBelts(visibleBelts(current), bounds)
+    const belts = cullBelts(visible.belts, bounds)
     const previewVisible = cullBelts(preview, bounds)
     const previewKeys = new Set(previewVisible.map((belt) => cellKey(belt)))
     const underPreview = belts.filter((belt) => !previewKeys.has(cellKey(belt)))
-    const drawnBelts = [...underPreview, ...previewVisible]
-    beltPainter.current.draw(ctx, drawnBelts, palette, timeMs)
-    const eraseBox = eraseStroke.current?.bounds()
-    if (eraseBox) {
-      ctx.save()
-      ctx.globalAlpha = 0.22
-      ctx.fillStyle = palette.colorWarning
-      ctx.fillRect(
-        eraseBox.minX * cellSize,
-        eraseBox.minY * cellSize,
-        (eraseBox.maxX - eraseBox.minX + 1) * cellSize,
-        (eraseBox.maxY - eraseBox.minY + 1) * cellSize,
-      )
-      ctx.restore()
-    }
-    const visible = frameWithoutPendingRemovals(current, pendingRemovals.current)
-    const packets = visible.packets.filter(
-      (packet) =>
-        packet.x >= bounds.minX &&
-        packet.x <= bounds.maxX &&
-        packet.y >= bounds.minY &&
-        packet.y <= bounds.maxY,
+    const viewKey = `${Math.round(view.width)}x${Math.round(view.height)}@${ratio}`
+    const cameraKey = `${camera.x.toFixed(3)}|${camera.y.toFixed(3)}|${camera.zoom.toFixed(4)}`
+    const paletteKey = staticPaletteKey(palette)
+    const showGrid = camera.zoom >= palette.gridVisibleMinZoom
+    groundLayer.current = paintSceneLayer(
+      groundLayer.current,
+      `${viewKey}|${cameraKey}|${paletteKey}|g${showGrid ? 1 : 0}|${hashBelts(belts)}|${hashChunks(visible)}`,
+      view.width,
+      view.height,
+      ratio,
+      (layer) => {
+        withCamera(layer, camera, ratio, () => {
+          gridPainter.current.draw(layer, visible, palette, camera.zoom, bounds)
+          beltPainter.current.drawTracks(layer, belts, palette)
+        })
+      },
     )
-    const packetFrame = packets.length === visible.packets.length ? visible : { ...visible, packets }
-    packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs)
-    machinePainter.current.draw(ctx, visible, palette, camera.zoom, timeMs, packetMotion.current)
-    const structureHints =
-      editModeRef.current === 'create'
-        ? (getStructure(structureIdRef.current)?.placementHints?.() ?? [])
-        : []
-    const hintCells = [
-      ...structureHints,
-      ...(hoverGhost?.hintCells ?? []),
-      ...(editModeRef.current === 'create' ? placement.current?.previewHintCells?.() ?? [] : []),
-    ]
-    if (hintCells.length > 0) {
-      gridPainter.current.drawHintCells(ctx, hintCells, current, palette.colorHighlight)
-    }
-    const machineGhosts: StructurePreviewMachine[] = [
-      ...(hoverGhost?.machines ?? []),
-      ...(placement.current?.previewMachines?.() ?? []),
-    ]
-    const singleGhost =
-      hoverGhost?.machine ??
-      (editModeRef.current === 'create' ? placement.current?.previewMachine?.() : null)
-    if (singleGhost) machineGhosts.push(singleGhost)
-    for (const ghost of machineGhosts) {
-      machinePainter.current.drawMachineGhost(ctx, ghost, palette)
-    }
-    gridPainter.current.drawPreviewOverlay(ctx, current, palette)
-    const hover =
-      pinnedBlame.current ??
-      hoverLabel(current, camera, lastPointer.current, pendingRemovals.current)
-    readoutPainter.current.draw(ctx, current, palette, hover)
-    ctx.restore()
+    machineLayer.current = paintSceneLayer(
+      machineLayer.current,
+      `${viewKey}|${cameraKey}|${paletteKey}|${machinePainter.current.decorStamp()}|${hashMachines(visible)}`,
+      view.width,
+      view.height,
+      ratio,
+      (layer) => {
+        withCamera(layer, camera, ratio, () => {
+          machinePainter.current.draw(
+            layer,
+            visible,
+            palette,
+            camera.zoom,
+            timeMs,
+            packetMotion.current,
+            bounds,
+            'static',
+          )
+        })
+      },
+    )
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(groundLayer.current.canvas, 0, 0)
+    withCamera(ctx, camera, ratio, () => {
+      beltPainter.current.drawChevrons(ctx, underPreview, palette, timeMs)
+      if (previewVisible.length > 0) beltPainter.current.draw(ctx, previewVisible, palette, timeMs)
+      const eraseBox = eraseStroke.current?.bounds()
+      if (eraseBox) {
+        ctx.save()
+        ctx.globalAlpha = 0.22
+        ctx.fillStyle = palette.colorWarning
+        ctx.fillRect(
+          eraseBox.minX * cellSize,
+          eraseBox.minY * cellSize,
+          (eraseBox.maxX - eraseBox.minX + 1) * cellSize,
+          (eraseBox.maxY - eraseBox.minY + 1) * cellSize,
+        )
+        ctx.restore()
+      }
+      const drawnBelts = [...underPreview, ...previewVisible]
+      const packets = visible.packets.filter(
+        (packet) =>
+          packet.x >= bounds.minX &&
+          packet.x <= bounds.maxX &&
+          packet.y >= bounds.minY &&
+          packet.y <= bounds.maxY,
+      )
+      const packetFrame = packets.length === visible.packets.length ? visible : { ...visible, packets }
+      packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs)
+    })
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.drawImage(machineLayer.current.canvas, 0, 0)
+    withCamera(ctx, camera, ratio, () => {
+      machinePainter.current.draw(
+        ctx,
+        visible,
+        palette,
+        camera.zoom,
+        timeMs,
+        packetMotion.current,
+        bounds,
+        'dynamic',
+      )
+      const structureHints =
+        editModeRef.current === 'create'
+          ? (getStructure(structureIdRef.current)?.placementHints?.() ?? [])
+          : []
+      const hintCells = [
+        ...structureHints,
+        ...(hoverGhost?.hintCells ?? []),
+        ...(editModeRef.current === 'create' ? (placement.current?.previewHintCells?.() ?? []) : []),
+      ]
+      if (hintCells.length > 0) {
+        gridPainter.current.drawHintCells(ctx, hintCells, current, palette.colorHighlight)
+      }
+      const machineGhosts: StructurePreviewMachine[] = [
+        ...(hoverGhost?.machines ?? []),
+        ...(placement.current?.previewMachines?.() ?? []),
+      ]
+      const singleGhost =
+        hoverGhost?.machine ??
+        (editModeRef.current === 'create' ? placement.current?.previewMachine?.() : null)
+      if (singleGhost) machineGhosts.push(singleGhost)
+      for (const ghost of machineGhosts) {
+        machinePainter.current.drawMachineGhost(ctx, ghost, palette)
+      }
+      gridPainter.current.drawPreviewOverlay(ctx, current, palette)
+      const hover =
+        pinnedBlame.current ??
+        hoverLabel(current, camera, lastPointer.current, pendingRemovals.current)
+      readoutPainter.current.draw(ctx, current, palette, hover)
+    })
     syncBuyAnchors(current, palette, camera, view)
   }
 
@@ -301,11 +362,18 @@ export function PipelineScene({
 
   useEffect(() => {
     const loop = () => {
-      paint()
+      if (!document.hidden) paint()
       animateFrameId.current = requestAnimationFrame(loop)
     }
+    const onVisible = () => {
+      if (!document.hidden) paint()
+    }
+    document.addEventListener('visibilitychange', onVisible)
     animateFrameId.current = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(animateFrameId.current)
+    return () => {
+      cancelAnimationFrame(animateFrameId.current)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   const lastPointer = useRef<{ x: number; y: number } | null>(null)
@@ -321,9 +389,6 @@ export function PipelineScene({
   const pan = useRef<{ x: number; y: number } | null>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const heldKeys = useRef(new Set<string>())
-
-  const visibleBelts = (current: PipelineFrame) =>
-    current.belts.filter((belt) => !pendingRemovals.current.belts.has(cellKey(belt)))
 
   const syncErasePreview = () => {
     requestPaint()
@@ -770,7 +835,114 @@ export function PipelineScene({
 
 const pinchDistance = { current: null as number | null }
 
-type CellBounds = { minX: number; minY: number; maxX: number; maxY: number }
+function withCamera(
+  ctx: CanvasRenderingContext2D,
+  camera: GridCamera,
+  ratio: number,
+  draw: () => void,
+) {
+  ctx.save()
+  ctx.setTransform(ratio, 0, 0, ratio, camera.x * ratio, camera.y * ratio)
+  ctx.scale(camera.zoom, camera.zoom)
+  draw()
+  ctx.restore()
+}
+
+function staticPaletteKey(rules: PipelineRules) {
+  return [
+    rules.colorBackground,
+    rules.colorGrid,
+    rules.colorMuted,
+    rules.colorBelt,
+    rules.colorFastBelt,
+    rules.colorFastBeltChevron,
+    rules.colorBeltChevron,
+    rules.colorCore,
+    rules.colorSource,
+    rules.colorSplitter,
+    rules.colorTunnel,
+    rules.colorFastTunnel,
+    rules.colorOutline,
+    rules.colorAccent,
+    rules.outlineWidthPx,
+    rules.decorDarkenPercent,
+    rules.beltChevronStrokePx,
+    rules.beltFastSideInsetPercent,
+  ].join('|')
+}
+
+function hashMix(h: number, n: number) {
+  return Math.imul(h, 16777619) ^ (n | 0)
+}
+
+function hashLabel(h: number, value: string) {
+  let next = h
+  for (let i = 0; i < value.length; i++) next = hashMix(next, value.charCodeAt(i))
+  return next
+}
+
+function hashBelts(belts: BeltRecord[]) {
+  let h = belts.length
+  for (const belt of belts) {
+    h = hashMix(h, belt.x)
+    h = hashMix(h, belt.y)
+    h = hashMix(h, belt.direction.charCodeAt(0))
+    h = hashMix(h, belt.speed ?? 1)
+  }
+  return (h >>> 0).toString(16)
+}
+
+function hashChunks(frame: PipelineFrame) {
+  let h = frame.width
+  h = hashMix(h, frame.height)
+  h = hashMix(h, frame.originChunk?.cx ?? 0)
+  h = hashMix(h, frame.originChunk?.cy ?? 0)
+  for (const chunk of frame.ownedChunks ?? []) {
+    h = hashMix(h, chunk.cx)
+    h = hashMix(h, chunk.cy)
+  }
+  for (const chunk of frame.previewChunks ?? []) {
+    h = hashMix(h, chunk.cx)
+    h = hashMix(h, chunk.cy)
+  }
+  return (h >>> 0).toString(16)
+}
+
+function hashMachines(frame: PipelineFrame) {
+  let h = 0
+  const cores = frame.cores?.length ? frame.cores : [frame.core]
+  for (const core of cores) {
+    h = hashMix(h, core.x)
+    h = hashMix(h, core.y)
+  }
+  const sources = frame.sources?.length ? frame.sources : [frame.source]
+  for (const source of sources) {
+    h = hashMix(h, source.x)
+    h = hashMix(h, source.y)
+    h = hashMix(h, source.direction.charCodeAt(0))
+    const role = 'role' in source ? source.role : undefined
+    h = hashLabel(h, typeof role === 'string' ? role : source.shape)
+  }
+  for (const machine of frame.combiners ?? []) {
+    h = hashMix(h, machine.x)
+    h = hashMix(h, machine.y)
+    h = hashMix(h, machine.facing.charCodeAt(0))
+    h = hashLabel(h, machine.machineId)
+  }
+  for (const machine of frame.splitters ?? []) {
+    h = hashMix(h, machine.x)
+    h = hashMix(h, machine.y)
+    h = hashMix(h, machine.facing.charCodeAt(0))
+  }
+  for (const portal of frame.tunnels ?? []) {
+    h = hashMix(h, portal.x)
+    h = hashMix(h, portal.y)
+    h = hashMix(h, portal.direction.charCodeAt(0))
+    h = hashMix(h, portal.speed ?? 1)
+    h = hashMix(h, portal.role === 'exit' ? 1 : 0)
+  }
+  return (h >>> 0).toString(16)
+}
 
 function cullBelts(belts: BeltRecord[], bounds: CellBounds) {
   return belts.filter(

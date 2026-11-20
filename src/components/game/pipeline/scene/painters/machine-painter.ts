@@ -42,7 +42,7 @@ import type { PacketMotionState } from '../packet-motion.ts'
 import { sourceIsExporting, sourceOutputCell } from '../source-exporting.ts'
 import { darkenHex } from './darken-hex.ts'
 import { elementFill } from './element-fill.ts'
-import { cellSize } from './grid-painter.ts'
+import { cellSize, type CellBounds } from './grid-painter.ts'
 import {
   drawOutlinedResourceDisk,
   drawOutlinedResourceGlyph,
@@ -83,6 +83,8 @@ export class MachinePainter {
   private readonly coreGearOuterAngleRad = new Map<string, number>()
   private readonly coreGearInnerAngleRad = new Map<string, number>()
   private lastDrawTimeMs = 0
+  private colorRules: PipelineRules | null = null
+  private colorByMachineId = new Map<string, string>()
 
   constructor(private readonly images: MachineDecorImages) {}
 
@@ -180,6 +182,23 @@ export class MachinePainter {
     )
   }
 
+  /** Changes when decor images finish loading, so a cached machine layer can rebuild. */
+  decorStamp() {
+    let h = 0
+    const mark = (image: HTMLImageElement | null | undefined) => {
+      h = (h * 2 + (image && image.complete && image.naturalWidth > 0 ? 1 : 0)) | 0
+    }
+    mark(this.images.coreFrame)
+    mark(this.images.source)
+    mark(this.images.splitter)
+    mark(this.images.tunnelEntrance)
+    mark(this.images.tunnelExit)
+    mark(this.images.tunnelFastEntrance)
+    mark(this.images.tunnelFastExit)
+    for (const image of Object.values(this.images.byKind)) mark(image)
+    return String(h)
+  }
+
   draw(
     ctx: CanvasRenderingContext2D,
     frame: PipelineFrame,
@@ -187,43 +206,57 @@ export class MachinePainter {
     cameraZoom: number,
     timeMs: number,
     motion: PacketMotionState,
+    bounds?: CellBounds,
+    pass: 'all' | 'static' | 'dynamic' = 'all',
   ) {
-    const deltaMs = this.lastDrawTimeMs > 0 ? Math.max(0, timeMs - this.lastDrawTimeMs) : 0
-    this.lastDrawTimeMs = timeMs
+    const drawBodies = pass !== 'dynamic'
+    const drawMotion = pass !== 'static'
+    const deltaMs = drawMotion && this.lastDrawTimeMs > 0 ? Math.max(0, timeMs - this.lastDrawTimeMs) : 0
+    if (drawMotion) this.lastDrawTimeMs = timeMs
     const coreSpecs = frame.cores?.length ? frame.cores : [frame.core]
     const specs = frame.sources?.length ? frame.sources : [frame.source]
     const bracketStyle = slotBracketStyleFromRules(rules)
-    const frameMachines = machinesFromFrame(frame)
+    const frameMachines = drawBodies ? machinesFromFrame(frame) : []
+    const ports = drawBodies ? indexPortSlots(frameMachines) : null
+    const gearSamples = cameraZoom < 0.65 ? 8 : CORE_GEAR_OUTLINE_SAMPLES
     for (const coreSpec of coreSpecs) {
+      if (drawMotion) this.noteCoreIntake(coreSpec, timeMs)
+      if (!footprintVisible(coreSpec.x, coreSpec.y, CoreMachine.size, CoreMachine.size, bounds)) continue
       const core = new CoreMachine(coreSpec.id, { x: coreSpec.x, y: coreSpec.y })
-      this.noteCoreIntake(coreSpec, timeMs)
-      this.drawCore(ctx, core, rules, bracketStyle, timeMs, deltaMs)
+      this.drawCore(ctx, core, rules, bracketStyle, timeMs, deltaMs, drawBodies, drawMotion, gearSamples)
     }
     for (const spec of frame.combiners ?? []) {
-      const combiner = new CombinerMachine(
-        spec.id,
-        spec.machineId,
-        { x: spec.x, y: spec.y },
-        spec.facing,
-      )
-      const kind = rules.elements.machines.find((item) => item.id === spec.machineId)
-      const body = kind?.color ?? rules.colorAccent
-      this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
-        centerDecor: spec.machineId === 'combiner_3',
-      })
-      this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, motion)
+      const size = CombinerMachine.sizeFor(spec.machineId, spec.facing)
+      if (!footprintVisible(spec.x, spec.y, size.width, size.height, bounds)) continue
+      const combiner = new CombinerMachine(spec.id, spec.machineId, { x: spec.x, y: spec.y }, spec.facing)
+      if (drawBodies) {
+        const body = this.machineColor(rules, spec.machineId)
+        this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
+          centerDecor: spec.machineId === 'combiner_3',
+        })
+      }
+      if (drawMotion) this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, motion)
     }
-    for (const spec of frame.splitters ?? []) {
-      this.drawSplitter(ctx, spec, rules, bracketStyle, frameMachines)
-    }
-    for (const spec of frame.tunnels ?? []) {
-      this.drawTunnelPortal(ctx, spec, rules, bracketStyle, frameMachines)
+    if (drawBodies && ports) {
+      for (const spec of frame.splitters ?? []) {
+        if (!footprintVisible(spec.x, spec.y, 1, 1, bounds)) continue
+        this.drawSplitter(ctx, spec, rules, bracketStyle, ports)
+      }
+      for (const spec of frame.tunnels ?? []) {
+        if (!footprintVisible(spec.x, spec.y, 1, 1, bounds)) continue
+        this.drawTunnelPortal(ctx, spec, rules, bracketStyle, ports)
+      }
     }
     for (const spec of specs) {
+      if (!footprintVisible(spec.x, spec.y, SourceMachine.size, SourceMachine.size, bounds)) continue
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
+      if (drawBodies) {
+        const glyphId = sourceGlyphId(spec)
+        const body = elementFill(rules, glyphId) ?? rules.colorSource
+        this.drawSource(ctx, source, body, rules, bracketStyle)
+      }
+      if (!drawMotion) continue
       const glyphId = sourceGlyphId(spec)
-      const body = elementFill(rules, glyphId) ?? rules.colorSource
-      this.drawSource(ctx, source, body, rules, bracketStyle)
       const outputCell = sourceOutputCell(spec)
       const exporting = sourceIsExporting(outputCell, motion)
       const periodMs = sourcePeriodMsForGlyph(rules, glyphId)
@@ -247,7 +280,15 @@ export class MachinePainter {
     }
     // Core/combiner brackets above logistics so adjacent plugs cannot bury them.
     // Source outputs stay under the circle (drawn once in drawSource).
-    this.drawNonLogisticBrackets(ctx, frame, rules, bracketStyle)
+    if (drawBodies) this.drawNonLogisticBrackets(ctx, frame, rules, bracketStyle, bounds)
+  }
+
+  private machineColor(rules: PipelineRules, machineId: string) {
+    if (this.colorRules !== rules) {
+      this.colorRules = rules
+      this.colorByMachineId = new Map(rules.elements.machines.map((item) => [item.id, item.color]))
+    }
+    return this.colorByMachineId.get(machineId) ?? rules.colorAccent
   }
 
   private drawNonLogisticBrackets(
@@ -255,22 +296,19 @@ export class MachinePainter {
     frame: PipelineFrame,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
+    bounds?: CellBounds,
   ) {
     const coreSpecs = frame.cores?.length ? frame.cores : [frame.core]
     for (const coreSpec of coreSpecs) {
+      if (!footprintVisible(coreSpec.x, coreSpec.y, CoreMachine.size, CoreMachine.size, bounds)) continue
       const core = new CoreMachine(coreSpec.id, { x: coreSpec.x, y: coreSpec.y })
       this.drawSlotBrackets(ctx, core, rules.colorCore, rules, bracketStyle)
     }
     for (const spec of frame.combiners ?? []) {
-      const combiner = new CombinerMachine(
-        spec.id,
-        spec.machineId,
-        { x: spec.x, y: spec.y },
-        spec.facing,
-      )
-      const kind = rules.elements.machines.find((item) => item.id === spec.machineId)
-      const body = kind?.color ?? rules.colorAccent
-      this.drawSlotBrackets(ctx, combiner, body, rules, bracketStyle)
+      const size = CombinerMachine.sizeFor(spec.machineId, spec.facing)
+      if (!footprintVisible(spec.x, spec.y, size.width, size.height, bounds)) continue
+      const combiner = new CombinerMachine(spec.id, spec.machineId, { x: spec.x, y: spec.y }, spec.facing)
+      this.drawSlotBrackets(ctx, combiner, this.machineColor(rules, spec.machineId), rules, bracketStyle)
     }
   }
 
@@ -289,12 +327,17 @@ export class MachinePainter {
     bracketStyle: SlotBracketStyle,
     timeMs: number,
     deltaMs: number,
+    drawBodies: boolean,
+    drawMotion: boolean,
+    gearSamples: number,
   ) {
     const { px, py, width, height } = machineRect(machine)
-    this.drawMachineBody(ctx, machine, rules.colorCore, rules, bracketStyle, px, py, width, height)
-
-    const frameInk = darkenHex(rules.colorCore, rules.decorDarkenPercent)
-    drawTintedDecor(ctx, this.images.coreFrame, frameInk, px, py, width, height, this.tintCache)
+    if (drawBodies) {
+      this.drawMachineBody(ctx, machine, rules.colorCore, rules, bracketStyle, px, py, width, height)
+      const frameInk = darkenHex(rules.colorCore, rules.decorDarkenPercent)
+      drawTintedDecor(ctx, this.images.coreFrame, frameInk, px, py, width, height, this.tintCache)
+    }
+    if (!drawMotion) return
 
     const spinning = coreGearsShouldSpin(
       this.lastCoreActiveAtMs.get(machine.id),
@@ -326,6 +369,7 @@ export class MachinePainter {
       outerAngle,
       rules.outlineWidthPx,
       this.tintCache,
+      gearSamples,
     )
 
     const innerInk = darkenHex(rules.colorAccent, rules.decorDarkenPercent)
@@ -342,6 +386,7 @@ export class MachinePainter {
       innerAngle,
       rules.outlineWidthPx,
       this.tintCache,
+      gearSamples,
     )
   }
 
@@ -350,7 +395,7 @@ export class MachinePainter {
     spec: SplitterRecord,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
-    frameMachines: Machine[],
+    ports: Map<string, IndexedPort[]>,
   ) {
     const splitter = new SplitterMachine(
       spec.id,
@@ -360,7 +405,7 @@ export class MachinePainter {
     )
     this.machine(ctx, splitter, rules.colorSplitter, this.images.splitter, rules, bracketStyle, {
       decorFacing: spec.facing,
-      hidePortBracket: logisticPortBracketHidden(splitter, frameMachines),
+      hidePortBracket: hideConnected(splitter.id, ports),
     })
   }
 
@@ -369,7 +414,7 @@ export class MachinePainter {
     spec: TunnelPortalRecord,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
-    frameMachines: Machine[],
+    ports: Map<string, IndexedPort[]>,
   ) {
     const portal = new TunnelPortalMachine(
       spec.id,
@@ -385,7 +430,7 @@ export class MachinePainter {
     const body = fast ? rules.colorFastTunnel : rules.colorTunnel
     this.machine(ctx, portal, body, decor, rules, bracketStyle, {
       decorFacing: spec.direction,
-      hidePortBracket: logisticPortBracketHidden(portal, frameMachines),
+      hidePortBracket: hideConnected(portal.id, ports),
       decorInk: fast ? rules.colorFastBeltChevron : undefined,
       fastSideRails: fast ? spec.direction : undefined,
     })
@@ -610,17 +655,45 @@ function sourceGlyphId(spec: SourceRecord): string {
   return spec.role ?? spec.shape
 }
 
+type IndexedPort = { machineId: string; slot: PortSlot }
+
+function footprintVisible(x: number, y: number, width: number, height: number, bounds?: CellBounds) {
+  if (!bounds) return true
+  return x <= bounds.maxX && x + width > bounds.minX && y <= bounds.maxY && y + height > bounds.minY
+}
+
+function indexPortSlots(machines: Machine[]) {
+  const byCell = new Map<string, IndexedPort[]>()
+  for (const machine of machines) {
+    for (const slot of machine.slots) {
+      const key = `${slot.cell.x},${slot.cell.y}`
+      const list = byCell.get(key)
+      const entry = { machineId: machine.id, slot }
+      if (list) list.push(entry)
+      else byCell.set(key, [entry])
+    }
+  }
+  return byCell
+}
+
+function hideConnected(machineId: string, byCell: Map<string, IndexedPort[]>) {
+  return (slot: PortSlot) => {
+    const list = byCell.get(`${slot.cell.x},${slot.cell.y}`)
+    if (!list) return false
+    for (const other of list) {
+      if (other.machineId === machineId) continue
+      if (portsConnected(slot, other.slot)) return true
+    }
+    return false
+  }
+}
+
 function logisticPortBracketHidden(
   machine: Machine,
   frameMachines: Machine[],
 ): ((slot: PortSlot) => boolean) | undefined {
-  const foreignSlots: PortSlot[] = []
-  for (const other of frameMachines) {
-    if (other.id === machine.id) continue
-    foreignSlots.push(...other.slots)
-  }
-  if (foreignSlots.length === 0) return undefined
-  return (slot) => foreignSlots.some((other) => portsConnected(slot, other))
+  if (frameMachines.length === 0) return undefined
+  return hideConnected(machine.id, indexPortSlots(frameMachines))
 }
 
 /** Primary output id for the active craft / pending eject, if any. */
@@ -912,6 +985,7 @@ function drawCoreGear(
   angleRad: number,
   outlineWidthPx: number,
   cache: Map<string, HTMLCanvasElement>,
+  samples = CORE_GEAR_OUTLINE_SAMPLES,
 ) {
   const size = Math.min(width, height) * scale
   const cx = px + width / 2
@@ -919,8 +993,8 @@ function drawCoreGear(
   const x0 = cx - size / 2
   const y0 = cy - size / 2
   const outlineRadius = Math.max(outlineWidthPx * CORE_GEAR_OUTLINE_WIDTH_FACTOR, size * 0.03)
-  for (let i = 0; i < CORE_GEAR_OUTLINE_SAMPLES; i++) {
-    const a = (2 * Math.PI * i) / CORE_GEAR_OUTLINE_SAMPLES
+  for (let i = 0; i < samples; i++) {
+    const a = (2 * Math.PI * i) / samples
     const ox = Math.cos(a) * outlineRadius
     const oy = Math.sin(a) * outlineRadius
     drawTintedDecorRotated(ctx, image, outlineInk, x0 + ox, y0 + oy, size, size, angleRad, cache)

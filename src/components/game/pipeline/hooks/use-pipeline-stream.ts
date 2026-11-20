@@ -85,9 +85,25 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     const onFrame = (event: MessageEvent<string>) => {
       if (!active) return
       try {
-        const data = JSON.parse(event.data) as PipelineFrame
+        const data = JSON.parse(event.data) as PipelineFrame & {
+          omitBelts?: boolean
+          beltCount?: number
+        }
         if (!isPipelineFrame(data)) return
-        setFrame(data)
+        if (data.omitBelts) {
+          const { omitBelts: _omit, beltCount, ...rest } = data
+          let mismatch = false
+          setFrame((current) => {
+            if (beltCount !== undefined && current.belts.length !== beltCount) {
+              mismatch = true
+              return current
+            }
+            return { ...rest, belts: current.belts }
+          })
+          if (mismatch) void update()
+        } else {
+          setFrame(data)
+        }
         setConnection('live')
       } catch {
         setConnection('offline')
