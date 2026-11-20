@@ -203,6 +203,14 @@ export function PipelineScene({
     camera: GridCamera,
     view: ViewSize,
   ) => {
+    const pinned = pinnedBuyChunk.current
+    if (pinned) {
+      const key = `${pinned.cx},${pinned.cy}`
+      const stillForSale = (current.previewChunks ?? []).some(
+        (item) => `${item.cx},${item.cy}` === key,
+      )
+      if (!stillForSale) pinnedBuyChunk.current = null
+    }
     const hovered =
       pinnedBuyChunk.current ??
       previewChunkUnderPointer(current, palette, camera, lastPointer.current)
