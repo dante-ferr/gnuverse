@@ -146,10 +146,11 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
-| 2026-11-20 | Gameplay | Tunnel placement keeps the surface belts between the portals; only the entrance and exit cells replace conveyors — `machine-editor.ts` |
+| 2026-11-20 | Design | Port connection locked: direct plug on input slot + matching `travel`; shared gap cells are belts; tick routing aligned — [decisions §9](../decisions.md#9-open-pipeline-machines), `building-slots.ts`, `routing.ts` |
+| 2026-11-20 | Design | Brackets: hide logistics only on `portsConnected`; core/source/combiner always visible; second paint pass — `machine-painter.ts` |
+| 2026-11-20 | Design | Splitter body-adjacent only with compatible plug; tunnel body-adjacent only with feed/accept link; combiners in all rooms — `building-slots.ts`, `machine-editor.ts` |
+| 2026-11-20 | Gameplay | Tunnel placement keeps surface belts between portals; stroke facing before portal belts — `machine-editor.ts` |
 | 2026-11-20 | Gameplay | A tunnel may touch a machine when an output feeds the entrance or an input accepts the exit; belt drag treats that port as the missing lead-in or lead-out belt — `building-slots.ts`, `belt-cross.ts` |
-| 2026-11-20 | Gameplay | Splitter contact requires compatible port pair; tunnels ban all building contact; logistic brackets hide on body contact (not only overlap) — `building-slots.ts` |
-| 2026-11-20 | Gameplay | Logistic buildings (splitter, tunnel) may place ports on other bodies; hidden brackets when covered — `building-slots.ts` |
 | 2026-11-20 | Gameplay | Building I/O ports must not occupy another building’s body (inputs use approach cell; shared port tiles allowed) — `building-slots.ts` |
 | 2026-11-19 | Gameplay | Belt drag inserts tunnels across runs that fit in `tunnel_max_gap` by default (1–2 empty cells stay in the span). Thicker runs and missing portal cells are skipped — `belt-cross.ts` |
 | 2026-11-20 | Impl | Satellite cores discovered on preview (not owned at create) — [progression.md](progression.md) |
