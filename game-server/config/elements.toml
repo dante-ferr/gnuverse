@@ -11,9 +11,9 @@ default_productivity = 1
 default_glyph_size_px = 28
 default_stroke = "#0a1014"
 default_demand_required = 20
-# Craft quotas grow as ceil(base × escalation_ratio^wave) on each clear. Tier-1 bases stay flat.
-escalation_ratio = 1.18
-starter_source_ids = ["fire", "water"]
+# Per-shape demand waves: new shapes start at base; each clear bumps that shape's wave.
+# escalation_ratio = 2 → 20→40 after first clear (all active demands, bases and crafts).
+escalation_ratio = 2
 starter_source_ids = ["fire", "water"]
 
 [preview]

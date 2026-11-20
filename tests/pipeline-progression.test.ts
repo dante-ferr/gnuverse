@@ -115,7 +115,7 @@ test('auto unlock advances chapter when chapter-1 demands are met', () => {
   const match = Match.create('chapter-advance', rules)
   const required = rules.elements.defaultDemandRequired
   match.deliveryByShape = { fire: required, water: required, steam: required }
-  match.waveDeliveryByShape = { steam: required }
+  match.waveDeliveryByShape = { fire: required, water: required, steam: required }
   match.deliveries = required * 3
   assert.equal(match.chapter, 1)
   assert.equal(match.escalationWave, 0)
@@ -125,33 +125,48 @@ test('auto unlock advances chapter when chapter-1 demands are met', () => {
   assert.deepEqual(match.waveDeliveryByShape, {})
 })
 
-test('tier-1 bases stay flat while crafts escalate after a clear', () => {
-  const match = Match.create('escalate-crafts', rules)
+test('all active demands escalate per-shape after a clear', () => {
+  const match = Match.create('escalate-demands', rules)
   const base = rules.elements.defaultDemandRequired
+  const ratio = rules.elements.escalationRatio
+  const escalated = Math.ceil(base * ratio)
   match.deliveryByShape = { fire: base, water: base, steam: base }
-  match.waveDeliveryByShape = { steam: base }
+  match.waveDeliveryByShape = { fire: base, water: base, steam: base }
   match.deliveries = base * 3
   match.tick()
   assert.equal(match.escalationWave, 1)
-  assert.equal(requiredForShape(rules, 'fire', 1, false), base)
-  assert.equal(
-    requiredForShape(rules, 'steam', 1, false),
-    Math.ceil(base * rules.elements.escalationRatio),
-  )
+  assert.equal(match.escalationWaveByShape.fire, 1)
+  assert.equal(match.escalationWaveByShape.water, 1)
+  assert.equal(match.escalationWaveByShape.steam, 1)
+  assert.equal(requiredForShape(rules, 'fire', 1, false), escalated)
+  assert.equal(requiredForShape(rules, 'steam', 1, false), escalated)
   const frame = match.toFrame()
   const fire = frame.demands.find((d) => d.shape === 'fire')
+  const water = frame.demands.find((d) => d.shape === 'water')
   const steam = frame.demands.find((d) => d.shape === 'steam')
+  const grass = frame.demands.find((d) => d.shape === 'grass')
+  const moss = frame.demands.find((d) => d.shape === 'moss')
   assert.ok(fire)
+  assert.ok(water)
   assert.ok(steam)
-  assert.equal(fire.required, base)
-  assert.ok(fire.received >= base)
+  assert.equal(fire.received, 0)
+  assert.equal(water.received, 0)
   assert.equal(steam.received, 0)
-  assert.equal(steam.required, Math.ceil(base * rules.elements.escalationRatio))
+  assert.equal(fire.required, escalated)
+  assert.equal(water.required, escalated)
+  assert.equal(steam.required, escalated)
+  assert.ok(grass, 'chapter-2 base grass should be active after unlock')
+  assert.ok(moss, 'chapter-2 craft moss should be active after unlock')
+  assert.equal(grass!.required, base, 'new shapes start at base while cleared shapes escalate')
+  assert.equal(moss!.required, base)
+  assert.equal(grass!.received, 0)
+  assert.equal(moss!.received, 0)
 })
 
-test('clearing on the last chapter keeps chapter and keeps escalating crafts', () => {
+test('clearing on the last chapter keeps chapter and keeps escalating all demands', () => {
   const match = Match.create('last-chapter-wave', rules)
   const last = rules.elements.chapters.length
+  const ratio = rules.elements.escalationRatio
   match.chapter = last
   match.version = `0.${last}`
   match.escalationWave = 2
@@ -159,15 +174,26 @@ test('clearing on the last chapter keeps chapter and keeps escalating crafts', (
   let lifetime = 0
   for (const shape of shapes) {
     const el = rules.elements.elements.find((item) => item.id === shape)
-    const need = requiredForShape(rules, shape, 2, false)
+    const wave = 2
+    match.escalationWaveByShape[shape] = wave
+    const need = requiredForShape(rules, shape, wave, false)
     match.deliveryByShape[shape] = need
+    match.waveDeliveryByShape[shape] = need
     lifetime += need
-    if (el && el.tier > 1) match.waveDeliveryByShape[shape] = need
   }
   match.deliveries = lifetime
   match.tick()
   assert.equal(match.chapter, last)
   assert.equal(match.escalationWave, 3)
+  for (const shape of shapes) {
+    const el = rules.elements.elements.find((item) => item.id === shape)
+    assert.ok(el)
+    assert.equal(match.escalationWaveByShape[shape], 3)
+    assert.equal(
+      requiredForShape(rules, shape, 3, false),
+      Math.ceil(el!.demand_required * ratio ** 3),
+    )
+  }
   assert.deepEqual(match.waveDeliveryByShape, {})
   assert.equal(match.deliveries, lifetime)
 })

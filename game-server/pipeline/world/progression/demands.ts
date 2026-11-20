@@ -12,8 +12,10 @@ export type PipelineFrameVersion = string
 /** Progress counters for chapter demands and craft-wave escalation. */
 export type DemandProgress = {
   chapter: number
-  /** Clears completed so far; crafts use `ceil(base × ratio^wave)`. */
+  /** Room clears completed (sidebar Onda / Pontuação). */
   escalationWave: number
+  /** Per-shape craft wave; shapes not yet cleared stay at 0 (base quota). */
+  escalationWaveByShape: Partial<Record<PacketShape, number>>
   lifetimeByShape: Partial<Record<PacketShape, number>>
   waveByShape: Partial<Record<PacketShape, number>>
   sandbox?: boolean
@@ -31,19 +33,12 @@ export function chapterFromVersion(version: PipelineFrameVersion): number {
   return Number.isFinite(minor) && minor >= 1 ? minor : 1
 }
 
-/** Tier-1 bases (and legacy circle) keep flat lifetime quotas. */
-export function isBasicDemandShape(rules: PipelineRules, shape: PacketShape): boolean {
-  if (shape === 'circle') return true
-  const el = rules.elements.elements.find((item) => item.id === shape)
-  return Boolean(el && el.tier === 1)
-}
-
 export function progressReceived(
   rules: PipelineRules,
   progress: DemandProgress,
   shape: PacketShape,
 ): number {
-  if (progress.sandbox || isBasicDemandShape(rules, shape)) {
+  if (progress.sandbox) {
     return progress.lifetimeByShape[shape] ?? 0
   }
   return progress.waveByShape[shape] ?? 0
@@ -63,13 +58,12 @@ export function activeDemandShapes(
 }
 
 /**
- * Per-shape quota. Tier-1 bases stay at chapter base.
- * Crafts use ceil(base × escalation_ratio^wave) (wave 0 → base).
+ * Per-shape quota. shapeWave 0 → chapter base; thereafter ceil(base × escalation_ratio^shapeWave).
  */
 export function requiredForShape(
   rules: PipelineRules,
   shape: PacketShape,
-  escalationWave = 0,
+  shapeWave = 0,
   sandbox = false,
 ): number {
   const el = rules.elements.elements.find((item) => item.id === shape)
@@ -78,16 +72,21 @@ export function requiredForShape(
   const chapterRow = rules.elements.chapters.find((row) => row.id === el.demand_chapter)
   const mult = chapterRow?.required_multiplier ?? 1
   const base = el.demand_required * mult
-  if (isBasicDemandShape(rules, shape) || escalationWave <= 0) return base
+  if (shapeWave <= 0) return base
   const ratio = rules.elements.escalationRatio
-  return Math.max(1, Math.ceil(base * ratio ** escalationWave))
+  return Math.max(1, Math.ceil(base * ratio ** shapeWave))
 }
 
 export function coreDemands(rules: PipelineRules, progress: DemandProgress): CoreDemandRecord[] {
   return activeDemandShapes(progress.chapter, rules, progress.sandbox === true).map((shape) => ({
     shape,
     received: progressReceived(rules, progress, shape),
-    required: requiredForShape(rules, shape, progress.escalationWave, progress.sandbox === true),
+    required: requiredForShape(
+      rules,
+      shape,
+      progress.escalationWaveByShape[shape] ?? 0,
+      progress.sandbox === true,
+    ),
   }))
 }
 
@@ -103,7 +102,7 @@ export function remainingDemand(
   const required = requiredForShape(
     rules,
     shape,
-    progress.escalationWave,
+    progress.escalationWaveByShape[shape] ?? 0,
     progress.sandbox === true,
   )
   return Math.max(0, required - progressReceived(rules, progress, shape))
@@ -120,6 +119,7 @@ export function coreAcceptsShape(
 export function matchDemandProgress(match: {
   chapter: number
   escalationWave: number
+  escalationWaveByShape: Partial<Record<PacketShape, number>>
   deliveryByShape: Partial<Record<PacketShape, number>>
   waveDeliveryByShape: Partial<Record<PacketShape, number>>
   sandbox: boolean
@@ -127,6 +127,7 @@ export function matchDemandProgress(match: {
   return {
     chapter: match.chapter,
     escalationWave: match.escalationWave,
+    escalationWaveByShape: match.escalationWaveByShape,
     lifetimeByShape: match.deliveryByShape,
     waveByShape: match.waveDeliveryByShape,
     sandbox: match.sandbox,

@@ -34,7 +34,6 @@ import {
   chapterToVersion,
   coreAcceptsShape,
   coreDemands,
-  isBasicDemandShape,
   matchDemandProgress,
 } from './progression/demands.ts'
 import { tryAutoUnlock } from './progression/unlock.ts'
@@ -303,7 +302,7 @@ export class Match {
     if (!this.acceptsDelivery(shape)) return
     this.deliveries += 1
     this.deliveryByShape[shape] = (this.deliveryByShape[shape] ?? 0) + 1
-    if (!this.sandbox && !isBasicDemandShape(this.rules, shape)) {
+    if (!this.sandbox) {
       this.waveDeliveryByShape[shape] = (this.waveDeliveryByShape[shape] ?? 0) + 1
     }
     if (coreId) this.coreLastIntakeTick[coreId] = this.tickIndex

@@ -98,8 +98,10 @@ export type PipelineFrame = {
   kind: 'pipeline'
   version: string
   chapter?: number
-  /** Clears completed; crafts escalate. Tier-1 bases ignore this. */
+  /** Room clears completed (sidebar Onda). */
   escalationWave?: number
+  /** Per-shape craft escalation wave. */
+  escalationWaveByShape?: Partial<Record<PacketShape, number>>
   /** Fresh craft-wave deliveries (omit / empty during sandbox). */
   waveDeliveryByShape?: Partial<Record<PacketShape, number>>
   seed: string

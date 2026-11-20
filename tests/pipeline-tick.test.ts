@@ -338,7 +338,7 @@ test('auto unlock bumps 0.1 to 0.2 when delivery milestones are met', () => {
   const required = 3
   const match = connected(rulesWithChapterOneQuota(required))
   match.deliveryByShape = { fire: required, water: required, steam: required }
-  match.waveDeliveryByShape = { steam: required }
+  match.waveDeliveryByShape = { fire: required, water: required, steam: required }
   match.deliveries = required * 3
   assert.equal(match.chapter, 1)
   assert.equal(match.version, '0.1')

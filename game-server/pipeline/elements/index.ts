@@ -64,7 +64,7 @@ export type ElementCatalogJson = {
   defaultGlyphSizePx: number
   defaultStroke: string
   defaultDemandRequired: number
-  /** Mild geometric growth for crafted demands (`required = ceil(base × ratio^wave)`). Tier-1 bases ignore this. */
+  /** Mild geometric growth per demand shape (`required = ceil(base × ratio^wave)`). */
   escalationRatio: number
   starterSourceIds: string[]
   preview: ElementPreviewConfig

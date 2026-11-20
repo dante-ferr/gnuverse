@@ -159,7 +159,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 | 2026-11-20 | Gameplay | A tunnel may touch a machine when an output feeds the entrance or an input accepts the exit; belt drag treats that port as the missing lead-in or lead-out belt — `building-slots.ts`, `belt-cross.ts` |
 | 2026-11-20 | Gameplay | Building I/O ports must not occupy another building’s body (inputs use approach cell; shared port tiles allowed) — `building-slots.ts` |
 | 2026-11-19 | Gameplay | Belt drag inserts tunnels across runs that fit in `tunnel_max_gap` by default (1–2 empty cells stay in the span). Thicker runs and missing portal cells are skipped — `belt-cross.ts` |
-| 2026-11-20 | Impl | Craft escalation from first clear (`escalation_ratio`); tier-1 bases flat; fresh craft-wave quotas; score = lifetime deliveries — [progression.md](progression.md) |
+| 2026-11-20 | Impl | Per-shape demand escalation for all active shapes (`escalationWaveByShape`, `escalation_ratio = 2`); global `escalationWave` for **Onda** — [progression.md](progression.md) |
 | 2026-11-20 | Impl | Satellite cores discovered on preview (not owned at create) — [progression.md](progression.md) |
 | 2026-11-20 | Design | Outer chunks may roll starter bases (fire/water) via `source_spawn_chance_percent` — [progression.md](progression.md) / §11 |
 | 2026-11-20 | Design | Owned at create = starter only; grass stays preview until bought — [progression.md](progression.md) |
