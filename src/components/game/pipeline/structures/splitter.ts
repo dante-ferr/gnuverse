@@ -1,4 +1,5 @@
-import { cycleCombinerFacing, getCombinerPlaceOptions } from '../combiner-place-options.ts'
+import { cycleCombinerFacing } from '../combiner-place-options.ts'
+import { resolveLogisticFacing } from '../logistic-place-facing.ts'
 import {
   proposedBuildingPlacementBlocked,
   splitterProbeSlots,
@@ -35,8 +36,9 @@ function isSplitterPayload(payload: unknown): payload is SplitterPayload {
 function previewSplitterAt(
   cell: { x: number; y: number },
   placementValid = true,
+  frame?: PipelineFrame | null,
 ): StructurePreviewMachine {
-  const { facing } = getCombinerPlaceOptions()
+  const facing = resolveLogisticFacing(cell, frame ?? getPlacementFrame())
   return {
     machineId: 'splitter',
     x: cell.x,
@@ -53,10 +55,10 @@ function splitterPlacementValid(
   frame: PipelineFrame | null | undefined,
 ): boolean {
   if (!frame) return true
-  const { facing } = getCombinerPlaceOptions()
+  const facing = resolveLogisticFacing(cell, frame)
   const slots = splitterProbeSlots(cell.x, cell.y, facing)
   const footprints = [{ origin: { x: cell.x, y: cell.y }, width: 1, height: 1 }]
-  return !proposedBuildingPlacementBlocked(frame, slots, footprints)
+  return !proposedBuildingPlacementBlocked(frame, slots, footprints, true)
 }
 
 function createSplitterSession(): StructurePlacementSession {
@@ -73,14 +75,15 @@ function createSplitterSession(): StructurePlacementSession {
       if (!center) return null
       const frame = getPlacementFrame()
       const valid = splitterPlacementValid(center, frame)
-      return previewSplitterAt(center, valid)
+      return previewSplitterAt(center, valid, frame)
     },
     isEmpty() {
       return !center
     },
     finish() {
       if (!center) return null
-      const ghost = previewSplitterAt(center)
+      const frame = getPlacementFrame()
+      const ghost = previewSplitterAt(center, true, frame)
       return {
         structureId: 'splitter',
         payload: {
@@ -99,7 +102,7 @@ function splitterHoverGhost(
   frame?: PipelineFrame,
 ): StructureHoverGhost {
   const valid = splitterPlacementValid(cell, frame)
-  return { machine: previewSplitterAt(cell, valid) }
+  return { machine: previewSplitterAt(cell, valid, frame) }
 }
 
 const splitterStructure: StructureDefinition = {

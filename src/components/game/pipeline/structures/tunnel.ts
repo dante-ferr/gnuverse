@@ -3,7 +3,8 @@ import {
   TunnelPortalMachine,
   tunnelPairGeometry,
 } from '../../../../../game-server/pipeline/machines/tunnel-machine.ts'
-import { cycleCombinerFacing, getCombinerPlaceOptions } from '../combiner-place-options.ts'
+import { cycleCombinerFacing } from '../combiner-place-options.ts'
+import { resolveLogisticFacing, resolveTunnelFacing } from '../logistic-place-facing.ts'
 import { getPlacementFrame, getPlacementRules } from '../placement-rules.ts'
 import {
   proposedBuildingPlacementBlocked,
@@ -87,7 +88,7 @@ function exitPlacementValid(
     { origin: entrance, width: 1, height: 1 },
     { origin: exit, width: 1, height: 1 },
   ]
-  return !proposedBuildingPlacementBlocked(frame, slots, footprints)
+  return !proposedBuildingPlacementBlocked(frame, slots, footprints, true)
 }
 
 function entrancePlacementValid(
@@ -95,7 +96,7 @@ function entrancePlacementValid(
   frame: import('../model/frame.ts').PipelineFrame | undefined,
 ): boolean {
   if (!frame) return true
-  const { facing } = getCombinerPlaceOptions()
+  const facing = resolveLogisticFacing(cell, frame)
   const slots = new TunnelPortalMachine(
     'probe',
     cell,
@@ -106,7 +107,7 @@ function entrancePlacementValid(
     0,
   ).slots
   const footprints = [{ origin: cell, width: 1, height: 1 }]
-  return !proposedBuildingPlacementBlocked(frame, slots, footprints)
+  return !proposedBuildingPlacementBlocked(frame, slots, footprints, true)
 }
 
 /**
@@ -129,7 +130,7 @@ function tunnelPreviewMachines(
   exit: { x: number; y: number } | null,
   frame?: import('../model/frame.ts').PipelineFrame,
 ): StructurePreviewMachine[] {
-  const { facing } = getCombinerPlaceOptions()
+  const facing = resolveTunnelFacing(entrance, exit, frame)
   const entranceValid = entrancePlacementValid(entrance, frame)
   const machines = [previewPortal(entrance, 'entrance', facing, entranceValid)]
   if (exit) {
@@ -164,7 +165,7 @@ function createTunnelSession(): StructurePlacementSession {
     },
     previewHintCells() {
       if (!entrance) return []
-      const { facing } = getCombinerPlaceOptions()
+      const facing = resolveLogisticFacing(entrance, getPlacementFrame())
       return validExitCells(entrance, facing)
     },
     isEmpty() {
@@ -172,7 +173,8 @@ function createTunnelSession(): StructurePlacementSession {
     },
     finish() {
       if (!entrance || !exit) return null
-      const { facing } = getCombinerPlaceOptions()
+      const frame = getPlacementFrame()
+      const facing = resolveTunnelFacing(entrance, exit, frame)
       const geom = tunnelPairGeometry(entrance, exit, facing, tunnelMaxGap())
       pendingEntrance = null
       if (!geom.ok) return null
@@ -195,13 +197,14 @@ function tunnelHoverGhost(
   cell: { x: number; y: number },
   frame?: import('../model/frame.ts').PipelineFrame,
 ): StructureHoverGhost {
-  const { facing } = getCombinerPlaceOptions()
   if (pendingEntrance) {
+    const facing = resolveTunnelFacing(pendingEntrance, cell, frame)
     return {
       machines: tunnelPreviewMachines(pendingEntrance, cell, frame),
       hintCells: validExitCells(pendingEntrance, facing),
     }
   }
+  const facing = resolveLogisticFacing(cell, frame)
   const entranceValid = entrancePlacementValid(cell, frame)
   return {
     machine: previewPortal(cell, 'entrance', facing, entranceValid),
@@ -218,7 +221,7 @@ const tunnelStructure: StructureDefinition = {
   hoverGhost: tunnelHoverGhost,
   placementHints: () => {
     if (!pendingEntrance) return []
-    const { facing } = getCombinerPlaceOptions()
+    const facing = resolveLogisticFacing(pendingEntrance, getPlacementFrame())
     return validExitCells(pendingEntrance, facing)
   },
   rotate: () => {

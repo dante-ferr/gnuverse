@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Packet } from '../game-server/pipeline/packets/packet.ts'
 import { SplitterMachine } from '../game-server/pipeline/machines/splitter-machine.ts'
+import { ahead, opposite } from '../game-server/pipeline/geometry/direction.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
 
@@ -140,16 +141,68 @@ test('remove deletes splitter', () => {
   assert.equal(match.splitters.length, 0)
 })
 
-test('placeMachine rejects splitter output on another machine body', () => {
+test('placeMachine allows splitter whose body receives another splitter output', () => {
   const { match, origin } = matchWithSplitter('east')
-  // Bodies do not overlap; the first splitter’s east output lands on the new body.
   const clash = { x: origin.x + 1, y: origin.y }
   const error = match.placeMachine(
     { machineId: 'splitter', x: clash.x, y: clash.y, facing: 'west' },
     author,
   )
-  assert.equal(error, 'Entradas ou saídas sobrepõem outra estrutura.')
+  assert.equal(error, null)
+  assert.equal(match.splitters.length, 2)
+})
+
+test('placeMachine allows splitter output on combiner body (sandbox)', () => {
+  const match = Match.createSandbox('splitter-combiner-port', rules)
+  assert.equal(
+    match.placeMachine({ machineId: 'combiner_2', x: 25, y: 24, facing: 'east' }, author),
+    null,
+  )
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: 28, y: 26, facing: 'west' },
+    author,
+  )
+  assert.equal(error, null)
   assert.equal(match.splitters.length, 1)
+})
+
+test('placeMachine rejects splitter body on combiner input approach', () => {
+  const match = Match.createSandbox('splitter-combiner-approach', rules)
+  assert.equal(
+    match.placeMachine({ machineId: 'combiner_2', x: 25, y: 28, facing: 'south' }, author),
+    null,
+  )
+  const combiner = match.combiners[0]!
+  const input = combiner.inputSlots()[0]!
+  const approach = ahead(input.cell.x, input.cell.y, opposite(input.travel))
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: approach.x, y: approach.y, facing: 'south' },
+    author,
+  )
+  assert.equal(error, 'Entradas ou saídas sobrepõem outra estrutura.')
+  assert.equal(match.splitters.length, 0)
+})
+
+test('placeMachine allows combiner body over existing splitter output', () => {
+  const match = Match.createSandbox('combiner-over-splitter-out', rules)
+  const origin = { x: 27, y: 24 }
+  assert.equal(
+    match.placeMachine({ machineId: 'splitter', x: origin.x, y: origin.y, facing: 'south' }, author),
+    null,
+  )
+  const splitter = match.splitters[0]!
+  const forward = splitter.orderedOutputSlots().find((slot) => slot.travel === 'south')!
+  const error = match.placeMachine(
+    {
+      machineId: 'combiner_2',
+      x: forward.cell.x - 1,
+      y: forward.cell.y,
+      facing: 'east',
+    },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.combiners.length, 1)
 })
 
 test('placeMachine allows two splitters sharing an output cell', () => {
@@ -202,4 +255,44 @@ test('SplitterMachine constructs for every facing', () => {
     const machine = new SplitterMachine('s', { x: 3, y: 3 }, facing, author)
     assert.equal(machine.outputSlots().length, 3)
   }
+})
+
+test('placeMachine replaces own belt and inherits facing', () => {
+  const match = Match.create('splitter-on-belt', rules)
+  const cell = { x: match.core.origin.x - 6, y: match.core.origin.y + 2 }
+  assert.equal(match.place([{ ...cell, direction: 'south' }], author), null)
+  assert.equal(match.belts.length, 1)
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: cell.x, y: cell.y, facing: 'east' },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.belts.length, 0)
+  assert.equal(match.splitters[0]!.facing, 'south')
+})
+
+test('placeMachine rejects splitter on another player belt', () => {
+  const match = Match.create('splitter-foreign-belt', rules)
+  const cell = { x: match.core.origin.x - 6, y: match.core.origin.y + 2 }
+  const other = { id: 'u2', nickname: 'Bob' }
+  assert.equal(match.place([{ ...cell, direction: 'east' }], other), null)
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: cell.x, y: cell.y, facing: 'east' },
+    author,
+  )
+  assert.equal(error, 'Essa esteira é de outra pessoa.')
+  assert.equal(match.splitters.length, 0)
+})
+
+test('splitter placement removes packet on replaced belt', () => {
+  const match = Match.create('splitter-belt-packet', rules)
+  const cell = { x: match.core.origin.x - 6, y: match.core.origin.y + 2 }
+  assert.equal(match.place([{ ...cell, direction: 'east' }], author), null)
+  match.packets.push(new Packet('p1', cell, 'circle'))
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: cell.x, y: cell.y, facing: 'north' },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.packets.length, 0)
 })

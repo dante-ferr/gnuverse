@@ -1,5 +1,5 @@
-import { cellKey } from '../../geometry/cell.ts'
-import { isDirection, type Direction } from '../../geometry/direction.ts'
+import { cellKey, type Cell } from '../../geometry/cell.ts'
+import { ahead, isDirection, type Direction } from '../../geometry/direction.ts'
 import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
 import { SplitterMachine } from '../../machines/splitter-machine.ts'
 import {
@@ -122,16 +122,19 @@ export class MachineEditor {
   }
 
   private placeSplitter(spec: SplitterPlaceRequest, author: Author) {
-    if (!isDirection(spec.facing)) return 'Direção inválida.'
+    const cell = { x: spec.x, y: spec.y }
+    const foreign = this.foreignBeltAt(cell, author)
+    if (foreign) return foreign
+    const facing = this.match.beltAt(cell)?.direction ?? spec.facing
+    if (!isDirection(facing)) return 'Direção inválida.'
     if (!this.footprintInOwned(spec.x, spec.y, 1, 1)) return 'Fora da área liberada.'
     if (this.overlapsMachines(spec.x, spec.y, 1, 1)) {
       return 'Espaço ocupado por outra estrutura.'
     }
-    if (this.overlapsBelts(spec.x, spec.y, 1, 1)) return 'Há esteiras nesse espaço.'
     const probe = new SplitterMachine(
       'probe',
       { x: spec.x, y: spec.y },
-      spec.facing,
+      facing,
       author,
     )
     const footprint: BuildingFootprint = {
@@ -142,9 +145,10 @@ export class MachineEditor {
     if (this.portsOverlapBuildings(probe.slots, [footprint], { proposedIsLogistic: true })) {
       return 'Entradas ou saídas sobrepõem outra estrutura.'
     }
+    this.clearBeltAt(cell)
     const id = `s${this.match.nextSplitterSeq++}`
     this.match.splitters.push(
-      new SplitterMachine(id, { x: spec.x, y: spec.y }, spec.facing, {
+      new SplitterMachine(id, { x: spec.x, y: spec.y }, facing, {
         id: author.id,
         nickname: author.nickname,
       }),
@@ -154,13 +158,17 @@ export class MachineEditor {
   }
 
   private placeTunnel(spec: TunnelPlaceRequest, author: Author) {
-    if (!isDirection(spec.facing)) return 'Direção inválida.'
     const entrance = { x: spec.entranceX, y: spec.entranceY }
     const exit = { x: spec.exitX, y: spec.exitY }
+    const facing =
+      this.match.beltAt(entrance)?.direction ??
+      this.match.beltAt(exit)?.direction ??
+      spec.facing
+    if (!isDirection(facing)) return 'Direção inválida.'
     const geometry = tunnelPairGeometry(
       entrance,
       exit,
-      spec.facing,
+      facing,
       this.match.rules.tunnelMaxGap,
     )
     if (!geometry.ok) return geometry.reason
@@ -169,15 +177,16 @@ export class MachineEditor {
     if (this.overlapsMachines(entrance.x, entrance.y, 1, 1) || this.overlapsMachines(exit.x, exit.y, 1, 1)) {
       return 'Espaço ocupado por outra estrutura.'
     }
-    if (this.overlapsBelts(entrance.x, entrance.y, 1, 1) || this.overlapsBelts(exit.x, exit.y, 1, 1)) {
-      return 'Há esteiras nesse espaço.'
-    }
+    const between = this.cellsBetweenTunnel(entrance, exit, facing)
+    const span = [entrance, ...between, exit]
+    const beltError = this.assertReplaceableBelts(span, author)
+    if (beltError) return beltError
     const probeIn = new TunnelPortalMachine(
       'probe:in',
       entrance,
       'entrance',
       'probe',
-      spec.facing,
+      facing,
       author,
       geometry.gap,
     )
@@ -186,7 +195,7 @@ export class MachineEditor {
       exit,
       'exit',
       'probe',
-      spec.facing,
+      facing,
       author,
       0,
     )
@@ -198,6 +207,7 @@ export class MachineEditor {
     if (this.portsOverlapBuildings(tunnelSlots, footprints, { proposedIsLogistic: true })) {
       return 'Entradas ou saídas sobrepõem outra estrutura.'
     }
+    this.clearBeltsAt(span)
     const pairId = `t${this.match.nextTunnelSeq++}`
     this.match.tunnels.push(
       new TunnelPortalMachine(
@@ -205,7 +215,7 @@ export class MachineEditor {
         entrance,
         'entrance',
         pairId,
-        spec.facing,
+        facing,
         { id: author.id, nickname: author.nickname },
         geometry.gap,
       ),
@@ -214,14 +224,10 @@ export class MachineEditor {
         exit,
         'exit',
         pairId,
-        spec.facing,
+        facing,
         { id: author.id, nickname: author.nickname },
         0,
       ),
-    )
-    this.match.packets = this.match.packets.filter(
-      (packet) =>
-        cellKey(packet.cell) !== cellKey(entrance) && cellKey(packet.cell) !== cellKey(exit),
     )
     this.match.noteCollaborator(author)
     return null
@@ -262,6 +268,44 @@ export class MachineEditor {
         belt.origin.y >= y &&
         belt.origin.y < y + height,
     )
+  }
+
+  private foreignBeltAt(cell: Cell, author: Author): string | null {
+    const belt = this.match.beltAt(cell)
+    if (!belt) return null
+    if (belt.authorId !== author.id) return 'Essa esteira é de outra pessoa.'
+    return null
+  }
+
+  private assertReplaceableBelts(cells: readonly Cell[], author: Author): string | null {
+    for (const cell of cells) {
+      const error = this.foreignBeltAt(cell, author)
+      if (error) return error
+    }
+    return null
+  }
+
+  private clearBeltAt(cell: Cell) {
+    const key = cellKey(cell)
+    this.match.belts = this.match.belts.filter((item) => cellKey(item.origin) !== key)
+    this.match.packets = this.match.packets.filter((packet) => cellKey(packet.cell) !== key)
+  }
+
+  private clearBeltsAt(cells: readonly Cell[]) {
+    const keys = new Set(cells.map(cellKey))
+    this.match.belts = this.match.belts.filter((belt) => !keys.has(cellKey(belt.origin)))
+    this.match.packets = this.match.packets.filter((packet) => !keys.has(cellKey(packet.cell)))
+  }
+
+  private cellsBetweenTunnel(entrance: Cell, exit: Cell, facing: Direction): Cell[] {
+    const cells: Cell[] = []
+    let cursor = ahead(entrance.x, entrance.y, facing)
+    const exitKey = cellKey(exit)
+    while (cellKey(cursor) !== exitKey) {
+      cells.push(cursor)
+      cursor = ahead(cursor.x, cursor.y, facing)
+    }
+    return cells
   }
 
   private portsOverlapBuildings(

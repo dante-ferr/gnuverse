@@ -73,6 +73,83 @@ test('tunnel carries packet underground under a surface belt', () => {
   assert.ok(match.packets.some((packet) => packet.cell.x === outCell.x && packet.cell.y === outCell.y))
 })
 
+test('placeMachine replaces own belts on tunnel span and inherits facing', () => {
+  const match = Match.create('tunnel-on-belts', rules)
+  const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const gap = 2
+  const exit = { x: entrance.x + gap + 1, y: entrance.y }
+  for (let x = entrance.x; x <= exit.x; x++) {
+    assert.equal(match.place([{ x, y: entrance.y, direction: 'east' }], author), null)
+  }
+  assert.equal(match.belts.length, gap + 2)
+  const error = match.placeMachine(
+    {
+      machineId: 'tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exit.x,
+      exitY: exit.y,
+      facing: 'north',
+    },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.belts.length, 0)
+  const entrancePortal = match.tunnels.find((p) => p.role === 'entrance')!
+  assert.equal(entrancePortal.direction, 'east')
+})
+
+test('placeMachine rejects tunnel when a belt in the span belongs to another player', () => {
+  const match = Match.create('tunnel-foreign-gap', rules)
+  const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const gap = 2
+  const exit = { x: entrance.x + gap + 1, y: entrance.y }
+  const mid = { x: entrance.x + 1, y: entrance.y }
+  const other = { id: 'u2', nickname: 'Bob' }
+  assert.equal(match.place([{ ...entrance, direction: 'east' }], author), null)
+  assert.equal(match.place([{ ...mid, direction: 'east' }], other), null)
+  assert.equal(match.place([{ ...exit, direction: 'east' }], author), null)
+  const error = match.placeMachine(
+    {
+      machineId: 'tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exit.x,
+      exitY: exit.y,
+      facing: 'east',
+    },
+    author,
+  )
+  assert.equal(error, 'Essa esteira é de outra pessoa.')
+  assert.equal(match.tunnels.length, 0)
+})
+
+test('tunnel placement clears packets on removed span belts', () => {
+  const match = Match.create('tunnel-belt-packets', rules)
+  const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const gap = 1
+  const exit = { x: entrance.x + gap + 1, y: entrance.y }
+  const mid = { x: entrance.x + 1, y: entrance.y }
+  assert.equal(match.place([{ ...entrance, direction: 'east' }], author), null)
+  assert.equal(match.place([{ ...mid, direction: 'east' }], author), null)
+  assert.equal(match.place([{ ...exit, direction: 'east' }], author), null)
+  match.packets.push(new Packet('p1', entrance, 'circle'))
+  match.packets.push(new Packet('p2', mid, 'square'))
+  const error = match.placeMachine(
+    {
+      machineId: 'tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exit.x,
+      exitY: exit.y,
+      facing: 'east',
+    },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.packets.length, 0)
+})
+
 test('remove either portal removes the pair', () => {
   const match = Match.create('tunnel-remove', rules)
   const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
