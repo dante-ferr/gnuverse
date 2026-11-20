@@ -130,7 +130,7 @@ export class Movement {
       for (const slot of portal.inputSlots()) {
         const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
         if (!sameCell(approach, cell)) continue
-        if (!tunnelCanAbsorb(this.match, portal.pairId)) return null
+        if (!tunnelCanAbsorb(this.match, portal.pairId, shape)) return null
         return `absorb:tunnel:${portal.pairId}`
       }
     }
@@ -191,7 +191,7 @@ export class Movement {
       const slot = portal.slotAt(cell, 'input')
       if (!slot) continue
       if (!sameCell(from, ahead(slot.cell.x, slot.cell.y, opposite(slot.travel)))) return 'blocked'
-      if (!tunnelCanAbsorb(this.match, portal.pairId)) return 'blocked'
+      if (!tunnelCanAbsorb(this.match, portal.pairId, shape)) return 'blocked'
       return `absorb:tunnel:${portal.pairId}`
     }
     if (!this.match.inBounds(cell) || !this.match.beltAt(cell)) return 'blocked'

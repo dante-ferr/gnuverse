@@ -111,7 +111,7 @@ function entrancePlacementValid(
 }
 
 /**
- * Exit cells on the travel ray from entrance with gap `1..tunnelMaxGap`
+ * Exit cells on the travel ray from entrance with gap `0..tunnelMaxGap`
  * (Factorio-style: exit is `gap + 1` steps ahead).
  */
 function validExitCells(entrance: GridCell, facing: Direction): GridCell[] {
@@ -120,7 +120,7 @@ function validExitCells(entrance: GridCell, facing: Direction): GridCell[] {
   let tip = entrance
   for (let step = 1; step <= maxGap + 1; step++) {
     tip = ahead(tip.x, tip.y, facing)
-    if (step >= 2) cells.push(tip)
+    if (step >= 1) cells.push(tip)
   }
   return cells
 }

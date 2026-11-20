@@ -146,6 +146,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-20 | Gameplay | Belt-drag auto-tunnel when the stroke starts and ends on cells adjacent to the crossed conveyor line (no extra lead-in/out belts) — `belt-cross.ts` |
 | 2026-11-20 | Gameplay | Belt-drag tunnels prefer one span within `tunnel_max_gap` (no split on wide free gaps); gap `0` adjacent portals + instant carry — `belt-cross.ts`, `routing.ts`, `tunnel-machine.ts` |
 | 2026-11-20 | Gameplay | Tunnel body contact no longer blocks auto-tunnel near buildings; port overlap + linked slots still gate illegal port cells — `building-slots.ts` |
 | 2026-11-20 | Design | Port connection locked: direct plug on input slot + matching `travel`; shared gap cells are belts; tick routing aligned — [decisions §9](../decisions.md#9-open-pipeline-machines), `building-slots.ts`, `routing.ts` |

@@ -66,7 +66,7 @@ decor_stroke_width = 28 # SVG units; sync with public/pipeline/*.svg
 # Belts and animation
 belt_chevron_stroke_px = 4
 belt_chevron_flow_ms = 900 # Ms to move chevrons one cell
-tunnel_max_gap = 8 # Empty cells between tunnel entrance and exit (Factorio-style)
+tunnel_max_gap = 8 # Empty cells between portals (0 = adjacent; Factorio-style)
 
 # Resource glyphs at sources / belts (dual outline: white outer, black inner)
 resource_glyph_size_px = 28

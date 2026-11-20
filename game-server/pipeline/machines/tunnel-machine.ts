@@ -65,25 +65,25 @@ export function tunnelPairGeometry(
   const dx = exit.x - entrance.x
   const dy = exit.y - entrance.y
   if (direction === 'east') {
-    if (dy !== 0 || dx < 2) return { ok: false, reason: 'Saída do túnel inválida.' }
+    if (dy !== 0 || dx < 1) return { ok: false, reason: 'Saída do túnel inválida.' }
     const gap = dx - 1
-    if (gap < 1 || gap > maxGap) return { ok: false, reason: 'Distância do túnel inválida.' }
+    if (gap < 0 || gap > maxGap) return { ok: false, reason: 'Distância do túnel inválida.' }
     return { ok: true, gap }
   }
   if (direction === 'west') {
-    if (dy !== 0 || dx > -2) return { ok: false, reason: 'Saída do túnel inválida.' }
+    if (dy !== 0 || dx > -1) return { ok: false, reason: 'Saída do túnel inválida.' }
     const gap = -dx - 1
-    if (gap < 1 || gap > maxGap) return { ok: false, reason: 'Distância do túnel inválida.' }
+    if (gap < 0 || gap > maxGap) return { ok: false, reason: 'Distância do túnel inválida.' }
     return { ok: true, gap }
   }
   if (direction === 'south') {
-    if (dx !== 0 || dy < 2) return { ok: false, reason: 'Saída do túnel inválida.' }
+    if (dx !== 0 || dy < 1) return { ok: false, reason: 'Saída do túnel inválida.' }
     const gap = dy - 1
-    if (gap < 1 || gap > maxGap) return { ok: false, reason: 'Distância do túnel inválida.' }
+    if (gap < 0 || gap > maxGap) return { ok: false, reason: 'Distância do túnel inválida.' }
     return { ok: true, gap }
   }
-  if (dx !== 0 || dy > -2) return { ok: false, reason: 'Saída do túnel inválida.' }
+  if (dx !== 0 || dy > -1) return { ok: false, reason: 'Saída do túnel inválida.' }
   const gap = -dy - 1
-  if (gap < 1 || gap > maxGap) return { ok: false, reason: 'Distância do túnel inválida.' }
+  if (gap < 0 || gap > maxGap) return { ok: false, reason: 'Distância do túnel inválida.' }
   return { ok: true, gap }
 }

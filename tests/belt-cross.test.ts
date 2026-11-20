@@ -79,17 +79,36 @@ test('one-tile gaps that push the span past the limit place no tunnel', () => {
   )
 })
 
-test('three empty cells between runs split them into two tunnels', () => {
+test('three empty cells between runs stay one tunnel when span fits maxGap', () => {
   const conveyors = keys({ x: 2, y: 0 }, { x: 3, y: 0 }, { x: 7, y: 0 }, { x: 8, y: 0 })
   const plan = planBeltCrossings(east(0, 10), conveyors, keys(), 8)
+  assert.deepEqual(plan.tunnels, [
+    { entranceX: 1, entranceY: 0, exitX: 9, exitY: 0, facing: 'east' },
+  ])
+  assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 10])
+})
+
+test('many free cells between short runs still use one tunnel under maxGap', () => {
+  const conveyors = keys({ x: 2, y: 0 }, { x: 3, y: 0 }, { x: 6, y: 0 }, { x: 7, y: 0 })
+  const plan = planBeltCrossings(east(0, 10), conveyors, keys(), 8)
+  assert.deepEqual(plan.tunnels, [
+    { entranceX: 1, entranceY: 0, exitX: 8, exitY: 0, facing: 'east' },
+  ])
+  assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 9, 10])
+})
+
+test('two tunnels when a single span would exceed maxGap', () => {
+  const xs = [2, 3, 12, 13]
+  const conveyors = keys(...xs.map((x) => ({ x, y: 0 })))
+  const plan = planBeltCrossings(east(0, 15), conveyors, keys(), 8)
   assert.deepEqual(
     plan.tunnels.map((tunnel) => [tunnel.entranceX, tunnel.exitX]),
     [
-      [1, 4],
-      [6, 9],
+      [1, 10],
+      [11, 14],
     ],
   )
-  assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 5, 10])
+  assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 15])
 })
 
 test('two empty cells stay inside one tunnel when the span fits', () => {
@@ -136,11 +155,21 @@ test('a stroke that starts or ends on belts does not invent a portal', () => {
   assert.deepEqual(plan.belts.map((cell) => cell.x), [2, 3])
 })
 
-test('an exit that would eject onto a belt past the stroke is skipped', () => {
-  const conveyors = keys({ x: 1, y: 0 }, { x: 3, y: 0 })
-  const plan = planBeltCrossings(east(0, 2), conveyors, keys(), 8)
-  assert.deepEqual(plan.tunnels, [])
-  assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 2])
+test('a stroke that starts and ends on cells adjacent to a crossed belt tunnels', () => {
+  const plan = planBeltCrossings(east(2, 4), keys({ x: 3, y: 0 }), keys(), 8)
+  assert.deepEqual(plan.tunnels, [
+    { entranceX: 2, entranceY: 0, exitX: 4, exitY: 0, facing: 'east' },
+  ])
+  assert.deepEqual(plan.belts.map((cell) => cell.x), [])
+})
+
+test('a southbound adjacent start and end across a horizontal belt tunnels', () => {
+  const stroke = line(4, 6, 'y', 3, 'south')
+  const plan = planBeltCrossings(stroke, keys({ x: 3, y: 5 }), keys(), 8)
+  assert.deepEqual(plan.tunnels, [
+    { entranceX: 3, entranceY: 4, exitX: 3, exitY: 6, facing: 'south' },
+  ])
+  assert.deepEqual(plan.belts.map((cell) => cell.y), [])
 })
 
 test('a westbound crossing uses the travel direction', () => {

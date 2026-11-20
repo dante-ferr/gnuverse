@@ -61,9 +61,6 @@ export function proposedTunnelPlacementBlocked(
   proposedFootprints: readonly BuildingFootprint[],
 ): boolean {
   const machines = machinesFromFrame(frame)
-  if (logisticContactBlocked(proposedSlots, proposedFootprints, machines, 'tunnel') !== null) {
-    return true
-  }
   return portsOverlapBuildings(proposedSlots, proposedFootprints, machines, {
     proposedIsLogistic: true,
     linkedTunnelSlots: proposedSlots,

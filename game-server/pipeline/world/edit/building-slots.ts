@@ -222,8 +222,7 @@ export type LogisticContactMode = 'splitter' | 'tunnel'
 /**
  * Rejects logistic placement when footprint/port contact rules fail.
  * Splitters may touch another building only with a compatible port pair in contact.
- * Tunnels may touch another building only when that machine feeds the entrance
- * or accepts the exit.
+ * Tunnels may sit body-adjacent; port overlap (+ linkedTunnelSlots) still applies.
  */
 export function logisticContactBlocked(
   proposedSlots: readonly PortSlot[],
@@ -231,14 +230,8 @@ export function logisticContactBlocked(
   existingMachines: readonly Machine[],
   mode: LogisticContactMode,
 ): string | null {
+  if (mode === 'tunnel') return null
   const proposedBody = footprintBodyKeySet(proposedFootprints)
-  if (mode === 'tunnel') {
-    for (const machine of existingMachines) {
-      if (!machinesBodyAdjacent(proposedBody, machine)) continue
-      if (!machineLinksTunnel(machine.slots, proposedSlots)) return TUNNEL_CONTACT_ERROR
-    }
-    return null
-  }
   for (const machine of existingMachines) {
     if (!machinesBodyAdjacent(proposedBody, machine)) continue
     let connected = false

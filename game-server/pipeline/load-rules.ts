@@ -77,7 +77,7 @@ const integers = {
   core_gear_active_ms: [0, 60_000],
   belt_chevron_stroke_px: [2, 16],
   belt_chevron_flow_ms: [200, 5000],
-  tunnel_max_gap: [1, 32],
+  tunnel_max_gap: [0, 32],
   machine_clearance_min: [1, 8],
   core_clearance_extra: [0, 8],
   chunk_size: [8, 64],

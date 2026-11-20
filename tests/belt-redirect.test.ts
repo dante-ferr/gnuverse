@@ -147,9 +147,18 @@ test('BeltRedirectSession keeps the origin belt in the stroke when it already ex
       blocked: new Set(),
     }),
     maxGap: () => 3,
+    belts: () => [
+      { x: 4, y: 4, direction: 'east', authorId: 'me' },
+      { x: 4, y: 3, direction: 'east', authorId: 'me' },
+    ],
   })
   try {
-    const session = createBeltRedirectSession({ x: 4, y: 4, direction: 'east' })
+    const session = createBeltRedirectSession({
+      x: 4,
+      y: 4,
+      direction: 'east',
+      authorId: 'me',
+    })
     assert.equal(session.push({ x: 4, y: 1 }), true)
     const cells = session.previewBelts().map((cell) => ({
       x: cell.x,

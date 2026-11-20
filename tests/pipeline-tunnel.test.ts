@@ -28,8 +28,29 @@ test('tunnelPairGeometry accepts Factorio-style same-axis gap', () => {
   const ok = tunnelPairGeometry({ x: 2, y: 5 }, { x: 6, y: 5 }, 'east', 8)
   assert.equal(ok.ok, true)
   if (ok.ok) assert.equal(ok.gap, 3)
+  const adjacent = tunnelPairGeometry({ x: 2, y: 5 }, { x: 3, y: 5 }, 'east', 8)
+  assert.equal(adjacent.ok, true)
+  if (adjacent.ok) assert.equal(adjacent.gap, 0)
   const bad = tunnelPairGeometry({ x: 2, y: 5 }, { x: 20, y: 5 }, 'east', 8)
   assert.equal(bad.ok, false)
+})
+
+test('gap 0 tunnel has no queue and delivers on absorb', () => {
+  const match = Match.create('tunnel-gap0', rules)
+  const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const { error, exit } = placeTunnelPair(match, entrance, 0)
+  assert.equal(error, null)
+  const entrancePortal = match.tunnels.find((p) => p.role === 'entrance')!
+  assert.equal(entrancePortal.queue.length, 0)
+  const inCell = { x: entrance.x - 1, y: entrance.y }
+  const outCell = { x: exit.x + 1, y: exit.y }
+  assert.equal(match.place([{ ...inCell, direction: 'east' }], author), null)
+  assert.equal(match.place([{ ...outCell, direction: 'east' }], author), null)
+  const packetId = `p${match.nextPacketId++}`
+  match.packets.push(new Packet(packetId, inCell, 'circle'))
+  match.tick()
+  assert.equal(match.packets.length, 1)
+  assert.ok(match.packets.some((packet) => packet.cell.x === outCell.x && packet.cell.y === outCell.y))
 })
 
 test('placeMachine accepts tunnel pair in normal rooms', () => {
@@ -175,7 +196,7 @@ test('tunnel placement clears packets on removed span belts', () => {
   assert.equal(match.packets[0]!.cell.x, mid.x)
 })
 
-test('placeMachine rejects tunnel portal beside a splitter with no port link', () => {
+test('placeMachine allows tunnel portal beside a splitter without a port link', () => {
   const match = Match.create('tunnel-splitter-touch', rules)
   const splitterCell = { x: match.core.origin.x - 4, y: match.core.origin.y + 2 }
   assert.equal(
@@ -198,8 +219,8 @@ test('placeMachine rejects tunnel portal beside a splitter with no port link', (
     },
     author,
   )
-  assert.equal(error, 'Túneis não podem ficar em contato com outras estruturas.')
-  assert.equal(match.tunnels.length, 0)
+  assert.equal(error, null)
+  assert.equal(match.tunnels.length, 2)
 })
 
 test('tunnel links a splitter output to a combiner input across one belt', () => {

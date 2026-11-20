@@ -12,13 +12,6 @@ import {
 import type { PipelineFrame } from '../model/frame.ts'
 import type { StrokeCell } from './belt-stroke.ts'
 
-/**
- * Free cells required between two belt runs before each run can have its own
- * tunnel: the first exit, one output belt, and the next entrance.
- * One or two empty cells cannot split the runs, so they stay underground.
- */
-const TUNNEL_SPLIT_CELLS = 3
-
 export type PlannedTunnel = {
   entranceX: number
   entranceY: number
@@ -110,7 +103,7 @@ export function planBeltCrossings(
   maxGap: number,
   ports: readonly PortSlot[] = [],
 ): BeltCrossPlan {
-  if (maxGap < 1 || cells.length === 0) return { belts: [...cells], tunnels: [] }
+  if (maxGap < 0 || cells.length === 0) return { belts: [...cells], tunnels: [] }
   const omit = new Set<number>()
   const tunnels: PlannedTunnel[] = []
   for (const [start, end] of legRanges(cells)) {
@@ -179,8 +172,8 @@ function planLeg(
 
 /**
  * Tunnel from the free cell before `start` through the following solid runs.
- * Runs separated by fewer than {@link TUNNEL_SPLIT_CELLS} free cells stay in
- * one underground span. Returns null when that span cannot be a legal pair.
+ * Picks the farthest legal exit within `maxGap`; free cells between runs do
+ * not force a split. Returns null when no span can be a legal pair.
  */
 function coverCluster(
   leg: readonly StrokeCell[],
@@ -191,47 +184,78 @@ function coverCluster(
   ports: readonly PortSlot[],
 ): { entrance: number; exit: number } | null {
   const entrance = start - 1
-  // A stroke belt behind the entrance, or a machine output plugged into it.
-  // The port replaces the extra conveyor tile in front of the entrance.
+  // Lead-in belt, stroke starting on an empty entrance (adjacent to the crossed
+  // line), or a machine output plugged into the entrance. An existing belt at
+  // index 0 (redirect origin treated as free) is not an adjacent start.
   if (entrance < 0 || kind(leg[entrance]!, conveyors, blocked) !== 'free') return null
-  const backedByBelt = entrance >= 1 && kind(leg[entrance - 1]!, conveyors, blocked) === 'free'
   const portal = leg[entrance]!
+  const backedByBelt = entrance >= 1 && kind(leg[entrance - 1]!, conveyors, blocked) === 'free'
+  const backedByStrokeStart =
+    entrance === 0 && !existingBeltAt(portal.x, portal.y)
   const backedByPort = portFeedsTunnelEntrance(ports, portal, portal.direction)
-  if (!backedByBelt && !backedByPort) return null
+  if (!backedByBelt && !backedByStrokeStart && !backedByPort) return null
 
+  const sign = portal.direction === 'east' || portal.direction === 'south' ? 1 : -1
+  const hasConveyorInSpan = (exitIndex: number) => {
+    const lo = Math.min(start, exitIndex)
+    const hi = Math.max(start, exitIndex)
+    for (let index = lo; index <= hi; index++) {
+      if (kind(leg[index]!, conveyors, blocked) === 'conveyor') return true
+    }
+    return false
+  }
+
+  const validExit = (exitIndex: number) => {
+    if (exitIndex < 0 || exitIndex >= leg.length) return false
+    if (kind(leg[exitIndex]!, conveyors, blocked) !== 'free') return false
+    if (!hasConveyorInSpan(exitIndex)) return false
+    if (!outputClear(leg, exitIndex, conveyors, blocked, ports)) return false
+    const exit = leg[exitIndex]!
+    return tunnelPairGeometry(portal, exit, portal.direction, maxGap).ok
+  }
+
+  const farther = (left: number, right: number) => (sign > 0 ? left > right : left < right)
+
+  const maxExtent = Math.max(0, Math.min(leg.length - 1, start + sign * maxGap))
+  let best: number | null = null
   let solidStart = start
-  let hasConveyor = false
   while (solidStart < leg.length) {
     let solidEnd = solidStart
     while (solidEnd < leg.length && kind(leg[solidEnd]!, conveyors, blocked) !== 'free') {
-      if (kind(leg[solidEnd]!, conveyors, blocked) === 'conveyor') hasConveyor = true
       solidEnd += 1
     }
-    if (solidEnd >= leg.length) return null
-    const gap = solidEnd - start
-    if (gap < 1 || gap > maxGap) return null
+    if (solidEnd >= leg.length) break
+    if (validExit(solidEnd) && (best === null || farther(solidEnd, best))) best = solidEnd
 
     let nextSolid = solidEnd + 1
     while (nextSolid < leg.length && kind(leg[nextSolid]!, conveyors, blocked) === 'free') {
       nextSolid += 1
     }
-    const freeRun = nextSolid - solidEnd
-    const separated = nextSolid >= leg.length || freeRun >= TUNNEL_SPLIT_CELLS
-    if (!separated) {
-      solidStart = nextSolid
-      continue
+    if (nextSolid >= leg.length) break
+
+    let peekEnd = nextSolid
+    while (peekEnd < leg.length && kind(leg[peekEnd]!, conveyors, blocked) !== 'free') {
+      peekEnd += 1
     }
-    if (!hasConveyor) return null
-    if (!outputClear(leg, solidEnd, conveyors, blocked, ports)) return null
-    const exit = leg[solidEnd]!
-    const portal = leg[entrance]!
-    if (!tunnelPairGeometry(portal, exit, portal.direction, maxGap).ok) return null
-    return { entrance, exit: solidEnd }
+    if (peekEnd >= leg.length) break
+    const peekGeom = tunnelPairGeometry(
+      portal,
+      leg[peekEnd]!,
+      portal.direction,
+      maxGap,
+    )
+    if (!peekGeom.ok || peekGeom.gap > maxGap) break
+    solidStart = nextSolid
   }
-  return null
+
+  if (validExit(maxExtent) && (best === null || farther(maxExtent, best))) best = maxExtent
+  return best === null ? null : { entrance, exit: best }
 }
 
-/** A belt after the exit, or an input whose approach is that exit. */
+/**
+ * A belt after the exit, the stroke ending on the exit against the crossed
+ * solid (adjacent end), or an input whose approach is that exit.
+ */
 function outputClear(
   leg: readonly StrokeCell[],
   exitIndex: number,
@@ -241,8 +265,20 @@ function outputClear(
 ) {
   const next = exitIndex + 1
   if (next < leg.length && kind(leg[next]!, conveyors, blocked) === 'free') return true
+  if (
+    next >= leg.length &&
+    exitIndex > 0 &&
+    kind(leg[exitIndex - 1]!, conveyors, blocked) !== 'free'
+  ) {
+    return true
+  }
   const exit = leg[exitIndex]!
   return portAcceptsTunnelExit(ports, exit, exit.direction)
+}
+
+function existingBeltAt(x: number, y: number) {
+  const belts = readBeltCrossQuery().belts?.() ?? []
+  return belts.some((belt) => belt.x === x && belt.y === y)
 }
 
 function endOfSolid(

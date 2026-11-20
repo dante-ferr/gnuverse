@@ -204,8 +204,6 @@ export class MachineEditor {
       { origin: entrance, width: 1, height: 1 },
       { origin: exit, width: 1, height: 1 },
     ]
-    const contactError = this.logisticContactBlocked(tunnelSlots, footprints, 'tunnel')
-    if (contactError) return contactError
     if (
       this.portsOverlapBuildings(tunnelSlots, footprints, {
         proposedIsLogistic: true,
