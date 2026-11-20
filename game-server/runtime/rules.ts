@@ -71,6 +71,6 @@ export function createRules(
     rules.maxBelts > 500
   )
     throw new Error('Invalid economy rules')
-  if (rules.bdflVeto) throw new Error('Veto do BDFL não é suportado.')
+  if (rules.bdflVeto) throw new Error('BDFL veto is not supported.')
   return rules
 }

@@ -642,8 +642,9 @@ export class MachinePainter {
     const worldCx = (machine.origin.x + machine.width / 2) * cellSize
     const worldCy = (machine.origin.y + machine.height / 2) * cellSize
     const space = glyphSpaceScale(cameraZoom, rules)
-    const glyphSize = resourceGlyphSizePx(rules, glyphId)
-    // Wheel radius matches the glyph space (screen-fixed or world-scaled).
+    // Machine overlays use pipeline `resource_glyph_size_px` (not per-element glyph_size_px).
+    const glyphSize = rules.resourceGlyphSizePx
+    // Wheel radius matches machine glyph space (world-scaled or screen-locked).
     const wheelRadius = glyphSize * 0.72
 
     ctx.save()
@@ -695,7 +696,7 @@ export class MachinePainter {
   }
 
   private drawResourceGlyph(ctx: CanvasRenderingContext2D, glyphId: string, rules: PipelineRules) {
-    const size = resourceGlyphSizePx(rules, glyphId)
+    const size = rules.resourceGlyphSizePx
     const fill = elementFill(rules, glyphId) ?? rules.colorPacket
     const outline = resourceGlyphOutline(rules)
     if (glyphId === 'circle') {
@@ -800,12 +801,6 @@ function drawCraftProgressWheel(
     ctx.stroke()
   }
   ctx.restore()
-}
-
-function resourceGlyphSizePx(rules: PipelineRules, glyphId: string): number {
-  if (glyphId === 'circle') return rules.resourceGlyphSizePx
-  const el = rules.elements.elements.find((item) => item.id === glyphId)
-  return el?.glyph_size_px ?? rules.resourceGlyphSizePx
 }
 
 function machineRect(machine: Machine) {

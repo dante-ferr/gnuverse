@@ -111,36 +111,39 @@ function getOutlinedGlyph(
   ].join('|')
   let canvas = cache.get(key)
   if (!canvas) {
-    const nw = image.naturalWidth
-    const nh = image.naturalHeight
-    const scale = nw / size
-    const pad = Math.ceil(outerRing * scale) + 1
+    // Bake above display size so a solid binary halo downscales with normal AA
+    // (smooth on screen, still reads as a hard outline — not a soft blur).
+    const mul = size >= 96 ? 2 : 3
+    const bakeSize = Math.max(1, Math.round(size * mul))
+    const bakeOuter = outerRing * mul
+    const bakeInner = innerRing * mul
+    const bakePad = Math.ceil(bakeOuter) + 1
+    const bakeDim = bakeSize + bakePad * 2
+
     const body = getTintedImage(image, fill, cache)
     if (!body) return null
 
-    // Bake at native SVG resolution, then scale down once when drawing.
-    // Display-size bakes looked soft; stamp density still follows screen px.
     canvas = document.createElement('canvas')
-    canvas.width = nw + pad * 2
-    canvas.height = nh + pad * 2
+    canvas.width = bakeDim
+    canvas.height = bakeDim
     const tctx = canvas.getContext('2d')
     if (!tctx) return null
 
-    if (outerRing > 0) {
+    if (bakeOuter > 0) {
       const outer = getTintedImage(image, outline.outer, cache)
       if (outer) {
-        stampDisk(tctx, outer, pad, nw, nh, outerRing * scale, outerRing)
+        stampDisk(tctx, outer, bakePad, bakeSize, bakeOuter)
         hardenAlpha(tctx)
       }
     }
-    if (innerRing > 0) {
+    if (bakeInner > 0) {
       const inner = getTintedImage(image, outline.inner, cache)
       if (inner) {
-        stampDisk(tctx, inner, pad, nw, nh, innerRing * scale, innerRing)
+        stampDisk(tctx, inner, bakePad, bakeSize, bakeInner)
         hardenAlpha(tctx)
       }
     }
-    tctx.drawImage(body, pad, pad)
+    tctx.drawImage(body, bakePad, bakePad, bakeSize, bakeSize)
 
     cache.set(key, canvas)
   }
@@ -150,42 +153,38 @@ function getOutlinedGlyph(
 /**
  * Morphological dilation of a (possibly stroke-only) glyph alpha.
  *
- * Element SVGs are black-ink strokes, not filled silhouettes. Stamping only the
- * outer circumference leaves ghost copies when the outline is thick. Concentric
- * rings fill a solid halo. Ring/sample counts follow display px so native-res
- * bakes stay affordable and look continuous after downscale.
+ * Element SVGs are black-ink strokes, not filled silhouettes. Concentric rings
+ * fill a solid halo. Sample count follows **bake-space** radius so the rim stays
+ * continuous (sparse angular stamps caused the bristly jagged edge).
  */
 function stampDisk(
   ctx: CanvasRenderingContext2D,
   tinted: HTMLCanvasElement,
   pad: number,
-  width: number,
-  height: number,
-  canvasRadius: number,
-  displayRadius: number,
+  size: number,
+  radius: number,
 ) {
-  if (canvasRadius <= 0 || displayRadius <= 0) return
-  const rings = Math.max(1, Math.ceil(displayRadius))
+  if (radius <= 0) return
+  const rings = Math.max(1, Math.ceil(radius))
   for (let ring = 1; ring <= rings; ring++) {
     const t = ring / rings
-    const r = canvasRadius * t
-    const samples = Math.min(64, Math.max(8, Math.ceil(2 * Math.PI * displayRadius * t)))
+    const r = radius * t
+    // ~1 sample per bake pixel of circumference keeps the rim solid.
+    const samples = Math.min(128, Math.max(8, Math.ceil(2 * Math.PI * r)))
     for (let i = 0; i < samples; i++) {
       const a = (2 * Math.PI * i) / samples
-      const ox = Math.cos(a) * r
-      const oy = Math.sin(a) * r
-      ctx.drawImage(tinted, pad + ox, pad + oy, width, height)
+      ctx.drawImage(tinted, pad + Math.cos(a) * r, pad + Math.sin(a) * r, size, size)
     }
   }
 }
 
-/** Snap outline coverage to binary alpha so downscale AA stays crisp, not muddy. */
+/** Snap outline coverage to binary alpha so the halo stays solid, not muddy. */
 function hardenAlpha(ctx: CanvasRenderingContext2D) {
   const { width, height } = ctx.canvas
   const image = ctx.getImageData(0, 0, width, height)
   const data = image.data
   for (let i = 3; i < data.length; i += 4) {
-    data[i] = data[i] > 0 ? 255 : 0
+    data[i] = data[i]! > 0 ? 255 : 0
   }
   ctx.putImageData(image, 0, 0)
 }

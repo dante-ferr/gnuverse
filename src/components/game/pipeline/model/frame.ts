@@ -35,7 +35,7 @@ export type PipelineRules = {
   colorInk: string
   decorStrokeWidth: number
   resourceGlyphSizePx: number
-  /** Below: screen-fixed glyph size; at/above: glyphs scale with the world. */
+  /** Machine overlays: at/below, scale with the world; above, lock screen size at this zoom. */
   resourceGlyphWorldMinZoom: number
   resourceGlyphOrbitPx: number
   resourceGlyphOrbitMs: number

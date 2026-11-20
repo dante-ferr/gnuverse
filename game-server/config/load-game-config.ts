@@ -91,20 +91,18 @@ function validateEconomy(values: Record<string, unknown>): GameRules {
         value > range.max
       ) {
         throw new Error(
-          `${key} deve ser inteiro entre ${range.min} e ${range.max}`,
+          `${key} must be an integer between ${range.min} and ${range.max}`,
         )
       }
     } else if (key === 'prototype' || key === 'bdfl_veto') {
       if (typeof value !== 'boolean')
-        throw new Error(`${key} deve ser booleano`)
+        throw new Error(`${key} must be a boolean`)
     }
     result[economyMappings[key as keyof typeof economyMappings]] = value
   }
   const rules = result as GameRules
   if (rules.bdflVeto) {
-    throw new Error(
-      'bdfl_veto está reservado e não pode ser ativado nesta versão',
-    )
+    throw new Error('bdfl_veto is reserved and cannot be enabled in this version')
   }
   return rules
 }
@@ -126,17 +124,17 @@ function parseConfig(
 ): LoadedGameConfig {
   if (contents.pipeline !== undefined) {
     throw new Error(
-      'pipeline deve viver em pipeline.toml; remova a tabela [pipeline] de game.config.toml',
+      'pipeline must live in pipeline.toml; remove the [pipeline] table from game.config.toml',
     )
   }
   for (const key of Object.keys(contents)) {
     if (!knownKeys.has(key))
-      throw new Error(`Configuração de jogo desconhecida: ${key}`)
+      throw new Error(`Unknown game config: ${key}`)
   }
   const rules = validateEconomy(contents)
   const pipeline = pipelineRulesFrom(readSiblingPipelineTable(configAbsolutePath))
   if (rules.initialBalance > pipeline.passiveCap) {
-    throw new Error('initial_balance não pode exceder passive_cap')
+    throw new Error('initial_balance must not exceed passive_cap')
   }
   return { rules, pipeline }
 }

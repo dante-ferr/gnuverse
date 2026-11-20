@@ -64,16 +64,16 @@ test('loads chunk expansion keys from pipeline.toml and rejects unknown pipeline
       assert.equal(pipeline.chunkCostStep, 3)
     },
   )
-  assert.throws(() => pipelineRulesFrom({ mystery_pipeline_key: 1 }), /desconhecida: pipeline\.mystery_pipeline_key/)
+  assert.throws(() => pipelineRulesFrom({ mystery_pipeline_key: 1 }), /Unknown game config: pipeline\.mystery_pipeline_key/)
   assert.throws(
     () => pipelineRulesFrom({ chunk_size: 4 }),
-    /chunk_size deve ser inteiro entre 8 e 64/,
+    /chunk_size must be an integer between 8 and 64/,
   )
 })
 
 test('rejects unknown TOML fields instead of silently ignoring them', () => {
   withConfigFiles({ game: 'not_a_rule = 10\n' }, (configPath) => {
-    assert.throws(() => loadGameConfig(configPath), /desconhecida: not_a_rule/)
+    assert.throws(() => loadGameConfig(configPath), /Unknown game config: not_a_rule/)
   })
 })
 
@@ -81,7 +81,7 @@ test('rejects inline [pipeline] in game.config.toml', () => {
   withConfigFiles({ game: '[pipeline]\npassive_cap = 10\n' }, (configPath) => {
     assert.throws(
       () => loadGameConfig(configPath),
-      /pipeline deve viver em pipeline\.toml/,
+      /pipeline must live in pipeline\.toml/,
     )
   })
 })
@@ -107,7 +107,7 @@ test('rejects values outside rule bounds and inconsistent rules', () => {
     (configPath) => {
       assert.throws(
         () => loadGameConfig(configPath),
-        /initial_balance não pode exceder passive_cap/,
+        /initial_balance must not exceed passive_cap/,
       )
     },
   )
@@ -116,11 +116,11 @@ test('rejects values outside rule bounds and inconsistent rules', () => {
     (configPath) => {
       assert.throws(
         () => loadGameConfig(configPath),
-        /passive_cap não pode exceder wallet_cap/,
+        /passive_cap must not exceed wallet_cap/,
       )
     },
   )
   withConfigFiles({ game: 'bdfl_veto = true\n' }, (configPath) => {
-    assert.throws(() => loadGameConfig(configPath), /bdfl_veto está reservado/)
+    assert.throws(() => loadGameConfig(configPath), /bdfl_veto is reserved/)
   })
 })

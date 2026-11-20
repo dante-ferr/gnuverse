@@ -34,11 +34,15 @@ export function sceneLodKey(lod: SceneLod): string {
 }
 
 /**
- * Scale applied after translating to a world anchor so glyphs keep a fixed
- * screen size until `resourceGlyphWorldMinZoom`, then grow with the camera.
+ * Scale for **machine** resource overlays (source orbit, combiner craft) after
+ * translating to a world anchor. Belt packets always use world size (scale 1).
+ *
+ * At/below `resourceGlyphWorldMinZoom`, scale with the world. Above that zoom,
+ * lock screen diameter to the size at the threshold (`t / zoom`).
  */
 export function glyphSpaceScale(zoom: number, rules: PipelineRules): number {
   const z = zoom > 0 ? zoom : 1
-  if (z >= rules.resourceGlyphWorldMinZoom) return 1
-  return 1 / z
+  const t = rules.resourceGlyphWorldMinZoom
+  if (z <= t) return 1
+  return t / z
 }

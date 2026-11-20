@@ -86,7 +86,6 @@ const integers = {
   decor_darken_percent: [0, 90],
   outline_width_px: [1, 12],
   decor_stroke_width: [12, 64],
-  resource_glyph_size_px: [12, 64],
   resource_glyph_orbit_px: [0, 48],
   resource_glyph_orbit_ms: [500, 20_000],
   resource_glyph_outline_outer_width_px: [0, 16],
@@ -134,6 +133,9 @@ const floats = {
   resource_glyph_world_min_zoom: [0.05, 10],
   resource_glyph_outline_spread: [0.5, 4],
 } as const
+
+/** Positive safe integers with no max (presentation knobs tuned freely in TOML). */
+const unboundedPositiveIntegers = new Set<keyof typeof defaults>(['resource_glyph_size_px'])
 
 const mappings = {
   tick_ms: 'tickMs',
@@ -219,10 +221,10 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
       : section && typeof section === 'object' && !Array.isArray(section)
         ? (section as Record<string, unknown>)
         : null
-  if (!values) throw new Error('pipeline deve ser uma tabela')
+  if (!values) throw new Error('pipeline must be a table')
 
   for (const key of Object.keys(values)) {
-    if (!(key in defaults)) throw new Error(`Configuração de jogo desconhecida: pipeline.${key}`)
+    if (!(key in defaults)) throw new Error(`Unknown game config: pipeline.${key}`)
   }
   const result: Record<string, number | string> = {}
   for (const key of Object.keys(defaults) as (keyof typeof defaults)[]) {
@@ -232,13 +234,16 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
     if (floatRange) {
       const [min, max] = floatRange
       if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max)
-        throw new Error(`${key} deve ser número entre ${min} e ${max}`)
+        throw new Error(`${key} must be a number between ${min} and ${max}`)
     } else if (range) {
       const [min, max] = range
       if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max)
-        throw new Error(`${key} deve ser inteiro entre ${min} e ${max}`)
+        throw new Error(`${key} must be an integer between ${min} and ${max}`)
+    } else if (unboundedPositiveIntegers.has(key)) {
+      if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1)
+        throw new Error(`${key} must be a positive integer`)
     } else if (typeof value !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(value)) {
-      throw new Error(`${key} deve ser cor hex #RRGGBB`)
+      throw new Error(`${key} must be a hex color #RRGGBB`)
     }
     result[mappings[key]] = value
   }
@@ -248,12 +253,12 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
     elements = catalogToJson(loadElementCatalog()) as ElementCatalogJson
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Catálogo de elementos inválido: ${message}`)
+    throw new Error(`Invalid element catalog: ${message}`)
   }
 
   const rules = { ...(result as Omit<PipelineRules, 'elements'>), elements } as PipelineRules
   if (rules.cameraZoomMin >= rules.cameraZoomMax) {
-    throw new Error('camera_zoom_min deve ser menor que camera_zoom_max')
+    throw new Error('camera_zoom_min must be less than camera_zoom_max')
   }
   if (rules.lodStructureMinZoom > rules.lodDetailMinZoom) {
     throw new Error('lod_structure_min_zoom must be <= lod_detail_min_zoom')
@@ -262,16 +267,16 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
     throw new Error('satellite_core_ring_min must be <= satellite_core_ring_max')
   }
   if (rules.passiveCap > rules.walletCap) {
-    throw new Error('passive_cap não pode exceder wallet_cap')
+    throw new Error('passive_cap must not exceed wallet_cap')
   }
   if (rules.elements.starterSourceIds.length < 1) {
-    throw new Error('elements.toml: starter_source_ids deve listar ao menos uma base')
+    throw new Error('elements.toml: starter_source_ids must list at least one base')
   }
   try {
     layoutMatchFromSeed(rules, 'config-check')
   } catch {
     throw new Error(
-      'O mapa do pipeline é pequeno demais para o núcleo, as fontes iniciais e a folga de segurança',
+      'Pipeline map is too small for the core, starter sources, and required clearance',
     )
   }
   return rules

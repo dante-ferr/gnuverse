@@ -32,10 +32,10 @@ test('sceneLod uses detail, structure, and cores bands from rules', () => {
   })
 })
 
-test('glyphSpaceScale stays screen-fixed until resourceGlyphWorldMinZoom', () => {
+test('glyphSpaceScale world-scales when zoomed out; locks screen size when zoomed in', () => {
   const rules = testPipelineRules({ resourceGlyphWorldMinZoom: 1.25 })
-  assert.equal(glyphSpaceScale(0.5, rules), 2)
+  assert.equal(glyphSpaceScale(0.5, rules), 1)
   assert.equal(glyphSpaceScale(1, rules), 1)
   assert.equal(glyphSpaceScale(1.25, rules), 1)
-  assert.equal(glyphSpaceScale(2, rules), 1)
+  assert.equal(glyphSpaceScale(2.5, rules), 0.5)
 })
