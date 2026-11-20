@@ -28,10 +28,10 @@ function sandboxWithTrashcan(
   return { match, origin, trashcan }
 }
 
-test('placeMachine accepts trashcan with 4×4 and one input', () => {
+test('placeMachine accepts trashcan with 2×2 and one input', () => {
   const { trashcan } = sandboxWithTrashcan()
-  assert.equal(trashcan.width, 4)
-  assert.equal(trashcan.height, 4)
+  assert.equal(trashcan.width, 2)
+  assert.equal(trashcan.height, 2)
   assert.equal(trashcan.inputSlots().length, 1)
   assert.equal(trashcan.outputSlots().length, 0)
 })
@@ -58,4 +58,12 @@ test('rejects overlapping trashcan footprint', () => {
     author,
   )
   assert.equal(error, 'Espaço ocupado por outra estrutura.')
+})
+
+test('remove deletes trashcan under clicked cell', () => {
+  const { match, origin } = sandboxWithTrashcan()
+  const result = match.remove({ x: origin.x, y: origin.y }, author)
+  assert.equal(result.error, null)
+  assert.equal(result.kind, 'trashcan')
+  assert.equal(match.trashcans.length, 0)
 })

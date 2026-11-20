@@ -3,10 +3,10 @@ import { opposite, type Direction } from '../geometry/direction.ts'
 import { Machine } from './machine.ts'
 import { Slot } from './slot.ts'
 
-/** 4×4 sink: one back-face input destroys any packet on intake. */
+/** 2×2 sink: one back-face input destroys any packet on intake. */
 export class TrashcanMachine extends Machine {
-  static readonly width = 4
-  static readonly height = 4
+  static readonly width = 2
+  static readonly height = 2
 
   readonly kind = 'trashcan'
   readonly facing: Direction

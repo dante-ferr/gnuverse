@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { BeltRecord, PipelineFrame, PipelineRules } from '../model/frame.ts'
 import { CombinerMachine } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
+import { TrashcanMachine } from '../../../../../game-server/pipeline/machines/trashcan-machine.ts'
 import { setPlacementFrame, setPlacementRules } from '../placement-rules.ts'
 import {
   getStructure,
@@ -511,6 +512,9 @@ export function PipelineScene({
     for (const id of [...pending.tunnelPairIds]) {
       if (!(current.tunnels ?? []).some((portal) => portal.pairId === id)) pending.tunnelPairIds.delete(id)
     }
+    for (const id of [...pending.trashcanIds]) {
+      if (!(current.trashcans ?? []).some((machine) => machine.id === id)) pending.trashcanIds.delete(id)
+    }
   }
 
   const revertPendingRemovals = () => {
@@ -567,7 +571,23 @@ export function PipelineScene({
       seenTunnelPairs.add(hit.pairId)
       tunnelTargets.push({ x: hit.x, y: hit.y })
     }
-    const targets = [...beltTargets, ...combinerTargets, ...splitterTargets, ...tunnelTargets]
+    const trashcanTargets: { x: number; y: number }[] = []
+    const seenTrashcans = new Set<string>()
+    for (const cell of strokeCells) {
+      const hit = (current.trashcans ?? []).find((machine) =>
+        cellInTrashcanFootprint(machine, cell),
+      )
+      if (!hit || seenTrashcans.has(hit.id)) continue
+      seenTrashcans.add(hit.id)
+      trashcanTargets.push({ x: hit.x, y: hit.y })
+    }
+    const targets = [
+      ...beltTargets,
+      ...combinerTargets,
+      ...splitterTargets,
+      ...tunnelTargets,
+      ...trashcanTargets,
+    ]
     if (targets.length === 0) {
       requestPaint()
       return
@@ -577,6 +597,7 @@ export function PipelineScene({
     for (const id of seenCombiners) pending.combinerIds.add(id)
     for (const id of seenSplitters) pending.splitterIds.add(id)
     for (const id of seenTunnelPairs) pending.tunnelPairIds.add(id)
+    for (const id of seenTrashcans) pending.trashcanIds.add(id)
     onRemove(targets, { revert: revertPendingRemovals })
     requestPaint()
   }
@@ -1014,38 +1035,39 @@ function hashChunks(frame: PipelineFrame) {
   return (h >>> 0).toString(16)
 }
 
+/**
+ * Layout stamp for the cached machine bitmap. Walks `machinesFromFrame` so a new
+ * machine kind invalidates the layer as soon as it is on that list.
+ */
 function hashMachines(frame: PipelineFrame) {
   let h = 0
-  const cores = frame.cores?.length ? frame.cores : [frame.core]
-  for (const core of cores) {
-    h = hashMix(h, core.x)
-    h = hashMix(h, core.y)
-  }
-  const sources = frame.sources?.length ? frame.sources : [frame.source]
-  for (const source of sources) {
-    h = hashMix(h, source.x)
-    h = hashMix(h, source.y)
-    h = hashMix(h, source.direction.charCodeAt(0))
-    const role = 'role' in source ? source.role : undefined
-    h = hashLabel(h, typeof role === 'string' ? role : source.shape)
-  }
-  for (const machine of frame.combiners ?? []) {
-    h = hashMix(h, machine.x)
-    h = hashMix(h, machine.y)
-    h = hashMix(h, machine.facing.charCodeAt(0))
-    h = hashLabel(h, machine.machineId)
-  }
-  for (const machine of frame.splitters ?? []) {
-    h = hashMix(h, machine.x)
-    h = hashMix(h, machine.y)
-    h = hashMix(h, machine.facing.charCodeAt(0))
-  }
-  for (const portal of frame.tunnels ?? []) {
-    h = hashMix(h, portal.x)
-    h = hashMix(h, portal.y)
-    h = hashMix(h, portal.direction.charCodeAt(0))
-    h = hashMix(h, portal.speed ?? 1)
-    h = hashMix(h, portal.role === 'exit' ? 1 : 0)
+  for (const machine of machinesFromFrame(frame)) {
+    h = hashLabel(h, machine.kind)
+    h = hashLabel(h, machine.id)
+    h = hashMix(h, machine.origin.x)
+    h = hashMix(h, machine.origin.y)
+    h = hashMix(h, machine.width)
+    h = hashMix(h, machine.height)
+    const detail = machine as {
+      facing?: string
+      direction?: string
+      shape?: string
+      machineId?: string
+      speed?: number
+      role?: string
+    }
+    if (detail.facing) h = hashLabel(h, detail.facing)
+    if (detail.direction) h = hashLabel(h, detail.direction)
+    if (detail.shape) h = hashLabel(h, detail.shape)
+    if (detail.machineId) h = hashLabel(h, detail.machineId)
+    if (typeof detail.speed === 'number') h = hashMix(h, detail.speed)
+    if (detail.role) h = hashLabel(h, detail.role)
+    for (const slot of machine.slots) {
+      h = hashMix(h, slot.cell.x)
+      h = hashMix(h, slot.cell.y)
+      h = hashLabel(h, slot.role)
+      h = hashLabel(h, slot.travel)
+    }
   }
   return (h >>> 0).toString(16)
 }
@@ -1139,6 +1161,7 @@ type PendingRemovals = {
   combinerIds: Set<string>
   splitterIds: Set<string>
   tunnelPairIds: Set<string>
+  trashcanIds: Set<string>
 }
 
 function emptyPendingRemovals(): PendingRemovals {
@@ -1147,7 +1170,20 @@ function emptyPendingRemovals(): PendingRemovals {
     combinerIds: new Set(),
     splitterIds: new Set(),
     tunnelPairIds: new Set(),
+    trashcanIds: new Set(),
   }
+}
+
+function cellInTrashcanFootprint(
+  machine: { x: number; y: number },
+  cell: { x: number; y: number },
+): boolean {
+  return (
+    cell.x >= machine.x &&
+    cell.x < machine.x + TrashcanMachine.width &&
+    cell.y >= machine.y &&
+    cell.y < machine.y + TrashcanMachine.height
+  )
 }
 
 /** Frame copy with optimistically removed belts and machines filtered out. */
@@ -1156,7 +1192,8 @@ function frameWithoutPendingRemovals(frame: PipelineFrame, pending: PendingRemov
     pending.belts.size === 0 &&
     pending.combinerIds.size === 0 &&
     pending.splitterIds.size === 0 &&
-    pending.tunnelPairIds.size === 0
+    pending.tunnelPairIds.size === 0 &&
+    pending.trashcanIds.size === 0
   ) {
     return frame
   }
@@ -1166,6 +1203,7 @@ function frameWithoutPendingRemovals(frame: PipelineFrame, pending: PendingRemov
     combiners: (frame.combiners ?? []).filter((machine) => !pending.combinerIds.has(machine.id)),
     splitters: (frame.splitters ?? []).filter((machine) => !pending.splitterIds.has(machine.id)),
     tunnels: (frame.tunnels ?? []).filter((portal) => !pending.tunnelPairIds.has(portal.pairId)),
+    trashcans: (frame.trashcans ?? []).filter((machine) => !pending.trashcanIds.has(machine.id)),
   }
 }
 

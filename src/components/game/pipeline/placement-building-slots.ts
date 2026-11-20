@@ -188,6 +188,7 @@ export function machinesFromFrame(frame: PipelineFrame): Machine[] {
         portal.direction,
         { id: portal.authorId, nickname: portal.authorNickname },
         gap,
+        portal.speed ?? 1,
       ),
     )
   }

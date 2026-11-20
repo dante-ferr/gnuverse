@@ -83,7 +83,7 @@ export type PipelineRules = {
   slotFlowMarkDepthPercent: number
   /** 1×1 splitter machine body. */
   colorSplitter: string
-  /** 4×4 trashcan machine body. */
+  /** 2×2 trashcan machine body. */
   colorTrashcan: string
   /** Underground tunnel portal body. */
   colorTunnel: string
