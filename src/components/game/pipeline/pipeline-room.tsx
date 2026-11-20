@@ -216,6 +216,7 @@ export function PipelineRoom() {
           />
           <div className={styles.sceneViewport}>
             <PipelineScene
+              roomId={lobby.roomId}
               frame={live.frame.seed ? live.frame : null}
               rules={rules}
               editMode={editMode}

@@ -27,6 +27,15 @@ export class GridCamera {
     if (!options?.keepView) this.fitted = false
   }
 
+  resetView() {
+    this.fitted = false
+  }
+
+  /** True after the first successful enter/fit for the current view. */
+  get hasView() {
+    return this.fitted
+  }
+
   /** Shift the camera so remapped local cells stay under the same screen point. */
   compensateOriginShift(dxCells: number, dyCells: number, cell: number) {
     this.x -= dxCells * cell * this.zoom
@@ -41,6 +50,39 @@ export class GridCamera {
     this.x = (viewWidth - worldWidth * this.zoom) / 2
     this.y = (viewHeight - worldHeight * this.zoom) / 2
     this.fitted = true
+  }
+
+  applyInitialView(viewWidth: number, viewHeight: number, cell: number, apply: () => void) {
+    if (this.fitted || viewWidth < 1 || viewHeight < 1) return
+    apply()
+    this.fitted = true
+  }
+
+  centerOn(
+    cellX: number,
+    cellY: number,
+    viewWidth: number,
+    viewHeight: number,
+    cell: number,
+  ) {
+    this.x = viewWidth / 2 - cellX * cell * this.zoom
+    this.y = viewHeight / 2 - cellY * cell * this.zoom
+  }
+
+  setZoomToFitCells(
+    spanCells: number,
+    viewWidth: number,
+    viewHeight: number,
+    cell: number,
+  ) {
+    if (spanCells < 1) return
+    const span = spanCells * cell
+    this.zoom = Math.min(viewWidth, viewHeight) / span
+    this.zoom = Math.min(this.zoomMax, Math.max(this.zoomMin, this.zoom))
+  }
+
+  worldCenter(viewWidth: number, viewHeight: number, cell: number) {
+    return this.world(viewWidth / 2, viewHeight / 2, cell)
   }
 
   world(screenX: number, screenY: number, cell: number) {

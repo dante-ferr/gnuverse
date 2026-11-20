@@ -13,6 +13,7 @@ export type PipelineRules = {
   gridVisibleMinZoom: number
   cameraZoomMin: number
   cameraZoomMax: number
+  cameraEnterViewCells: number
   /** At/above: glyphs, chevrons, full machines. */
   lodDetailMinZoom: number
   /** At/above (below detail): flat machines + cores; below: cores only. */

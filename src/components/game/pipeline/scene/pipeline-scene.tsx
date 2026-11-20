@@ -15,6 +15,8 @@ import { machinesFromFrame } from '../placement-building-slots.ts'
 import { occupancyFromFrame, setBeltCrossQuery, resetBeltCrossQuery } from './belt-cross.ts'
 import { BeltEraseStroke } from './belt-erase-stroke.ts'
 import { createBeltRedirectSession } from './belt-redirect.ts'
+import { CoreMachine } from '../../../../../game-server/pipeline/machines/core-machine.ts'
+import { loadSavedCamera, saveSavedCamera } from './camera-memory.ts'
 import { GridCamera } from './grid-camera.ts'
 import { BeltPainter } from './painters/belt-painter.ts'
 import { cellSize, type CellBounds, GridPainter } from './painters/grid-painter.ts'
@@ -37,6 +39,7 @@ type ChunkBuyAnchor = {
 }
 
 type Props = {
+  roomId: string
   frame: PipelineFrame | null
   rules: PipelineRules | null
   editMode: EditMode
@@ -59,6 +62,7 @@ type Props = {
 const KEY_PAN_SPEED = 10
 const PAN_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'])
 const MAX_DEVICE_PIXEL_RATIO = 2
+const CAMERA_SAVE_DEBOUNCE_MS = 320
 
 /** Phones spend most of their frame budget filling pixels. Cap the backing store there. */
 function scenePixelRatio() {
@@ -71,6 +75,7 @@ type ViewSize = { width: number; height: number; left: number; top: number }
 
 /** Full-viewport grid. Core requirements sit in the room sidebar. */
 export function PipelineScene({
+  roomId,
   frame,
   rules,
   editMode,
@@ -106,6 +111,9 @@ export function PipelineScene({
   const viewSize = useRef<ViewSize>({ width: 1, height: 1, left: 0, top: 0 })
   const paintScheduled = useRef(false)
   const animateFrameId = useRef(0)
+  const cameraSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const roomIdRef = useRef(roomId)
+  roomIdRef.current = roomId
   const buyAnchorSig = useRef('')
   /** Keeps the buy button visible while the pointer moves from the canvas onto the button. */
   const pinnedBuyChunk = useRef<{ cx: number; cy: number } | null>(null)
@@ -118,6 +126,36 @@ export function PipelineScene({
   structureIdRef.current = structureId
   userIdRef.current = userId
   onToggleEditModeRef.current = onToggleEditMode
+
+  const flushCameraSave = (roomIdOverride?: string) => {
+    if (cameraSaveTimer.current) {
+      clearTimeout(cameraSaveTimer.current)
+      cameraSaveTimer.current = null
+    }
+    const camera = cameraRef.current
+    if (!camera.hasView) return
+    const current = frameRef.current
+    const palette = rulesRef.current
+    if (!current || !palette) return
+    const view = viewSize.current
+    if (view.width < 1 || view.height < 1) return
+    const origin = originChunkRef.current ?? current.originChunk ?? { cx: 0, cy: 0 }
+    const chunkSize = palette.chunkSize
+    const center = camera.worldCenter(view.width, view.height, cellSize)
+    saveSavedCamera(roomIdOverride ?? roomIdRef.current, userIdRef.current, {
+      worldX: center.x + origin.cx * chunkSize,
+      worldY: center.y + origin.cy * chunkSize,
+      zoom: camera.zoom,
+    })
+  }
+
+  const scheduleCameraSave = () => {
+    if (cameraSaveTimer.current) clearTimeout(cameraSaveTimer.current)
+    cameraSaveTimer.current = setTimeout(() => {
+      cameraSaveTimer.current = null
+      flushCameraSave()
+    }, CAMERA_SAVE_DEBOUNCE_MS)
+  }
 
   const catalogDecorKey = [
     rules?.elements?.machines?.map((m) => `${m.id}:${m.decor}`).join('|') ?? '',
@@ -141,7 +179,28 @@ export function PipelineScene({
     }
     const camera = cameraRef.current
     camera.setZoomLimits({ min: palette.cameraZoomMin, max: palette.cameraZoomMax })
-    camera.fit(view.width, view.height, cellSize)
+    camera.applyInitialView(view.width, view.height, cellSize, () => {
+      const saved = loadSavedCamera(roomIdRef.current, userIdRef.current)
+      const origin = current.originChunk ?? { cx: 0, cy: 0 }
+      const chunkSize = palette.chunkSize
+      if (saved) {
+        camera.zoom = Math.min(palette.cameraZoomMax, Math.max(palette.cameraZoomMin, saved.zoom))
+        const localX = saved.worldX - origin.cx * chunkSize
+        const localY = saved.worldY - origin.cy * chunkSize
+        camera.centerOn(localX, localY, view.width, view.height, cellSize)
+      } else {
+        camera.setZoomToFitCells(
+          palette.cameraEnterViewCells,
+          view.width,
+          view.height,
+          cellSize,
+        )
+        const core = current.cores?.[0] ?? current.core
+        const coreCenterX = core.x + CoreMachine.size / 2
+        const coreCenterY = core.y + CoreMachine.size / 2
+        camera.centerOn(coreCenterX, coreCenterY, view.width, view.height, cellSize)
+      }
+    })
     const timeMs = performance.now()
     syncPacketMotion(packetMotion.current, current, palette, timeMs, cellSize)
     const bounds = camera.visibleCellBounds(view.width, view.height, cellSize, 3)
@@ -237,7 +296,6 @@ export function PipelineScene({
         packetMotion.current,
         timeMs,
         lod,
-        camera.zoom,
       )
     })
     ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -320,6 +378,30 @@ export function PipelineScene({
       paint()
     })
   }
+
+  const previousRoomIdRef = useRef(roomId)
+  useEffect(() => {
+    const previous = previousRoomIdRef.current
+    if (previous !== roomId) {
+      flushCameraSave(previous)
+      cameraRef.current.resetView()
+      originChunkRef.current = null
+      previousRoomIdRef.current = roomId
+    }
+  }, [roomId])
+
+  useEffect(() => {
+    const onPageHide = () => flushCameraSave()
+    window.addEventListener('pagehide', onPageHide)
+    return () => {
+      window.removeEventListener('pagehide', onPageHide)
+      flushCameraSave()
+      if (cameraSaveTimer.current) {
+        clearTimeout(cameraSaveTimer.current)
+        cameraSaveTimer.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     images.current = loadMachineDecor(() => requestPaint())
@@ -565,7 +647,7 @@ export function PipelineScene({
         if (keys.has('s') || keys.has('arrowdown')) dy -= KEY_PAN_SPEED
         if (dx !== 0 || dy !== 0) {
           cameraRef.current.pan(dx, dy)
-          // Animation RAF already paints; no extra paint() here.
+          scheduleCameraSave()
         }
       }
       frameId = requestAnimationFrame(tick)
@@ -709,7 +791,10 @@ export function PipelineScene({
             const points = [...pointers.current.values()]
             const distance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y)
             const previous = pinchDistance.current
-            if (previous) cameraRef.current.zoomAt(view.width / 2, view.height / 2, distance / previous, cellSize)
+            if (previous) {
+              cameraRef.current.zoomAt(view.width / 2, view.height / 2, distance / previous, cellSize)
+              scheduleCameraSave()
+            }
             pinchDistance.current = distance
             return
           }
@@ -717,6 +802,7 @@ export function PipelineScene({
           if (pan.current) {
             cameraRef.current.pan(event.clientX - pan.current.x, event.clientY - pan.current.y)
             pan.current = { x: event.clientX, y: event.clientY }
+            scheduleCameraSave()
             return
           }
           const cell = localCell(event)
@@ -775,6 +861,7 @@ export function PipelineScene({
           const view = viewSize.current
           const factor = event.deltaY < 0 ? 1.08 : 0.92
           cameraRef.current.zoomAt(event.clientX - view.left, event.clientY - view.top, factor, cellSize)
+          scheduleCameraSave()
           requestPaint()
         }}
       />

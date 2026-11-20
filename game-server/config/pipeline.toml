@@ -13,6 +13,7 @@ grid_height = 24
 grid_visible_min_zoom = 0.5 # Show cell grid at or above this zoom (zoomed in)
 camera_zoom_min = 0.08 # Zoomed out limit (see more map)
 camera_zoom_max = 3 # Zoomed in limit
+camera_enter_view_cells = 14 # Initial room visit: shorter viewport edge spans this many cells
 # Scene LOD (client). At/above detail: glyphs, chevrons, full machines.
 # Between structure and detail: element-fill disks, no chevrons, flat machine fills + cores.
 # Below structure: disks, no chevrons, cores only (source/combiner glyphs still draw).

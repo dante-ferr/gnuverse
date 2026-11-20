@@ -12,6 +12,8 @@ export type PipelineRules = {
   cameraZoomMin: number
   /** Largest camera zoom factor (zoomed in). */
   cameraZoomMax: number
+  /** On first room visit, fit this many cells along the shorter viewport edge. */
+  cameraEnterViewCells: number
   /** At/above this zoom: packet glyphs, belt chevrons, full machine art. */
   lodDetailMinZoom: number
   /** At/above this (and below detail): flat machine fills + cores; below: cores only. */
