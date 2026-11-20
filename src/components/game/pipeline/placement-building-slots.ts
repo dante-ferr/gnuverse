@@ -64,7 +64,10 @@ export function proposedTunnelPlacementBlocked(
   if (logisticContactBlocked(proposedSlots, proposedFootprints, machines, 'tunnel') !== null) {
     return true
   }
-  return portsOverlapBuildings(proposedSlots, proposedFootprints, machines)
+  return portsOverlapBuildings(proposedSlots, proposedFootprints, machines, {
+    proposedIsLogistic: true,
+    linkedTunnelSlots: proposedSlots,
+  })
 }
 
 export function buildingBodyKeysFromFrame(frame: PipelineFrame): Set<string> {

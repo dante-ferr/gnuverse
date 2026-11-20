@@ -162,11 +162,10 @@ export class MachineEditor {
   private placeTunnel(spec: TunnelPlaceRequest, author: Author) {
     const entrance = { x: spec.entranceX, y: spec.entranceY }
     const exit = { x: spec.exitX, y: spec.exitY }
-    const facing =
-      this.match.beltAt(entrance)?.direction ??
-      this.match.beltAt(exit)?.direction ??
-      spec.facing
-    if (!isDirection(facing)) return 'Direção inválida.'
+    // Prefer the stroke / client facing so a portal on a perpendicular belt still
+    // travels along the planned axis. Fall back to belts on the portal cells.
+    const facing = this.resolveTunnelFacing(entrance, exit, spec.facing)
+    if (!facing) return 'Direção inválida.'
     const geometry = tunnelPairGeometry(
       entrance,
       exit,
@@ -209,6 +208,7 @@ export class MachineEditor {
     if (contactError) return contactError
     if (
       this.portsOverlapBuildings(tunnelSlots, footprints, {
+        proposedIsLogistic: true,
         linkedTunnelSlots: tunnelSlots,
       })
     ) {
@@ -239,6 +239,25 @@ export class MachineEditor {
     )
     this.match.noteCollaborator(author)
     return null
+  }
+
+  /** Stroke facing first; portal belts only when that axis is illegal. */
+  private resolveTunnelFacing(
+    entrance: Cell,
+    exit: Cell,
+    requested: unknown,
+  ): Direction | null {
+    const maxGap = this.match.rules.tunnelMaxGap
+    const candidates = [
+      requested,
+      this.match.beltAt(entrance)?.direction,
+      this.match.beltAt(exit)?.direction,
+    ]
+    for (const candidate of candidates) {
+      if (!isDirection(candidate)) continue
+      if (tunnelPairGeometry(entrance, exit, candidate, maxGap).ok) return candidate
+    }
+    return isDirection(requested) ? requested : null
   }
 
   private footprintInOwned(x: number, y: number, width: number, height: number) {

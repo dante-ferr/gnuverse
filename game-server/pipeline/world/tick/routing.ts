@@ -121,7 +121,13 @@ function outputReaches(
   match: Match,
 ) {
   if (input.role !== 'input' || output.role !== 'output') return false
-  if (output.cell.x === input.cell.x && output.cell.y === input.cell.y) return true
+  if (
+    output.cell.x === input.cell.x &&
+    output.cell.y === input.cell.y &&
+    output.travel === input.travel
+  ) {
+    return true
+  }
   const entrance = match.tunnels.some(
     (portal) =>
       portal.role === 'entrance' &&

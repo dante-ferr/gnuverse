@@ -147,15 +147,13 @@ test('remove deletes splitter', () => {
 
 test('placeMachine allows adjacent splitters when output lands on the next input', () => {
   const { match, origin } = matchWithSplitter('east')
-  for (const facing of ['east', 'west'] as const) {
-    const error = match.placeMachine(
-      { machineId: 'splitter', x: origin.x + 1, y: origin.y, facing },
-      author,
-    )
-    assert.equal(error, null, facing)
-    match.remove({ x: origin.x + 1, y: origin.y }, author)
-  }
-  assert.equal(match.splitters.length, 1)
+  // Same facing: upstream east output sits on downstream input with matching travel.
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: origin.x + 1, y: origin.y, facing: 'east' },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.splitters.length, 2)
 })
 
 test('portsConnected is a direct plug onto the input slot, not a shared gap cell', () => {
@@ -170,6 +168,9 @@ test('portsConnected is a direct plug onto the input slot, not a shared gap cell
   const forward = adjacent.outputSlots().find((slot) => slot.travel === 'east')!
   assert.equal(portsConnected(forward, next.inputSlots()[0]!), true)
   assert.equal(portsConnected(forward, gapped.inputSlots()[0]!), false)
+  const sideDump = new SplitterMachine('side', { x: 0, y: -1 }, 'south', author)
+  const south = sideDump.outputSlots().find((slot) => slot.travel === 'south')!
+  assert.equal(portsConnected(south, next.inputSlots()[0]!), false)
   assert.equal(
     portsConnected(
       { cell: { x: 3, y: 0 }, role: 'output', travel: 'west' },
@@ -197,6 +198,23 @@ test('placeMachine allows splitter plugged into a combiner input', () => {
   const splitter = match.splitters[0]!
   const into = splitter.outputSlots().find((slot) => slot.travel === input.travel)!
   assert.equal(portsConnected(into, input), true)
+})
+
+test('placeMachine rejects splitter dumping onto a combiner input from the wrong side', () => {
+  const match = Match.createSandbox('splitter-combiner-side-dump', rules)
+  assert.equal(
+    match.placeMachine({ machineId: 'combiner_2', x: 25, y: 28, facing: 'south' }, author),
+    null,
+  )
+  const combiner = match.combiners[0]!
+  const input = combiner.inputSlots().slice().sort((a, b) => a.cell.x - b.cell.x)[0]!
+  // West of a north-face input: east output lands on the input tile but travel is wrong.
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: input.cell.x - 1, y: input.cell.y, facing: 'east' },
+    author,
+  )
+  assert.equal(error, 'Sem porta compatível em contato.')
+  assert.equal(match.splitters.length, 0)
 })
 
 test('placeMachine allows splitters one tile apart without connecting them', () => {

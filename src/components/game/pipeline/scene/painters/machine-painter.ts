@@ -239,6 +239,40 @@ export class MachinePainter {
         shouldOrbit,
       )
     }
+    // Non-logistic brackets above logistics so adjacent plugs cannot bury them.
+    this.drawNonLogisticBrackets(ctx, frame, rules, bracketStyle)
+  }
+
+  private drawNonLogisticBrackets(
+    ctx: CanvasRenderingContext2D,
+    frame: PipelineFrame,
+    rules: PipelineRules,
+    bracketStyle: SlotBracketStyle,
+  ) {
+    const coreSpecs = frame.cores?.length ? frame.cores : [frame.core]
+    for (const coreSpec of coreSpecs) {
+      const core = new CoreMachine(coreSpec.id, { x: coreSpec.x, y: coreSpec.y })
+      this.drawSlotBrackets(ctx, core, rules.colorCore, rules, bracketStyle)
+    }
+    for (const spec of frame.combiners ?? []) {
+      const combiner = new CombinerMachine(
+        spec.id,
+        spec.machineId,
+        { x: spec.x, y: spec.y },
+        spec.facing,
+      )
+      const kind = rules.elements.machines.find((item) => item.id === spec.machineId)
+      const body = kind?.color ?? rules.colorAccent
+      this.drawSlotBrackets(ctx, combiner, body, rules, bracketStyle)
+    }
+    const sources = frame.sources?.length ? frame.sources : [frame.source]
+    for (const spec of sources) {
+      if (!spec) continue
+      const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
+      const glyphId = sourceGlyphId(spec)
+      const body = elementFill(rules, glyphId) ?? rules.colorSource
+      this.drawSlotBrackets(ctx, source, body, rules, bracketStyle)
+    }
   }
 
   private noteCoreIntake(spec: CoreRecord, timeMs: number) {

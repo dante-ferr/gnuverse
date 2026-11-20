@@ -159,14 +159,15 @@ export function machinesBodyAdjacent(proposedBodyKeys: Set<string>, existing: Ma
 }
 
 /**
- * Direct plug only: the output cell is the other machine’s input slot.
- * Sharing the empty cell in front of an input (one tile of gap) is a belt, not a link.
+ * Direct plug: output cell sits on the input slot and travel matches (flow into
+ * the machine). A shared empty approach cell is a belt, not a link. Side/corner
+ * contact onto an input tile from the wrong direction does not connect.
  */
 export function portsConnected(a: PortSlot, b: PortSlot): boolean {
   if (a.role === b.role) return false
   const output = a.role === 'output' ? a : b
   const input = a.role === 'input' ? a : b
-  return sameCell(portOccupancyCell(output), input.cell)
+  return sameCell(portOccupancyCell(output), input.cell) && output.travel === input.travel
 }
 
 /** Output port sits on the tunnel entrance or on the cell directly behind it. */
