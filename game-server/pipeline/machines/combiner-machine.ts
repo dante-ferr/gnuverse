@@ -12,6 +12,8 @@ export class CombinerMachine extends Machine {
   /** Set when a buffered recipe match starts crafting; cleared after eject. */
   activeRecipeId: string | null = null
   readonly facing: Direction
+  readonly authorId: string
+  readonly authorNickname: string
   buffer: Record<string, number> = {}
   craftRemaining: number | null = null
   pendingOutputs: string[] | null = null
@@ -22,11 +24,14 @@ export class CombinerMachine extends Machine {
     machineId: CombinerMachineId,
     origin: Cell,
     facing: Direction = 'east',
+    author: { id: string; nickname: string } = { id: '', nickname: '' },
   ) {
     const { width, height } = CombinerMachine.sizeFor(machineId, facing)
     super(id, origin, width, height)
     this.machineId = machineId
     this.facing = facing
+    this.authorId = author.id
+    this.authorNickname = author.nickname
     const inputCount = machineId === 'combiner_2' ? 2 : 3
     const outputCount = machineId === 'combiner_2' ? 1 : 2
     const back = opposite(facing)

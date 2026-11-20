@@ -117,7 +117,10 @@ export class MachineEditor {
     }
     const id = `c${this.match.nextCombinerSeq++}`
     this.match.combiners.push(
-      new CombinerMachine(id, spec.machineId, { x: spec.x, y: spec.y }, spec.facing),
+      new CombinerMachine(id, spec.machineId, { x: spec.x, y: spec.y }, spec.facing, {
+        id: author.id,
+        nickname: author.nickname,
+      }),
     )
     this.match.noteCollaborator(author)
     return null

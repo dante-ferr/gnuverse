@@ -342,6 +342,8 @@ export class Match {
         craftRemaining: machine.craftRemaining,
         pendingOutputs: machine.pendingOutputs ? [...machine.pendingOutputs] : null,
         nextSplitPort: machine.nextSplitPort,
+        authorId: machine.authorId,
+        authorNickname: machine.authorNickname,
       })),
       splitters: this.splitters.map((machine) => ({
         id: machine.id,
@@ -461,6 +463,10 @@ export class Match {
           spec.machineId,
           { x: spec.x, y: spec.y },
           spec.facing,
+          {
+            id: spec.authorId ?? '',
+            nickname: spec.authorNickname ?? '',
+          },
         )
         machine.activeRecipeId = spec.recipeId ?? null
         machine.buffer = { ...spec.buffer }

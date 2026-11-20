@@ -199,7 +199,7 @@ export function PipelineScene({
     gridPainter.current.drawPreviewOverlay(ctx, current, palette)
     const hover =
       pinnedBlame.current ??
-      hoverLabel(current, camera, lastPointer.current, pendingRemovals.current.belts)
+      hoverLabel(current, camera, lastPointer.current, pendingRemovals.current)
     readoutPainter.current.draw(ctx, current, palette, hover)
     ctx.restore()
     syncBuyAnchors(current, palette, camera, view)
@@ -570,7 +570,9 @@ export function PipelineScene({
     event.preventDefault()
     canvasRef.current?.setPointerCapture(event.pointerId)
     const belt = current ? beltAt(current, cell) : undefined
-    if (belt) scheduleLongPress(belt, event.clientX, event.clientY)
+    const machineBlame = current && !belt ? machineBlameAt(current, cell, pendingRemovals.current) : null
+    const blameTarget = belt ?? machineBlame
+    if (blameTarget) scheduleLongPress(blameTarget, event.clientX, event.clientY)
     else pinnedBlame.current = null
     const ownerId = userIdRef.current
     if (
@@ -748,15 +750,51 @@ function hoverLabel(
   frame: PipelineFrame,
   camera: GridCamera,
   pointer: { x: number; y: number } | null,
-  hidden: Set<string>,
+  pending: PendingRemovals,
 ) {
   if (!pointer) return null
   const cell = camera.cellAt(pointer.x, pointer.y, cellSize)
+  if (cell.x < 0 || cell.y < 0 || cell.x >= frame.width || cell.y >= frame.height) return null
   const belt = frame.belts.find(
-    (item) => item.x === cell.x && item.y === cell.y && !hidden.has(cellKey(item)),
+    (item) => item.x === cell.x && item.y === cell.y && !pending.belts.has(cellKey(item)),
   )
-  if (!belt) return null
-  return { x: belt.x, y: belt.y, nickname: belt.authorNickname }
+  if (belt?.authorNickname) {
+    return { x: belt.x, y: belt.y, nickname: belt.authorNickname }
+  }
+  const machine = machineBlameAt(frame, cell, pending)
+  if (machine) {
+    return { x: machine.x, y: machine.y, nickname: machine.authorNickname }
+  }
+  return null
+}
+
+function machineBlameAt(
+  frame: PipelineFrame,
+  cell: { x: number; y: number },
+  pending: PendingRemovals,
+): { x: number; y: number; authorNickname: string } | null {
+  for (const spec of frame.combiners ?? []) {
+    if (pending.combinerIds.has(spec.id)) continue
+    const { width, height } = CombinerMachine.sizeFor(spec.machineId, spec.facing)
+    const covers =
+      cell.x >= spec.x && cell.x < spec.x + width && cell.y >= spec.y && cell.y < spec.y + height
+    if (covers && spec.authorNickname) {
+      return { x: cell.x, y: cell.y, authorNickname: spec.authorNickname }
+    }
+  }
+  for (const spec of frame.splitters ?? []) {
+    if (pending.splitterIds.has(spec.id)) continue
+    if (spec.x === cell.x && spec.y === cell.y && spec.authorNickname) {
+      return { x: cell.x, y: cell.y, authorNickname: spec.authorNickname }
+    }
+  }
+  for (const spec of frame.tunnels ?? []) {
+    if (pending.tunnelPairIds.has(spec.pairId)) continue
+    if (spec.x === cell.x && spec.y === cell.y && spec.authorNickname) {
+      return { x: cell.x, y: cell.y, authorNickname: spec.authorNickname }
+    }
+  }
+  return null
 }
 
 function cellKey(cell: { x: number; y: number }) {

@@ -54,6 +54,8 @@ export type CombinerRecord = {
   craftRemaining: number | null
   pendingOutputs: string[] | null
   nextSplitPort: 0 | 1
+  authorId: string
+  authorNickname: string
 }
 
 export type SplitterRecord = {

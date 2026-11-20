@@ -80,6 +80,7 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 - [x] Chunk TOML keys + `world/chunks/coords.ts` helpers/tests; Participantes unlock meter removed — 2026-11-18.
 - [x] **Chunk buy runtime:** `buy-chunk` + wallet spend + on-map buy buttons — 2026-11-18. Remaining: belt/machine coin costs beyond `chunk_cost_*` — [economy-expansion.md](economy-expansion.md) / [Decisions §11](../decisions.md#11-coins-and-chunk-expansion).
 - [x] Git blame on belts: desktop hover + ~450ms long-press — 2026-11-17.
+- [x] Canvas hover blame also covers combiners, splitters, and tunnels (same nickname readout) — 2026-11-20.
 
 ---
 
