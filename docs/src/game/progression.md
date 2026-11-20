@@ -1,6 +1,6 @@
 # Chapter progression and cores
 
-Locked 2026-11-20. Replaces the proposal’s **9-core federation** victory path for the element catalog. Numbers live in `[pipeline]` / `elements.toml` — do not hardcode them in TypeScript.
+Locked 2026-11-20. Replaces the proposal’s **9-core federation** victory path for the element catalog. Numbers live in `pipeline.toml` / `elements.toml` — do not hardcode them in TypeScript.
 
 ## Intent
 

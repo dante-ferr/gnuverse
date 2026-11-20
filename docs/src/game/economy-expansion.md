@@ -1,6 +1,6 @@
 # Coins and map expansion
 
-Locked direction for Open Pipeline (2026-11-18). Replaces **player-count** gating for progression. Numbers live in `[pipeline]` / root tables in `game-server/config/game.config.toml` — do not hardcode them in TypeScript.
+Locked direction for Open Pipeline (2026-11-18). Replaces **player-count** gating for progression. Numbers live in `game-server/config/pipeline.toml` (economy / chunks) and root keys in `game.config.toml` (starting balance, lobby) — do not hardcode them in TypeScript.
 
 ## Intent
 
@@ -24,7 +24,7 @@ Structure prices live in `[pipeline]`: `belt_cost` and `fast_belt_cost` per cell
 
 ## Version unlock
 
-Auto-advance when **every active demand** meets its `required` count. No collaborator threshold. No coin spend required to bump the version label. Administrators may still `POST /api/towers/:id/advance`.
+Auto-advance when **every active demand** meets its `required` count. No collaborator threshold. No coin spend required to bump the version label. Administrators may still `POST /api/rooms/:id/advance`.
 
 ## Chunked map
 

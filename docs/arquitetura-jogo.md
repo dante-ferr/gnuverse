@@ -1,6 +1,6 @@
 # Arquitetura do jogo
 
-A partida jogável é o **Open Pipeline**. O navegador fala com um backend Node por HTTP e SSE. O estado autoritativo da grade fica em `game-server/pipeline/`; a sala é desenhada no canvas em `src/components/game/pipeline/`. As rotas públicas permanecem `/jogo/`, `/jogo/torre/?id=<uuid>` e a API em `/api/towers` (nomes legados, mantidos por decisão).
+A partida jogável é o **Open Pipeline**. O navegador fala com um backend Node por HTTP e SSE. O estado autoritativo da grade fica em `game-server/pipeline/`; a sala é desenhada no canvas em `src/components/game/pipeline/`. As rotas públicas são `/jogo/`, `/jogo/sala/?id=<uuid>` e a API em `/api/rooms`.
 
 Cada sala (`Room`) guarda o estado da partida em `Room.frame` (`PipelineFrame`). Histórico usa `Snapshot.frame`. No SQLite, o documento é `State.rooms`; leituras antigas ainda aceitam a chave `towers` no JSON salvo.
 
@@ -8,7 +8,7 @@ Cada sala (`Room`) guarda o estado da partida em `Room.frame` (`PipelineFrame`).
 
 ```text
 src/app/jogo/page.tsx                 → PipelineLobby
-src/app/jogo/torre/page.tsx           → PipelineRoom
+src/app/jogo/sala/page.tsx           → PipelineRoom
 src/components/game/
 ├── pipeline-lobby.tsx                lobby Open Pipeline (lista de salas)
 ├── game-shell.module.css             estilos compartilhados do shell
@@ -47,7 +47,9 @@ game-server/
 ├── server.ts                         composição das dependências
 ├── config/
 │   ├── load-game-config.ts           leitura e validação do TOML
-│   └── game.config.toml              regras ajustáveis (inclui `[pipeline]`)
+│   ├── game.config.toml              servidor / lobby / chat / sessão
+│   ├── pipeline.toml                 jogabilidade e apresentação
+│   └── elements.toml                 catálogo de elementos
 ├── domain/
 │   ├── types.ts                      Room, Snapshot, State, contratos
 │   └── validation.ts                 validação de entradas
@@ -72,14 +74,14 @@ game-server/
     ├── packets/                      pacotes (círculo em v0.1)
     ├── world/                        Match, frame, movimento, emissão, BeltEditor
     ├── rules.ts                      espelho TypeScript do TOML
-    └── load-rules.ts                 validação de `[pipeline]`
+    └── load-rules.ts                 validação de pipeline.toml
 ```
 
 `index.ts` inicia o processo. `server.ts` conecta transporte, serviços, persistência e o simulador de pipeline. O transporte converte requisições HTTP em chamadas aos serviços; `room-service` e `pipeline/` aplicam regras e atualizam `Room.frame`; o `GameStore` grava `State.rooms` no SQLite. `SimulationCoordinator` avança o tick da grade e publica frames por SSE — sem motor de física em árvore.
 
 ## Regras configuráveis
 
-[`game.config.toml`](../game-server/config/game.config.toml) guarda os parâmetros ajustáveis do protótipo, inclusive a tabela `[pipeline]`. `config/load-game-config.ts` e `pipeline/load-rules.ts` leem e validam na inicialização; valores inválidos impedem a subida do servidor. A interface pode exibir essas regras, mas o backend valida saldo, custo, intervalos e ações antes de gravar.
+[`game.config.toml`](../game-server/config/game.config.toml) guarda servidor, lobby, chat e sessão; [`pipeline.toml`](../game-server/config/pipeline.toml) guarda jogabilidade e apresentação; [`elements.toml`](../game-server/config/elements.toml) guarda o catálogo. `config/load-game-config.ts` e `pipeline/load-rules.ts` leem e validam na inicialização; valores inválidos impedem a subida do servidor. A interface pode exibir essas regras, mas o backend valida saldo, custo, intervalos e ações antes de gravar.
 
 ## Limites da implantação
 

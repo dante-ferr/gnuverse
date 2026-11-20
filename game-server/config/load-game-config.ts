@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { parse } from 'smol-toml'
@@ -77,7 +77,7 @@ const economyIntegerRules: Record<string, { min: number; max: number }> = {
 }
 
 const economyKeys = Object.keys(economyDefaults) as (keyof typeof economyDefaults)[]
-const knownKeys = new Set<string>([...economyKeys, 'pipeline'])
+const knownKeys = new Set<string>([...economyKeys])
 
 let cached: LoadedGameConfig | null = null
 
@@ -115,13 +115,32 @@ function validateEconomy(values: Record<string, unknown>): GameRules {
   return rules
 }
 
-function parseConfig(contents: Record<string, unknown>): LoadedGameConfig {
+/** Sibling `pipeline.toml` uses flat keys only (no `[pipeline]` wrapper). */
+function readSiblingPipelineTable(configAbsolutePath: string): Record<string, unknown> {
+  const siblingPath = path.join(path.dirname(configAbsolutePath), 'pipeline.toml')
+  if (!existsSync(siblingPath)) return {}
+  const parsed = parse(readFileSync(siblingPath, 'utf8')) as Record<string, unknown>
+  if ('pipeline' in parsed) {
+    throw new Error('pipeline.toml: use flat keys, not a [pipeline] table')
+  }
+  return parsed
+}
+
+function parseConfig(
+  contents: Record<string, unknown>,
+  configAbsolutePath: string,
+): LoadedGameConfig {
+  if (contents.pipeline !== undefined) {
+    throw new Error(
+      'pipeline deve viver em pipeline.toml; remova a tabela [pipeline] de game.config.toml',
+    )
+  }
   for (const key of Object.keys(contents)) {
     if (!knownKeys.has(key))
       throw new Error(`Configuração de jogo desconhecida: ${key}`)
   }
   const rules = validateEconomy(contents)
-  const pipeline = pipelineRulesFrom(contents.pipeline)
+  const pipeline = pipelineRulesFrom(readSiblingPipelineTable(configAbsolutePath))
   if (rules.initialBalance > pipeline.passiveCap) {
     throw new Error('initial_balance não pode exceder passive_cap')
   }
@@ -131,7 +150,7 @@ function parseConfig(contents: Record<string, unknown>): LoadedGameConfig {
 function readGameConfigFromDisk(absolutePath: string): LoadedGameConfig {
   const contents = readFileSync(absolutePath, 'utf8')
   const parsed = parse(contents) as Record<string, unknown>
-  return parseConfig(parsed)
+  return parseConfig(parsed, absolutePath)
 }
 
 /** Resolves `GAME_CONFIG_PATH` or the packaged default to an absolute path. */

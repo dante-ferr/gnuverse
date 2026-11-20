@@ -13,7 +13,7 @@ Another agent should treat this file as the living checklist for staged delivery
    - Add new **Gaps / debt** entries when you discover them; remove only when fixed.
    - Bump **Current version** only when the user reviews and approves that slice (v0.1 → v0.2).
 2. **Do not** rewrite the full proposal here; link to it and record **repo-specific decisions** only.
-3. **Do not** mark a stage complete without: targeted tests green (`tests/pipeline-*.test.ts` at minimum), manual smoke on `/jogo/torre/?id=`, and config numbers still in TOML not TS.
+3. **Do not** mark a stage complete without: targeted tests green (`tests/pipeline-*.test.ts` at minimum), manual smoke on `/jogo/sala/?id=`, and config numbers still in TOML not TS.
 4. If you change HTTP actions, frame shape, or machine geometry, update the **Architecture map** section below in the same change.
 
 ---
@@ -44,18 +44,18 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 - **Server sim:** `game-server/pipeline/` — `Machine` / `SourceMachine` / `CoreMachine` / `BeltMachine` / `SplitterMachine` / `TunnelPortalMachine`, `Match`, `Movement`, `Routing`, `Emission`, `BeltEditor` / `MachineEditor` (no `StabilityMeter`).
 - **Splitter + tunnels:** 1×1 RR divisor and Factorio-style portal pairs (`tunnel_max_gap`); placeable in all rooms — 2026-11-19.
 - **Fast belt / fast tunnel:** `belt_speed_fast` subtick movement; palette **Esteira rápida** / **Túnel rápido** — 2026-11-20.
-- **Config:** `[pipeline]` in [`game.config.toml`](../game-server/config/game.config.toml), loaded via [`pipeline/load-rules.ts`](../game-server/pipeline/load-rules.ts).
-- **HTTP:** `POST /api/towers/:id/place`, `remove`, `join`, `chat`; SSE `frame` pushes `PipelineFrame`; SSE `chat` pushes room messages.
-- **Client:** `src/components/game/pipeline/` — canvas scene, painters, drag belts, pan/zoom; room at `/jogo/torre/` via `PipelineRoom` with sidebar chat + collaborators.
+- **Config:** [`pipeline.toml`](../game-server/config/pipeline.toml) (gameplay) + [`game.config.toml`](../game-server/config/game.config.toml) (server/lobby), loaded via [`pipeline/load-rules.ts`](../game-server/pipeline/load-rules.ts).
+- **HTTP:** `POST /api/rooms/:id/place`, `remove`, `join`, `chat`; SSE `frame` pushes `PipelineFrame`; SSE `chat` pushes room messages.
+- **Client:** `src/components/game/pipeline/` — canvas scene, painters, drag belts, pan/zoom; room at `/jogo/sala/` via `PipelineRoom` with sidebar chat + collaborators.
 
 - **Art:** dark grid / light machines; procedural bodies/slots + `color_outline`; decor SVGs tint to a darker tone of each body color (`decor_darken_percent`); `color_decor` is palette-only for future UI; screen-space circle resource = one filled disk (canvas outline); sidebar uses `resource-circle.svg` (single black fill); `decor_stroke_width` on thick decor strokes.
 - **Tests:** [`tests/pipeline-tick.test.ts`](../tests/pipeline-tick.test.ts), [`tests/pipeline-http.test.ts`](../tests/pipeline-http.test.ts), [`tests/pipeline-unlock-http.test.ts`](../tests/pipeline-unlock-http.test.ts).
-- **Unlock:** `game-server/pipeline/world/progression/unlock.ts` — demand milestones only (collaborator gate removed 2026-11-18); auto **0.1 → 0.2**; `POST /api/towers/:id/advance` (admin).
+- **Unlock:** `game-server/pipeline/world/progression/unlock.ts` — demand milestones only (collaborator gate removed 2026-11-18); auto **0.1 → 0.2**; `POST /api/rooms/:id/advance` (admin).
 - **Chunk scaffolding:** `[pipeline]` `chunk_size` / `map_chunk_extent` / `chunk_cost_base` + `chunk_cost_step` (linear buy cost); edge-adjacent preview helpers in `world/chunks/coords.ts` + `tests/pipeline-chunks.test.ts` — 2026-11-18.
 - **Obscured preview chunks:** `world/chunks/match-layout.ts` + `Match`/frame `ownedChunks` / `previewChunks`; client dim overlay on preview; starter fire+water + outer circle sources — 2026-11-18.
-- **Chunk buy:** `POST /api/towers/:id/buy-chunk` + `WalletService.spend`; client **Comprar** buttons on visible preview chunks — 2026-11-18.
+- **Chunk buy:** `POST /api/rooms/:id/buy-chunk` + `WalletService.spend`; client **Comprar** buttons on visible preview chunks — 2026-11-18.
 - **Moderation UI:** `pipeline-moderation.tsx` (sala, suspensão, BDFL).
-- **Room chat:** `Room.chat` in SQLite; `POST /api/towers/:id/chat`; SSE `chat`; sidebar `room-chat.tsx` + `room-collaborators.tsx`.
+- **Room chat:** `Room.chat` in SQLite; `POST /api/rooms/:id/chat`; SSE `chat`; sidebar `room-chat.tsx` + `room-collaborators.tsx`.
 - **CMS chat moderation:** `/moderacao-chat`; `GET/DELETE /api/admin/rooms…/chat`; permission `room:chat:moderate`.
 - **Generation clearance:** `geometry/clearance.ts` + `world/placement/` (`PlacementField`, gaps) — per-side pads at match creation — 2026-11-17.
 - **Seeded initial layout:** `geometry/seed-rng.ts` + `layoutTwoStarterSources` in `world/placement/approach.ts` (room seed picks fire/water pair; clearance enforced) — 2026-11-17.
@@ -93,7 +93,7 @@ game-server/pipeline/
   packets/           Packet (circle only)
   world/             Match, frame, types; chunks/, placement/, tick/, edit/, progression/
   rules.ts           TypeScript mirror of TOML
-  load-rules.ts      [pipeline] validation
+  load-rules.ts      pipeline.toml validation
 
 game-server/runtime/simulation-coordinator.ts   grid tick + SSE (no Matter)
 
@@ -108,7 +108,7 @@ src/components/game/pipeline/
   room-chat.tsx                  per-room chat (SSE + POST)
   pipeline-moderation.tsx        sala ban proposals (BDFL)
 
-Routes unchanged: /jogo/, /jogo/torre/?id=, /api/towers
+Routes unchanged: /jogo/, /jogo/sala/?id=, /api/rooms
 ```
 
 **Frame contract:** `PipelineFrame` in [`game-server/pipeline/world/frame.ts`](../game-server/pipeline/world/frame.ts) — persist in `Room.frame` (`State.rooms` in SQLite JSON; loads legacy `towers` key on read).

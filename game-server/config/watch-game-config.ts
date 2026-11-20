@@ -6,8 +6,8 @@ import type { LoadedGameConfig } from './load-game-config.ts'
 const DEBOUNCE_MS = 125
 
 /**
- * Watches `game.config.toml` and sibling `elements.toml` (plus optional `elements/`).
- * Calls `onChange` after each successful reload.
+ * Watches `game.config.toml`, sibling `pipeline.toml` and `elements.toml`
+ * (plus optional `elements/`). Calls `onChange` after each successful reload.
  */
 export function watchGameConfig(
   absolutePath: string,
@@ -27,10 +27,14 @@ export function watchGameConfig(
     }, DEBOUNCE_MS)
   }
 
-  const watchers: FSWatcher[] = [
-    watch(absolutePath, scheduleReload),
-    watch(join(configDir, 'elements.toml'), scheduleReload),
-  ]
+  const watchers: FSWatcher[] = [watch(absolutePath, scheduleReload)]
+  for (const name of ['pipeline.toml', 'elements.toml'] as const) {
+    try {
+      watchers.push(watch(join(configDir, name), scheduleReload))
+    } catch {
+      // Sibling may be absent (test fixtures, custom GAME_CONFIG_PATH).
+    }
+  }
   try {
     watchers.push(watch(join(configDir, 'elements'), { recursive: true }, scheduleReload))
   } catch {

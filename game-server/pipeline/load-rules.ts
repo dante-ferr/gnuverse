@@ -202,7 +202,7 @@ const mappings = {
   slot_flow_mark_depth_percent: 'slotFlowMarkDepthPercent',
 } as const
 
-/** Reads the `[pipeline]` table and loads `elements.toml` into `rules.elements`. */
+/** Reads pipeline knobs from `pipeline.toml` and loads `elements.toml` into `rules.elements`. */
 export function pipelineRulesFrom(section: unknown): PipelineRules {
   const values =
     section === undefined
@@ -212,14 +212,7 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
         : null
   if (!values) throw new Error('pipeline deve ser uma tabela')
 
-  // Legacy per-element spawn keys lived in game.config; spawn odds now live on each base in elements.toml.
-  const ignoredLegacy = new Set([
-    'source_spawn_chance_circle_percent',
-    'source_spawn_chance_fire_percent',
-    'source_spawn_chance_water_percent',
-  ])
   for (const key of Object.keys(values)) {
-    if (ignoredLegacy.has(key)) continue
     if (!(key in defaults)) throw new Error(`Configuração de jogo desconhecida: pipeline.${key}`)
   }
   const result: Record<string, number | string> = {}
