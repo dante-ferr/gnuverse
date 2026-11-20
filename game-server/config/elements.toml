@@ -14,6 +14,8 @@ default_demand_required = 20
 # Per-shape demand waves: new shapes start at base; each clear bumps that shape's wave.
 # escalation_ratio = 2 → 20→40 after first clear (all active demands, bases and crafts).
 escalation_ratio = 2
+# Multiplier on recursive material units per core delivery (Pontuação).
+score_effort_factor = 1
 starter_source_ids = ["fire", "water"]
 
 [preview]

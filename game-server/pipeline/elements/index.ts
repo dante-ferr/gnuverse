@@ -66,6 +66,8 @@ export type ElementCatalogJson = {
   defaultDemandRequired: number
   /** Mild geometric growth per demand shape (`required = ceil(base × ratio^wave)`). */
   escalationRatio: number
+  /** Global multiplier on material units for core delivery score (Pontuação). */
+  scoreEffortFactor: number
   starterSourceIds: string[]
   preview: ElementPreviewConfig
   machines: ElementMachineKind[]

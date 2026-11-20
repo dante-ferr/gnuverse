@@ -108,7 +108,7 @@ export type PipelineFrame = {
   width: number
   height: number
   tick: number
-  /** Sum of all shape deliveries (legacy aggregate; mirrors deliveryByShape). */
+  /** Lifetime delivery score (Pontuação); per-shape packet counts live in demands / deliveryByShape. */
   deliveries: number
   deliveryByShape: Partial<Record<PacketShape, number>>
   demands: CoreDemandRecord[]

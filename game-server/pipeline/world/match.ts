@@ -28,6 +28,7 @@ import type {
   SourceRecord,
 } from './frame.ts'
 import type { SourceRole } from './types.ts'
+import { deliveryScore } from './progression/score.ts'
 import { Movement } from './tick/movement.ts'
 import {
   chapterFromVersion,
@@ -300,7 +301,7 @@ export class Match {
 
   recordDelivery(shape: PacketShape, coreId?: string) {
     if (!this.acceptsDelivery(shape)) return
-    this.deliveries += 1
+    this.deliveries += deliveryScore(this.rules, shape)
     this.deliveryByShape[shape] = (this.deliveryByShape[shape] ?? 0) + 1
     if (!this.sandbox) {
       this.waveDeliveryByShape[shape] = (this.waveDeliveryByShape[shape] ?? 0) + 1

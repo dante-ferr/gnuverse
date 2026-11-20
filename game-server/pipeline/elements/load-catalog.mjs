@@ -66,6 +66,7 @@ import { parse } from 'smol-toml'
  *   defaultStroke: string,
  *   defaultDemandRequired: number,
  *   escalationRatio: number,
+ *   scoreEffortFactor: number,
  *   starterSourceIds: string[],
  *   preview: PreviewConfig,
  *   machines: MachineKind[],
@@ -111,6 +112,7 @@ export function loadElementCatalog(configDir = defaultElementsConfigDir()) {
     defaultStroke: '#0a1014',
     defaultDemandRequired: 20,
     escalationRatio: 1.18,
+    scoreEffortFactor: 1,
     starterSourceIds: [],
     preview: { ...DEFAULT_PREVIEW },
   }
@@ -179,6 +181,7 @@ export function loadElementCatalog(configDir = defaultElementsConfigDir()) {
     defaultStroke: globals.defaultStroke,
     defaultDemandRequired: globals.defaultDemandRequired,
     escalationRatio: globals.escalationRatio,
+    scoreEffortFactor: globals.scoreEffortFactor,
     starterSourceIds: [...globals.starterSourceIds],
     preview: globals.preview,
     machines: [...machinesById.values()],
@@ -204,6 +207,7 @@ export function catalogToJson(catalog) {
     defaultStroke: catalog.defaultStroke,
     defaultDemandRequired: catalog.defaultDemandRequired,
     escalationRatio: catalog.escalationRatio,
+    scoreEffortFactor: catalog.scoreEffortFactor,
     starterSourceIds: catalog.starterSourceIds,
     preview: catalog.preview,
     machines: catalog.machines,
@@ -241,6 +245,13 @@ function mergeGlobals(globals, raw) {
       fail(`escalation_ratio must be in [1.01, 2] (got ${raw.escalation_ratio})`)
     }
     globals.escalationRatio = ratio
+  }
+  if (raw.score_effort_factor != null) {
+    const factor = Number(raw.score_effort_factor)
+    if (!Number.isFinite(factor) || factor <= 0) {
+      fail(`score_effort_factor must be a finite number > 0 (got ${raw.score_effort_factor})`)
+    }
+    globals.scoreEffortFactor = factor
   }
   if (raw.starter_source_ids != null) {
     globals.starterSourceIds = normalizeIdList(raw.starter_source_ids, 'starter_source_ids')

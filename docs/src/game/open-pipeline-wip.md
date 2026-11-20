@@ -41,6 +41,7 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 
 ### Done (implemented)
 
+- **Pontuação:** recursive material-based delivery score (`score_effort_factor` in `elements.toml`; dual outputs halve recipe mass) — 2026-11-20.
 - **Server sim:** `game-server/pipeline/` — `Machine` / `SourceMachine` / `CoreMachine` / `BeltMachine` / `SplitterMachine` / `TunnelPortalMachine`, `Match`, `Movement`, `Routing`, `Emission`, `BeltEditor` / `MachineEditor` (no `StabilityMeter`).
 - **Splitter + tunnels:** 1×1 RR divisor and Factorio-style portal pairs (`tunnel_max_gap`); placeable in all rooms — 2026-11-19.
 - **Fast belt / fast tunnel:** `belt_speed_fast` subtick movement; palette **Esteira rápida** / **Túnel rápido** — 2026-11-20.

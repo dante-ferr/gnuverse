@@ -47,7 +47,7 @@ Sandbox rooms may keep a compact multi-core layout for prototype play; productio
 | Advance | When every active demand’s progress ≥ `required` (delivery-only; no collaborator gate): bump **`escalationWave`** (room clear count for sidebar **Onda**), escalate **cleared** crafts per shape, then advance chapter while content remains |
 | Demand escalation | Every active shape has its own wave (`escalationWaveByShape`), bases and crafts alike. **New** chapter shapes start at base; after that shape is cleared once, **required = ceil(base × escalation_ratio^wave)** (`escalation_ratio = 2` → 20→40). Each clear uses a **fresh** per-shape counter (`waveDeliveryByShape`); sandbox still counts lifetime `deliveryByShape` |
 | After last chapter | Chapter stays on the final id; waves keep rising. Full catalog stays demanded |
-| Score | **Pontuação** = lifetime `deliveries` (for later room ranking). Sidebar shows **Onda** after the first clear |
+| Score | **Pontuação** = lifetime delivery **points** in `deliveries` (recursive material units × `score_effort_factor`; per-shape counts stay in `deliveryByShape` for demand progress). Sidebar shows **Onda** after the first clear |
 | Victory | None — no crash / game-over |
 
 ## Core gear presentation

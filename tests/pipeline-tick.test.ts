@@ -5,6 +5,7 @@ import { ahead, opposite, type Direction } from '../game-server/pipeline/geometr
 import { CoreMachine } from '../game-server/pipeline/machines/core-machine.ts'
 import { Packet } from '../game-server/pipeline/packets/packet.ts'
 import type { PipelineRules } from '../game-server/pipeline/rules.ts'
+import { deliveryScore } from '../game-server/pipeline/world/progression/score.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
 import { forceAdvance } from '../game-server/pipeline/world/progression/unlock.ts'
@@ -134,7 +135,11 @@ test('deliveries count per shape and surface on frame demands', () => {
   const shape = firstStarterSource(match).shape
   const received = match.deliveryByShape[shape] ?? 0
   assert.ok(received > 0)
-  assert.equal(match.deliveries, received)
+  const scoreTotal = Object.entries(match.deliveryByShape).reduce(
+    (sum, [s, count]) => sum + deliveryScore(rules, s) * count,
+    0,
+  )
+  assert.equal(match.deliveries, scoreTotal)
   const frame = match.toFrame()
   const required = rules.elements.defaultDemandRequired
   assert.deepEqual(
