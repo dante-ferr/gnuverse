@@ -104,16 +104,22 @@ export function PipelineRoom() {
       await session.api.request(`/api/towers/${lobby.roomId}/chat`, { text })
     })
   }
-  const remove = (cells: { x: number; y: number }[]) => {
+  const remove = (cells: { x: number; y: number }[], options: { revert: () => void }) => {
     if (cells.length === 0) return
     if (!session.user) {
       feedback.setError('Entre para remover esteiras ou combinadores.')
+      options.revert()
       return
     }
+    let failed = false
     for (const cell of cells) {
       void session.api
         .request(`/api/towers/${lobby.roomId}/remove`, cell)
         .catch((cause) => {
+          if (!failed) {
+            failed = true
+            options.revert()
+          }
           feedback.setError(
             cause instanceof Error
               ? cause.message

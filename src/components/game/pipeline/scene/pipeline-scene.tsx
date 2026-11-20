@@ -41,7 +41,8 @@ type Props = {
   buyBusy?: boolean
   onBuyChunk: (coord: { cx: number; cy: number }) => void
   onPlace: (request: StructurePlaceRequest) => void
-  onRemove: (cells: { x: number; y: number }[]) => void
+  /** `revert` undoes the optimistic hide if auth or the API rejects the removal. */
+  onRemove: (cells: { x: number; y: number }[], options: { revert: () => void }) => void
   onToggleEditMode: () => void
   /** Bumped when sidebar Girar (or similar) changes place options. */
   placeEpoch?: number
@@ -153,16 +154,17 @@ export function PipelineScene({
       )
       ctx.restore()
     }
-    const packets = current.packets.filter(
+    const visible = frameWithoutPendingRemovals(current, pendingRemovals.current)
+    const packets = visible.packets.filter(
       (packet) =>
         packet.x >= bounds.minX &&
         packet.x <= bounds.maxX &&
         packet.y >= bounds.minY &&
         packet.y <= bounds.maxY,
     )
-    const packetFrame = packets.length === current.packets.length ? current : { ...current, packets }
+    const packetFrame = packets.length === visible.packets.length ? visible : { ...visible, packets }
     packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs)
-    machinePainter.current.draw(ctx, current, palette, camera.zoom, timeMs, packetMotion.current)
+    machinePainter.current.draw(ctx, visible, palette, camera.zoom, timeMs, packetMotion.current)
     const structureHints =
       editModeRef.current === 'create'
         ? (getStructure(structureIdRef.current)?.placementHints?.() ?? [])
@@ -187,7 +189,9 @@ export function PipelineScene({
       machinePainter.current.drawMachineGhost(ctx, ghost, palette)
     }
     gridPainter.current.drawPreviewOverlay(ctx, current, palette)
-    const hover = pinnedBlame.current ?? hoverLabel(current, camera, lastPointer.current, hiddenBelts.current)
+    const hover =
+      pinnedBlame.current ??
+      hoverLabel(current, camera, lastPointer.current, pendingRemovals.current.belts)
     readoutPainter.current.draw(ctx, current, palette, hover)
     ctx.restore()
     syncBuyAnchors(current, palette, camera, view)
@@ -294,30 +298,40 @@ export function PipelineScene({
   }>({ timer: null, origin: null, fired: false })
   const placement = useRef<StructurePlacementSession | null>(null)
   const eraseStroke = useRef<BeltEraseStroke | null>(null)
-  const hiddenBelts = useRef(new Set<string>())
+  const pendingRemovals = useRef(emptyPendingRemovals())
   const pan = useRef<{ x: number; y: number } | null>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const heldKeys = useRef(new Set<string>())
 
   const visibleBelts = (current: PipelineFrame) =>
-    current.belts.filter((belt) => !hiddenBelts.current.has(cellKey(belt)))
+    current.belts.filter((belt) => !pendingRemovals.current.belts.has(cellKey(belt)))
 
   const syncErasePreview = () => {
     requestPaint()
   }
 
-  const syncHiddenBelts = () => {
+  const syncPendingRemovals = () => {
     const current = frameRef.current
     if (!current) return
-    for (const key of [...hiddenBelts.current]) {
+    const pending = pendingRemovals.current
+    for (const key of [...pending.belts]) {
       const cell = parseCellKey(key)
       if (!cell) continue
-      if (!current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y)) hiddenBelts.current.delete(key)
+      if (!current.belts.some((belt) => belt.x === cell.x && belt.y === cell.y)) pending.belts.delete(key)
+    }
+    for (const id of [...pending.combinerIds]) {
+      if (!(current.combiners ?? []).some((machine) => machine.id === id)) pending.combinerIds.delete(id)
+    }
+    for (const id of [...pending.splitterIds]) {
+      if (!(current.splitters ?? []).some((machine) => machine.id === id)) pending.splitterIds.delete(id)
+    }
+    for (const id of [...pending.tunnelPairIds]) {
+      if (!(current.tunnels ?? []).some((portal) => portal.pairId === id)) pending.tunnelPairIds.delete(id)
     }
   }
 
   const revertPendingRemovals = () => {
-    hiddenBelts.current.clear()
+    pendingRemovals.current = emptyPendingRemovals()
     requestPaint()
   }
 
@@ -327,8 +341,7 @@ export function PipelineScene({
     if (!stroke) return
     const current = frameRef.current
     if (!current) {
-      hiddenBelts.current.clear()
-      requestPaint()
+      revertPendingRemovals()
       return
     }
     const strokeCells = stroke.cells()
@@ -373,17 +386,20 @@ export function PipelineScene({
     }
     const targets = [...beltTargets, ...combinerTargets, ...splitterTargets, ...tunnelTargets]
     if (targets.length === 0) {
-      hiddenBelts.current.clear()
       requestPaint()
       return
     }
-    for (const cell of beltTargets) hiddenBelts.current.add(cellKey(cell))
-    onRemove(targets)
+    const pending = pendingRemovals.current
+    for (const cell of beltTargets) pending.belts.add(cellKey(cell))
+    for (const id of seenCombiners) pending.combinerIds.add(id)
+    for (const id of seenSplitters) pending.splitterIds.add(id)
+    for (const id of seenTunnelPairs) pending.tunnelPairIds.add(id)
+    onRemove(targets, { revert: revertPendingRemovals })
     requestPaint()
   }
 
   useEffect(() => {
-    syncHiddenBelts()
+    syncPendingRemovals()
     requestPaint()
   }, [frame])
 
@@ -480,7 +496,7 @@ export function PipelineScene({
       (belt) =>
         belt.x === cell.x &&
         belt.y === cell.y &&
-        !hiddenBelts.current.has(cellKey(belt)),
+        !pendingRemovals.current.belts.has(cellKey(belt)),
     )
 
   const scheduleLongPress = (belt: { x: number; y: number; authorNickname: string }, x: number, y: number) => {
@@ -722,6 +738,41 @@ function parseCellKey(key: string) {
   const y = Number(ys)
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null
   return { x, y }
+}
+
+type PendingRemovals = {
+  belts: Set<string>
+  combinerIds: Set<string>
+  splitterIds: Set<string>
+  tunnelPairIds: Set<string>
+}
+
+function emptyPendingRemovals(): PendingRemovals {
+  return {
+    belts: new Set(),
+    combinerIds: new Set(),
+    splitterIds: new Set(),
+    tunnelPairIds: new Set(),
+  }
+}
+
+/** Frame copy with optimistically removed belts and machines filtered out. */
+function frameWithoutPendingRemovals(frame: PipelineFrame, pending: PendingRemovals): PipelineFrame {
+  if (
+    pending.belts.size === 0 &&
+    pending.combinerIds.size === 0 &&
+    pending.splitterIds.size === 0 &&
+    pending.tunnelPairIds.size === 0
+  ) {
+    return frame
+  }
+  return {
+    ...frame,
+    belts: frame.belts.filter((belt) => !pending.belts.has(cellKey(belt))),
+    combiners: (frame.combiners ?? []).filter((machine) => !pending.combinerIds.has(machine.id)),
+    splitters: (frame.splitters ?? []).filter((machine) => !pending.splitterIds.has(machine.id)),
+    tunnels: (frame.tunnels ?? []).filter((portal) => !pending.tunnelPairIds.has(portal.pairId)),
+  }
 }
 
 function clamp(value: number, min: number, max: number) {
