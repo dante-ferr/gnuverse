@@ -2,6 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Packet } from '../game-server/pipeline/packets/packet.ts'
 import { tunnelPairGeometry } from '../game-server/pipeline/machines/tunnel-machine.ts'
+import { ahead, opposite } from '../game-server/pipeline/geometry/direction.ts'
+import {
+  portOccupancyCell,
+  portsConnected,
+} from '../game-server/pipeline/world/edit/building-slots.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
 
@@ -33,6 +38,105 @@ test('tunnelPairGeometry accepts Factorio-style same-axis gap', () => {
   if (adjacent.ok) assert.equal(adjacent.gap, 0)
   const bad = tunnelPairGeometry({ x: 2, y: 5 }, { x: 20, y: 5 }, 'east', 8)
   assert.equal(bad.ok, false)
+})
+
+test('tunnel exit plugged into a core input delivers', () => {
+  const match = Match.create('tunnel-core-plug', rules)
+  const slot = match.core.inputSlots().find((item) => item.travel === 'east')
+  assert.ok(slot)
+  const exitCell = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
+  const entrance = { x: exitCell.x - 1, y: exitCell.y }
+  assert.equal(
+    match.placeMachine(
+      {
+        machineId: 'tunnel',
+        entranceX: entrance.x,
+        entranceY: entrance.y,
+        exitX: exitCell.x,
+        exitY: exitCell.y,
+        facing: slot.travel,
+      },
+      author,
+    ),
+    null,
+  )
+  const exitPortal = match.tunnels.find((p) => p.role === 'exit')!
+  const into = exitPortal.outputSlots()[0]!
+  assert.equal(portsConnected(into, slot), true)
+
+  const inCell = { x: entrance.x - 1, y: entrance.y }
+  assert.equal(match.place([{ ...inCell, direction: slot.travel }], author), null)
+  match.packets.push(new Packet('p1', inCell, 'fire'))
+  const before = match.deliveries
+  match.tick()
+  assert.equal(match.deliveries, before + 1)
+  assert.equal(match.packets.length, 0)
+  assert.equal(match.coreLastIntakeTick[match.core.id], 0)
+})
+
+test('placeMachine allows tunnel exit plugged into a combiner input', () => {
+  const match = Match.createSandbox('tunnel-combiner-plug', rules)
+  assert.equal(
+    match.placeMachine({ machineId: 'combiner_2', x: 26, y: 24, facing: 'east' }, author),
+    null,
+  )
+  const combiner = match.combiners[0]!
+  const input = combiner.inputSlots().slice().sort((a, b) => a.cell.y - b.cell.y)[0]!
+  const exitCell = ahead(input.cell.x, input.cell.y, opposite(input.travel))
+  const entrance = { x: exitCell.x - 1, y: exitCell.y }
+  const error = match.placeMachine(
+    {
+      machineId: 'tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exitCell.x,
+      exitY: exitCell.y,
+      facing: input.travel,
+    },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.tunnels.length, 2)
+  const exitPortal = match.tunnels.find((p) => p.role === 'exit')!
+  const into = exitPortal.outputSlots()[0]!
+  assert.equal(portsConnected(into, input), true)
+})
+
+test('tunnel exit plugged into a trashcan destroys the packet', () => {
+  const match = Match.createSandbox('tunnel-trashcan-plug', rules)
+  const tcOrigin = { x: 27, y: 24 }
+  assert.equal(
+    match.placeMachine(
+      { machineId: 'trashcan', x: tcOrigin.x, y: tcOrigin.y, facing: 'east' },
+      author,
+    ),
+    null,
+  )
+  const trashcan = match.trashcans[0]!
+  const input = trashcan.inputSlots()[0]!
+  const exitCell = portOccupancyCell(input)
+  const entrance = { x: exitCell.x - 1, y: exitCell.y }
+  assert.equal(
+    match.placeMachine(
+      {
+        machineId: 'tunnel',
+        entranceX: entrance.x,
+        entranceY: entrance.y,
+        exitX: exitCell.x,
+        exitY: exitCell.y,
+        facing: input.travel,
+      },
+      author,
+    ),
+    null,
+  )
+  const inCell = { x: entrance.x - 1, y: entrance.y }
+  assert.equal(match.place([{ ...inCell, direction: input.travel }], author), null)
+  match.packets.push(new Packet('p1', inCell, 'circle'))
+  match.tick()
+  assert.equal(match.packets.length, 0)
+  const entrancePortal = match.tunnels.find((p) => p.role === 'entrance')!
+  assert.ok(entrancePortal.queue.every((slot) => slot == null))
 })
 
 test('gap 0 tunnel has no queue and delivers on absorb', () => {

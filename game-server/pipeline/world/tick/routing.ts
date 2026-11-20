@@ -115,6 +115,12 @@ function deliverToLinkedInput(
       return true
     }
   }
+  for (const trashcan of match.trashcans) {
+    for (const slot of trashcan.inputSlots()) {
+      if (!outputReaches(from, output, slot, match)) continue
+      return true
+    }
+  }
   for (const portal of match.tunnels) {
     if (portal.role !== 'entrance') continue
     for (const slot of portal.inputSlots()) {
@@ -161,6 +167,12 @@ function canDeliverToLinkedInput(
     for (const slot of other.inputSlots()) {
       if (!outputReaches(from, output, slot, match)) continue
       if (other.buffer !== null) return false
+      return true
+    }
+  }
+  for (const trashcan of match.trashcans) {
+    for (const slot of trashcan.inputSlots()) {
+      if (!outputReaches(from, output, slot, match)) continue
       return true
     }
   }

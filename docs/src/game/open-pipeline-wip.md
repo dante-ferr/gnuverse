@@ -149,6 +149,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-20 | Gameplay | Tunnel ports plug into machine ports like splitters (`portsConnected`); logistics brackets hide on connect; machine brackets stay visible — `building-slots.ts`, `routing.ts` |
 | 2026-11-20 | Gameplay | Auto-tunnels stay as short as the covered solids allow (exit right after the last included run) while still merging within `tunnel_max_gap` — `belt-cross.ts` |
 | 2026-11-20 | Gameplay | Belt-drag auto-tunnel when the stroke starts and ends on cells adjacent to the crossed conveyor line (no extra lead-in/out belts) — `belt-cross.ts` |
 | 2026-11-20 | Gameplay | Belt-drag tunnels prefer one span within `tunnel_max_gap` (no split on wide free gaps); gap `0` adjacent portals + instant carry — `belt-cross.ts`, `routing.ts`, `tunnel-machine.ts` |

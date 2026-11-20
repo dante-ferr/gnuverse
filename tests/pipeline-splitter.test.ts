@@ -206,6 +206,38 @@ test('source emits into a splitter plugged onto its output', () => {
   )
 })
 
+test('splitter plugged into a trashcan destroys the packet on eject', () => {
+  const match = Match.create('splitter-trashcan-plug', rules)
+  const tcOrigin = { x: match.core.origin.x - 7, y: match.core.origin.y }
+  assert.equal(
+    match.placeMachine(
+      { machineId: 'trashcan', x: tcOrigin.x, y: tcOrigin.y, facing: 'east' },
+      author,
+    ),
+    null,
+  )
+  const trashcan = match.trashcans[0]!
+  const input = trashcan.inputSlots()[0]!
+  const approach = portOccupancyCell(input)
+  assert.equal(
+    match.placeMachine(
+      { machineId: 'splitter', x: approach.x, y: approach.y, facing: input.travel },
+      author,
+    ),
+    null,
+  )
+  const splitter = match.splitters[0]!
+  const into = splitter.outputSlots().find((slot) => slot.travel === input.travel)!
+  assert.equal(portsConnected(into, input), true)
+
+  const inCell = ahead(approach.x, approach.y, opposite(input.travel))
+  assert.equal(match.place([{ ...inCell, direction: input.travel }], author), null)
+  match.packets.push(new Packet('p1', inCell, 'circle'))
+  match.tick()
+  assert.equal(splitter.buffer, null)
+  assert.equal(match.packets.length, 0)
+})
+
 test('splitter plugged into a core input delivers on eject', () => {
   const match = Match.create('splitter-core-plug', rules)
   const slot = match.core.inputSlots().find((item) => item.travel === 'east')

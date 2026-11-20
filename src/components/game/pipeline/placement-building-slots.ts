@@ -64,7 +64,6 @@ export function proposedTunnelPlacementBlocked(
   const machines = machinesFromFrame(frame)
   return portsOverlapBuildings(proposedSlots, proposedFootprints, machines, {
     proposedIsLogistic: true,
-    linkedTunnelSlots: proposedSlots,
   })
 }
 

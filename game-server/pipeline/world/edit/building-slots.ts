@@ -57,8 +57,6 @@ export function isLogisticMachine(machine: { kind: string }): boolean {
 
 export type PortsOverlapOptions = {
   proposedIsLogistic?: boolean
-  /** Port occupancy may sit on a machine this tunnel is linked to. */
-  linkedTunnelSlots?: readonly PortSlot[]
 }
 
 /**
@@ -82,20 +80,17 @@ export function portsOverlapBuildings(
   options: PortsOverlapOptions = {},
 ): boolean {
   const proposedIsLogistic = options.proposedIsLogistic === true
-  const linked = options.linkedTunnelSlots
   const existingBodies = buildingBodyKeySet(existingMachines)
   if (!proposedIsLogistic) {
     for (const slot of proposedSlots) {
       const occ = portOccupancyCell(slot)
       if (!existingBodies.has(cellKey(occ))) continue
-      if (linked && bodyLinksTunnel(existingMachines, occ, linked)) continue
       return true
     }
   }
   const proposedBodies = footprintBodyKeySet(proposedFootprints)
   for (const machine of existingMachines) {
     if (isLogisticMachine(machine)) continue
-    if (linked && machineLinksTunnel(machine.slots, linked)) continue
     for (const slot of machine.slots) {
       if (!proposedBodies.has(cellKey(portOccupancyCell(slot)))) continue
       const plugged =
@@ -103,25 +98,6 @@ export function portsOverlapBuildings(
         proposedSlots.some((proposed) => portsConnected(proposed, slot))
       if (!plugged) return true
     }
-  }
-  return false
-}
-
-function bodyLinksTunnel(
-  machines: readonly Machine[],
-  cell: Cell,
-  tunnelSlots: readonly PortSlot[],
-) {
-  for (const machine of machines) {
-    if (
-      cell.x < machine.origin.x ||
-      cell.y < machine.origin.y ||
-      cell.x >= machine.origin.x + machine.width ||
-      cell.y >= machine.origin.y + machine.height
-    ) {
-      continue
-    }
-    if (machineLinksTunnel(machine.slots, tunnelSlots)) return true
   }
   return false
 }
@@ -223,7 +199,8 @@ export type LogisticContactMode = 'splitter' | 'tunnel'
 /**
  * Rejects logistic placement when footprint/port contact rules fail.
  * Splitters may touch another building only with a compatible port pair in contact.
- * Tunnels may sit body-adjacent; port overlap (+ linkedTunnelSlots) still applies.
+ * Tunnels use the same `portsConnected` plug as splitters for machine I/O; body-adjacent
+ * without a plug remains allowed. Port overlap uses `proposedIsLogistic` like splitters.
  */
 export function logisticContactBlocked(
   proposedSlots: readonly PortSlot[],

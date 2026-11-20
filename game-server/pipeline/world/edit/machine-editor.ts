@@ -323,12 +323,7 @@ export class MachineEditor {
       { origin: entrance, width: 1, height: 1 },
       { origin: exit, width: 1, height: 1 },
     ]
-    if (
-      this.portsOverlapBuildings(tunnelSlots, footprints, {
-        proposedIsLogistic: true,
-        linkedTunnelSlots: tunnelSlots,
-      })
-    ) {
+    if (this.portsOverlapBuildings(tunnelSlots, footprints, { proposedIsLogistic: true })) {
       return { error: 'Entradas ou saídas sobrepõem outra estrutura.', billable: false, refund: false }
     }
     let priorSpeed = 0
@@ -501,7 +496,7 @@ export class MachineEditor {
   private portsOverlapBuildings(
     slots: readonly PortSlot[],
     footprints: readonly BuildingFootprint[],
-    options?: { proposedIsLogistic?: boolean; linkedTunnelSlots?: readonly PortSlot[] },
+    options?: { proposedIsLogistic?: boolean },
   ) {
     return portsOverlapBuildings(
       slots,
