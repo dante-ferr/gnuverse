@@ -4,12 +4,13 @@ import type { Rules } from '../domain/types.ts'
 
 export function createRules(
   overrides: Partial<Omit<Rules, 'pipeline'>> & { pipeline?: Partial<PipelineRules> } = {},
-): Readonly<Rules> {
+): Rules {
   const loaded = loadGameConfig()
   const configured = loaded.rules
   const { pipeline: pipelineOverride, ...rest } = overrides
   const pipeline = { ...loaded.pipeline, ...pipelineOverride }
-  const rules: Readonly<Rules> = Object.freeze({
+  // Mutable so `watchGameConfig` can hot-reload TOML into the live rules object.
+  const rules: Rules = {
     cap: pipeline.walletCap,
     initialBalance: configured.initialBalance,
     intervalMs: Math.max(1, Math.round(60_000 / pipeline.coinsPerMinute)),
@@ -30,7 +31,7 @@ export function createRules(
     bdflVeto: configured.bdflVeto,
     pipeline,
     ...rest,
-  })
+  }
   for (const key of [
     'cap',
     'initialBalance',

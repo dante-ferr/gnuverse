@@ -12,7 +12,10 @@ import { RoomService } from './rooms/room-service.ts'
 import { GovernanceService } from './governance/governance-service.ts'
 import { SimulationCoordinator } from './runtime/simulation-coordinator.ts'
 import { HttpApplication } from './transport/http-application.ts'
-import { resolveGameConfigPath } from './config/load-game-config.ts'
+import {
+  applyLoadedGameConfig,
+  resolveGameConfigPath,
+} from './config/load-game-config.ts'
 import { watchGameConfig } from './config/watch-game-config.ts'
 
 /** Composition root. Domain services own behavior; transport only maps requests. */
@@ -83,7 +86,7 @@ export function createGameServer(options: ServerOptions = {}) {
   if (!options.rules) {
     const configPath = resolveGameConfigPath(process.env.GAME_CONFIG_PATH)
     stopWatching = watchGameConfig(configPath, (loaded) => {
-      Object.assign(rules.pipeline, loaded.pipeline)
+      applyLoadedGameConfig(rules, loaded)
       runtime.setPipelineRules(rules.pipeline)
       runtime.publishAllChanges()
       console.log(`Pipeline rules reloaded from ${configPath}`)

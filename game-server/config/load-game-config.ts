@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { parse } from 'smol-toml'
+import type { Rules } from '../domain/types.ts'
 import { pipelineRulesFrom } from '../pipeline/load-rules.ts'
 import type { PipelineRules } from '../pipeline/rules.ts'
 
@@ -184,4 +185,26 @@ export function loadGameConfig(configPath?: string): LoadedGameConfig {
   const config = readGameConfigFromDisk(absolutePath)
   if (!configPath) cached = config
   return config
+}
+
+/** Copies a reloaded TOML snapshot into the live server rules object. */
+export function applyLoadedGameConfig(rules: Rules, loaded: LoadedGameConfig): void {
+  const pipeline = rules.pipeline as unknown as Record<string, unknown>
+  for (const key of Object.keys(pipeline)) delete pipeline[key]
+  Object.assign(rules.pipeline, loaded.pipeline)
+  rules.cap = loaded.pipeline.walletCap
+  rules.initialBalance = loaded.rules.initialBalance
+  rules.intervalMs = Math.max(1, Math.round(60_000 / loaded.pipeline.coinsPerMinute))
+  rules.cooldownMs = loaded.rules.actionCooldownMs
+  rules.minContributions = loaded.rules.minContributions
+  rules.maxBelts = loaded.rules.maxBelts
+  rules.maxRooms = loaded.rules.maxRooms
+  rules.maxRoomsPerCreator = loaded.rules.maxRoomsPerCreator
+  rules.tokenLifetimeMs = loaded.rules.sessionDurationMs
+  rules.banDurationMs = loaded.rules.banDurationMs
+  rules.chatMessageMaxLength = loaded.rules.chatMessageMaxLength
+  rules.chatHistoryLimit = loaded.rules.chatHistoryLimit
+  rules.chatCooldownMs = loaded.rules.chatCooldownMs
+  rules.prototype = loaded.rules.prototype
+  rules.bdflVeto = loaded.rules.bdflVeto
 }

@@ -128,8 +128,8 @@ const floats = {
   grid_visible_min_zoom: [0.1, 10],
   camera_zoom_min: [0.02, 2],
   camera_zoom_max: [0.5, 10],
-  lod_detail_min_zoom: [0.05, 10],
-  lod_structure_min_zoom: [0.05, 10],
+  lod_detail_min_zoom: [0, 10],
+  lod_structure_min_zoom: [0, 10],
   resource_glyph_outline_spread: [0.5, 4],
 } as const
 
