@@ -59,6 +59,12 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
           const glyph = glyphUrlForShape(rules, demand.shape) ?? '/pipeline/resource-circle.svg'
           const element = rules?.elements.elements.find((el) => el.id === demand.shape)
           const met = demand.received >= demand.required
+          const progress =
+            demand.required > 0
+              ? Math.min(1, Math.max(0, demand.received / demand.required))
+              : met
+                ? 1
+                : 0
           const name =
             element?.name_pt ?? (demand.shape === 'circle' ? 'Círculo' : demand.shape)
           const glyphColor = element?.fill ?? rules?.colorPacket ?? undefined
@@ -68,7 +74,7 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
                 type="button"
                 className={styles.coreRequirementButton}
                 onClick={() => setSelectedShape(demand.shape)}
-                aria-label={`Ver linha de produção de ${name}`}
+                aria-label={`Ver linha de produção de ${name}: ${formatCount(demand.received)} de ${formatCount(demand.required)}`}
               >
                 <span
                   className={styles.coreRequirementShapeGlyph}
@@ -79,10 +85,20 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
                   }}
                   aria-hidden
                 />
-                <span
-                  className={`${styles.coreRequirementCount}${met ? ` ${styles.coreRequirementMet}` : ''}`}
-                >
+                <span className={styles.coreRequirementCount} aria-hidden>
                   {formatCount(demand.received)} / {formatCount(demand.required)}
+                </span>
+                <span
+                  className={`${styles.coreRequirementBar}${met ? ` ${styles.coreRequirementBarMet}` : ''}`}
+                  aria-hidden
+                >
+                  <span
+                    className={styles.coreRequirementBarFill}
+                    style={{
+                      width: `${progress * 100}%`,
+                      ...(glyphColor ? { backgroundColor: glyphColor } : {}),
+                    }}
+                  />
                 </span>
               </button>
             </li>
