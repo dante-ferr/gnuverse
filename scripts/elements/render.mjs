@@ -454,7 +454,7 @@ const PAGE_CSS = `
   --ink: #0a1014;
   --muted: #5a6b73;
   --line: #c5d0d6;
-  --accent: #1a4542;
+  --accent: #143a38;
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }

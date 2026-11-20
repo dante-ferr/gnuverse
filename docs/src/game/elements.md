@@ -35,7 +35,7 @@ Status: **TOML catalog + preview layout updated** (2026-11-18). **Normal rooms**
 | Target | Value | Status |
 | :--- | :--- | :--- |
 | Distinct resources | **36** | Authored in `elements.toml` |
-| Parallel colors | Up to **3** color families | Approx. cool / warm / green-earth in draft colors |
+| Parallel colors | Up to **3** color families | Cool (cyan→slate-blue), warm (coral/ember), earth (sage/sand) — fills in `elements.toml` |
 | Max tier | **5** | Authored |
 | Core quota | Across match progression, **every** element appears in core demand at least once | Wired via chapter advance in normal rooms |
 

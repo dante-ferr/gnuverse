@@ -19,10 +19,10 @@
     ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
   --body-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   --scene: #0e171d;
-  --scene-line: #23343c;
-  --ground: #1c2930;
+  --scene-line: #1f3038;
+  --ground: #152229;
   --ground-edge: #6a7b83;
-  --block-face: #8e969b;
+  --block-face: #8ea3ab;
 }
 @theme inline {
   --color-background: var(--background);
