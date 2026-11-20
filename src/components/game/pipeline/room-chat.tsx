@@ -1,7 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react'
 import { formatGameDate } from '../model/presentation'
 import type { ChatMessage, User } from '../model/types'
 import styles from '../game-shell.module.css'
@@ -15,10 +22,20 @@ type Props = {
   maxLength: number
   busy?: boolean
   onSend: (text: string) => void
+  /** When false, omit the section title (parent chrome supplies it). */
+  showHeading?: boolean
 }
 
 /** Room sidebar chat: history, compose for signed-in users, login redirect for guests. */
-export function RoomChat({ messages, user, loginHref, maxLength, busy, onSend }: Props) {
+export function RoomChat({
+  messages,
+  user,
+  loginHref,
+  maxLength,
+  busy,
+  onSend,
+  showHeading = true,
+}: Props) {
   const [draft, setDraft] = useState('')
   const logRef = useRef<HTMLDivElement>(null)
   const stickToBottomRef = useRef(true)
@@ -40,21 +57,38 @@ export function RoomChat({ messages, user, loginHref, maxLength, busy, onSend }:
     if (stickToBottomRef.current) scrollToBottom()
   }, [messages, scrollToBottom])
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    if (!user) return
+  const sendMessage = useCallback(() => {
+    if (!user || busy) return false
     const text = draft.trim()
-    if (!text || busy) return
+    if (!text) return false
     onSend(text)
     setDraft('')
     stickToBottomRef.current = true
+    return true
+  }, [user, busy, draft, onSend])
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    sendMessage()
+  }
+
+  const onComposeKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
+    event.preventDefault()
+    sendMessage()
   }
 
   return (
-    <section className={styles.roomChat} aria-labelledby="room-chat-heading">
-      <h2 id="room-chat-heading" className={styles.sidebarSectionTitle}>
-        Chat
-      </h2>
+    <section
+      className={styles.roomChat}
+      aria-labelledby={showHeading ? 'room-chat-heading' : undefined}
+      aria-label={showHeading ? undefined : 'Mensagens do chat'}
+    >
+      {showHeading ? (
+        <h2 id="room-chat-heading" className={styles.sidebarSectionTitle}>
+          Chat
+        </h2>
+      ) : null}
       <div
         ref={logRef}
         className={styles.roomChatLog}
@@ -92,6 +126,7 @@ export function RoomChat({ messages, user, loginHref, maxLength, busy, onSend }:
               rows={2}
               placeholder="Escreva uma mensagem"
               onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={onComposeKeyDown}
             />
           </label>
           <button type="submit" className={styles.primary} disabled={busy || !draft.trim()}>

@@ -121,7 +121,7 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
           <p>
             Use <strong>Participantes</strong> para ver quem está na sala e o histórico de cada
             pessoa. Em <strong>Decisões</strong>, o BDFL trata propostas de suspensão. O chat fica
-            fixo na parte inferior do painel.
+            num painel recolhível à esquerda do tabuleiro.
           </p>
         </section>
       </div>

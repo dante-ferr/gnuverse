@@ -12,6 +12,7 @@ import { useGameSession } from '../hooks/use-game-session'
 import { useRoomLobby } from '../hooks/use-room-lobby'
 import { pipelineRulesFrom } from './model/frame'
 import { usePipelineStream } from './hooks/use-pipeline-stream'
+import { RoomChatSidebar } from './room-chat-sidebar'
 import { RoomSidebar } from './room-sidebar'
 import { PipelineScene, type EditMode } from './scene/pipeline-scene'
 import {
@@ -196,6 +197,14 @@ export function PipelineRoom() {
       )}
       {lobby.roomId ? (
         <div className={styles.pipelinePlay}>
+          <RoomChatSidebar
+            messages={live.chat}
+            user={session.user}
+            loginHref={loginHref}
+            maxLength={chatMaxLength}
+            busy={feedback.busy}
+            onSend={sendChat}
+          />
           <div className={styles.sceneViewport}>
             <PipelineScene
               frame={live.frame.seed ? live.frame : null}
@@ -242,15 +251,11 @@ export function PipelineRoom() {
             members={live.members}
             proposals={live.proposals}
             events={live.events}
-            chat={live.chat}
-            loginHref={loginHref}
-            chatMaxLength={chatMaxLength}
             busy={feedback.busy}
             canAdvance={Boolean(lobby.roomId && isAdmin)}
             onAdvance={advance}
             onRefresh={live.refresh}
             onError={feedback.setError}
-            onSendChat={sendChat}
           />
         </div>
       ) : (

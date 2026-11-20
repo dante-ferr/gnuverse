@@ -2,11 +2,10 @@
 
 import { useState } from 'react'
 import type { GameApi } from '../api/game-api'
-import type { ChatMessage, GameEvent, Member, Proposal, User } from '../model/types'
+import type { GameEvent, Member, Proposal, User } from '../model/types'
 import type { EditMode } from './scene/pipeline-scene'
 import type { PipelineFrame, PipelineRules } from './model/frame'
 import { CoreRequirementsSidebar } from './core-requirements-sidebar'
-import { RoomChat } from './room-chat'
 import { RoomDecisions } from './room-decisions'
 import { RoomParticipants } from './room-participants'
 import { StructurePalette } from './structure-palette'
@@ -31,15 +30,11 @@ type Props = {
   members: Member[]
   proposals: Proposal[]
   events: GameEvent[]
-  chat: ChatMessage[]
-  loginHref: string
-  chatMaxLength: number
   busy?: boolean
   canAdvance?: boolean
   onAdvance?: () => void
   onRefresh: () => Promise<void>
   onError: (message: string) => void
-  onSendChat: (text: string) => void
 }
 
 const pages: { id: SidebarPage; label: string }[] = [
@@ -48,7 +43,7 @@ const pages: { id: SidebarPage; label: string }[] = [
   { id: 'decisoes', label: 'Decisões' },
 ]
 
-/** Three-page room sidebar with chat docked at the bottom. */
+/** Three-page room sidebar (Jogo, Participantes, Decisões). */
 export function RoomSidebar({
   frame,
   rules,
@@ -64,15 +59,11 @@ export function RoomSidebar({
   members,
   proposals,
   events,
-  chat,
-  loginHref,
-  chatMaxLength,
   busy,
   canAdvance,
   onAdvance,
   onRefresh,
   onError,
-  onSendChat,
 }: Props) {
   const [page, setPage] = useState<SidebarPage>('jogo')
   const [helpOpen, setHelpOpen] = useState(false)
@@ -150,16 +141,6 @@ export function RoomSidebar({
             onError={onError}
           />
         ) : null}
-      </div>
-      <div className={styles.sidebarDock}>
-        <RoomChat
-          messages={chat}
-          user={user}
-          loginHref={loginHref}
-          maxLength={chatMaxLength}
-          busy={busy}
-          onSend={onSendChat}
-        />
       </div>
     </aside>
   )
