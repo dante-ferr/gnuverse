@@ -1,6 +1,7 @@
 import type { BeltRecord, PipelineFrame, PipelineRules, PacketShape } from '../../model/frame.ts'
 import type { PacketMotionState } from '../packet-motion.ts'
 import { packetClipCells, packetDisplayCenter, packetSinkCenter } from '../packet-motion.ts'
+import type { SceneLod } from '../scene-lod.ts'
 import { cellSize } from './grid-painter.ts'
 import { elementFill } from './element-fill.ts'
 import {
@@ -26,18 +27,33 @@ export class PacketPainter {
     rules: PipelineRules,
     motion: PacketMotionState,
     timeMs: number,
+    lod: SceneLod = { packetGlyphs: true, beltChevrons: true, machines: 'full' },
   ) {
-    const radius = cellSize * 0.22
+    const radius = cellSize * (lod.packetGlyphs ? 0.22 : 0.2)
     const outline = resourceGlyphOutline(rules)
+    const lodOutline: ResourceGlyphOutline = lod.packetGlyphs
+      ? outline
+      : {
+          ...outline,
+          outerWidthPx: Math.min(outline.outerWidthPx, 1.5),
+          innerWidthPx: Math.min(outline.innerWidthPx, 1),
+        }
+    const clipPackets = lod.packetGlyphs
     const drawPacket = (px: number, py: number, shape: PacketShape) => {
-      if (shape !== 'circle' && this.drawElementGlyph(ctx, shape, rules, px, py, outline)) return
+      if (lod.packetGlyphs && shape !== 'circle' && this.drawElementGlyph(ctx, shape, rules, px, py, outline)) {
+        return
+      }
       const fill = elementFill(rules, shape) ?? rules.colorPacket
-      drawOutlinedResourceDisk(ctx, fill, px, py, radius, outline)
+      drawOutlinedResourceDisk(ctx, fill, px, py, radius, lodOutline)
     }
 
     if (frame.packets.length > 0 && belts.length > 0) {
       for (const packet of frame.packets) {
         const { px, py } = packetDisplayCenter(packet, frame, rules, motion, timeMs, cellSize)
+        if (!clipPackets) {
+          drawPacket(px, py, packet.shape)
+          continue
+        }
         const cells = packetClipCells(packet, motion)
         ctx.save()
         ctx.beginPath()

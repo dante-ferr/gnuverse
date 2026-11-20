@@ -12,6 +12,10 @@ export type PipelineRules = {
   cameraZoomMin: number
   /** Largest camera zoom factor (zoomed in). */
   cameraZoomMax: number
+  /** At/above this zoom: packet glyphs, belt chevrons, full machine art. */
+  lodDetailMinZoom: number
+  /** At/above this (and below detail): flat machine fills + cores; below: cores only. */
+  lodStructureMinZoom: number
   colorBelt: string
   /** Flow arrows stroked on top of belt track fill. */
   colorBeltChevron: string

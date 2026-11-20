@@ -16,6 +16,8 @@ export function testPipelineRules(overrides: Partial<PipelineRules> = {}): Pipel
     gridVisibleMinZoom: 1,
     cameraZoomMin: 0.08,
     cameraZoomMax: 3,
+    lodDetailMinZoom: 0.55,
+    lodStructureMinZoom: 0.22,
     colorBelt: '#9eb0b7',
     colorBeltChevron: '#6b7d87',
     colorPacket: '#52d6c9',

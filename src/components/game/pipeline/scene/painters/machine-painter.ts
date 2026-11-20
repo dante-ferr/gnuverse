@@ -42,6 +42,7 @@ import type { PacketMotionState } from '../packet-motion.ts'
 import { sourceIsExporting, sourceOutputCell } from '../source-exporting.ts'
 import { darkenHex } from './darken-hex.ts'
 import { elementFill } from './element-fill.ts'
+import type { MachineLod } from '../scene-lod.ts'
 import { cellSize, type CellBounds } from './grid-painter.ts'
 import {
   drawOutlinedResourceDisk,
@@ -208,34 +209,45 @@ export class MachinePainter {
     motion: PacketMotionState,
     bounds?: CellBounds,
     pass: 'all' | 'static' | 'dynamic' = 'all',
+    machineLod: MachineLod = 'full',
   ) {
     const drawBodies = pass !== 'dynamic'
     const drawMotion = pass !== 'static'
+    const detail = machineLod === 'full'
+    const showNonCore = machineLod !== 'cores'
+    const flat = machineLod === 'flat'
     const deltaMs = drawMotion && this.lastDrawTimeMs > 0 ? Math.max(0, timeMs - this.lastDrawTimeMs) : 0
     if (drawMotion) this.lastDrawTimeMs = timeMs
     const coreSpecs = frame.cores?.length ? frame.cores : [frame.core]
     const specs = frame.sources?.length ? frame.sources : [frame.source]
     const bracketStyle = slotBracketStyleFromRules(rules)
-    const frameMachines = drawBodies ? machinesFromFrame(frame) : []
-    const ports = drawBodies ? indexPortSlots(frameMachines) : null
-    const gearSamples = cameraZoom < 0.65 ? 8 : CORE_GEAR_OUTLINE_SAMPLES
+    const frameMachines = drawBodies && detail ? machinesFromFrame(frame) : []
+    const ports = drawBodies && detail ? indexPortSlots(frameMachines) : null
+    const gearSamples = cameraZoom < 0.65 || !detail ? 8 : CORE_GEAR_OUTLINE_SAMPLES
     for (const coreSpec of coreSpecs) {
       if (drawMotion) this.noteCoreIntake(coreSpec, timeMs)
       if (!footprintVisible(coreSpec.x, coreSpec.y, CoreMachine.size, CoreMachine.size, bounds)) continue
       const core = new CoreMachine(coreSpec.id, { x: coreSpec.x, y: coreSpec.y })
       this.drawCore(ctx, core, rules, bracketStyle, timeMs, deltaMs, drawBodies, drawMotion, gearSamples)
     }
+    if (!showNonCore) return
     for (const spec of frame.combiners ?? []) {
       const size = CombinerMachine.sizeFor(spec.machineId, spec.facing)
       if (!footprintVisible(spec.x, spec.y, size.width, size.height, bounds)) continue
       const combiner = new CombinerMachine(spec.id, spec.machineId, { x: spec.x, y: spec.y }, spec.facing)
       if (drawBodies) {
         const body = this.machineColor(rules, spec.machineId)
-        this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
-          centerDecor: spec.machineId === 'combiner_3',
-        })
+        if (flat) {
+          this.drawFlatPlate(ctx, combiner, body, rules)
+        } else {
+          this.machine(ctx, combiner, body, decorForKind(this.images, spec.machineId), rules, bracketStyle, {
+            centerDecor: spec.machineId === 'combiner_3',
+          })
+        }
       }
-      if (drawMotion) this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, motion)
+      if (drawMotion && detail) {
+        this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, motion)
+      }
     }
     if (drawBodies && ports) {
       for (const spec of frame.splitters ?? []) {
@@ -246,17 +258,42 @@ export class MachinePainter {
         if (!footprintVisible(spec.x, spec.y, 1, 1, bounds)) continue
         this.drawTunnelPortal(ctx, spec, rules, bracketStyle, ports)
       }
+    } else if (drawBodies && flat) {
+      for (const spec of frame.splitters ?? []) {
+        if (!footprintVisible(spec.x, spec.y, 1, 1, bounds)) continue
+        const splitter = new SplitterMachine(
+          spec.id,
+          { x: spec.x, y: spec.y },
+          spec.facing,
+          { id: spec.authorId, nickname: spec.authorNickname },
+        )
+        this.drawFlatPlate(ctx, splitter, rules.colorSplitter, rules)
+      }
+      for (const spec of frame.tunnels ?? []) {
+        if (!footprintVisible(spec.x, spec.y, 1, 1, bounds)) continue
+        const portal = new TunnelPortalMachine(
+          spec.id,
+          { x: spec.x, y: spec.y },
+          spec.role,
+          spec.pairId,
+          spec.direction,
+          { id: spec.authorId, nickname: spec.authorNickname },
+          spec.queue?.length ?? 0,
+        )
+        const fast = (spec.speed ?? 1) > 1
+        this.drawFlatPlate(ctx, portal, fast ? rules.colorFastTunnel : rules.colorTunnel, rules)
+      }
     }
     for (const spec of specs) {
       if (!footprintVisible(spec.x, spec.y, SourceMachine.size, SourceMachine.size, bounds)) continue
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
-      if (drawBodies) {
-        const glyphId = sourceGlyphId(spec)
-        const body = elementFill(rules, glyphId) ?? rules.colorSource
-        this.drawSource(ctx, source, body, rules, bracketStyle)
-      }
-      if (!drawMotion) continue
       const glyphId = sourceGlyphId(spec)
+      const body = elementFill(rules, glyphId) ?? rules.colorSource
+      if (drawBodies) {
+        if (flat) this.drawFlatSource(ctx, source, body, rules)
+        else this.drawSource(ctx, source, body, rules, bracketStyle)
+      }
+      if (!drawMotion || !detail) continue
       const outputCell = sourceOutputCell(spec)
       const exporting = sourceIsExporting(outputCell, motion)
       const periodMs = sourcePeriodMsForGlyph(rules, glyphId)
@@ -280,7 +317,35 @@ export class MachinePainter {
     }
     // Core/combiner brackets above logistics so adjacent plugs cannot bury them.
     // Source outputs stay under the circle (drawn once in drawSource).
-    if (drawBodies) this.drawNonLogisticBrackets(ctx, frame, rules, bracketStyle, bounds)
+    if (drawBodies && detail) this.drawNonLogisticBrackets(ctx, frame, rules, bracketStyle, bounds)
+  }
+
+  private drawFlatPlate(ctx: CanvasRenderingContext2D, machine: Machine, bodyColor: string, rules: PipelineRules) {
+    const { px, py, width, height } = machineRect(machine)
+    ctx.fillStyle = bodyColor
+    ctx.fillRect(px, py, width, height)
+    ctx.strokeStyle = rules.colorOutline
+    ctx.lineWidth = Math.max(1, rules.outlineWidthPx * 0.75)
+    ctx.strokeRect(px, py, width, height)
+  }
+
+  private drawFlatSource(
+    ctx: CanvasRenderingContext2D,
+    machine: SourceMachine,
+    bodyColor: string,
+    rules: PipelineRules,
+  ) {
+    const { px, py, width, height } = machineRect(machine)
+    const cx = px + width / 2
+    const cy = py + height / 2
+    const radius = width / 2
+    ctx.beginPath()
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+    ctx.fillStyle = bodyColor
+    ctx.fill()
+    ctx.strokeStyle = rules.colorOutline
+    ctx.lineWidth = Math.max(1, rules.outlineWidthPx * 0.75)
+    ctx.stroke()
   }
 
   private machineColor(rules: PipelineRules, machineId: string) {

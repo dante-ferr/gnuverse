@@ -13,6 +13,11 @@ grid_height = 24
 grid_visible_min_zoom = 0.5 # Show cell grid at or above this zoom (zoomed in)
 camera_zoom_min = 0.08 # Zoomed out limit (see more map)
 camera_zoom_max = 3 # Zoomed in limit
+# Scene LOD (client). At/above detail: glyphs, chevrons, full machines.
+# Between structure and detail: element-fill disks, no chevrons, flat machine fills + cores.
+# Below structure: disks, no chevrons, cores only.
+lod_detail_min_zoom = 0.3
+lod_structure_min_zoom = 0
 
 # Scene palette
 color_background = "#0e171d" # Playable floor; void outside chunks

@@ -19,6 +19,7 @@ import { GridCamera } from './grid-camera.ts'
 import { BeltPainter } from './painters/belt-painter.ts'
 import { cellSize, type CellBounds, GridPainter } from './painters/grid-painter.ts'
 import { paintSceneLayer, type SceneLayer } from './scene-layer.ts'
+import { sceneLod, sceneLodKey } from './scene-lod.ts'
 import { loadMachineDecor, MachinePainter } from './painters/machine-painter.ts'
 import { PacketPainter } from './painters/packet-painter.ts'
 import { ReadoutPainter } from './painters/readout-painter.ts'
@@ -155,6 +156,8 @@ export function PipelineScene({
     const previewVisible = cullBelts(preview, bounds)
     const previewKeys = new Set(previewVisible.map((belt) => cellKey(belt)))
     const underPreview = belts.filter((belt) => !previewKeys.has(cellKey(belt)))
+    const lod = sceneLod(camera.zoom, palette)
+    const lodKey = sceneLodKey(lod)
     const viewKey = `${Math.round(view.width)}x${Math.round(view.height)}@${ratio}`
     const cameraKey = `${camera.x.toFixed(3)}|${camera.y.toFixed(3)}|${camera.zoom.toFixed(4)}`
     const paletteKey = staticPaletteKey(palette)
@@ -174,7 +177,7 @@ export function PipelineScene({
     )
     machineLayer.current = paintSceneLayer(
       machineLayer.current,
-      `${viewKey}|${cameraKey}|${paletteKey}|${machinePainter.current.decorStamp()}|${hashMachines(visible)}`,
+      `${viewKey}|${cameraKey}|${paletteKey}|${lodKey}|${machinePainter.current.decorStamp()}|${hashMachines(visible)}`,
       view.width,
       view.height,
       ratio,
@@ -189,6 +192,7 @@ export function PipelineScene({
             packetMotion.current,
             bounds,
             'static',
+            lod.machines,
           )
         })
       },
@@ -198,8 +202,11 @@ export function PipelineScene({
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(groundLayer.current.canvas, 0, 0)
     withCamera(ctx, camera, ratio, () => {
-      beltPainter.current.drawChevrons(ctx, underPreview, palette, timeMs)
-      if (previewVisible.length > 0) beltPainter.current.draw(ctx, previewVisible, palette, timeMs)
+      if (lod.beltChevrons) beltPainter.current.drawChevrons(ctx, underPreview, palette, timeMs)
+      if (previewVisible.length > 0) {
+        if (lod.beltChevrons) beltPainter.current.draw(ctx, previewVisible, palette, timeMs)
+        else beltPainter.current.drawTracks(ctx, previewVisible, palette)
+      }
       const eraseBox = eraseStroke.current?.bounds()
       if (eraseBox) {
         ctx.save()
@@ -222,7 +229,7 @@ export function PipelineScene({
           packet.y <= bounds.maxY,
       )
       const packetFrame = packets.length === visible.packets.length ? visible : { ...visible, packets }
-      packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs)
+      packetPainter.current.draw(ctx, packetFrame, drawnBelts, palette, packetMotion.current, timeMs, lod)
     })
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.drawImage(machineLayer.current.canvas, 0, 0)
@@ -236,6 +243,7 @@ export function PipelineScene({
         packetMotion.current,
         bounds,
         'dynamic',
+        lod.machines,
       )
       const structureHints =
         editModeRef.current === 'create'
@@ -868,6 +876,8 @@ function staticPaletteKey(rules: PipelineRules) {
     rules.decorDarkenPercent,
     rules.beltChevronStrokePx,
     rules.beltFastSideInsetPercent,
+    rules.lodDetailMinZoom,
+    rules.lodStructureMinZoom,
   ].join('|')
 }
 

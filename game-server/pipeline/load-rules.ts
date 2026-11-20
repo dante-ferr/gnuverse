@@ -12,6 +12,8 @@ const defaults = {
   grid_visible_min_zoom: 1,
   camera_zoom_min: 0.08,
   camera_zoom_max: 3,
+  lod_detail_min_zoom: 0.55,
+  lod_structure_min_zoom: 0.22,
   color_belt: '#9eb0b7',
   color_belt_chevron: '#6b7d87',
   color_packet: '#52d6c9',
@@ -126,6 +128,8 @@ const floats = {
   grid_visible_min_zoom: [0.1, 10],
   camera_zoom_min: [0.02, 2],
   camera_zoom_max: [0.5, 10],
+  lod_detail_min_zoom: [0.05, 10],
+  lod_structure_min_zoom: [0.05, 10],
   resource_glyph_outline_spread: [0.5, 4],
 } as const
 
@@ -138,6 +142,8 @@ const mappings = {
   grid_visible_min_zoom: 'gridVisibleMinZoom',
   camera_zoom_min: 'cameraZoomMin',
   camera_zoom_max: 'cameraZoomMax',
+  lod_detail_min_zoom: 'lodDetailMinZoom',
+  lod_structure_min_zoom: 'lodStructureMinZoom',
   color_belt: 'colorBelt',
   color_belt_chevron: 'colorBeltChevron',
   color_packet: 'colorPacket',
@@ -245,6 +251,9 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
   const rules = { ...(result as Omit<PipelineRules, 'elements'>), elements } as PipelineRules
   if (rules.cameraZoomMin >= rules.cameraZoomMax) {
     throw new Error('camera_zoom_min deve ser menor que camera_zoom_max')
+  }
+  if (rules.lodStructureMinZoom > rules.lodDetailMinZoom) {
+    throw new Error('lod_structure_min_zoom must be <= lod_detail_min_zoom')
   }
   if (rules.satelliteCoreRingMin > rules.satelliteCoreRingMax) {
     throw new Error('satellite_core_ring_min must be <= satellite_core_ring_max')
