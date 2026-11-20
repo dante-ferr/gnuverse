@@ -5,11 +5,8 @@
 # Account wallet. Income rate, caps, and structure prices live in pipeline.toml.
 initial_balance = 120 # Starting coins (cannot exceed passive_cap)
 action_cooldown_ms = 0 # Min gap between billable placements (0 = none)
-default_cost = 1 # Lobby reference cost for a new room
-max_cost = 20 # Cap for that lobby reference cost
-
 # Proposals and participation
-min_contributions = 3 # Distinct contributors to advance a proposal
+min_contributions = 10 # Distinct contributors to advance a proposal
 ban_duration_ms = 600000 # Moderation ban length
 
 # Prototype and session limits

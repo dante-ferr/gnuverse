@@ -3,12 +3,11 @@ import type { Room } from '../model/types'
 
 export type RoomFilters = {
   search: string
-  cost: 'all' | 'free' | 'paid'
-  sort: 'oldest' | 'name' | 'cost-asc' | 'cost-desc' | 'belts-desc'
+  sort: 'oldest' | 'name' | 'belts-desc'
   mine: boolean
 }
 export const DEFAULT_ROOM_FILTERS: RoomFilters = {
-  search: '', cost: 'all', sort: 'oldest', mine: false,
+  search: '', sort: 'oldest', mine: false,
 }
 
 type RoomPage = {
@@ -30,7 +29,7 @@ export async function listRooms(
     return { rooms: [], page: 1, pageCount: 0, total: 0 }
   const params = new URLSearchParams({
     page: String(page), limit: String(limit), search: filters.search,
-    cost: filters.cost, sort: filters.sort, mine: String(filters.mine),
+    sort: filters.sort, mine: String(filters.mine),
   })
   const result = await api.request<RoomPage>(`/api/towers?${params}`)
   if (result.filtersApplied === true) return result
@@ -46,13 +45,10 @@ export async function listRooms(
   const search = normalize(filters.search.trim())
   const rooms = [first, ...remaining].flatMap((data) => data.rooms).filter((room) =>
     (!search || normalize(room.name).includes(search)) &&
-    (filters.cost === 'all' || (filters.cost === 'free' ? room.cost === 0 : room.cost > 0)) &&
     (!filters.mine || room.creatorId === userId),
   )
   rooms.sort((a, b) => {
     if (filters.sort === 'name') return a.name.localeCompare(b.name, 'pt-BR')
-    if (filters.sort === 'cost-asc') return a.cost - b.cost
-    if (filters.sort === 'cost-desc') return b.cost - a.cost
     if (filters.sort === 'belts-desc')
       return (b.beltCount ?? 0) - (a.beltCount ?? 0)
     return 0

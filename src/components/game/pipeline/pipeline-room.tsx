@@ -193,8 +193,6 @@ export function PipelineRoom() {
               ? undefined
               : `/login/?next=${encodeURIComponent(window.location.pathname + window.location.search)}`
           }
-          maxCost={Number(lobby.rules?.maxCost ?? 0)}
-          defaultCost={Number(lobby.rules?.defaultCost ?? 0)}
           minContributions={Number(lobby.rules?.minContributions ?? 1)}
           onClose={() => setShowCreate(false)}
           onCreateRoom={(form) =>

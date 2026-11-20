@@ -153,23 +153,18 @@ export class HttpApplication {
         const params = requestUrl.searchParams
         const normalize = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR')
         const search = normalize((params.get('search') ?? '').trim())
-        const cost = params.get('cost') ?? 'all'
         const sort = params.get('sort') ?? 'oldest'
-        if (!['all', 'free', 'paid'].includes(cost)) fail(400, 'Filtro de custo inválido.')
-        if (!['oldest', 'name', 'cost-asc', 'cost-desc', 'belts-desc'].includes(sort))
+        if (!['oldest', 'name', 'belts-desc'].includes(sort))
           fail(400, 'Ordenação inválida.')
         const creatorId = params.get('mine') === 'true'
           ? (await auth.authenticate(req.headers.authorization)).id : null
         const available = Object.values(store.state.rooms).filter((room) =>
           isPipelineFrame(room.frame) &&
           (!search || normalize(room.name).includes(search)) &&
-          (cost === 'all' || (cost === 'free' ? room.cost === 0 : room.cost > 0)) &&
           (!creatorId || room.creatorId === creatorId),
         )
         available.sort((a, b) => {
           if (sort === 'name') return a.name.localeCompare(b.name, 'pt-BR')
-          if (sort === 'cost-asc') return a.cost - b.cost
-          if (sort === 'cost-desc') return b.cost - a.cost
           if (sort === 'belts-desc')
             return b.frame.belts.length - a.frame.belts.length
           return 0

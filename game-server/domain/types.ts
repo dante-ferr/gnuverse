@@ -9,8 +9,6 @@ export type Rules = {
   initialBalance: number
   intervalMs: number
   cooldownMs: number
-  defaultCost: number
-  maxCost: number
   minContributions: number
   maxBelts: number
   maxRooms: number

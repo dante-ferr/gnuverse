@@ -18,7 +18,7 @@ export function PipelineLobby() {
   const [showCreate, setShowCreate] = useState(false)
   const [search, setSearch] = useState('')
   const { filters, setFilters } = lobby
-  const hasFilters = Boolean(filters.search.trim() || filters.cost !== 'all' || filters.mine)
+  const hasFilters = Boolean(filters.search.trim() || filters.mine)
 
   useEffect(() => {
     if (!session.user && filters.mine) setFilters({ mine: false })
@@ -87,8 +87,6 @@ export function PipelineLobby() {
           error={feedback.error || (lobby.connection === 'offline' ? 'Servidor indisponível. Reconectando…' : '')}
           loading={!lobby.rules}
           loginHref={session.user ? undefined : '/login/?next=%2Fjogo%2F%3Fnovo%3D1'}
-          maxCost={Number(lobby.rules?.maxCost ?? 0)}
-          defaultCost={Number(lobby.rules?.defaultCost ?? 0)}
           minContributions={Number(lobby.rules?.minContributions ?? 1)}
           onClose={() => setShowCreate(false)}
           onCreateRoom={createRoom}
@@ -119,20 +117,10 @@ export function PipelineLobby() {
             </div>
           </div>
           <label>
-            Custo de referência
-            <select value={filters.cost} onChange={(event) => setFilters({ cost: event.target.value as RoomFilters['cost'] })}>
-              <option value="all">Todos os custos</option>
-              <option value="free">Gratuitas</option>
-              <option value="paid">Com custo</option>
-            </select>
-          </label>
-          <label>
             Ordenar por
             <select value={filters.sort} onChange={(event) => setFilters({ sort: event.target.value as RoomFilters['sort'] })}>
               <option value="oldest">Ordem de criação</option>
               <option value="name">Nome (A–Z)</option>
-              <option value="cost-asc">Menor custo</option>
-              <option value="cost-desc">Maior custo</option>
               <option value="belts-desc">Mais esteiras</option>
             </select>
           </label>
@@ -161,7 +149,6 @@ export function PipelineLobby() {
                       <span>{room.beltCount} esteiras</span><span aria-hidden="true">↗</span>
                     </span>
                     <strong>{room.name}</strong>
-                    <span className={styles.roomCardMeta}>Custo ref.: {room.cost} moedas</span>
                   </span>
                 </a>
               ))}

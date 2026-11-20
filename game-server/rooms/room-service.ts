@@ -93,11 +93,8 @@ export class RoomService {
       ).length >= 10
     )
       fail(409, 'Limite de salas atingido.')
-    if (
-      body.allowCreatorBan !== undefined &&
-      typeof body.allowCreatorBan !== 'boolean'
-    )
-      fail(400, 'A opção de suspensão do criador deve ser booleana.')
+    if (Object.hasOwn(body, 'allowCreatorBan') || Object.hasOwn(body, 'cost'))
+      fail(400, 'Custo de referência e suspensão do criador não são mais suportados.')
     const sandbox = body.sandbox === true
     if (sandbox && (!this.rules.prototype || process.env.NODE_ENV === 'production')) {
       fail(403, 'Sala teste indisponível neste ambiente.')
@@ -108,13 +105,8 @@ export class RoomService {
       id: roomId,
       name: text(body.name ?? defaultName, 3, 60, 'Nome'),
       creatorId: user.id,
-      allowCreatorBan: body.allowCreatorBan === true,
-      cost: integer(
-        body.cost ?? this.rules.defaultCost,
-        0,
-        this.rules.maxCost,
-        'Custo',
-      ),
+      allowCreatorBan: false,
+      cost: 0,
       eligibilityMode: mode(
         body.eligibilityMode,
         ['automatic', 'manual'],
@@ -141,8 +133,6 @@ export class RoomService {
     this.member(room, user)
     this.store.state.rooms[room.id] = room
     this.history.event(room, 'created', user.id, {
-      allowCreatorBan: room.allowCreatorBan,
-      cost: room.cost,
       eligibilityMode: room.eligibilityMode,
       minContributions: room.minContributions,
     })
@@ -152,8 +142,8 @@ export class RoomService {
   settings(room: Room, user: User, body: Record<string, unknown>) {
     if (!canManageRoom({ id: user.id, roles: user.roles ?? [] }, 'update', room.creatorId))
       fail(403, 'Apenas o criador pode alterar as regras.')
-    if (Object.hasOwn(body, 'allowCreatorBan'))
-      fail(400, 'A opção de suspensão do criador é imutável após criar a sala.')
+    if (Object.hasOwn(body, 'allowCreatorBan') || Object.hasOwn(body, 'cost'))
+      fail(400, 'Custo de referência e suspensão do criador não são mais suportados.')
     if (
       room.proposals.some((proposal) => proposal.status === 'pending')
     )
@@ -161,16 +151,11 @@ export class RoomService {
     const reason = text(body.reason, 3, 500, 'Justificativa')
     const before = {
       name: room.name,
-      cost: room.cost,
       eligibilityMode: room.eligibilityMode,
       minContributions: room.minContributions,
     }
     const after = {
       name: body.name === undefined ? room.name : text(body.name, 3, 60, 'Nome'),
-      cost:
-        body.cost === undefined
-          ? room.cost
-          : integer(body.cost, 0, this.rules.maxCost, 'Custo'),
       eligibilityMode:
         body.eligibilityMode === undefined
           ? room.eligibilityMode

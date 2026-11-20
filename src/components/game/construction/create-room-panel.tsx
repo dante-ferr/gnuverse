@@ -8,8 +8,6 @@ export type CreateRoomPanelProps = {
   error: string
   loading?: boolean
   loginHref?: string
-  maxCost: number
-  defaultCost: number
   minContributions: number
   onClose: () => void
   onCreateRoom: (form: HTMLFormElement) => void
@@ -20,8 +18,6 @@ export function CreateRoomPanel({
   error,
   loading = false,
   loginHref,
-  maxCost,
-  defaultCost,
   minContributions,
   onClose,
   onCreateRoom,
@@ -78,16 +74,6 @@ export function CreateRoomPanel({
             <input name="name" required minLength={3} maxLength={60} />
           </label>
           <label>
-            Custo de referência (governança)
-            <input
-              name="cost"
-              type="number"
-              defaultValue={defaultCost}
-              min={0}
-              max={maxCost}
-            />
-          </label>
-          <label>
             Contribuições mínimas para propor
             <input
               name="minContributions"
@@ -95,10 +81,6 @@ export function CreateRoomPanel({
               defaultValue={minContributions}
               min={1}
             />
-          </label>
-          <label>
-            <input name="allowCreatorBan" type="checkbox" />
-            Permitir suspensão do criador mediante proposta (definitivo)
           </label>
           <p>Suspensões de participantes são sempre decididas pelo BDFL.</p>
           {error && <p role="alert">{error}</p>}
