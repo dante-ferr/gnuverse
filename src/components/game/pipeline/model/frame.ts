@@ -40,6 +40,8 @@ export type PipelineRules = {
   resourceGlyphOutlineSpread: number
   coreGearOuterMs: number
   coreGearInnerMs: number
+  /** Keep gears spinning this long after last intake on that core (ms). */
+  coreGearActiveMs: number
   beltChevronStrokePx: number
   beltChevronFlowMs: number
   machineClearanceMin: number
@@ -83,7 +85,12 @@ export type SourceRecord = {
   cooldown?: number
 }
 
-export type CoreRecord = { id: string; x: number; y: number }
+export type CoreRecord = {
+  id: string
+  x: number
+  y: number
+  lastIntakeTick?: number
+}
 
 export type CombinerRecord = {
   id: string

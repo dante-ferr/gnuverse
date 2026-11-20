@@ -34,7 +34,13 @@ export type SourceRecord = {
   cooldown: number
 }
 
-export type CoreRecord = { id: string; x: number; y: number }
+export type CoreRecord = {
+  id: string
+  x: number
+  y: number
+  /** Match tick index of the last packet this core consumed (omit / undefined = never). */
+  lastIntakeTick?: number
+}
 
 export type CombinerRecord = {
   id: string

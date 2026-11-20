@@ -91,6 +91,19 @@ test('core input pulls from the approach belt regardless of belt facing', () => 
   match.tick()
   assert.equal(match.deliveries, before + 1)
   assert.equal(match.packets.length, 0)
+  assert.equal(match.coreLastIntakeTick[match.core.id], 0)
+  const frame = match.toFrame()
+  const coreRec = frame.cores?.[0] ?? frame.core
+  assert.equal(coreRec.lastIntakeTick, 0)
+})
+
+test('coreGearsShouldSpin holds for core_gear_active_ms', async () => {
+  const { coreGearsShouldSpin } = await import(
+    '../src/components/game/pipeline/scene/presentation-rates.ts'
+  )
+  assert.equal(coreGearsShouldSpin(undefined, 1000, 3500), false)
+  assert.equal(coreGearsShouldSpin(1000, 2000, 3500), true)
+  assert.equal(coreGearsShouldSpin(1000, 4500, 3500), false)
 })
 
 test('deliveries count per shape and surface on frame demands', () => {

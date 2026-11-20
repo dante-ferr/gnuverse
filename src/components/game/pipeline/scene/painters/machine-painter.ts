@@ -16,6 +16,7 @@ import type { ElementMachineKind, ElementRecord } from '../../../../../../game-s
 import { glyphUrlForShape } from '../../model/frame.ts'
 import type {
   CombinerRecord,
+  CoreRecord,
   Direction,
   PipelineFrame,
   PipelineRules,
@@ -27,6 +28,7 @@ import type { StructurePreviewMachine } from '../../structures/types.ts'
 import {
   combinerCraftProgress,
   resolveRecipeRatePerMinute,
+  coreGearsShouldSpin,
   sourceGlyphShouldOrbit,
   sourcePeriodMsForGlyph,
 } from '../presentation-rates.ts'
@@ -68,6 +70,10 @@ export class MachinePainter {
   private readonly lastSourceExportAtMs = new Map<string, number>()
   /** Last primary output element id shown on each combiner (persists after craft). */
   private readonly lastCombinerGlyphById = new Map<string, string>()
+  private readonly lastSeenCoreIntakeTick = new Map<string, number>()
+  private readonly lastCoreActiveAtMs = new Map<string, number>()
+  private readonly coreGearOuterAngleRad = new Map<string, number>()
+  private readonly coreGearInnerAngleRad = new Map<string, number>()
   private lastDrawTimeMs = 0
 
   constructor(private readonly images: MachineDecorImages) {}
@@ -167,7 +173,8 @@ export class MachinePainter {
     const bracketStyle = slotBracketStyleFromRules(rules)
     for (const coreSpec of coreSpecs) {
       const core = new CoreMachine(coreSpec.id, { x: coreSpec.x, y: coreSpec.y })
-      this.drawCore(ctx, core, rules, bracketStyle, timeMs)
+      this.noteCoreIntake(coreSpec, timeMs)
+      this.drawCore(ctx, core, rules, bracketStyle, timeMs, deltaMs)
     }
     for (const spec of frame.combiners ?? []) {
       const combiner = new CombinerMachine(
@@ -217,12 +224,21 @@ export class MachinePainter {
     }
   }
 
+  private noteCoreIntake(spec: CoreRecord, timeMs: number) {
+    if (spec.lastIntakeTick === undefined) return
+    const seen = this.lastSeenCoreIntakeTick.get(spec.id)
+    if (seen !== undefined && spec.lastIntakeTick <= seen) return
+    this.lastSeenCoreIntakeTick.set(spec.id, spec.lastIntakeTick)
+    this.lastCoreActiveAtMs.set(spec.id, timeMs)
+  }
+
   private drawCore(
     ctx: CanvasRenderingContext2D,
     machine: Machine,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
     timeMs: number,
+    deltaMs: number,
   ) {
     const { px, py, width, height } = machineRect(machine)
     this.drawMachineBody(ctx, machine, rules.colorCore, rules, bracketStyle, px, py, width, height)
@@ -230,9 +246,22 @@ export class MachinePainter {
     const frameInk = darkenHex(rules.colorCore, rules.decorDarkenPercent)
     drawTintedDecor(ctx, this.images.coreFrame, frameInk, px, py, width, height, this.tintCache)
 
+    const spinning = coreGearsShouldSpin(
+      this.lastCoreActiveAtMs.get(machine.id),
+      timeMs,
+      rules.coreGearActiveMs,
+    )
+    let outerAngle = this.coreGearOuterAngleRad.get(machine.id) ?? 0
+    let innerAngle = this.coreGearInnerAngleRad.get(machine.id) ?? 0
+    if (spinning && deltaMs > 0) {
+      outerAngle += (2 * Math.PI * deltaMs) / rules.coreGearOuterMs
+      innerAngle -= (2 * Math.PI * deltaMs) / rules.coreGearInnerMs
+      this.coreGearOuterAngleRad.set(machine.id, outerAngle)
+      this.coreGearInnerAngleRad.set(machine.id, innerAngle)
+    }
+
     // Gears share the core center pivot (SVGs recentered to 256,256).
     // Outline: lighter than colorOutline, even circular offsets.
-    const outerAngle = (2 * Math.PI * timeMs) / rules.coreGearOuterMs
     const outerInk = rules.colorAccent
     drawCoreGear(
       ctx,
@@ -250,7 +279,6 @@ export class MachinePainter {
     )
 
     const innerInk = darkenHex(rules.colorAccent, rules.decorDarkenPercent)
-    const innerAngle = (-2 * Math.PI * timeMs) / rules.coreGearInnerMs
     drawCoreGear(
       ctx,
       this.images.coreGearInner,

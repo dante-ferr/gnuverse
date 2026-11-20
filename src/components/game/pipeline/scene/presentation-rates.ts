@@ -42,6 +42,17 @@ export function sourceGlyphShouldOrbit(
   return timeMs - lastExportAtMs < periodMs + HOLD_TAIL_MS
 }
 
+/** Spin gears while a core is within `activeMs` of its last client-noted intake. */
+export function coreGearsShouldSpin(
+  lastActiveAtMs: number | undefined,
+  timeMs: number,
+  activeMs: number,
+): boolean {
+  if (lastActiveAtMs === undefined) return false
+  if (activeMs <= 0) return false
+  return timeMs - lastActiveAtMs < activeMs
+}
+
 /**
  * Craft wheel fill in [0, 1].
  * `craftRemaining` starts at `total - 1` and counts down each sim tick; `tickPhase`

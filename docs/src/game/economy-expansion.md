@@ -64,17 +64,18 @@ The full extent is **not** materialized when the room starts.
 ### Starter chunk
 
 - Index: **always central** — `floor((map_chunk_extent - 1) / 2)` on both axes (e.g. extent 64 → chunk `(31, 31)`).
-- Contains the **5×5** core (centered in the chunk) and one source per id in `elements.toml` `starter_source_ids` (currently **fire** and **water**).
+- Contains the **5×5** central core (centered in the chunk) and one source per id in `elements.toml` `starter_source_ids` (currently **fire** and **water**).
 - Clearance rules from [Decisions §9](../decisions.md#9-open-pipeline-machines) still apply at generation time.
-- **Interim packets:** starter sources still emit **`circle`** (current sim). Layout `role` is the catalog element id so the element packet slice can swap identity later without redoing chunk placement. Core demands stay on the existing circle milestone until chapter demands ship from the catalog.
+- **Interim packets:** normal rooms may still emit **`circle`** until the element packet slice promotes from sandbox. Layout `role` is the catalog element id.
+- **Multi-core ownership:** at create, also own the two satellite-core chunks (Chebyshev ring 3–4). See [Chapter progression and cores](progression.md).
 
 ### Other generated chunks (source spawn)
 
-Non-starter chunks are **not required** to contain any source. A chunk may be empty of machines.
+Non-starter chunks are **not required** to contain any source (except the **grass** Moore-neighbor guarantee in [progression](progression.md)). A chunk may be empty of machines.
 
-When real element sources ship, generation rolls **per tier-1 base** using `source_spawn_chance_percent` on that row in `elements.toml` (0–100). Starter placement ignores spawn odds.
+Generation rolls **per tier-1 base** using `source_spawn_chance_percent` on that row in `elements.toml` (0–100). Starter placement ignores spawn odds.
 
-**Algorithm (planned, not wired yet):** for each non-starter chunk the first time it enters the preview set, for each base with chance `P > 0`, draw once from the chunk sub-seed. On a hit, pick a random footprint origin inside that chunk whose **clearance free-rect** does not overlap any already placed machine free-rect (`machine_clearance_min` / `core_clearance_extra` via `geometry/clearance.ts`). If no valid origin exists, skip — do not force a source.
+**Algorithm (planned, not wired yet):** for each non-starter chunk the first time it enters the preview set (and for satellite / grass-neighbor chunks at create), for each base with chance `P > 0`, draw once from the chunk sub-seed. On a hit, pick a random footprint origin inside that chunk whose **clearance free-rect** does not overlap any already placed machine free-rect (`machine_clearance_min` / `core_clearance_extra` via `geometry/clearance.ts`). If no valid origin exists, skip — do not force a source. The grass guarantee overrides the skip for one Moore-neighbor chunk.
 
 **Clearance today:** **on** for match layout (starter core + `starter_source_ids`, and any future procedural placements). Belts may still occupy former pad cells after generation.
 

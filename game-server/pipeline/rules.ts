@@ -68,6 +68,8 @@ export type PipelineRules = {
   coreGearOuterMs: number
   /** Core inner gear full counter-clockwise turn (ms). */
   coreGearInnerMs: number
+  /** Keep core gears spinning this long after the last intake on that core (ms). */
+  coreGearActiveMs: number
   /** Belt chevron stroke width (px, zoomed with the grid). */
   beltChevronStrokePx: number
   /** Ms for chevrons to drift one grid cell along the belt. */

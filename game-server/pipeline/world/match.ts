@@ -39,6 +39,8 @@ export class Match {
   tickIndex = 0
   deliveries = 0
   deliveryByShape: Partial<Record<PacketShape, number>> = {}
+  /** Core id → tick index of last successful intake. */
+  coreLastIntakeTick: Record<string, number> = {}
   nextPacketId = 1
   nextBeltSeq = 1
   nextCombinerSeq = 1
@@ -219,10 +221,11 @@ export class Match {
     return coreAcceptsShape(this.rules, this.version, shape, this.deliveryByShape, this.sandbox)
   }
 
-  recordDelivery(shape: PacketShape) {
+  recordDelivery(shape: PacketShape, coreId?: string) {
     if (!this.acceptsDelivery(shape)) return
     this.deliveries += 1
     this.deliveryByShape[shape] = (this.deliveryByShape[shape] ?? 0) + 1
+    if (coreId) this.coreLastIntakeTick[coreId] = this.tickIndex
   }
 
   tick() {
@@ -248,11 +251,15 @@ export class Match {
 
   toFrame(): PipelineFrame {
     const sources = this.sourceRecords()
-    const cores = this.cores.map((machine) => ({
-      id: machine.id,
-      x: machine.origin.x,
-      y: machine.origin.y,
-    }))
+    const cores = this.cores.map((machine) => {
+      const lastIntakeTick = this.coreLastIntakeTick[machine.id]
+      return {
+        id: machine.id,
+        x: machine.origin.x,
+        y: machine.origin.y,
+        ...(lastIntakeTick !== undefined ? { lastIntakeTick } : {}),
+      }
+    })
     return {
       kind: 'pipeline',
       version: this.version,
@@ -382,6 +389,11 @@ export class Match {
     match.deliveryByShape = frame.deliveryByShape
       ? { ...frame.deliveryByShape }
       : { circle: frame.deliveries }
+    for (const spec of coreSpecs) {
+      if (spec.lastIntakeTick !== undefined) {
+        match.coreLastIntakeTick[spec.id] = spec.lastIntakeTick
+      }
+    }
     match.collaborators = frame.collaborators.map((person) => ({ ...person }))
     match.nextPacketId = frame.nextPacketId
     match.nextBeltSeq = frame.nextBeltSeq

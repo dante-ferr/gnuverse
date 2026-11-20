@@ -46,6 +46,7 @@ export function testPipelineRules(overrides: Partial<PipelineRules> = {}): Pipel
     resourceGlyphOutlineSpread: 1.35,
     coreGearOuterMs: 12000,
     coreGearInnerMs: 7000,
+    coreGearActiveMs: 3500,
     beltChevronStrokePx: 4,
     beltChevronFlowMs: 900,
     machineClearanceMin: 1,

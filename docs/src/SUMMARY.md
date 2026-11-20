@@ -17,6 +17,7 @@
 # Game
 - [How the game works](game/index.md)
   - [Rules and design](game/rules.md)
+  - [Chapter progression and cores](game/progression.md)
   - [Coins and map expansion](game/economy-expansion.md)
   - [Element recipes](game/elements.md)
   - [Code map](game/map.md)

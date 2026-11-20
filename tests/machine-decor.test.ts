@@ -22,6 +22,7 @@ test('pipeline config exposes core gear rotation periods', () => {
   const { pipeline } = loadGameConfig()
   assert.equal(pipeline.coreGearOuterMs, 12000)
   assert.equal(pipeline.coreGearInnerMs, 7000)
+  assert.equal(pipeline.coreGearActiveMs, 3500)
 })
 
 test('pipeline config exposes decor_stroke_width for art sync', () => {

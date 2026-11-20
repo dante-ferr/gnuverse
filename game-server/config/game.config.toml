@@ -81,6 +81,7 @@ resource_glyph_outline_spread = 1.35 # Silhouette offset multiplier (≥0.5)
 # Core decor gears (full turn period, ms)
 core_gear_outer_ms = 12000 # Clockwise
 core_gear_inner_ms = 7000 # Counter-clockwise
+core_gear_active_ms = 3500 # Keep spinning after last intake on that core
 
 # Machine clearance (cells)
 machine_clearance_min = 1

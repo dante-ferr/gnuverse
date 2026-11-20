@@ -103,7 +103,7 @@ Preview HTML: `scripts/elements/render.mjs`. In-room overlay: `src/components/ga
 ### Implementation order (remaining)
 
 1. Promote combiners + typed packets from sandbox to normal match progression (chapter gates)
-2. Wire cumulative core demands so the full catalog is required by late progression outside sandbox
+2. Wire cumulative core demands + **three-core ring layout** so the full catalog is required by late progression outside sandbox — [Chapter progression and cores](progression.md)
 3. Promote tinted catalog glyphs (and `fill` disk fallback) from sandbox to normal match progression as chapter gates land
 
-Locked footprints and half-rate behavior above; split rounding remainder is not needed when alternating ports.
+Locked footprints and half-rate behavior above; split rounding remainder is not needed when alternating ports. Prior demands stay permanent (`retain_prior_demands`); the 9-core proposal victory path is retired in favor of three cores + full catalog.

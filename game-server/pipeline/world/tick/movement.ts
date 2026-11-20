@@ -39,9 +39,9 @@ export class Movement {
     const deliveredIds = new Set<string>()
     const absorbedIds = new Set<string>()
     for (const move of allowed) {
-      if (move.to === 'deliver') {
+      if (move.to.startsWith('deliver:')) {
         deliveredIds.add(move.packet.id)
-        this.match.recordDelivery(move.packet.shape)
+        this.match.recordDelivery(move.packet.shape, move.to.slice('deliver:'.length))
         continue
       }
       if (move.to.startsWith('absorb:combiner:')) {
@@ -106,7 +106,7 @@ export class Movement {
         const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
         if (!sameCell(approach, cell)) continue
         if (!this.match.acceptsDelivery(shape)) return null
-        return 'deliver'
+        return `deliver:${core.id}`
       }
     }
     for (const combiner of this.match.combiners) {
@@ -170,7 +170,7 @@ export class Movement {
       if (!slot) continue
       if (!sameCell(from, ahead(slot.cell.x, slot.cell.y, opposite(slot.travel)))) return 'blocked'
       if (!this.match.acceptsDelivery(shape)) return 'blocked'
-      return 'deliver'
+      return `deliver:${core.id}`
     }
     for (const combiner of this.match.combiners) {
       const slot = combiner.slotAt(cell, 'input')
@@ -203,7 +203,7 @@ export class Movement {
     const budget = new Map<PacketShape, number>()
     const kept: Move[] = []
     for (const move of moves) {
-      if (move.to !== 'deliver') {
+      if (!move.to.startsWith('deliver:')) {
         kept.push(move)
         continue
       }
@@ -237,7 +237,7 @@ export class Movement {
       const byDest = new Map<string, Move[]>()
       const next: Move[] = []
       for (const move of active) {
-        if (move.to === 'deliver' || move.to.startsWith('absorb:')) {
+        if (move.to.startsWith('deliver:') || move.to.startsWith('absorb:')) {
           next.push(move)
           continue
         }
