@@ -38,7 +38,7 @@ export function SiteHeader() {
           )
         })}
       </nav>
-      {pathname !== '/' && (
+      {(pathname !== '/' || session.user) && (
         <div className="site-account">
           {session.user ? (
             <>
@@ -47,12 +47,18 @@ export function SiteHeader() {
                   {session.wallet.balance}
                 </span>
               )}
-              <Link className="site-avatar" href="/jogo/" aria-label={`Perfil de ${session.user.nickname}`} title={session.user.nickname}>
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <circle cx="12" cy="8" r="3.5" />
-                  <path d="M5 20c.6-4 3-6 7-6s6.4 2 7 6" />
-                </svg>
+              <Link className="site-account-pill" href="/blog/" aria-label={`Conta conectada: ${session.user.nickname}`} title={`Conectado como ${session.user.nickname}`}>
+                <span className="site-avatar" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="8" r="3.5" />
+                    <path d="M5 20c.6-4 3-6 7-6s6.4 2 7 6" />
+                  </svg>
+                </span>
+                <span className="site-account-name">{session.user.nickname}</span>
               </Link>
+              <button type="button" className="site-logout" onClick={() => void session.logout()}>
+                Sair
+              </button>
             </>
           ) : (
             <div className="site-auth-links">

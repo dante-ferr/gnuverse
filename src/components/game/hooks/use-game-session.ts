@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { fetchCmsIdentity, resolveCmsBaseUrl } from '@/lib/cms-client'
 import { GameApi, resolveGameApiUrl } from '../api/game-api'
 import { type User, type Wallet } from '../model/types'
 
@@ -47,9 +48,26 @@ function useSessionState() {
 
   useEffect(() => {
     if (!token) return
-    const hasGameApi = Boolean(resolveGameApiUrl())
-    if (!hasGameApi) return
     let active = true
+    const hasGameApi = Boolean(resolveGameApiUrl())
+    if (!hasGameApi) {
+      const cmsUrl = resolveCmsBaseUrl()
+      if (!cmsUrl) return
+      void fetchCmsIdentity(cmsUrl, token)
+        .then((account) => {
+          if (!active) return
+          if (account) {
+            setUser(account)
+            setWallet(null)
+          } else if (currentToken.current === token) {
+            expire()
+          }
+        })
+        .catch(() => {})
+      return () => {
+        active = false
+      }
+    }
     const refresh = () =>
       api
         .request<{ user: User; wallet: Wallet }>('/api/me')
@@ -66,7 +84,7 @@ function useSessionState() {
       active = false
       clearInterval(interval)
     }
-  }, [token, api])
+  }, [token, api, expire])
 
   async function authenticate(
     mode: 'login' | 'register',
@@ -114,7 +132,9 @@ function useSessionState() {
 
   async function logout() {
     try {
-      await api.request('/api/logout', {})
+      if (resolveGameApiUrl()) {
+        await api.request('/api/logout', {})
+      }
     } finally {
       clear()
     }

@@ -1,4 +1,5 @@
 import { extractCmsErrorMessage } from './blog-submission.ts'
+import type { Role } from '../../core/authz/policy.ts'
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', ''])
 
@@ -97,4 +98,37 @@ export async function authenticateViaCms(
     throw new Error(extractCmsErrorMessage(data, response.status))
   }
   return { verificationRequired: false, token: data.token }
+}
+
+export type CmsIdentityUser = {
+  id: string
+  nickname: string
+  roles?: readonly Role[]
+}
+
+/** Fetches the signed-in account directly from Payload CMS when game-server is not configured. */
+export async function fetchCmsIdentity(
+  cmsUrl: string,
+  token: string,
+): Promise<CmsIdentityUser | null> {
+  const response = await fetch(`${cmsUrl}/api/identity/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(120000),
+  })
+  if (response.status === 401 || response.status === 403) return null
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+  const data = await response.json().catch(() => null)
+  const account = data?.account
+  if (!account || typeof account !== 'object') return null
+  const id = String(account.identity?.id ?? '')
+  const nickname =
+    (typeof account.nickname === 'string' && account.nickname.trim()) ||
+    (typeof account.name === 'string' && account.name.trim()) ||
+    (typeof account.email === 'string' && account.email.trim()) ||
+    ''
+  if (!id || !nickname) return null
+  const roles = Array.isArray(account.roles) ? (account.roles as readonly Role[]) : undefined
+  return { id, nickname, roles }
 }

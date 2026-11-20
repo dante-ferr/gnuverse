@@ -136,6 +136,34 @@ summary {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+.site-account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+}
+.site-account-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.site-logout {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 6px 9px;
+}
+.site-logout:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
 .site-avatar {
   width: 40px;
   height: 40px;
