@@ -232,9 +232,7 @@ function renderRecipeDetails(output, catalog) {
           ? `<span class="swatch" style="background:${escapeAttr(machine.color)}" aria-hidden="true"></span> ${escapeHtml(machine.name_pt)} (<code>${escapeHtml(machine.id)}</code>) <code class="muted">${escapeHtml(machine.decor)}</code>`
           : '—'
       }</dd></div>
-      <div><dt>Craft</dt><dd>${formatCraftRate(output, catalog)} · produtividade ${
-        output.productivity ?? '—'
-      }</dd></div>
+      <div><dt>Craft</dt><dd>${formatCraftRate(output, catalog)}</dd></div>
       <div><dt>Saídas</dt><dd>${outputs
         .map((el) => `<code>${escapeHtml(el.id)}</code> (${escapeHtml(el.name_pt)}, T${el.tier})`)
         .join(' + ')}</dd></div>

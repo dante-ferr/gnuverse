@@ -5,9 +5,8 @@
 
 max_tier = 5
 retain_prior_demands = true
-default_rate_per_minute = 60
+default_rate_per_minute = 20
 default_source_rate_per_minute = 60
-default_productivity = 1
 default_glyph_size_px = 28
 default_stroke = "#0a1014"
 default_demand_required = 20
@@ -34,7 +33,7 @@ coupled_dual_output = true
 split_single_across_ports = true
 color = "#6eb8c9" # Cool cyan plate (cool family)
 decor = "pipeline/combiner-2-decor.svg"
-default_rate_per_minute = 60
+default_rate_per_minute = 20
 
 [[machines]]
 id = "combiner_3"
@@ -45,7 +44,7 @@ coupled_dual_output = true
 split_single_across_ports = true
 color = "#c9a87c" # Warm sand plate (matches splitter family)
 decor = "pipeline/combiner-3-decor.svg"
-default_rate_per_minute = 60
+default_rate_per_minute = 20
 
 
 [[chapters]]
@@ -192,7 +191,6 @@ glyph = "pipeline/elements/steam.svg"
 demand_chapter = 1
 inputs = ["water", "fire"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "moss"
@@ -206,7 +204,6 @@ glyph = "pipeline/elements/moss.svg"
 demand_chapter = 2
 inputs = ["water", "grass"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "mud"
@@ -220,7 +217,6 @@ glyph = "pipeline/elements/mud.svg"
 demand_chapter = 6
 inputs = ["water", "earth"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "mist"
@@ -234,7 +230,6 @@ glyph = "pipeline/elements/mist.svg"
 demand_chapter = 4
 inputs = ["water", "wind"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "brine"
@@ -248,7 +243,6 @@ glyph = "pipeline/elements/brine.svg"
 demand_chapter = 7
 inputs = ["water", "ore"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "ash"
@@ -262,7 +256,6 @@ glyph = "pipeline/elements/ash.svg"
 demand_chapter = 5
 inputs = ["fire", "grass"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "lava"
@@ -276,7 +269,6 @@ glyph = "pipeline/elements/lava.svg"
 demand_chapter = 6
 inputs = ["fire", "earth"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "ember"
@@ -290,7 +282,6 @@ glyph = "pipeline/elements/ember.svg"
 demand_chapter = 4
 inputs = ["fire", "wind"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "slag"
@@ -304,7 +295,6 @@ glyph = "pipeline/elements/slag.svg"
 demand_chapter = 7
 inputs = ["fire", "ore"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "seed"
@@ -318,7 +308,6 @@ glyph = "pipeline/elements/seed.svg"
 demand_chapter = 3
 inputs = ["grass", "earth"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "pollen"
@@ -332,7 +321,6 @@ glyph = "pipeline/elements/pollen.svg"
 demand_chapter = 8
 inputs = ["grass", "wind"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "dust"
@@ -346,7 +334,6 @@ glyph = "pipeline/elements/dust.svg"
 demand_chapter = 4
 inputs = ["earth", "wind"]
 machine = "combiner_2"
-productivity = 1
 
 # --- Tier 3: 2 inputs → 1 output -------------------------------------------
 
@@ -362,7 +349,6 @@ glyph = "pipeline/elements/cloud.svg"
 demand_chapter = 4
 inputs = ["steam", "mist"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "sprout"
@@ -376,7 +362,6 @@ glyph = "pipeline/elements/sprout.svg"
 demand_chapter = 3
 inputs = ["seed", "water"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "glass"
@@ -390,7 +375,6 @@ glyph = "pipeline/elements/glass.svg"
 demand_chapter = 6
 inputs = ["lava", "dust"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "charcoal"
@@ -404,7 +388,6 @@ glyph = "pipeline/elements/charcoal.svg"
 demand_chapter = 6
 inputs = ["ash", "earth"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "clay"
@@ -418,7 +401,6 @@ glyph = "pipeline/elements/clay.svg"
 demand_chapter = 6
 inputs = ["mud", "moss"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "crystal"
@@ -432,7 +414,6 @@ glyph = "pipeline/elements/crystal.svg"
 demand_chapter = 7
 inputs = ["brine", "ember"]
 machine = "combiner_2"
-productivity = 1
 
 [[elements]]
 id = "alloy"
@@ -446,7 +427,6 @@ glyph = "pipeline/elements/alloy.svg"
 demand_chapter = 7
 inputs = ["slag", "ore"]
 machine = "combiner_2"
-productivity = 1
 
 # --- Tier 4: 3 inputs → 1 output, or 1 output + 1 byproduct ----------------
 
@@ -463,7 +443,6 @@ demand_chapter = 5
 inputs = ["cloud", "ash", "ember"]
 outputs = ["storm", "lightning"]
 machine = "combiner_3"
-productivity = 1
 
 [[elements]]
 id = "lightning"
@@ -490,7 +469,6 @@ demand_chapter = 7
 inputs = ["alloy", "slag", "charcoal"]
 outputs = ["foundry", "scrap"]
 machine = "combiner_3"
-productivity = 1
 
 [[elements]]
 id = "scrap"
@@ -516,7 +494,6 @@ glyph = "pipeline/elements/garden.svg"
 demand_chapter = 8
 inputs = ["sprout", "moss", "seed"]
 machine = "combiner_3"
-productivity = 1
 
 [[elements]]
 id = "battery"
@@ -530,7 +507,6 @@ glyph = "pipeline/elements/battery.svg"
 demand_chapter = 7
 inputs = ["crystal", "ember", "brine"]
 machine = "combiner_3"
-productivity = 1
 
 [[elements]]
 id = "kiln"
@@ -545,7 +521,6 @@ demand_chapter = 6
 inputs = ["clay", "charcoal", "fire"]
 outputs = ["kiln", "brick"]
 machine = "combiner_3"
-productivity = 1
 
 [[elements]]
 id = "brick"
@@ -571,7 +546,6 @@ glyph = "pipeline/elements/lens.svg"
 demand_chapter = 7
 inputs = ["glass", "crystal", "dust"]
 machine = "combiner_3"
-productivity = 1
 
 # --- Tier 5: 3 inputs → 1 output -------------------------------------------
 
@@ -587,7 +561,6 @@ glyph = "pipeline/elements/tempest.svg"
 demand_chapter = 8
 inputs = ["storm", "lightning", "cloud"]
 machine = "combiner_3"
-productivity = 1
 
 [[elements]]
 id = "forge"
@@ -601,4 +574,3 @@ glyph = "pipeline/elements/forge.svg"
 demand_chapter = 8
 inputs = ["brick", "scrap", "lava"]
 machine = "combiner_3"
-productivity = 1

@@ -42,7 +42,6 @@ import { parse } from 'smol-toml'
  *   coproduct_of: string | null,
  *   machine: string | null,
  *   rate_per_minute: number | null,
- *   productivity: number | null,
  *   demand_chapter: number,
  *   demand_required: number,
  *   source_rate_per_minute: number | null,
@@ -61,7 +60,6 @@ import { parse } from 'smol-toml'
  *   retainPriorDemands: boolean,
  *   defaultRatePerMinute: number,
  *   defaultSourceRatePerMinute: number,
- *   defaultProductivity: number,
  *   defaultGlyphSizePx: number,
  *   defaultStroke: string,
  *   defaultDemandRequired: number,
@@ -107,7 +105,6 @@ export function loadElementCatalog(configDir = defaultElementsConfigDir()) {
     retainPriorDemands: true,
     defaultRatePerMinute: 60,
     defaultSourceRatePerMinute: 60,
-    defaultProductivity: 1,
     defaultGlyphSizePx: 28,
     defaultStroke: '#0a1014',
     defaultDemandRequired: 20,
@@ -176,7 +173,6 @@ export function loadElementCatalog(configDir = defaultElementsConfigDir()) {
     retainPriorDemands: globals.retainPriorDemands,
     defaultRatePerMinute: globals.defaultRatePerMinute,
     defaultSourceRatePerMinute: globals.defaultSourceRatePerMinute,
-    defaultProductivity: globals.defaultProductivity,
     defaultGlyphSizePx: globals.defaultGlyphSizePx,
     defaultStroke: globals.defaultStroke,
     defaultDemandRequired: globals.defaultDemandRequired,
@@ -202,7 +198,6 @@ export function catalogToJson(catalog) {
     retainPriorDemands: catalog.retainPriorDemands,
     defaultRatePerMinute: catalog.defaultRatePerMinute,
     defaultSourceRatePerMinute: catalog.defaultSourceRatePerMinute,
-    defaultProductivity: catalog.defaultProductivity,
     defaultGlyphSizePx: catalog.defaultGlyphSizePx,
     defaultStroke: catalog.defaultStroke,
     defaultDemandRequired: catalog.defaultDemandRequired,
@@ -228,9 +223,6 @@ function mergeGlobals(globals, raw) {
       raw.default_source_rate_per_minute,
       'default_source_rate_per_minute',
     )
-  }
-  if (raw.default_productivity != null) {
-    globals.defaultProductivity = Number(raw.default_productivity)
   }
   if (raw.default_glyph_size_px != null) {
     globals.defaultGlyphSizePx = int(raw.default_glyph_size_px, 'default_glyph_size_px', 1)
@@ -374,12 +366,6 @@ function normalizeElement(row, sourceFile, globals) {
         : row.rate_per_minute == null
           ? null
           : ratePerMinute(row.rate_per_minute, `Element ${id} rate_per_minute`),
-    productivity:
-      row.productivity == null && !coproductOf && tier > 1
-        ? globals.defaultProductivity
-        : row.productivity == null
-          ? null
-          : Number(row.productivity),
     demand_chapter: demandChapter,
     demand_required: int(
       row.demand_required ?? globals.defaultDemandRequired,

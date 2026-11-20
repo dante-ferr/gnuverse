@@ -47,7 +47,6 @@ export type ElementRecord = {
   coproduct_of: string | null
   machine: string | null
   rate_per_minute: number | null
-  productivity: number | null
   demand_chapter: number
   demand_required: number
   source_rate_per_minute: number | null
@@ -60,7 +59,6 @@ export type ElementCatalogJson = {
   retainPriorDemands: boolean
   defaultRatePerMinute: number
   defaultSourceRatePerMinute: number
-  defaultProductivity: number
   defaultGlyphSizePx: number
   defaultStroke: string
   defaultDemandRequired: number

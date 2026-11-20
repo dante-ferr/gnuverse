@@ -7,10 +7,10 @@ Open Pipeline packets are **elements** defined in TOML under `game-server/config
 - Primary book: `game-server/config/elements.toml` (**36** ids, max tier **5**)
 - Optional extras: any `*.toml` under `game-server/config/elements/`
 - Shared loader: `game-server/pipeline/elements/load-catalog.mjs` (also used by the game-server `rules.elements` payload)
-- Globals in TOML: `max_tier`, `retain_prior_demands`, `default_rate_per_minute`, `default_source_rate_per_minute`, `default_productivity`, `default_glyph_size_px`, `default_stroke`, `default_demand_required`, `escalation_ratio`, `score_effort_factor`, `starter_source_ids`
+- Globals in TOML: `max_tier`, `retain_prior_demands`, `default_rate_per_minute`, `default_source_rate_per_minute`, `default_glyph_size_px`, `default_stroke`, `default_demand_required`, `escalation_ratio`, `score_effort_factor`, `starter_source_ids`
 - `[[machines]]` (`color`, `decor` under `public/pipeline/` like element glyphs; `default_rate_per_minute`; core/source body colors stay in `[pipeline]`), `[[chapters]]` (`max_new_bases`, `required_multiplier`), `[preview]` layout sizes
-- Per element: `fill` / `stroke` / `glyph` / `family` / `sort_key`; bases add optional `source_rate_per_minute` and `source_spawn_chance_percent` (omit to inherit `default_source_rate_per_minute`); crafts add `machine`, optional `rate_per_minute` (omit to use the machine default), `productivity`
-- Sim converts authored rates with period ms = 60 000 ÷ rate and ticks = max(1, round(period ms ÷ `tick_ms` from `[pipeline]`)). `productivity` stays a separate multiplier — not folded into rate
+- Per element: `fill` / `stroke` / `glyph` / `family` / `sort_key`; bases add optional `source_rate_per_minute` and `source_spawn_chance_percent` (omit to inherit `default_source_rate_per_minute`); crafts add `machine`, optional `rate_per_minute` (omit to use the machine default)
+- Sim converts authored rates with period ms = 60 000 ÷ rate and ticks = max(1, round(period ms ÷ `tick_ms` from `[pipeline]`))
 - Interim v0.1 **circle** delivery quota uses `default_demand_required`, not a `[pipeline]` key
 - Crafted rows: `inputs` length **2 or 3**; `outputs` defaults to `[id]`, or two ids for dual products
 - Co-products: `coproduct_of = "primary_id"` (no `inputs`); must appear in the primary `outputs`
@@ -76,7 +76,7 @@ Clay is the body of the brick. The kiln fires clay, charcoal, and fire, and bric
 2. **Single-output recipe** (`outputs = [A]` only):
    - Both ports are capable of emitting `A`.
    - If the player uses **only one** output port, full craft rate goes to that belt.
-   - If the player uses **both** output ports, the same material is split: each port gets **half** the productivity (integer/tick rounding TBD when implementing).
+   - If the player uses **both** output ports, the same material is split: each port gets **half** the craft rate (integer/tick rounding TBD when implementing).
 
 The machine shape stays stable (always 3 in / 2 out). A tier-4 recipe may fill the second port with a byproduct. A tier-4 or tier-5 single product may still split one material across both ports.
 
