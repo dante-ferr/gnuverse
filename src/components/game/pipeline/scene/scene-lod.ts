@@ -37,12 +37,16 @@ export function sceneLodKey(lod: SceneLod): string {
  * Scale for **machine** resource overlays (source orbit, combiner craft) after
  * translating to a world anchor. Belt packets always use world size (scale 1).
  *
- * At/below `resourceGlyphWorldMinZoom`, scale with the world. Above that zoom,
- * lock screen diameter to the size at the threshold (`t / zoom`).
+ * Above `resourceGlyphWorldMinZoom`: screen-fixed at `resource_glyph_size_px`
+ * (`1 / zoom`). Zooming in grows the machine under a fixed glyph so details stay
+ * readable. Below that zoom: constant world size `size / threshold` so the glyph
+ * shrinks with the map when zoomed out, continuous at the threshold (no jump).
+ * No machine-footprint clamp — size may exceed the body when zoomed out.
  */
 export function glyphSpaceScale(zoom: number, rules: PipelineRules): number {
   const z = zoom > 0 ? zoom : 1
   const t = rules.resourceGlyphWorldMinZoom
-  if (z <= t) return 1
-  return t / z
+  if (!(t > 0)) return 1 / z
+  if (z > t) return 1 / z
+  return 1 / t
 }

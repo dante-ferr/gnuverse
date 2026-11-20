@@ -823,19 +823,38 @@ function drawCraftProgressWheel(
   const ring = Math.max(rules.resourceGlyphOutlineOuterWidthPx, 0)
   ctx.save()
   ctx.lineCap = 'round'
-  if (ring > 0 || core > 0) {
+  if (rules.resourceGlyphOutlineMode === 'single') {
     ctx.beginPath()
     ctx.arc(0, 0, radius, start, end)
-    ctx.strokeStyle = rules.resourceGlyphOutlineOuter
-    ctx.lineWidth = core + ring * 2
+    ctx.strokeStyle =
+      rules.resourceGlyphOutlineInnerWidthPx > 0
+        ? rules.resourceGlyphOutlineInner
+        : rules.resourceGlyphOutlineOuter
+    ctx.lineWidth = Math.max(core, ring, 1)
     ctx.stroke()
-  }
-  if (core > 0) {
+  } else if (rules.resourceGlyphOutlineMode === 'blur') {
+    ctx.shadowColor = rules.resourceGlyphOutlineBlur
+    ctx.shadowBlur = Math.max(core, ring, 2) * rules.resourceGlyphOutlineSpread
     ctx.beginPath()
     ctx.arc(0, 0, radius, start, end)
-    ctx.strokeStyle = rules.resourceGlyphOutlineInner
-    ctx.lineWidth = core
+    ctx.strokeStyle = rules.resourceGlyphOutlineBlur
+    ctx.lineWidth = Math.max(core, 1)
     ctx.stroke()
+  } else {
+    if (ring > 0 || core > 0) {
+      ctx.beginPath()
+      ctx.arc(0, 0, radius, start, end)
+      ctx.strokeStyle = rules.resourceGlyphOutlineOuter
+      ctx.lineWidth = core + ring * 2
+      ctx.stroke()
+    }
+    if (core > 0) {
+      ctx.beginPath()
+      ctx.arc(0, 0, radius, start, end)
+      ctx.strokeStyle = rules.resourceGlyphOutlineInner
+      ctx.lineWidth = core
+      ctx.stroke()
+    }
   }
   ctx.restore()
 }

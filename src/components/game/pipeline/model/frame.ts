@@ -4,6 +4,9 @@ export type Direction = 'north' | 'east' | 'south' | 'west'
 
 export type PacketShape = string
 
+/** Resource glyph outline presentation (`resource_glyph_outline_mode` in pipeline.toml). */
+export type ResourceGlyphOutlineMode = 'dual' | 'single' | 'blur'
+
 export type PipelineRules = {
   tickMs: number
   gridWidth: number
@@ -36,12 +39,19 @@ export type PipelineRules = {
   colorInk: string
   decorStrokeWidth: number
   resourceGlyphSizePx: number
-  /** Machine overlays: at/below, world scale; above, screen-lock to resourceGlyphSizePx. */
+  /**
+   * Machine overlays: above, screen-fixed at resourceGlyphSizePx; at/below, shrink
+   * with the world (continuous at this zoom). Lower = stay fixed longer while zooming out.
+   */
   resourceGlyphWorldMinZoom: number
   resourceGlyphOrbitPx: number
   resourceGlyphOrbitMs: number
+  /** `dual` solid rings, `single` one solid ring, `blur` soft halo. */
+  resourceGlyphOutlineMode: ResourceGlyphOutlineMode
   resourceGlyphOutlineOuter: string
   resourceGlyphOutlineInner: string
+  /** Soft halo color when outline mode is `blur`. */
+  resourceGlyphOutlineBlur: string
   resourceGlyphOutlineOuterWidthPx: number
   resourceGlyphOutlineInnerWidthPx: number
   resourceGlyphOutlineSpread: number

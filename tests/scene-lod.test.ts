@@ -32,10 +32,16 @@ test('sceneLod uses detail, structure, and cores bands from rules', () => {
   })
 })
 
-test('glyphSpaceScale world-scales when zoomed out; locks screen size when zoomed in', () => {
+test('glyphSpaceScale is screen-fixed when zoomed in; world-shrinks below threshold', () => {
   const rules = testPipelineRules({ resourceGlyphWorldMinZoom: 1.25 })
-  assert.equal(glyphSpaceScale(0.5, rules), 1)
-  assert.equal(glyphSpaceScale(1, rules), 1)
-  assert.equal(glyphSpaceScale(1.25, rules), 1)
-  assert.equal(glyphSpaceScale(2.5, rules), 0.5)
+  // Zoomed in: cancel camera zoom → on-screen diameter = resource_glyph_size_px.
+  assert.equal(glyphSpaceScale(2.5, rules), 0.4)
+  assert.equal(glyphSpaceScale(1.25, rules), 0.8)
+  // Zoomed out: fixed world scale 1/t (continuous at threshold; screen = size * z / t).
+  assert.equal(glyphSpaceScale(1, rules), 0.8)
+  assert.equal(glyphSpaceScale(0.5, rules), 0.8)
+  // Threshold only switches mode; locked screen size stays size_px (space = 1/z).
+  const lowThreshold = testPipelineRules({ resourceGlyphWorldMinZoom: 0.2 })
+  assert.equal(glyphSpaceScale(2.5, lowThreshold), 0.4)
+  assert.equal(glyphSpaceScale(0.1, lowThreshold), 5)
 })

@@ -1,10 +1,13 @@
-import type { PipelineRules } from '../../model/frame.ts'
+import type { PipelineRules, ResourceGlyphOutlineMode } from '../../model/frame.ts'
 import { getTintedImage } from './tint-image.ts'
 
-/** Dual outline for element glyphs and belt packets: outer then inner. */
+/** Outline presentation from `[pipeline]` resource_glyph_outline_* keys. */
 export type ResourceGlyphOutline = {
+  mode: ResourceGlyphOutlineMode
   outer: string
   inner: string
+  /** Soft halo color when `mode` is `blur`. */
+  blur: string
   outerWidthPx: number
   innerWidthPx: number
   /** Multiplier for silhouette offset distance. */
@@ -14,8 +17,10 @@ export type ResourceGlyphOutline = {
 /** Outline style from `[pipeline]` resource_glyph_outline_* keys. */
 export function resourceGlyphOutline(rules: PipelineRules): ResourceGlyphOutline {
   return {
+    mode: rules.resourceGlyphOutlineMode,
     outer: rules.resourceGlyphOutlineOuter,
     inner: rules.resourceGlyphOutlineInner,
+    blur: rules.resourceGlyphOutlineBlur,
     outerWidthPx: rules.resourceGlyphOutlineOuterWidthPx,
     innerWidthPx: rules.resourceGlyphOutlineInnerWidthPx,
     spread: rules.resourceGlyphOutlineSpread,
@@ -23,8 +28,9 @@ export function resourceGlyphOutline(rules: PipelineRules): ResourceGlyphOutline
 }
 
 /**
- * Draws a catalog SVG glyph with a dual outline.
- * Bakes outer + inner + fill into one cached canvas, then draws once.
+ * Draws a catalog SVG glyph with the configured outline mode.
+ * Bakes outline + fill into one cached canvas, then draws once.
+ * Diameter is `size` with no machine-footprint clamp.
  */
 export function drawOutlinedResourceGlyph(
   ctx: CanvasRenderingContext2D,
@@ -49,7 +55,7 @@ export function drawOutlinedResourceGlyph(
 }
 
 /**
- * Draws a filled disk with the same dual outline (outer then inner).
+ * Draws a filled disk with the same outline mode as catalog glyphs.
  * Used for legacy `circle` packets and glyph fallbacks.
  */
 export function drawOutlinedResourceDisk(
@@ -62,11 +68,45 @@ export function drawOutlinedResourceDisk(
 ) {
   const black = Math.max(0, outline.innerWidthPx)
   const white = Math.max(0, outline.outerWidthPx)
+  const spread = Math.max(0.5, outline.spread)
+
+  if (outline.mode === 'blur') {
+    const outerR = white > 0 ? Math.max(white * spread, radius * 0.08) : 0
+    const innerR = black > 0 ? Math.max(black * spread, radius * 0.08) : 0
+    const glowR = Math.max(outerR, innerR)
+    if (glowR > 0) {
+      ctx.save()
+      ctx.shadowColor = outline.blur
+      ctx.shadowBlur = glowR
+      ctx.beginPath()
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+      ctx.fillStyle = outline.blur
+      ctx.fill()
+      ctx.restore()
+    }
+    ctx.beginPath()
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+    ctx.fillStyle = fill
+    ctx.fill()
+    return
+  }
+
   ctx.beginPath()
   ctx.arc(cx, cy, radius, 0, Math.PI * 2)
   ctx.fillStyle = fill
   ctx.fill()
-  // Canvas strokes are centered on the path: draw outer first (thicker), then inner.
+
+  if (outline.mode === 'single') {
+    const width = black > 0 ? black : white
+    const color = black > 0 ? outline.inner : outline.outer
+    if (width > 0) {
+      ctx.strokeStyle = color
+      ctx.lineWidth = width
+      ctx.stroke()
+    }
+    return
+  }
+
   if (white + black > 0) {
     ctx.strokeStyle = outline.outer
     ctx.lineWidth = white + black
@@ -83,8 +123,11 @@ function ringRadii(outline: ResourceGlyphOutline, size: number) {
   const spread = Math.max(0.5, outline.spread)
   const innerRing = outline.innerWidthPx > 0 ? Math.max(outline.innerWidthPx * spread, size * 0.02) : 0
   const outerExtra = outline.outerWidthPx > 0 ? Math.max(outline.outerWidthPx * spread, size * 0.02) : 0
-  const outerRing = innerRing + outerExtra
-  return { innerRing, outerRing }
+  if (outline.mode === 'single' || outline.mode === 'blur') {
+    const single = Math.max(innerRing, outerExtra)
+    return { innerRing: single, outerRing: single }
+  }
+  return { innerRing, outerRing: innerRing + outerExtra }
 }
 
 function getOutlinedGlyph(
@@ -95,14 +138,16 @@ function getOutlinedGlyph(
   cache: Map<string, HTMLCanvasElement>,
 ): { canvas: HTMLCanvasElement; displaySize: number } | null {
   const { innerRing, outerRing } = ringRadii(outline, size)
-  const displayPad = Math.ceil(outerRing) + 1
+  const displayPad = Math.ceil(Math.max(outerRing, innerRing)) + 1
   const displaySize = size + displayPad * 2
   const key = [
     'outlined',
+    outline.mode,
     image.currentSrc,
     fill,
     outline.outer,
     outline.inner,
+    outline.blur,
     outline.outerWidthPx,
     outline.innerWidthPx,
     outline.spread,
@@ -111,13 +156,11 @@ function getOutlinedGlyph(
   ].join('|')
   let canvas = cache.get(key)
   if (!canvas) {
-    // Bake above display size so a solid binary halo downscales with normal AA
-    // (smooth on screen, still reads as a hard outline — not a soft blur).
     const mul = size >= 96 ? 2 : 3
     const bakeSize = Math.max(1, Math.round(size * mul))
     const bakeOuter = outerRing * mul
     const bakeInner = innerRing * mul
-    const bakePad = Math.ceil(bakeOuter) + 1
+    const bakePad = Math.ceil(Math.max(bakeOuter, bakeInner)) + 1
     const bakeDim = bakeSize + bakePad * 2
 
     const body = getTintedImage(image, fill, cache)
@@ -129,18 +172,35 @@ function getOutlinedGlyph(
     const tctx = canvas.getContext('2d')
     if (!tctx) return null
 
-    if (bakeOuter > 0) {
-      const outer = getTintedImage(image, outline.outer, cache)
-      if (outer) {
-        stampDisk(tctx, outer, bakePad, bakeSize, bakeOuter)
-        hardenAlpha(tctx)
+    if (outline.mode === 'blur') {
+      const radius = Math.max(bakeInner, bakeOuter)
+      if (radius > 0) {
+        paintBlurredOutline(tctx, image, bakePad, bakeSize, radius, outline.blur)
       }
-    }
-    if (bakeInner > 0) {
-      const inner = getTintedImage(image, outline.inner, cache)
-      if (inner) {
-        stampDisk(tctx, inner, bakePad, bakeSize, bakeInner)
-        hardenAlpha(tctx)
+    } else if (outline.mode === 'single') {
+      const color = outline.innerWidthPx > 0 ? outline.inner : outline.outer
+      const radius = bakeInner > 0 ? bakeInner : bakeOuter
+      if (radius > 0) {
+        const tinted = getTintedImage(image, color, cache)
+        if (tinted) {
+          stampDisk(tctx, tinted, bakePad, bakeSize, radius)
+          hardenAlpha(tctx)
+        }
+      }
+    } else {
+      if (bakeOuter > 0 && outline.outerWidthPx > 0) {
+        const outer = getTintedImage(image, outline.outer, cache)
+        if (outer) {
+          stampDisk(tctx, outer, bakePad, bakeSize, bakeOuter)
+          hardenAlpha(tctx)
+        }
+      }
+      if (bakeInner > 0 && outline.innerWidthPx > 0) {
+        const inner = getTintedImage(image, outline.inner, cache)
+        if (inner) {
+          stampDisk(tctx, inner, bakePad, bakeSize, bakeInner)
+          hardenAlpha(tctx)
+        }
       }
     }
     tctx.drawImage(body, bakePad, bakePad, bakeSize, bakeSize)
@@ -150,13 +210,6 @@ function getOutlinedGlyph(
   return { canvas, displaySize }
 }
 
-/**
- * Morphological dilation of a (possibly stroke-only) glyph alpha.
- *
- * Element SVGs are black-ink strokes, not filled silhouettes. Concentric rings
- * fill a solid halo. Sample count follows **bake-space** radius so the rim stays
- * continuous (sparse angular stamps caused the bristly jagged edge).
- */
 function stampDisk(
   ctx: CanvasRenderingContext2D,
   tinted: HTMLCanvasElement,
@@ -169,7 +222,6 @@ function stampDisk(
   for (let ring = 1; ring <= rings; ring++) {
     const t = ring / rings
     const r = radius * t
-    // ~1 sample per bake pixel of circumference keeps the rim solid.
     const samples = Math.min(128, Math.max(8, Math.ceil(2 * Math.PI * r)))
     for (let i = 0; i < samples; i++) {
       const a = (2 * Math.PI * i) / samples
@@ -178,7 +230,60 @@ function stampDisk(
   }
 }
 
-/** Snap outline coverage to binary alpha so the halo stays solid, not muddy. */
+/** Soft silhouette expansion (cached). Uses `resource_glyph_outline_blur`. */
+function paintBlurredOutline(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  pad: number,
+  size: number,
+  radius: number,
+  color: string,
+) {
+  if (radius <= 0) return
+  const dim = size + pad * 2
+
+  const sil = document.createElement('canvas')
+  sil.width = dim
+  sil.height = dim
+  const s = sil.getContext('2d')
+  if (!s) return
+  s.drawImage(image, pad, pad, size, size)
+  s.globalCompositeOperation = 'source-in'
+  s.fillStyle = '#ffffff'
+  s.fillRect(0, 0, dim, dim)
+  s.globalCompositeOperation = 'source-over'
+
+  const expanded = document.createElement('canvas')
+  expanded.width = dim
+  expanded.height = dim
+  const e = expanded.getContext('2d')
+  if (!e) return
+  e.filter = `blur(${Math.max(0.5, radius * 0.55)}px)`
+  e.drawImage(sil, 0, 0)
+  e.filter = 'none'
+
+  const pixels = e.getImageData(0, 0, dim, dim)
+  const data = pixels.data
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3]!
+    if (a < 16) {
+      data[i + 3] = 0
+      continue
+    }
+    data[i] = 255
+    data[i + 1] = 255
+    data[i + 2] = 255
+    data[i + 3] = a < 140 ? Math.round((a / 140) * 255) : 255
+  }
+  e.putImageData(pixels, 0, 0)
+
+  e.globalCompositeOperation = 'source-in'
+  e.fillStyle = color
+  e.fillRect(0, 0, dim, dim)
+
+  ctx.drawImage(expanded, 0, 0)
+}
+
 function hardenAlpha(ctx: CanvasRenderingContext2D) {
   const { width, height } = ctx.canvas
   const image = ctx.getImageData(0, 0, width, height)

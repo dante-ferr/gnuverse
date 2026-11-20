@@ -40,8 +40,10 @@ const defaults = {
   resource_glyph_world_min_zoom: 1.25,
   resource_glyph_orbit_px: 4,
   resource_glyph_orbit_ms: 4000,
+  resource_glyph_outline_mode: 'dual',
   resource_glyph_outline_outer: '#ffffff',
   resource_glyph_outline_inner: '#0a1014',
+  resource_glyph_outline_blur: '#0a1014',
   resource_glyph_outline_outer_width_px: 3,
   resource_glyph_outline_inner_width_px: 3,
   resource_glyph_outline_spread: 1.35,
@@ -142,6 +144,10 @@ const floats = {
 /** Positive safe integers with no max (presentation knobs tuned freely in TOML). */
 const unboundedPositiveIntegers = new Set<keyof typeof defaults>(['resource_glyph_size_px'])
 
+const stringEnums: Partial<Record<keyof typeof defaults, readonly string[]>> = {
+  resource_glyph_outline_mode: ['dual', 'single', 'blur'],
+}
+
 const mappings = {
   tick_ms: 'tickMs',
   grid_width: 'gridWidth',
@@ -179,8 +185,10 @@ const mappings = {
   resource_glyph_world_min_zoom: 'resourceGlyphWorldMinZoom',
   resource_glyph_orbit_px: 'resourceGlyphOrbitPx',
   resource_glyph_orbit_ms: 'resourceGlyphOrbitMs',
+  resource_glyph_outline_mode: 'resourceGlyphOutlineMode',
   resource_glyph_outline_outer: 'resourceGlyphOutlineOuter',
   resource_glyph_outline_inner: 'resourceGlyphOutlineInner',
+  resource_glyph_outline_blur: 'resourceGlyphOutlineBlur',
   resource_glyph_outline_outer_width_px: 'resourceGlyphOutlineOuterWidthPx',
   resource_glyph_outline_inner_width_px: 'resourceGlyphOutlineInnerWidthPx',
   resource_glyph_outline_spread: 'resourceGlyphOutlineSpread',
@@ -250,6 +258,11 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
     } else if (unboundedPositiveIntegers.has(key)) {
       if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1)
         throw new Error(`${key} must be a positive integer`)
+    } else if (key in stringEnums) {
+      const allowed = stringEnums[key]!
+      if (typeof value !== 'string' || !allowed.includes(value)) {
+        throw new Error(`${key} must be one of: ${allowed.join(', ')}`)
+      }
     } else if (typeof value !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(value)) {
       throw new Error(`${key} must be a hex color #RRGGBB`)
     }

@@ -59,18 +59,25 @@ export type PipelineRules = {
   /** Resource glyph diameter (px). Fallback when an element omits glyph_size_px. */
   resourceGlyphSizePx: number
   /**
-   * Below this camera zoom, glyph diameter stays screen-fixed.
-   * At/above, glyphs scale with the world (no 1/zoom counter-scale).
+   * Above: machine glyphs stay screen-fixed at `resourceGlyphSizePx` (zoom in → glyph
+   * looks small on the machine). At/below: shrink with the world, continuous at this zoom.
    */
   resourceGlyphWorldMinZoom: number
   /** Orbit radius around source center (same space as the glyph diameter). */
   resourceGlyphOrbitPx: number
   /** Full orbit period (ms). */
   resourceGlyphOrbitMs: number
+  /**
+   * Glyph outline presentation: `dual` (outer+inner solid), `single` (one solid ring),
+   * or `blur` (soft halo using `resourceGlyphOutlineBlur`).
+   */
+  resourceGlyphOutlineMode: 'dual' | 'single' | 'blur'
   /** Outer (usually white) outline color for element glyphs and belt packets. */
   resourceGlyphOutlineOuter: string
   /** Inner (usually black) outline color for element glyphs and belt packets. */
   resourceGlyphOutlineInner: string
+  /** Soft halo color when outline mode is `blur`. */
+  resourceGlyphOutlineBlur: string
   /** Outer outline thickness (screen px). 0 disables the outer ring. */
   resourceGlyphOutlineOuterWidthPx: number
   /** Inner outline thickness (screen px). 0 disables the inner ring. */

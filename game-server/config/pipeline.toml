@@ -56,14 +56,18 @@ belt_fast_side_inset_percent = 10 # Side-rail inset from belt outer edge (% of o
 color_fast_tunnel = "#667b83" # Portal body (same gray as color_fast_belt); red details use color_fast_belt_chevron
 tunnel_max_gap = 8 # Empty cells between portals (0 = adjacent; Factorio-style)
 
-# Resource glyphs at sources / belts (dual outline: white outer, black inner)
-resource_glyph_size_px = 28
-# Machine overlays only (source/combiner). At/below: scale with the world; above: lock screen size.
-resource_glyph_world_min_zoom = 1.25
+# Resource glyphs at sources / belts (no machine-footprint clamp — size can exceed the body)
+resource_glyph_size_px = 48
+# Machine overlays: above = screen-fixed (zoom in → small on machine); at/below = shrink with world.
+# Lower keeps glyphs fixed longer while zooming out (they can outgrow the body a bit before shrinking).
+resource_glyph_world_min_zoom = 0.2
 resource_glyph_orbit_px = 4
 resource_glyph_orbit_ms = 4000
+# Outline mode: dual (outer+inner solid), single (one solid ring), blur (soft halo).
+resource_glyph_outline_mode = "dual"
 resource_glyph_outline_outer = "#000000"
 resource_glyph_outline_inner = "#0a1014"
+resource_glyph_outline_blur = "#0a1014"
 resource_glyph_outline_outer_width_px = 0
 resource_glyph_outline_inner_width_px = 2
 resource_glyph_outline_spread = 1.35 # Silhouette offset multiplier (≥0.5)
