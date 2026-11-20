@@ -35,6 +35,7 @@ type Props = {
   onAdvance?: () => void
   onRefresh: () => Promise<void>
   onError: (message: string) => void
+  onOpenTutorial?: () => void
 }
 
 const pages: { id: SidebarPage; label: string }[] = [
@@ -64,6 +65,7 @@ export function RoomSidebar({
   onAdvance,
   onRefresh,
   onError,
+  onOpenTutorial,
 }: Props) {
   const [page, setPage] = useState<SidebarPage>('jogo')
   const [helpOpen, setHelpOpen] = useState(false)
@@ -95,7 +97,18 @@ export function RoomSidebar({
         </button>
       </div>
       {helpOpen ? (
-        <GameHelpOverlay sandbox={frame?.sandbox === true} onClose={() => setHelpOpen(false)} />
+        <GameHelpOverlay
+          sandbox={frame?.sandbox === true}
+          onClose={() => setHelpOpen(false)}
+          onOpenTutorial={
+            onOpenTutorial
+              ? () => {
+                  setHelpOpen(false)
+                  onOpenTutorial()
+                }
+              : undefined
+          }
+        />
       ) : null}
       <div className={styles.sidebarPage} role="tabpanel">
         {page === 'jogo' ? (

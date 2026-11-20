@@ -8,6 +8,7 @@ Page `/jogo/` on the static site; authoritative match state in `game-server/pipe
 | :--- | :--- |
 | Lobby entry | `src/app/jogo/page.tsx` → `pipeline-lobby.tsx` (`PipelineLobby`) |
 | Room page | `src/app/jogo/sala/page.tsx` → `pipeline/pipeline-room.tsx` (`PipelineRoom`) |
+| First-visit tutorial | `pipeline/room-tutorial-overlay.tsx`, `tutorial-illustrations.tsx`, `tutorial-memory.ts` (also linked from `GameHelpOverlay`) |
 | Scene | `pipeline/scene/` — `PipelineScene`, camera, belt stroke, painters |
 | Stream | `pipeline/hooks/use-pipeline-stream.ts` |
 | Frame types | `pipeline/model/frame.ts` |

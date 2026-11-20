@@ -103,6 +103,8 @@ src/components/game/pipeline/
   hooks/             use-pipeline-stream.ts
   scene/             PipelineScene, camera, belt stroke, painters/
   pipeline-room.tsx  top bar + sidebar + canvas
+  room-tutorial-overlay.tsx      first-visit stepped tutorial (SVG illustrations)
+  tutorial-memory.ts             localStorage seen flag
   core-requirements-sidebar.tsx  version / demands (click → production-line overlay)
   production-line/               ancestry chart overlay for a requirement
   room-collaborators.tsx         compact avatar + name list
@@ -155,6 +157,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 | 2026-11-20 | Gameplay | Belt-drag tunnels prefer one span within `tunnel_max_gap` (no split on wide free gaps); gap `0` adjacent portals + instant carry — `belt-cross.ts`, `routing.ts`, `tunnel-machine.ts` |
 | 2026-11-20 | Gameplay | Tunnel body contact no longer blocks auto-tunnel near buildings; port overlap + linked slots still gate illegal port cells — `building-slots.ts` |
 | 2026-11-20 | Design | Port connection locked: direct plug on input slot + matching `travel`; shared gap cells are belts; tick routing aligned — [decisions §9](../decisions.md#9-open-pipeline-machines), `building-slots.ts`, `routing.ts` |
+| 2026-11-20 | UX | First-visit room tutorial overlay (**Primeiros passos**) with SVG illustrations; `localStorage` + reopen from **?** help — `room-tutorial-overlay.tsx` |
 | 2026-11-20 | Design | Brackets: hide logistics only on `portsConnected`; core/combiner always visible (second paint pass); source output stays under the circle — `machine-painter.ts` |
 | 2026-11-20 | Design | Splitter body-adjacent only with compatible plug; tunnel body-adjacent only with feed/accept link; combiners in all rooms — `building-slots.ts`, `machine-editor.ts` |
 | 2026-11-20 | Gameplay | Tunnel placement keeps surface belts between portals; stroke facing before portal belts — `machine-editor.ts` |

@@ -15,6 +15,8 @@ import type { Wallet } from '../model/types'
 import { usePipelineStream } from './hooks/use-pipeline-stream'
 import { RoomChatSidebar } from './room-chat-sidebar'
 import { RoomSidebar } from './room-sidebar'
+import { RoomTutorialOverlay } from './room-tutorial-overlay'
+import { hasSeenRoomTutorial, markRoomTutorialSeen } from './tutorial-memory'
 import { PipelineScene, type EditMode } from './scene/pipeline-scene'
 import {
   defaultStructureId,
@@ -45,11 +47,21 @@ export function PipelineRoom() {
       ? live.rules.chatMessageMaxLength
       : 280
   const [showCreate, setShowCreate] = useState(false)
+  const [tutorialOpen, setTutorialOpen] = useState(false)
   const rules = pipelineRulesFrom(live.rules ?? lobby.rules)
   const isAdmin = Boolean(session.user?.roles?.includes('admin'))
   useEffect(() => {
     setLoginHref(roomLoginHref())
   }, [lobby.roomId])
+  useEffect(() => {
+    if (!lobby.roomId || !live.frame.seed) return
+    if (hasSeenRoomTutorial()) return
+    setTutorialOpen(true)
+  }, [lobby.roomId, live.frame.seed])
+  const closeTutorial = () => {
+    markRoomTutorialSeen()
+    setTutorialOpen(false)
+  }
   const openLogin = () => {
     router.push(roomLoginHref())
   }
@@ -204,6 +216,7 @@ export function PipelineRoom() {
           }
         />
       )}
+      {tutorialOpen ? <RoomTutorialOverlay rules={rules} onClose={closeTutorial} /> : null}
       {lobby.roomId ? (
         <div className={styles.pipelinePlay}>
           <RoomChatSidebar
@@ -267,6 +280,7 @@ export function PipelineRoom() {
             onAdvance={advance}
             onRefresh={live.refresh}
             onError={feedback.setError}
+            onOpenTutorial={() => setTutorialOpen(true)}
           />
         </div>
       ) : (

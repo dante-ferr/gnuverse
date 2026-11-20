@@ -6,13 +6,25 @@ import styles from './game-help-overlay.module.css'
 type Props = {
   sandbox?: boolean
   onClose: () => void
+  onOpenTutorial?: () => void
 }
 
 /** In-room help: goals, editing, camera, map, and sandbox combiners. */
-export function GameHelpOverlay({ sandbox, onClose }: Props) {
+export function GameHelpOverlay({ sandbox, onClose, onOpenTutorial }: Props) {
   return (
     <CenteredOverlay title="Como jogar" onClose={onClose}>
       <div className={styles.sections}>
+        {onOpenTutorial ? (
+          <section className={styles.section}>
+            <h3>Tutorial</h3>
+            <p>
+              Prefere um passeio rápido com ilustrações?{' '}
+              <button type="button" className={styles.tutorialLink} onClick={onOpenTutorial}>
+                Abrir primeiros passos
+              </button>
+            </p>
+          </section>
+        ) : null}
         <section className={styles.section}>
           <h3>Objetivo</h3>
           <p>

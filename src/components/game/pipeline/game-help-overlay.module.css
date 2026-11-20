@@ -47,3 +47,20 @@
   color: var(--accent);
   white-space: nowrap;
 }
+
+.tutorialLink {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tutorialLink:hover,
+.tutorialLink:focus-visible {
+  color: var(--accent-hover);
+}
