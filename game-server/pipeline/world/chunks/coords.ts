@@ -65,7 +65,10 @@ export function pickSatelliteChunkCoords(
   return pool.slice(0, count).sort((a, b) => a.cy - b.cy || a.cx - b.cx)
 }
 
-/** Own one Moore neighbor (for the grass guarantee) excluding listed coords. */
+/**
+ * Pick one edge-adjacent (N/E/S/W) neighbor of the starter for the grass guarantee.
+ * Orthogonal only so the chunk is in the initial preview set without owning it.
+ */
 export function pickGrassNeighborChunk(
   seed: string,
   starter: ChunkCoord,
@@ -73,10 +76,13 @@ export function pickGrassNeighborChunk(
   exclude: ChunkCoord[],
 ): ChunkCoord {
   const excludeKeys = new Set(exclude.map(chunkKey))
-  const candidates = mooreNeighborChunks(starter).filter(
-    (coord) => chunkInExtent(coord, extent) && !excludeKeys.has(chunkKey(coord)),
-  )
-  if (candidates.length === 0) throw new Error('No Moore neighbor available for grass guarantee')
+  const candidates = ORTHOGONAL_OFFSETS.map(([dx, dy]) => ({
+    cx: starter.cx + dx,
+    cy: starter.cy + dy,
+  })).filter((coord) => chunkInExtent(coord, extent) && !excludeKeys.has(chunkKey(coord)))
+  if (candidates.length === 0) {
+    throw new Error('No orthogonal neighbor available for grass guarantee')
+  }
   const rng = createSeedRng(`${seed}:grass`)
   return candidates[Math.floor(rng() * candidates.length)]!
 }

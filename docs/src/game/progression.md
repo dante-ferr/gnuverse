@@ -6,19 +6,19 @@ Locked 2026-11-20. Replaces the proposal’s **9-core federation** victory path 
 
 Prior core demands stay active for the whole match (`retain_prior_demands = true`). Chapters add new required elements; leveling up needs **every** active demand at once. Dropping an older supply does not end the match — it blocks chapter advance.
 
-The catalog has **36** elements. One **5×5** core has **12** input ports, so late-game concurrent types need more sinks. Normal matches therefore place **three** cores from the start.
+The catalog has **36** elements. One **5×5** core has **12** input ports, so late-game concurrent types need more sinks. Normal matches therefore reserve **two** satellite cores in the outer ring for players to **discover** by expanding the map.
 
 ## Cores (3 total)
 
 | Topic | Rule |
 | :--- | :--- |
 | Count | **1** central + **2** satellites (`satellite_core_count = 2`) |
-| Timing | All three exist at **match create** (not chapter-gated) |
-| Acceptance | Any open port on **any** core accepts any **currently demanded** type. Quotas are **room-global** (`deliveryByShape`), not per-core |
+| Timing | Central core at **match create**. Satellites are seed-reserved and **discovered** when their chunk first enters the preview set (buy to play there) |
+| Acceptance | Any open port on **any** discovered core accepts any **currently demanded** type. Quotas are **room-global** (`deliveryByShape`), not per-core |
 | Central | Centered in the starter chunk (same as today) |
 | Satellites | Seed-picked in a **Chebyshev** ring: distance ∈ [`satellite_core_ring_min`, `satellite_core_ring_max`] (default **3–4**) from the starter chunk. Rings at distance **1–2** are the intentional **2-chunk gap** (no satellite cores there) |
-| Ownership | Starter + both satellite-core chunks + the grass Moore-neighbor chunk are **owned at create** (may be disconnected islands). Belts cannot cross unowned gap chunks; players buy a path to join networks |
-| Generation | Those owned chunks plus their edge previews materialize at create. Further chunks generate on first preview entry |
+| Ownership at create | Starter chunk only. Grass neighbor is preview (buy to play). Satellite chunks stay void until previewed/bought |
+| Generation | Owned chunks plus edge previews materialize at create. Satellite cores spawn when their reserved chunk enters preview |
 
 `[pipeline]` keys:
 
@@ -35,7 +35,7 @@ Sandbox rooms may keep a compact multi-core layout for prototype play; productio
 | Topic | Rule |
 | :--- | :--- |
 | Starter chunk | Always places `starter_source_ids` (**fire**, **water**) — spawn odds ignored |
-| Grass guarantee | At least one **grass** source in the **Moore neighborhood** (Chebyshev distance 1 — eight chunks around the starter). Match create forces generation of one such neighbor that contains grass and **owns that chunk** so the source emits immediately (unless that chunk is also a satellite-core chunk, still owned at create) |
+| Grass guarantee | At least one **grass** source in an **edge-adjacent** (N/E/S/W) neighbor of the starter. Match create generates that preview chunk with grass; it stays locked until bought (never a satellite-core chunk) |
 | Other bases | Per-base `source_spawn_chance_percent` on non-starter generated chunks (see [Coins and map expansion](economy-expansion.md)) |
 
 ## Chapters and unlock

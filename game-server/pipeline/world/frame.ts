@@ -109,6 +109,8 @@ export type PipelineFrame = {
   ownedChunks: ChunkCoordRecord[]
   previewChunks: ChunkCoordRecord[]
   generatedChunkKeys?: string[]
+  /** Reserved satellite core chunks (`"cx,cy"`); cores spawn when previewed. */
+  satelliteChunkKeys?: string[]
   grassChunkKey?: string
   sources: SourceRecord[]
   /** First source mirror for legacy readers. */

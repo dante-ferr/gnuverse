@@ -14,7 +14,7 @@ This repo is **make-centric**. Prefer `make <target>` over raw `npm run` for day
 
 ## Open Pipeline
 
-The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipeline-proposal.md`](docs/src/game/open-pipeline-proposal.md). Read [`game-server/config/game.config.toml`](game-server/config/game.config.toml) before changing numbers. Splitters, tunnels, and combiners are available in all rooms. Progression (cumulative chapter demands, three cores in a Chebyshev ring 3–4, grass Moore neighbor) is documented in [`docs/src/game/progression.md`](docs/src/game/progression.md) and wired for normal rooms. Element catalog (36 resources, tier 5) is authored in [`game-server/config/elements.toml`](game-server/config/elements.toml) and loaded into `rules.elements` via the shared catalog loader; preview with `make elements-serve`. Starters, chapters, machines, and presentation keys live in that TOML — do not hardcode element ids in TypeScript. See [`docs/src/game/elements.md`](docs/src/game/elements.md) and [`docs/src/decisions.md`](docs/src/decisions.md) §10.
+The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipeline-proposal.md`](docs/src/game/open-pipeline-proposal.md). Read [`game-server/config/game.config.toml`](game-server/config/game.config.toml) before changing numbers. Splitters, tunnels, and combiners are available in all rooms. Progression (cumulative chapter demands, three cores in a Chebyshev ring 3–4, starter-only ownership at create, grass in a preview neighbor) is documented in [`docs/src/game/progression.md`](docs/src/game/progression.md) and wired for normal rooms. Element catalog (36 resources, tier 5) is authored in [`game-server/config/elements.toml`](game-server/config/elements.toml) and loaded into `rules.elements` via the shared catalog loader; preview with `make elements-serve`. Starters, chapters, machines, and presentation keys live in that TOML — do not hardcode element ids in TypeScript. See [`docs/src/game/elements.md`](docs/src/game/elements.md) and [`docs/src/decisions.md`](docs/src/decisions.md) §10.
 
 ### Stack and URLs (keep as-is)
 
@@ -25,7 +25,7 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 
 ### v0.1 rules
 
-- One **3×3** circle source footprint and a **5×5** central core (plus two satellite cores). Each core face has three input slots on the central tiles. Corners are solid, so each core has 12 inputs. Each source emits from the center of its facing edge.
+- One **3×3** source footprint and a **5×5** central core; two satellite cores are discovered in a Chebyshev ring 3–4 when players expand. Each core face has three input slots on the central tiles. Corners are solid, so each core has 12 inputs. Each source emits from the center of its facing edge.
 - Players drag unidirectional belts. Each cell holds one packet.
 - The server moves packets simultaneously. Packets do not swap. An open core slot consumes a demanded element packet and counts a delivery.
 - No stability bar and no crash / game over. Deliveries accumulate; prior chapter demands stay active so dropping an older supply blocks leveling up rather than ending the match. There is no victory screen yet.

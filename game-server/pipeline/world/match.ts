@@ -58,8 +58,10 @@ export class Match {
   readonly previewChunks: ChunkCoord[]
   sources: SourceMachine[]
   sourceRoles: Record<string, SourceRole>
-  readonly cores: CoreMachine[]
+  cores: CoreMachine[]
   grassChunkKey: string | null = null
+  /** World `"cx,cy"` keys reserved for satellite cores (discovered on preview). */
+  satelliteChunkKeys: Set<string> = new Set()
   generatedChunkKeys: Set<string>
   combiners: CombinerMachine[] = []
   splitters: SplitterMachine[] = []
@@ -81,6 +83,7 @@ export class Match {
     sandbox = false,
     grassChunkKey: string | null = null,
     generatedChunkKeys: Iterable<string> = [],
+    satelliteChunkKeys: Iterable<string> = [],
   ) {
     this.rules = rules
     this.seed = seed
@@ -95,6 +98,7 @@ export class Match {
     this.cores = cores
     this.grassChunkKey = grassChunkKey
     this.generatedChunkKeys = new Set(generatedChunkKeys)
+    this.satelliteChunkKeys = new Set(satelliteChunkKeys)
     this.ownedChunkKeys = chunkKeySet(ownedChunks)
     this.previewChunkKeys = chunkKeySet(previewChunks)
   }
@@ -125,6 +129,7 @@ export class Match {
       false,
       layout.grassChunkKey,
       layout.generatedChunkKeys,
+      layout.satelliteChunkKeys,
     )
     match.chapter = 1
     match.version = chapterToVersion(1)
@@ -284,6 +289,7 @@ export class Match {
       deliveryByShape: { ...this.deliveryByShape },
       chapter: this.chapter,
       generatedChunkKeys: [...this.generatedChunkKeys],
+      satelliteChunkKeys: [...this.satelliteChunkKeys],
       grassChunkKey: this.grassChunkKey ?? undefined,
       demands: coreDemands(this.rules, this.chapter, this.deliveryByShape, this.sandbox),
       collaborators: this.collaborators.map((person) => ({ ...person })),
@@ -403,6 +409,7 @@ export class Match {
     match.version = frame.version ?? chapterToVersion(match.chapter)
     match.grassChunkKey = frame.grassChunkKey ?? null
     match.generatedChunkKeys = new Set(frame.generatedChunkKeys ?? [])
+    match.satelliteChunkKeys = new Set(frame.satelliteChunkKeys ?? [])
     match.tickIndex = frame.tick
     match.deliveries = frame.deliveries
     match.deliveryByShape = frame.deliveryByShape

@@ -146,6 +146,8 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-20 | Gameplay | Belt-drag tunnels prefer one span within `tunnel_max_gap` (no split on wide free gaps); gap `0` adjacent portals + instant carry — `belt-cross.ts`, `routing.ts`, `tunnel-machine.ts` |
+| 2026-11-20 | Gameplay | Tunnel body contact no longer blocks auto-tunnel near buildings; port overlap + linked slots still gate illegal port cells — `building-slots.ts` |
 | 2026-11-20 | Design | Port connection locked: direct plug on input slot + matching `travel`; shared gap cells are belts; tick routing aligned — [decisions §9](../decisions.md#9-open-pipeline-machines), `building-slots.ts`, `routing.ts` |
 | 2026-11-20 | Design | Brackets: hide logistics only on `portsConnected`; core/combiner always visible (second paint pass); source output stays under the circle — `machine-painter.ts` |
 | 2026-11-20 | Design | Splitter body-adjacent only with compatible plug; tunnel body-adjacent only with feed/accept link; combiners in all rooms — `building-slots.ts`, `machine-editor.ts` |
@@ -154,7 +156,8 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 | 2026-11-20 | Gameplay | Building I/O ports must not occupy another building’s body (inputs use approach cell; shared port tiles allowed) — `building-slots.ts` |
 | 2026-11-19 | Gameplay | Belt drag inserts tunnels across runs that fit in `tunnel_max_gap` by default (1–2 empty cells stay in the span). Thicker runs and missing portal cells are skipped — `belt-cross.ts` |
 | 2026-11-20 | Impl | Satellite cores discovered on preview (not owned at create) — [progression.md](progression.md) |
-| 2026-11-20 | Design | Progression locked: permanent prior demands, 3 cores (Chebyshev ring 3–4), agnostic ports, grass Moore-neighbor guarantee; core gears spin only after intake — [progression.md](progression.md) |
+| 2026-11-20 | Design | Owned at create = starter only; grass stays preview until bought — [progression.md](progression.md) |
+| 2026-11-20 | Design | Progression locked: permanent prior demands, 3 cores (Chebyshev ring 3–4), agnostic ports, grass neighbor guarantee; core gears spin only after intake — [progression.md](progression.md) |
 | 2026-11-19 | Gameplay | Splitter 1×1 (1-in/3-out RR) + Factorio tunnels (`tunnel_max_gap`) in all rooms; QuiverAI decor; tests `pipeline-splitter` / `pipeline-tunnel` — early vs proposal v0.2/v0.3 |
 | 2026-11-19 | Design | Element book: kiln fires clay into brick (tier-4 byproduct); lightning and scrap move to tier 4; tier-5 capstones consume those byproducts (tempest, forge) — `elements.md` / decisions §10 |
 | 2026-11-19 | UX | Core requirements clickable → production-line ancestry overlay (`production-line/`); circle fallback; docs §10 / elements.md |

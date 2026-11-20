@@ -52,7 +52,26 @@ export function ingestPlacedSources(match: Match, specs: PlacedSource[]): void {
   }
 }
 
-/** First-time sources for a world chunk (preview buy or new preview ring). */
+/** Place a satellite core when its reserved chunk first enters the visible set. */
+export function discoverSatelliteCore(match: Match, coord: ChunkCoord): void {
+  const key = chunkKey(coord)
+  if (!match.satelliteChunkKeys.has(key)) return
+
+  const chunkSize = match.rules.chunkSize
+  const localOrigin = chunkLocalOrigin(coord, match.originChunk, chunkSize)
+  const inset = coreInChunk(chunkSize)
+  const origin: Cell = {
+    x: localOrigin.x + inset.x,
+    y: localOrigin.y + inset.y,
+  }
+  if (match.cores.some((core) => core.origin.x === origin.x && core.origin.y === origin.y)) {
+    return
+  }
+  const id = `core-${match.cores.length}`
+  match.cores.push(new CoreMachine(id, origin))
+}
+
+/** First-time sources (and satellite core) for a world chunk entering preview. */
 export function generateSourcesForChunk(
   match: Match,
   coord: ChunkCoord,
@@ -61,6 +80,8 @@ export function generateSourcesForChunk(
   const key = chunkKey(coord)
   if (match.generatedChunkKeys.has(key)) return
   match.generatedChunkKeys.add(key)
+
+  discoverSatelliteCore(match, coord)
 
   const chunkSize = match.rules.chunkSize
   const localOrigin = chunkLocalOrigin(coord, match.originChunk, chunkSize)
@@ -82,5 +103,10 @@ export function generatePendingPreviewChunks(match: Match): void {
     if (match.generatedChunkKeys.has(key)) continue
     const kind = key === match.grassChunkKey ? 'grass' : 'normal'
     generateSourcesForChunk(match, coord, kind)
+  }
+  // Owned satellite chunks (bought after discovery) must still get a core if
+  // generation raced ahead of satellite key wiring on legacy frames.
+  for (const coord of match.ownedChunks) {
+    discoverSatelliteCore(match, coord)
   }
 }

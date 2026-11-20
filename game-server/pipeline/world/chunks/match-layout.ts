@@ -23,7 +23,8 @@ export type MatchLayout = {
   previewChunks: ChunkCoord[]
   /** World chunk keys that already have generated sources. */
   generatedChunkKeys: string[]
-  coreChunks: ChunkCoord[]
+  /** Seed-picked satellite chunks; cores appear when those chunks enter preview. */
+  satelliteChunkKeys: string[]
   coreOrigins: Cell[]
   grassChunkKey: string
   sources: PlacedSource[]
@@ -66,28 +67,23 @@ export function layoutMatchFromSeed(rules: PipelineRules, seed: string): MatchLa
     ownedKeys.add(key)
     ownedChunks.push({ ...coord })
   }
+  // Only the starter is playable at create. Grass sits in a preview neighbor until bought.
   pushOwned(starter)
-  for (const coord of satellites) pushOwned(coord)
-  pushOwned(grassNeighbor)
 
-  const coreChunks = [starter, ...satellites]
+  const satelliteChunkKeys = satellites.map((coord) => chunkKey(coord))
   const previewChunks = previewCoords(ownedChunks, extent)
   const visible = [...ownedChunks, ...previewChunks]
   const { originChunk, width, height } = visibleAabb(visible, chunkSize)
 
   const occupied: OccupiedMachine[] = []
-  const coreOrigins: Cell[] = []
   const coreLocalByKey = coreInChunk(chunkSize)
-
-  for (const coord of coreChunks) {
-    const localChunk = chunkLocalOrigin(coord, originChunk, chunkSize)
-    const coreOrigin: Cell = {
-      x: localChunk.x + coreLocalByKey.x,
-      y: localChunk.y + coreLocalByKey.y,
-    }
-    coreOrigins.push(coreOrigin)
-    occupied.push({ kind: 'core', origin: coreOrigin })
+  const starterLocal = chunkLocalOrigin(starter, originChunk, chunkSize)
+  const coreOrigin: Cell = {
+    x: starterLocal.x + coreLocalByKey.x,
+    y: starterLocal.y + coreLocalByKey.y,
   }
+  const coreOrigins: Cell[] = [coreOrigin]
+  occupied.push({ kind: 'core', origin: coreOrigin })
 
   const sources: PlacedSource[] = []
   const generatedChunkKeys: string[] = []
@@ -145,7 +141,7 @@ export function layoutMatchFromSeed(rules: PipelineRules, seed: string): MatchLa
     ownedChunks,
     previewChunks,
     generatedChunkKeys,
-    coreChunks,
+    satelliteChunkKeys,
     coreOrigins,
     grassChunkKey: grassKey,
     sources,

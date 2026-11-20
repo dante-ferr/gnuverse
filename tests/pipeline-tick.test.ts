@@ -366,12 +366,13 @@ test('a signed placement cannot cover the core', () => {
   )
 })
 
-test('Match.create uses multi-core owned islands plus preview ring', () => {
+test('Match.create starts with one core and starter ownership only', () => {
   const match = Match.create('seed', rules)
-  assert.equal(match.cores.length, 3)
-  assert.equal(match.ownedChunks.length, 4)
+  assert.equal(match.cores.length, 1)
+  assert.equal(match.ownedChunks.length, 1)
+  assert.equal(match.satelliteChunkKeys.size, 2)
   assert.ok(match.previewChunks.length >= 4)
-  assert.ok(match.width >= rules.chunkSize * 3)
+  assert.ok(match.width >= rules.chunkSize * 2)
   assert.ok(match.sources.length >= 2)
 })
 
