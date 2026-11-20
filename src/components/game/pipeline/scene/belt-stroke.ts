@@ -4,25 +4,19 @@ import { directionBetween, manhattanElbow } from './grid-math.ts'
 
 export type StrokeCell = { x: number; y: number; direction: Direction }
 
-type IdleDirectionResolver = (cell: { x: number; y: number }) => Direction
-
 /** Builds a straight or L-shaped conveyor stroke from a pointer drag. */
 export class BeltStroke {
   readonly cells: StrokeCell[] = []
   private origin: { x: number; y: number } | null = null
   /** Facing used for the origin cell before the pointer leaves it. */
   private readonly seedDirection: Direction | null
-  private readonly resolveIdle: IdleDirectionResolver | null
 
-  constructor(seedDirection?: Direction, resolveIdle?: IdleDirectionResolver) {
+  constructor(seedDirection?: Direction) {
     this.seedDirection = seedDirection ?? null
-    this.resolveIdle = resolveIdle ?? null
   }
 
   private idleDirection(fallback: Direction | null = null) {
-    if (fallback) return fallback
-    if (this.origin && this.resolveIdle) return this.resolveIdle(this.origin)
-    return this.seedDirection ?? getBeltPlaceDirection()
+    return fallback ?? this.seedDirection ?? getBeltPlaceDirection()
   }
 
   /** Returns true when the stroke cells change. */

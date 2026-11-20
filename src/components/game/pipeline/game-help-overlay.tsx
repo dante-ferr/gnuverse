@@ -107,10 +107,7 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
           <ul className={styles.list} aria-label="Combinadores">
             <li>
               <span className={styles.key}>Bi-combinador</span>
-              <span>
-                R ou Girar mudam a orientação antes de colocar. Sobre uma célula alimentada por uma
-                única esteira vizinha, o fantasma segue essa direção.
-              </span>
+              <span>R ou Girar mudam a orientação antes de colocar.</span>
             </li>
             <li>
               <span className={styles.key}>Tri-combinador</span>

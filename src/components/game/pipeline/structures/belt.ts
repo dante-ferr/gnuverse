@@ -1,6 +1,4 @@
-import { resolveBeltPlaceDirection } from '../belt-inbound.ts'
-import { cycleBeltPlaceDirection } from '../belt-place-options.ts'
-import type { PipelineFrame } from '../model/frame.ts'
+import { cycleBeltPlaceDirection, getBeltPlaceDirection } from '../belt-place-options.ts'
 import { planBeltCrossings, readBeltCrossQuery, type PlannedTunnel } from '../scene/belt-cross.ts'
 import { BeltStroke, type StrokeCell } from '../scene/belt-stroke.ts'
 import { registerStructure } from './registry.ts'
@@ -11,10 +9,6 @@ import type {
   StructurePreviewBelt,
   StructurePreviewMachine,
 } from './types.ts'
-
-function placementBelts() {
-  return readBeltCrossQuery().belts?.() ?? []
-}
 
 type BeltPayload = {
   cells: StrokeCell[]
@@ -48,9 +42,7 @@ function previewPortal(
 }
 
 function createBeltSession(): StructurePlacementSession {
-  const stroke = new BeltStroke(undefined, (cell) =>
-    resolveBeltPlaceDirection(cell, placementBelts()),
-  )
+  const stroke = new BeltStroke()
 
   const plan = () => {
     const query = readBeltCrossQuery()
@@ -98,18 +90,14 @@ function createBeltSession(): StructurePlacementSession {
   }
 }
 
-function beltHoverGhost(
-  cell: { x: number; y: number },
-  frame?: PipelineFrame,
-): StructureHoverGhost {
-  const belts = frame?.belts ?? placementBelts()
+function beltHoverGhost(cell: { x: number; y: number }): StructureHoverGhost {
   return {
     belts: [
       {
         id: 'hover-belt',
         x: cell.x,
         y: cell.y,
-        direction: resolveBeltPlaceDirection(cell, belts),
+        direction: getBeltPlaceDirection(),
         authorId: '',
         authorNickname: '',
         placedAt: 0,

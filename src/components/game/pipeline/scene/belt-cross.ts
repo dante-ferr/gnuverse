@@ -42,7 +42,7 @@ const EMPTY_OCCUPANCY: BeltOccupancy = { conveyors: new Set(), blocked: new Set(
 export type BeltCrossQuery = {
   maxGap: () => number
   occupancy: () => BeltOccupancy
-  /** Live belts for inbound facing and owned-belt clears before a tunnel. */
+  /** Live belts for owned-belt clears before a tunnel portal. */
   belts?: () => readonly { x: number; y: number; direction: Direction; authorId?: string }[]
   /** Machine ports that can feed an entrance or accept an exit without a spacer belt. */
   ports?: () => readonly PortSlot[]
