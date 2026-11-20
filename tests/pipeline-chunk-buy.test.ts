@@ -34,6 +34,26 @@ test('buyPreviewChunk owns a preview neighbor and remaps when the origin moves w
   assert.equal(nextChunkCost(match), rules.chunkCostBase + rules.chunkCostStep * 2)
 })
 
+test('buyPreviewChunk remaps every sandbox core when the origin moves west', () => {
+  const rules = testPipelineRules({ chunkSize: 24, mapChunkExtent: 64 })
+  const match = Match.createSandbox('chunk-buy-sandbox', rules)
+  assert.ok(match.cores.length >= 2)
+  const west = match.previewChunks.find((preview) =>
+    match.ownedChunks.some((owned) => owned.cx === preview.cx + 1 && owned.cy === preview.cy),
+  )
+  assert.ok(west)
+  const before = match.cores.map((core) => ({ ...core.origin }))
+  const originBefore = { ...match.originChunk }
+  assert.equal(buyPreviewChunk(match, west), null)
+  const dx = (originBefore.cx - match.originChunk.cx) * rules.chunkSize
+  assert.ok(dx > 0)
+  for (const [index, core] of match.cores.entries()) {
+    assert.equal(core.origin.x, before[index]!.x + dx)
+    assert.equal(core.origin.y, before[index]!.y)
+    assert.ok(match.isOwnedCell(core.origin))
+  }
+})
+
 test('buyPreviewChunk rejects chunks that are not currently previewed', () => {
   const rules = testPipelineRules({ chunkSize: 24, mapChunkExtent: 64 })
   const match = Match.create('chunk-reject', rules)

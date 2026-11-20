@@ -1,5 +1,6 @@
 import type { Cell } from '../../geometry/cell.ts'
 import { cellKey } from '../../geometry/cell.ts'
+import type { Machine } from '../../machines/machine.ts'
 import type { Match } from '../match.ts'
 import {
   chunkPurchaseCost,
@@ -15,6 +16,11 @@ function chunkKey(coord: ChunkCoord) {
 function shiftCell(cell: Cell, dx: number, dy: number) {
   cell.x += dx
   cell.y += dy
+}
+
+function shiftMachine(machine: Machine, dx: number, dy: number) {
+  shiftCell(machine.origin, dx, dy)
+  for (const slot of machine.slots) shiftCell(slot.cell, dx, dy)
 }
 
 function shiftKey(key: string, dx: number, dy: number): string | null {
@@ -67,16 +73,12 @@ export function applyOwnedChunks(match: Match, ownedChunks: ChunkCoord[]): void 
   const dy = (match.originChunk.cy - originChunk.cy) * chunkSize
 
   if (dx !== 0 || dy !== 0) {
-    shiftCell(match.core.origin, dx, dy)
-    for (const slot of match.core.slots) shiftCell(slot.cell, dx, dy)
-    for (const source of match.sources) {
-      shiftCell(source.origin, dx, dy)
-      for (const slot of source.slots) shiftCell(slot.cell, dx, dy)
-    }
-    for (const belt of match.belts) {
-      shiftCell(belt.origin, dx, dy)
-      for (const slot of belt.slots) shiftCell(slot.cell, dx, dy)
-    }
+    for (const core of match.cores) shiftMachine(core, dx, dy)
+    for (const source of match.sources) shiftMachine(source, dx, dy)
+    for (const belt of match.belts) shiftMachine(belt, dx, dy)
+    for (const combiner of match.combiners) shiftMachine(combiner, dx, dy)
+    for (const splitter of match.splitters) shiftMachine(splitter, dx, dy)
+    for (const tunnel of match.tunnels) shiftMachine(tunnel, dx, dy)
     for (const packet of match.packets) shiftCell(packet.cell, dx, dy)
     match.mergeLast = shiftMergeLast(match.mergeLast, dx, dy)
     match.pullLast = shiftPullLast(match.pullLast, dx, dy)
