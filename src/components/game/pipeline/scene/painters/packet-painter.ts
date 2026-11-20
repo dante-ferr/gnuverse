@@ -1,6 +1,11 @@
 import type { BeltRecord, PipelineFrame, PipelineRules, PacketShape } from '../../model/frame.ts'
 import type { PacketMotionState } from '../packet-motion.ts'
-import { packetClipCells, packetDisplayCenter, packetSinkCenter } from '../packet-motion.ts'
+import {
+  packetClipCells,
+  packetDisplayCenter,
+  packetHiddenByTunnelPass,
+  packetSinkCenter,
+} from '../packet-motion.ts'
 import type { SceneLod } from '../scene-lod.ts'
 import { cellSize } from './grid-painter.ts'
 import { elementFill } from './element-fill.ts'
@@ -51,8 +56,10 @@ export class PacketPainter {
       drawOutlinedResourceDisk(ctx, fill, px, py, radius, lodOutline)
     }
 
+    const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
     if (frame.packets.length > 0 && belts.length > 0) {
       for (const packet of frame.packets) {
+        if (packetHiddenByTunnelPass(motion, packet.id, timeMs, tickMs)) continue
         const { px, py } = packetDisplayCenter(packet, frame, rules, motion, timeMs, cellSize)
         if (!clipPackets) {
           drawPacket(px, py, packet.shape)
@@ -69,6 +76,8 @@ export class PacketPainter {
     }
 
     for (const sink of motion.sinks) {
+      // Tunnel pass-throughs are drawn above portals by TunnelOccupancyPainter.
+      if (sink.overPortals) continue
       const { px, py } = packetSinkCenter(sink, rules, timeMs)
       drawPacket(px, py, sink.shape)
     }

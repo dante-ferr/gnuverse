@@ -6,37 +6,66 @@ import type {
   PipelineRules,
   TunnelPortalRecord,
 } from '../../model/frame.ts'
+import type { PacketMotionState, PacketSink } from '../packet-motion.ts'
+import { packetSinkCenter } from '../packet-motion.ts'
 import type { SceneLod } from '../scene-lod.ts'
+import { darkenHex } from './darken-hex.ts'
 import { elementFill } from './element-fill.ts'
 import { cellSize, type CellBounds } from './grid-painter.ts'
+import {
+  drawOutlinedResourceDisk,
+  drawOutlinedResourceGlyph,
+  resourceGlyphOutline,
+} from './resource-glyph.ts'
 
 type OccupiedPair = {
   entrance: TunnelPortalRecord
   exit: TunnelPortalRecord
   queue: (PacketShape | null)[]
-  /** Crossed this tick without remaining in the queue (gap 0, or a cleared short lane). */
-  transit: PacketShape[]
   leadFill: string
   fast: boolean
-  occupancy: number
+}
+
+type BeadMotion = {
+  shape: PacketShape
+  /** Previous queue index, or -1 when the bead entered from the entrance this tick. */
+  fromIndex: number
+  /**
+   * Current queue index, or `queue.length` when the bead left toward the exit
+   * this tick (path continues through the last gap cell into the exit portal).
+   */
+  toIndex: number
 }
 
 /**
- * Client-only cues for underground tunnel traffic: a glowing seam between
- * portals, soft “mole” ghosts at occupied queue slots, and a portal heartbeat.
+ * Minimal underground occupancy: a dashed thread between portals, flat beads on
+ * occupied queue cells (lerped between ticks), and a small face pip on each
+ * portal. Same-tick flights reuse packet sinks drawn above the portal plates.
  */
 export class TunnelOccupancyPainter {
+  private resourceGlyphs: Record<string, HTMLImageElement | null> = {}
+  private readonly tintCache = new Map<string, HTMLCanvasElement>()
+  /** Last drawn queue per pair — becomes the lerp start on the next tick. */
+  private queues = new Map<string, (PacketShape | null)[]>()
+  private prevQueues = new Map<string, (PacketShape | null)[]>()
+  private lastTick = -1
+
+  setResourceGlyphs(glyphs: Record<string, HTMLImageElement | null>) {
+    this.resourceGlyphs = glyphs
+  }
+
   drawUnderground(
     ctx: CanvasRenderingContext2D,
     frame: PipelineFrame,
     rules: PipelineRules,
-    timeMs: number,
+    _timeMs: number,
     lod: SceneLod,
+    _motion: PacketMotionState,
   ) {
     if (lod.machines === 'cores') return
-    for (const pair of resolvePairs(frame, rules)) {
-      drawSeam(ctx, pair, rules, timeMs)
-      drawMoles(ctx, pair, rules, timeMs, lod.packetGlyphs)
+    this.syncQueueMotion(frame)
+    for (const pair of resolvePairs(frame, rules, this.prevQueues)) {
+      drawThread(ctx, pair, rules)
     }
   }
 
@@ -46,24 +75,44 @@ export class TunnelOccupancyPainter {
     rules: PipelineRules,
     timeMs: number,
     lod: SceneLod,
-    bounds?: CellBounds,
-    syncedAtMs = timeMs,
+    bounds: CellBounds | undefined,
+    motion: PacketMotionState,
   ) {
     if (lod.machines === 'cores') return
-    for (const pair of resolvePairs(frame, rules)) {
-      if (portalVisible(pair.entrance, bounds)) {
-        drawPortalHeartbeat(ctx, pair.entrance, pair.leadFill, rules, timeMs, pair.fast)
-      }
-      if (portalVisible(pair.exit, bounds)) {
-        drawPortalHeartbeat(ctx, pair.exit, pair.leadFill, rules, timeMs, pair.fast)
-      }
-      // On top of the portal plates so a gap-0 crossing is still visible.
-      drawTransit(ctx, pair, rules, timeMs, syncedAtMs)
+    const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
+    const phase = Math.min(1, Math.max(0, (timeMs - motion.syncedAtMs) / tickMs))
+    // Beads draw above portals so exit flights stay visible through the last gap
+    // cell and into the exit plate (under-layer draws were covered by the portal).
+    for (const pair of resolvePairs(frame, rules, this.prevQueues)) {
+      const prevQueue = this.prevQueues.get(pair.entrance.pairId) ?? []
+      drawBeads(ctx, pair, rules, prevQueue, phase)
+      if (portalVisible(pair.entrance, bounds)) drawPortalPip(ctx, pair.entrance, pair.leadFill, rules)
+      if (portalVisible(pair.exit, bounds)) drawPortalPip(ctx, pair.exit, pair.leadFill, rules)
     }
+    for (const sink of motion.sinks) {
+      if (!sink.overPortals) continue
+      drawThroughPacket(ctx, sink, rules, timeMs, lod, this.resourceGlyphs, this.tintCache)
+    }
+  }
+
+  private syncQueueMotion(frame: PipelineFrame) {
+    if (frame.tick === this.lastTick) return
+    this.prevQueues = this.queues
+    const next = new Map<string, (PacketShape | null)[]>()
+    for (const portal of frame.tunnels ?? []) {
+      if (portal.role !== 'entrance') continue
+      next.set(portal.pairId, [...(portal.queue ?? [])])
+    }
+    this.queues = next
+    this.lastTick = frame.tick
   }
 }
 
-function resolvePairs(frame: PipelineFrame, rules: PipelineRules): OccupiedPair[] {
+function resolvePairs(
+  frame: PipelineFrame,
+  rules: PipelineRules,
+  prevQueues: Map<string, (PacketShape | null)[]>,
+): OccupiedPair[] {
   const tunnels = frame.tunnels ?? []
   const exits = new Map<string, TunnelPortalRecord>()
   for (const portal of tunnels) {
@@ -73,218 +122,209 @@ function resolvePairs(frame: PipelineFrame, rules: PipelineRules): OccupiedPair[
   for (const entrance of tunnels) {
     if (entrance.role !== 'entrance') continue
     const queue = entrance.queue ?? []
-    const transit = entrance.transit ?? []
     const filled = queue.filter((slot): slot is PacketShape => slot != null)
-    if (filled.length === 0 && transit.length === 0) continue
+    const transit = entrance.transit ?? []
+    const prev = prevQueues.get(entrance.pairId) ?? []
+    const prevFilled = prev.filter((slot): slot is PacketShape => slot != null)
+    // Keep drawing while a prior bead is still flying out to the exit.
+    if (filled.length === 0 && transit.length === 0 && prevFilled.length === 0) continue
     const exit = exits.get(entrance.pairId)
     if (!exit) continue
-    const lead = transit[0] ?? filled[filled.length - 1]!
+    const lead = filled[filled.length - 1] ?? transit[0] ?? prevFilled[prevFilled.length - 1]!
     pairs.push({
       entrance,
       exit,
       queue,
-      transit,
       leadFill: elementFill(rules, lead) ?? rules.colorPacket,
       fast: (entrance.speed ?? 1) > 1,
-      occupancy: queue.length === 0 ? 1 : filled.length / queue.length,
     })
   }
   return pairs
 }
 
-function drawSeam(
-  ctx: CanvasRenderingContext2D,
-  pair: OccupiedPair,
-  rules: PipelineRules,
-  timeMs: number,
-) {
+/** Hairline dashed span — reads as an underground thread, not a glow. */
+function drawThread(ctx: CanvasRenderingContext2D, pair: OccupiedPair, rules: PipelineRules) {
   const a = cellCenter(pair.entrance.x, pair.entrance.y)
   const b = cellCenter(pair.exit.x, pair.exit.y)
   const dx = b.px - a.px
   const dy = b.py - a.py
-  const length = Math.hypot(dx, dy)
-  if (length < 1) return
+  if (Math.hypot(dx, dy) < 1) return
 
-  const ux = dx / length
-  const uy = dy / length
-  const nx = -uy
-  const ny = ux
-  const halfWidth = cellSize * (rules.tunnelSeamWidthPercent / 100)
-  const pulseMs = Math.max(1, pair.fast ? rules.tunnelPulseMs / 2 : rules.tunnelPulseMs)
-  const shimmer = 0.55 + 0.45 * Math.sin((timeMs / pulseMs) * Math.PI * 2)
-  const alpha = rules.tunnelSeamAlpha * (0.45 + 0.55 * pair.occupancy) * shimmer
+  const ink = darkenHex(pair.fast ? rules.colorFastTunnel : rules.colorTunnel, rules.decorDarkenPercent)
+  const ux = dx / Math.hypot(dx, dy)
+  const uy = dy / Math.hypot(dx, dy)
+  const inset = cellSize * 0.38
 
   ctx.save()
-  ctx.globalCompositeOperation = 'lighter'
-  const gradient = ctx.createLinearGradient(a.px, a.py, b.px, b.py)
-  const travel = ((timeMs / pulseMs) % 1 + 1) % 1
-  gradient.addColorStop(0, hexRgba(pair.leadFill, 0))
-  gradient.addColorStop(Math.max(0, travel - 0.18), hexRgba(pair.leadFill, 0))
-  gradient.addColorStop(travel, hexRgba(pair.leadFill, alpha))
-  gradient.addColorStop(Math.min(1, travel + 0.18), hexRgba(pair.leadFill, 0))
-  gradient.addColorStop(1, hexRgba(pair.leadFill, 0))
-
+  ctx.strokeStyle = hexRgba(ink, rules.tunnelSeamAlpha)
+  ctx.lineWidth = Math.max(1, cellSize * (rules.tunnelSeamWidthPercent / 100) * 0.22)
+  ctx.lineCap = 'butt'
+  ctx.setLineDash([cellSize * 0.14, cellSize * 0.1])
   ctx.beginPath()
-  ctx.moveTo(a.px + nx * halfWidth, a.py + ny * halfWidth)
-  ctx.lineTo(b.px + nx * halfWidth, b.py + ny * halfWidth)
-  ctx.lineTo(b.px - nx * halfWidth, b.py - ny * halfWidth)
-  ctx.lineTo(a.px - nx * halfWidth, a.py - ny * halfWidth)
-  ctx.closePath()
-  ctx.fillStyle = gradient
-  ctx.fill()
-
-  // Soft base vein so the span stays readable between shimmer peaks.
-  ctx.globalAlpha = rules.tunnelSeamAlpha * 0.35 * (0.4 + 0.6 * pair.occupancy)
-  ctx.strokeStyle = hexRgba(pair.leadFill, 1)
-  ctx.lineWidth = Math.max(1.5, halfWidth * 0.45)
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  ctx.moveTo(a.px + ux * cellSize * 0.35, a.py + uy * cellSize * 0.35)
-  ctx.lineTo(b.px - ux * cellSize * 0.35, b.py - uy * cellSize * 0.35)
+  ctx.moveTo(a.px + ux * inset, a.py + uy * inset)
+  ctx.lineTo(b.px - ux * inset, b.py - uy * inset)
   ctx.stroke()
   ctx.restore()
 }
 
-function drawMoles(
+/** Flat beads lerped along the underground span between server ticks. */
+function drawBeads(
   ctx: CanvasRenderingContext2D,
   pair: OccupiedPair,
   rules: PipelineRules,
-  timeMs: number,
-  detail: boolean,
+  prevQueue: (PacketShape | null)[],
+  phase: number,
 ) {
   const direction = pair.entrance.direction
-  const pulseMs = Math.max(1, pair.fast ? rules.tunnelPulseMs / 2 : rules.tunnelPulseMs)
-  const radius = cellSize * (rules.tunnelGhostRadiusPercent / 100)
+  const radius = cellSize * (rules.tunnelGhostRadiusPercent / 100) * 0.55
+  const gap = pair.queue.length
+  const motions = matchQueueMotion(prevQueue, pair.queue)
 
-  for (let i = 0; i < pair.queue.length; i++) {
-    const shape = pair.queue[i]
-    if (!shape) continue
-    const cell = gapCell(pair.entrance.x, pair.entrance.y, direction, i)
-    const { px, py } = cellCenter(cell.x, cell.y)
-    const fill = elementFill(rules, shape) ?? rules.colorPacket
-    const phase = (timeMs / pulseMs) * Math.PI * 2 + i * 0.85
-    const breathe = 0.82 + 0.18 * Math.sin(phase)
-    const alpha = rules.tunnelGhostAlpha * breathe
-
+  for (const motion of motions) {
+    const path = beadPath(
+      pair.entrance.x,
+      pair.entrance.y,
+      direction,
+      motion.fromIndex,
+      motion.toIndex,
+      gap,
+      { x: pair.exit.x, y: pair.exit.y },
+    )
+    const { px, py } = lerpAlongCells(path, phase)
+    const fill = elementFill(rules, motion.shape) ?? rules.colorPacket
     ctx.save()
-    // Squash along the travel axis so ghosts read as bumps under the floor.
-    const alongX = direction === 'east' || direction === 'west'
-    ctx.translate(px, py)
-    ctx.scale(alongX ? 1.15 : 0.72, alongX ? 0.72 : 1.15)
-
-    const glow = ctx.createRadialGradient(0, 0, radius * 0.15, 0, 0, radius * 1.65)
-    glow.addColorStop(0, hexRgba(fill, alpha))
-    glow.addColorStop(0.45, hexRgba(fill, alpha * 0.45))
-    glow.addColorStop(1, hexRgba(fill, 0))
-    ctx.globalCompositeOperation = 'lighter'
-    ctx.fillStyle = glow
-    ctx.beginPath()
-    ctx.arc(0, 0, radius * 1.65, 0, Math.PI * 2)
-    ctx.fill()
-
-    ctx.globalCompositeOperation = 'source-over'
-    ctx.globalAlpha = Math.min(1, alpha + 0.2)
-    ctx.fillStyle = fill
-    ctx.beginPath()
-    ctx.arc(0, 0, detail ? radius * 0.42 : radius * 0.5, 0, Math.PI * 2)
-    ctx.fill()
-
-    // Tiny “crack” highlight so the mole feels like light leaking up.
-    ctx.globalAlpha = Math.min(1, alpha * 0.9)
-    ctx.strokeStyle = hexRgba('#ffffff', 0.55)
-    ctx.lineWidth = Math.max(1, radius * 0.12)
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    if (alongX) {
-      ctx.moveTo(-radius * 0.35, 0)
-      ctx.lineTo(radius * 0.35, 0)
-    } else {
-      ctx.moveTo(0, -radius * 0.35)
-      ctx.lineTo(0, radius * 0.35)
-    }
-    ctx.stroke()
-    ctx.restore()
-  }
-}
-
-/** Packet ghosts that crossed during this tick, drawn above the portal plates. */
-function drawTransit(
-  ctx: CanvasRenderingContext2D,
-  pair: OccupiedPair,
-  rules: PipelineRules,
-  timeMs: number,
-  syncedAtMs: number,
-) {
-  if (pair.transit.length === 0) return
-  const a = cellCenter(pair.entrance.x, pair.entrance.y)
-  const b = cellCenter(pair.exit.x, pair.exit.y)
-  const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
-  const phase = Math.min(1, Math.max(0, (timeMs - syncedAtMs) / tickMs))
-  const count = pair.transit.length
-  const radius = cellSize * 0.2
-
-  for (let i = 0; i < count; i++) {
-    const shape = pair.transit[i]!
-    const fill = elementFill(rules, shape) ?? rules.colorPacket
-    // Spread a burst along the span, then ride them to the exit over the tick.
-    const along = Math.min(1, phase * 0.72 + ((i + 1) / (count + 1)) * 0.28)
-    const px = a.px + (b.px - a.px) * along
-    const py = a.py + (b.py - a.py) * along
-    ctx.save()
-    ctx.globalCompositeOperation = 'lighter'
-    const glow = ctx.createRadialGradient(px, py, radius * 0.2, px, py, radius * 2.4)
-    glow.addColorStop(0, hexRgba(fill, 0.9))
-    glow.addColorStop(0.45, hexRgba(fill, 0.35))
-    glow.addColorStop(1, hexRgba(fill, 0))
-    ctx.fillStyle = glow
-    ctx.beginPath()
-    ctx.arc(px, py, radius * 2.4, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.globalCompositeOperation = 'source-over'
+    ctx.globalAlpha = rules.tunnelGhostAlpha
     ctx.fillStyle = fill
     ctx.beginPath()
     ctx.arc(px, py, radius, 0, Math.PI * 2)
     ctx.fill()
-    ctx.strokeStyle = hexRgba('#ffffff', 0.85)
-    ctx.lineWidth = Math.max(1.5, radius * 0.18)
-    ctx.stroke()
     ctx.restore()
   }
 }
 
-function drawPortalHeartbeat(
+/**
+ * Pair current occupied slots with prior ones exit-first (FIFO, no overtaking).
+ * `fromIndex === -1` means the bead entered from the entrance portal this tick.
+ * Unmatched prior shapes leave toward the exit (`toIndex === curr.length`).
+ */
+export function matchQueueMotion(
+  prev: (PacketShape | null)[],
+  curr: (PacketShape | null)[],
+): BeadMotion[] {
+  const motions: BeadMotion[] = []
+  const usedPrev = new Set<number>()
+  let prevCursor = prev.length - 1
+  for (let currIdx = curr.length - 1; currIdx >= 0; currIdx--) {
+    const shape = curr[currIdx]
+    if (shape == null) continue
+    let fromIndex = -1
+    for (let p = Math.min(prevCursor, currIdx); p >= 0; p--) {
+      if (usedPrev.has(p)) continue
+      if (prev[p] === shape) {
+        fromIndex = p
+        usedPrev.add(p)
+        prevCursor = p - 1
+        break
+      }
+    }
+    motions.push({ shape, fromIndex, toIndex: currIdx })
+  }
+  // Packets that left the queue this tick (ejected from the last slot, often after
+  // a multi-step fast advance) still need a path through the final gap cell.
+  for (let p = 0; p < prev.length; p++) {
+    if (usedPrev.has(p)) continue
+    const shape = prev[p]
+    if (shape == null) continue
+    motions.push({ shape, fromIndex: p, toIndex: curr.length })
+  }
+  motions.sort((a, b) => a.toIndex - b.toIndex || a.fromIndex - b.fromIndex)
+  return motions
+}
+
+function beadPath(
+  entranceX: number,
+  entranceY: number,
+  direction: Direction,
+  fromIndex: number,
+  toIndex: number,
+  gap: number,
+  exit: { x: number; y: number },
+) {
+  const path: { x: number; y: number }[] = []
+  if (fromIndex < 0) path.push({ x: entranceX, y: entranceY })
+  const lastGapIndex = gap - 1
+  const start = Math.max(0, fromIndex)
+  const endGap = Math.min(toIndex, lastGapIndex)
+  if (gap > 0 && endGap >= start) {
+    for (let i = start; i <= endGap; i++) {
+      path.push(gapCell(entranceX, entranceY, direction, i))
+    }
+  }
+  if (toIndex >= gap) path.push(exit)
+  if (path.length === 0) {
+    path.push(gap > 0 ? gapCell(entranceX, entranceY, direction, Math.max(0, toIndex)) : exit)
+  }
+  return path
+}
+
+function lerpAlongCells(path: { x: number; y: number }[], phase: number) {
+  if (path.length === 0) return { px: 0, py: 0 }
+  if (path.length === 1 || phase <= 0) return cellCenter(path[0]!.x, path[0]!.y)
+  if (phase >= 1) {
+    const last = path[path.length - 1]!
+    return cellCenter(last.x, last.y)
+  }
+  const segments = path.length - 1
+  const scaled = phase * segments
+  const index = Math.min(segments - 1, Math.floor(scaled))
+  const local = scaled - index
+  const a = cellCenter(path[index]!.x, path[index]!.y)
+  const b = cellCenter(path[index + 1]!.x, path[index + 1]!.y)
+  return { px: a.px + (b.px - a.px) * local, py: a.py + (b.py - a.py) * local }
+}
+
+/** Small rectangular pip on the portal face — occupancy without a heartbeat. */
+function drawPortalPip(
   ctx: CanvasRenderingContext2D,
   portal: TunnelPortalRecord,
   fill: string,
   rules: PipelineRules,
-  timeMs: number,
-  fast: boolean,
 ) {
   const { px, py } = cellCenter(portal.x, portal.y)
-  const pulseMs = Math.max(1, fast ? rules.tunnelPulseMs / 2 : rules.tunnelPulseMs)
-  const t = ((timeMs / pulseMs) % 1 + 1) % 1
-  const rings = 2
+  const alongX = portal.direction === 'east' || portal.direction === 'west'
+  const w = alongX ? cellSize * 0.34 : cellSize * 0.12
+  const h = alongX ? cellSize * 0.12 : cellSize * 0.34
   ctx.save()
-  ctx.globalCompositeOperation = 'lighter'
-  for (let i = 0; i < rings; i++) {
-    const local = (t + i / rings) % 1
-    const radius = cellSize * (0.28 + local * 0.42)
-    const alpha = (1 - local) * 0.38
-    ctx.strokeStyle = hexRgba(fill, alpha)
-    ctx.lineWidth = Math.max(1.5, cellSize * 0.045 * (1 - local * 0.5))
-    ctx.beginPath()
-    ctx.arc(px, py, radius, 0, Math.PI * 2)
-    ctx.stroke()
-  }
-  // Soft inner wash so the portal plate itself feels lit.
-  const wash = ctx.createRadialGradient(px, py, cellSize * 0.08, px, py, cellSize * 0.48)
-  wash.addColorStop(0, hexRgba(fill, 0.28))
-  wash.addColorStop(1, hexRgba(fill, 0))
-  ctx.fillStyle = wash
-  ctx.beginPath()
-  ctx.arc(px, py, cellSize * 0.48, 0, Math.PI * 2)
-  ctx.fill()
+  ctx.globalAlpha = Math.min(1, rules.tunnelGhostAlpha + 0.2)
+  ctx.fillStyle = fill
+  ctx.fillRect(px - w / 2, py - h / 2, w, h)
   ctx.restore()
+}
+
+function drawThroughPacket(
+  ctx: CanvasRenderingContext2D,
+  sink: PacketSink,
+  rules: PipelineRules,
+  timeMs: number,
+  lod: SceneLod,
+  glyphs: Record<string, HTMLImageElement | null>,
+  tintCache: Map<string, HTMLCanvasElement>,
+) {
+  const { px, py } = packetSinkCenter(sink, rules, timeMs)
+  const radius = cellSize * (lod.packetGlyphs ? 0.22 : 0.2)
+  const outline = resourceGlyphOutline(rules)
+  if (lod.packetGlyphs && sink.shape !== 'circle') {
+    const el = rules.elements.elements.find((item) => item.id === sink.shape)
+    const image = glyphs[sink.shape]
+    if (el?.glyph && image?.complete && image.naturalWidth > 0) {
+      const size = el.glyph_size_px ?? rules.resourceGlyphSizePx
+      const fill = el.fill || rules.colorPacket
+      drawOutlinedResourceGlyph(ctx, image, fill, px, py, size, outline, tintCache)
+      return
+    }
+  }
+  const fill = elementFill(rules, sink.shape) ?? rules.colorPacket
+  drawOutlinedResourceDisk(ctx, fill, px, py, radius, outline)
 }
 
 function gapCell(entranceX: number, entranceY: number, direction: Direction, index: number) {

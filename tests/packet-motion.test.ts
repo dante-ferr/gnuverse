@@ -282,4 +282,56 @@ test('syncPacketMotion starts a sink when a packet enters a tunnel entrance', ()
   const sink = motion.sinks[0]!
   assert.equal(sink.endPx, (5 + 0.5) * cell)
   assert.equal(sink.endPy, (2 + 0.5) * cell)
+  assert.equal(sink.overPortals, undefined)
+})
+
+test('gap-0 tunnel pass-through is one sink to the exit belt, not enter plus exit shoots', () => {
+  const motion = createPacketMotionState()
+  const tunnels = [
+    {
+      id: 't0:in',
+      pairId: 't0',
+      role: 'entrance' as const,
+      x: 5,
+      y: 2,
+      direction: 'east' as const,
+      authorId: 'a',
+      authorNickname: 'n',
+      queue: [],
+      transit: ['circle'],
+    },
+    {
+      id: 't0:out',
+      pairId: 't0',
+      role: 'exit' as const,
+      x: 6,
+      y: 2,
+      direction: 'east' as const,
+      authorId: 'a',
+      authorNickname: 'n',
+    },
+  ]
+  const belts = [
+    { id: 'b0', x: 4, y: 2, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 0 },
+    { id: 'b1', x: 7, y: 2, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 0 },
+  ]
+  const onBelt = frame(4, [{ id: 'p1', x: 4, y: 2, shape: 'circle' }])
+  onBelt.belts = belts
+  onBelt.tunnels = tunnels.map((portal) =>
+    portal.role === 'entrance' ? { ...portal, transit: undefined } : portal,
+  )
+  syncPacketMotion(motion, onBelt, rules, 1000, cell)
+
+  const passed = frame(5, [{ id: 'p2', x: 7, y: 2, shape: 'circle' }])
+  passed.belts = belts
+  passed.tunnels = tunnels
+  syncPacketMotion(motion, passed, rules, 1250, cell)
+
+  assert.equal(motion.sinks.length, 1)
+  const sink = motion.sinks[0]!
+  assert.equal(sink.overPortals, true)
+  assert.equal(sink.hidesPacketId, 'p2')
+  assert.equal(sink.endPx, (7 + 0.5) * cell)
+  assert.equal(sink.endPy, (2 + 0.5) * cell)
+  assert.deepEqual(motion.from.get('p2'), { x: 7, y: 2 })
 })

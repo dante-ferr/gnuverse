@@ -19,6 +19,13 @@ export type PacketSink = {
   endPx: number
   endPy: number
   startedAtMs: number
+  /**
+   * Same-tick tunnel pass-through: the sink is drawn above portals by the
+   * occupancy painter, and this newborn packet stays hidden until the flight ends.
+   */
+  hidesPacketId?: string
+  /** Draw above machines (tunnel span) instead of under the portal plate. */
+  overPortals?: boolean
 }
 
 export type PacketMotionState = {
@@ -51,6 +58,15 @@ export function createPacketMotionState(): PacketMotionState {
   }
 }
 
+/** True while a same-tick tunnel flight is still covering this newborn packet. */
+export function packetHiddenByTunnelPass(state: PacketMotionState, packetId: string, nowMs: number, tickMs: number) {
+  const life = tickMs > 0 ? tickMs : 250
+  return state.sinks.some(
+    (sink) =>
+      sink.hidesPacketId === packetId && nowMs - sink.startedAtMs < life,
+  )
+}
+
 /** Call once per paint when the pipeline frame tick advances (or on first frame). */
 export function syncPacketMotion(
   state: PacketMotionState,
@@ -73,6 +89,8 @@ export function syncPacketMotion(
 
   const nextIds = new Set(frame.packets.map((packet) => packet.id))
   const maxHop = Math.max(rules.beltSpeedFast, 1)
+  const transitLeft = tunnelTransitPool(frame)
+  const claimedNewborns = new Set<string>()
 
   for (const [id, prev] of state.at) {
     if (nextIds.has(id)) continue
@@ -84,26 +102,61 @@ export function syncPacketMotion(
       packets: [{ id, x: prev.x, y: prev.y, shape: prev.shape }],
     }
     const start = packetDisplayCenter({ id, x: prev.x, y: prev.y }, ghostFrame, rules, state, nowMs, cellSize)
-    const end = cellCenter(dest.x, dest.y, cellSize)
+    const through = tunnelThroughSink(frame, dest, prev.shape, transitLeft, claimedNewborns)
+    const end = through?.end ?? dest
+    const endPx = cellCenter(end.x, end.y, cellSize)
     state.sinks.push({
       id,
       shape: prev.shape,
       startPx: start.px,
       startPy: start.py,
-      endPx: end.px,
-      endPy: end.py,
+      endPx: endPx.px,
+      endPy: endPx.py,
       startedAtMs: nowMs,
+      ...(through
+        ? { hidesPacketId: through.hidesPacketId, overPortals: true as const }
+        : {}),
     })
+  }
+
+  // Machine → gap-0 tunnel with no prior belt packet still needs one flight.
+  let synthetic = 0
+  for (const [pairId, shapes] of transitLeft) {
+    const portals = tunnelPairCells(frame, pairId)
+    if (!portals) continue
+    for (const shape of shapes) {
+      const newborn = claimExitNewborn(frame, portals.exit, shape, claimedNewborns)
+      const end = newborn ? { x: newborn.x, y: newborn.y } : portals.exit
+      const startPx = cellCenter(portals.entrance.x, portals.entrance.y, cellSize)
+      const endPx = cellCenter(end.x, end.y, cellSize)
+      state.sinks.push({
+        id: `tunnel-pass:${pairId}:${synthetic++}:${shape}`,
+        shape,
+        startPx: startPx.px,
+        startPy: startPx.py,
+        endPx: endPx.px,
+        endPy: endPx.py,
+        startedAtMs: nowMs,
+        hidesPacketId: newborn?.id,
+        overPortals: true,
+      })
+    }
   }
 
   state.paths = new Map()
   const nextFrom = new Map<string, { x: number; y: number }>()
   for (const packet of frame.packets) {
     const prev = state.at.get(packet.id)
-    nextFrom.set(
-      packet.id,
-      prev ?? spawnOrigin(frame, packet.x, packet.y, state.beltByCell, maxHop),
-    )
+    if (prev) {
+      nextFrom.set(packet.id, prev)
+      continue
+    }
+    if (claimedNewborns.has(packet.id)) {
+      // Covered by the through-tunnel sink; do not spawn-shoot from the exit.
+      nextFrom.set(packet.id, { x: packet.x, y: packet.y })
+      continue
+    }
+    nextFrom.set(packet.id, spawnOrigin(frame, packet.x, packet.y, state.beltByCell, maxHop))
   }
   state.from = nextFrom
   state.at = new Map(
@@ -111,6 +164,87 @@ export function syncPacketMotion(
   )
   state.lastTick = frame.tick
   state.syncedAtMs = nowMs
+}
+
+function tunnelTransitPool(frame: PipelineFrame) {
+  const pool = new Map<string, string[]>()
+  for (const portal of frame.tunnels ?? []) {
+    if (portal.role !== 'entrance') continue
+    const transit = portal.transit ?? []
+    if (transit.length === 0) continue
+    pool.set(portal.pairId, [...transit])
+  }
+  return pool
+}
+
+function tunnelPairCells(frame: PipelineFrame, pairId: string) {
+  let entrance: { x: number; y: number } | null = null
+  let exit: { x: number; y: number; direction: Direction } | null = null
+  for (const portal of frame.tunnels ?? []) {
+    if (portal.pairId !== pairId) continue
+    if (portal.role === 'entrance') entrance = { x: portal.x, y: portal.y }
+    if (portal.role === 'exit') exit = { x: portal.x, y: portal.y, direction: portal.direction }
+  }
+  if (!entrance || !exit) return null
+  return { entrance, exit }
+}
+
+function tunnelEntranceAt(frame: PipelineFrame, cell: { x: number; y: number }) {
+  for (const portal of frame.tunnels ?? []) {
+    if (portal.role !== 'entrance') continue
+    if (portal.x === cell.x && portal.y === cell.y) return portal
+  }
+  return null
+}
+
+/**
+ * When a packet enters a tunnel and leaves in the same tick (`transit`), aim the
+ * sink at the exit (or the newborn exit-belt packet) so the element shoots once.
+ */
+function tunnelThroughSink(
+  frame: PipelineFrame,
+  dest: { x: number; y: number },
+  shape: string,
+  transitLeft: Map<string, string[]>,
+  claimedNewborns: Set<string>,
+): { end: { x: number; y: number }; hidesPacketId?: string } | null {
+  const entrance = tunnelEntranceAt(frame, dest)
+  if (!entrance) return null
+  const left = transitLeft.get(entrance.pairId)
+  if (!left) return null
+  const index = left.indexOf(shape)
+  if (index < 0) return null
+  left.splice(index, 1)
+  if (left.length === 0) transitLeft.delete(entrance.pairId)
+
+  const portals = tunnelPairCells(frame, entrance.pairId)
+  if (!portals) return { end: dest }
+  const newborn = claimExitNewborn(frame, portals.exit, shape, claimedNewborns)
+  if (newborn) return { end: { x: newborn.x, y: newborn.y }, hidesPacketId: newborn.id }
+  return { end: portals.exit }
+}
+
+function claimExitNewborn(
+  frame: PipelineFrame,
+  exit: { x: number; y: number; direction: Direction },
+  shape: string,
+  claimedNewborns: Set<string>,
+) {
+  const out = ahead(exit.x, exit.y, exit.direction)
+  for (const packet of frame.packets) {
+    if (claimedNewborns.has(packet.id)) continue
+    if (packet.shape !== shape) continue
+    if (packet.x === out.x && packet.y === out.y) {
+      claimedNewborns.add(packet.id)
+      return packet
+    }
+    // Gap-0 may also land on a linked machine input; accept the exit cell itself.
+    if (packet.x === exit.x && packet.y === exit.y) {
+      claimedNewborns.add(packet.id)
+      return packet
+    }
+  }
+  return null
 }
 
 /**

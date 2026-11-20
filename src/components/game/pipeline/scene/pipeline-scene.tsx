@@ -305,7 +305,14 @@ export function PipelineScene({
         timeMs,
         lod,
       )
-      tunnelOccupancyPainter.current.drawUnderground(ctx, visible, palette, timeMs, lod)
+      tunnelOccupancyPainter.current.drawUnderground(
+        ctx,
+        visible,
+        palette,
+        timeMs,
+        lod,
+        packetMotion.current,
+      )
     })
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.drawImage(machineLayer.current.canvas, 0, 0)
@@ -328,7 +335,7 @@ export function PipelineScene({
         timeMs,
         lod,
         bounds,
-        packetMotion.current.syncedAtMs,
+        packetMotion.current,
       )
       const structureHints =
         editModeRef.current === 'create'
@@ -435,6 +442,7 @@ export function PipelineScene({
     images.current = loadMachineDecor(() => requestPaint(), kinds, elements, palette)
     machinePainter.current = new MachinePainter(images.current)
     packetPainter.current.setResourceGlyphs(images.current.resources)
+    tunnelOccupancyPainter.current.setResourceGlyphs(images.current.resources)
     requestPaint()
   }, [catalogDecorKey])
 

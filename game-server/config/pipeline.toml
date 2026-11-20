@@ -55,12 +55,12 @@ belt_fast_chevron_arm_percent = 22 # Chevron arm length (% of one cell; normal u
 belt_fast_side_inset_percent = 10 # Side-rail inset from belt outer edge (% of one cell)
 color_fast_tunnel = "#667b83" # Portal body (same gray as color_fast_belt); red details use color_fast_belt_chevron
 tunnel_max_gap = 8 # Empty cells between portals (0 = adjacent; Factorio-style)
-# Underground occupancy cues (client): soft moles on gap cells + portal heartbeat
-tunnel_ghost_radius_percent = 18 # Mole glow radius (% of one cell)
-tunnel_ghost_alpha = 0.48 # Peak mole opacity
-tunnel_seam_width_percent = 22 # Shimmering subsurface vein half-width (% of one cell)
-tunnel_seam_alpha = 0.32 # Vein shimmer strength
-tunnel_pulse_ms = 900 # Heartbeat / shimmer period (fast tunnels use half)
+# Underground occupancy cues (client): dashed thread + flat beads + portal pips
+tunnel_ghost_radius_percent = 16 # Bead radius (% of one cell)
+tunnel_ghost_alpha = 0.55 # Bead / pip opacity
+tunnel_seam_width_percent = 14 # Dashed thread weight (% of one cell; scaled in painter)
+tunnel_seam_alpha = 0.4 # Thread opacity
+tunnel_pulse_ms = 900 # Reserved (pass-through uses tick_ms)
 
 # Resource glyphs at sources / belts (no machine-footprint clamp — size can exceed the body)
 resource_glyph_size_px = 48
