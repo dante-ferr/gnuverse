@@ -135,6 +135,7 @@ export function RoomSidebar({
             members={members}
             events={events}
             collaborators={frame?.collaborators ?? []}
+            spentByUserId={frame?.spentByUserId}
             busy={busy}
             onRefresh={onRefresh}
             onError={onError}

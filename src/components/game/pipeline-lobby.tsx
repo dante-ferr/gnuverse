@@ -10,6 +10,10 @@ import { useGameSession } from './hooks/use-game-session'
 import { RoomCover } from './construction/room-cover'
 import styles from './game-shell.module.css'
 
+function formatPontuacao(value: number): string {
+  return new Intl.NumberFormat('pt-BR').format(value)
+}
+
 export function PipelineLobby() {
   const session = useGameSession()
   const router = useRouter()
@@ -122,6 +126,7 @@ export function PipelineLobby() {
               <option value="oldest">Ordem de criação</option>
               <option value="name">Nome (A–Z)</option>
               <option value="belts-desc">Mais esteiras</option>
+              <option value="score-desc">Pontuação</option>
             </select>
           </label>
           <div className={styles.roomFilterActions}>
@@ -146,7 +151,10 @@ export function PipelineLobby() {
                   <RoomCover room={room} />
                   <span className={styles.roomCardInfo}>
                     <span className={styles.roomCardTop}>
-                      <span>{room.beltCount} esteiras</span><span aria-hidden="true">↗</span>
+                      <span>
+                        {room.beltCount} esteiras · Pontuação {formatPontuacao(room.deliveries ?? 0)}
+                      </span>
+                      <span aria-hidden="true">↗</span>
                     </span>
                     <strong>{room.name}</strong>
                   </span>

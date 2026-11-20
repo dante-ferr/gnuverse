@@ -1,6 +1,13 @@
 import type { GameEvent } from '../model/types'
 
-const ACHIEVEMENT_TYPES = new Set(['place', 'chunk-buy', 'chunk-fund', 'machine-place'])
+const ACHIEVEMENT_TYPES = new Set([
+  'place',
+  'chunk-buy',
+  'chunk-fund',
+  'core-buy',
+  'core-fund',
+  'machine-place',
+])
 
 export function isAchievementEvent(event: GameEvent): boolean {
   return ACHIEVEMENT_TYPES.has(event.type)
@@ -64,6 +71,23 @@ export function formatAchievementLabel(event: GameEvent): string {
       typeof cx === 'number' && typeof cy === 'number' ? ` (${cx}, ${cy})` : ''
     const costLabel = typeof cost === 'number' ? ` · ${cost} moedas` : ''
     return `Comprou um chunk${coord}${costLabel}`
+  }
+  if (event.type === 'core-fund') {
+    const amount = detail?.amount
+    const cx = detail?.cx
+    const cy = detail?.cy
+    const coord = typeof cx === 'number' && typeof cy === 'number' ? ` (${cx}, ${cy})` : ''
+    const coins = typeof amount === 'number' ? `${amount} moedas` : 'moedas'
+    return `Aportou ${coins} no núcleo opcional${coord}`
+  }
+  if (event.type === 'core-buy') {
+    const cx = detail?.cx
+    const cy = detail?.cy
+    const cost = detail?.cost
+    const coord =
+      typeof cx === 'number' && typeof cy === 'number' ? ` (${cx}, ${cy})` : ''
+    const costLabel = typeof cost === 'number' ? ` · ${cost} moedas` : ''
+    return `Comprou núcleo opcional${coord}${costLabel}`
   }
   return event.type
 }

@@ -8,11 +8,11 @@ Prior core demands stay active for the whole match (`retain_prior_demands = true
 
 The catalog has **36** elements. One **5×5** core has **12** input ports, so late-game concurrent types need more sinks. Normal matches therefore reserve **two** satellite cores in the outer ring for players to **discover** by expanding the map.
 
-## Cores (3 total)
+## Cores (three fixed + optional outer)
 
 | Topic | Rule |
 | :--- | :--- |
-| Count | **1** central + **2** satellites (`satellite_core_count = 2`) |
+| Count | **1** central + **2** satellites (`satellite_core_count = 2`), plus **0..N optional** cores on owned outer chunks (see [Optional outer cores](#optional-outer-cores)) |
 | Timing | Central core at **match create**. Satellites are seed-reserved and **discovered** when their chunk first enters the preview set (buy to play there) |
 | Acceptance | Any open port on **any** discovered core accepts any **currently demanded** type. Quotas are **room-global** (`deliveryByShape`), not per-core |
 | Central | Centered in the starter chunk (same as today) |
@@ -29,6 +29,26 @@ The catalog has **36** elements. One **5×5** core has **12** input ports, so la
 | `satellite_core_ring_max` | 4 | Inclusive Chebyshev max from starter |
 
 Sandbox rooms may keep a compact multi-core layout for prototype play; production layout follows this ring rule.
+
+## Optional outer cores
+
+Locked design (implementation may land with docs). **Satellite cores in ring 3–4 stay free:** they appear on preview like today and need no coin purchase to place belts there.
+
+| Topic | Rule |
+| :--- | :--- |
+| Eligible chunks | Generated chunks with Chebyshev distance **> 4** from the starter chunk (beyond the satellite ring) |
+| Roll | At generation, each eligible chunk rolls `optional_core_spawn_chance_percent` from `[pipeline]` to **reserve** an optional core site |
+| Visibility | Reserved sites stay void until the chunk is **owned** (pooled buy complete) |
+| Purchase | After ownership, players fund a **flat** `optional_core_cost` (default **400**) from the same pooled wallet pattern as chunk buy; the core **spawns only when the pool meets that price** |
+| Footprint | Same **5×5** core, **12** inputs, agnostic ports, **room-global** demand quotas as central and satellite cores |
+| Cap | No fixed cap beyond map extent and spawn rolls — not part of the retired 9-core victory plan |
+
+`[pipeline]` keys:
+
+| Key | Default | Role |
+| :--- | ---: | :--- |
+| `optional_core_spawn_chance_percent` | (TOML) | Per-chunk roll on eligible outer chunks |
+| `optional_core_cost` | 400 | Flat pooled price to materialize a reserved optional core |
 
 ## Sources
 
@@ -48,7 +68,22 @@ Sandbox rooms may keep a compact multi-core layout for prototype play; productio
 | Demand escalation | Every active shape has its own wave (`escalationWaveByShape`), bases and crafts alike. **New** chapter shapes start at base; after that shape is cleared once, **required = ceil(base × escalation_ratio^wave)** (`escalation_ratio = 2` → 20→40). Each clear uses a **fresh** per-shape counter (`waveDeliveryByShape`); sandbox still counts lifetime `deliveryByShape` |
 | After last chapter | Chapter stays on the final id; waves keep rising. Full catalog stays demanded |
 | Score | **Pontuação** = lifetime delivery **points** in `deliveries` (recursive material units × `score_effort_factor`; per-shape counts stay in `deliveryByShape` for demand progress). Sidebar shows **Onda** after the first clear |
-| Victory | None — no crash / game-over |
+| Match end | **No victory** — intentional endless play (see below) |
+
+## Endless play (no victory)
+
+There is **no victory screen**, **no export-and-reset win flow**, and **no match-ending success state**. After the last `[[chapters]]` entry, the room **stays on that chapter**, **Onda** and per-shape escalation keep rising, and **Pontuação** continues to accumulate on every scored delivery. The retired proposal path (nine cores → victory summary) does not apply. There is also **no crash / game-over** from starvation or instability.
+
+## Ranking
+
+Two scores serve different surfaces — do not conflate them.
+
+| Surface | Metric | Source field | Sort |
+| :--- | :--- | :--- | :--- |
+| **Lobby** (`/jogo/`) | Room **Pontuação** | `deliveries` on the room list payload | Rooms are **ranked / sortable** by this delivery score |
+| **Participantes** (in-room sidebar) | Spend in this match | `spentByUserId` (per-account coins spent on structures and chunk contributions in **this room**) | **Internal ranking** of collaborators by spend — independent of Pontuação |
+
+Pontuação rewards logistics output to cores; in-room spend ranking highlights who funded the build.
 
 ## Core gear presentation
 

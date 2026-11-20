@@ -38,6 +38,7 @@ import styles from '../../game-shell.module.css'
 export type EditMode = 'create' | 'delete'
 
 type ChunkBuyAnchor = {
+  kind: 'chunk' | 'core'
   key: string
   cx: number
   cy: number
@@ -58,6 +59,7 @@ type Props = {
   coinBalance: number | null
   buyBusy?: boolean
   onContributeChunk: (coord: { cx: number; cy: number }, amount: number) => void
+  onContributeCore?: (coord: { cx: number; cy: number }, amount: number) => void
   onPlace: (request: StructurePlaceRequest) => void
   /** `revert` undoes the optimistic hide if auth or the API rejects the removal. */
   onRemove: (cells: { x: number; y: number }[], options: { revert: () => void }) => void
@@ -92,6 +94,7 @@ export function PipelineScene({
   coinBalance,
   buyBusy,
   onContributeChunk,
+  onContributeCore,
   onPlace,
   onRemove,
   onToggleEditMode,
@@ -125,6 +128,7 @@ export function PipelineScene({
   const buyAnchorSig = useRef('')
   /** Keeps the buy button visible while the pointer moves from the canvas onto the button. */
   const pinnedBuyChunk = useRef<{ cx: number; cy: number } | null>(null)
+  const pinnedBuyCore = useRef<{ cx: number; cy: number } | null>(null)
   const [buyAnchors, setBuyAnchors] = useState<ChunkBuyAnchor[]>([])
   frameRef.current = frame
   rulesRef.current = rules
@@ -383,13 +387,31 @@ export function PipelineScene({
       )
       if (!stillForSale) pinnedBuyChunk.current = null
     }
-    const hovered =
+    const pinnedCore = pinnedBuyCore.current
+    if (pinnedCore) {
+      const key = `${pinnedCore.cx},${pinnedCore.cy}`
+      const stillOptional = (current.optionalCoreChunkKeys ?? []).includes(key)
+      if (!stillOptional) pinnedBuyCore.current = null
+    }
+    const hoveredPreview =
       pinnedBuyChunk.current ??
       previewChunkUnderPointer(current, palette, camera, lastPointer.current)
-    const next = hovered
-      ? previewBuyAnchor(current, palette, camera, view, hovered)
-      : []
-    const signature = next.map((item) => `${item.key}:${item.x}:${item.y}`).join('|')
+    const hoveredCore =
+      pinnedBuyCore.current ??
+      optionalCoreChunkUnderPointer(current, palette, camera, lastPointer.current)
+    let next: ChunkBuyAnchor[] = []
+    if (hoveredPreview) {
+      next = previewBuyAnchor(current, palette, camera, view, hoveredPreview).map((item) => ({
+        ...item,
+        kind: 'chunk' as const,
+      }))
+    } else if (hoveredCore && onContributeCore) {
+      next = previewBuyAnchor(current, palette, camera, view, hoveredCore).map((item) => ({
+        ...item,
+        kind: 'core' as const,
+      }))
+    }
+    const signature = next.map((item) => `${item.kind}:${item.key}:${item.x}:${item.y}`).join('|')
     if (signature === buyAnchorSig.current) return
     buyAnchorSig.current = signature
     setBuyAnchors(next)
@@ -924,6 +946,7 @@ export function PipelineScene({
           }
           lastPointer.current = null
           pinnedBuyChunk.current = null
+          pinnedBuyCore.current = null
           requestPaint()
         }}
         onWheel={(event) => {
@@ -935,28 +958,42 @@ export function PipelineScene({
           requestPaint()
         }}
       />
-      {chunkCost != null && buyAnchors.length > 0 ? (
-        <div className={styles.chunkBuyLayer} aria-label="Aportar em trechos">
+      {buyAnchors.length > 0 ? (
+        <div
+          className={styles.chunkBuyLayer}
+          aria-label={
+            buyAnchors[0]?.kind === 'core' ? 'Aportar em núcleo opcional' : 'Aportar em trechos'
+          }
+        >
           {buyAnchors.map((anchor) => {
+            const isCore = anchor.kind === 'core'
+            const targetCost = isCore
+              ? (rules?.optionalCoreCost ?? 0)
+              : (chunkCost ?? 0)
+            if (targetCost < 1) return null
+            const pledges = isCore ? frame?.corePledges : frame?.chunkPledges
             const paid =
-              frame?.chunkPledges?.find((pledge) => pledge.cx === anchor.cx && pledge.cy === anchor.cy)
-                ?.paid ?? 0
-            const remaining = Math.max(0, chunkCost - paid)
+              pledges?.find((pledge) => pledge.cx === anchor.cx && pledge.cy === anchor.cy)?.paid ?? 0
+            const remaining = Math.max(0, targetCost - paid)
             const canBuyNow = coinBalance == null || coinBalance >= remaining
             const quickAmount = canBuyNow ? remaining : coinBalance
             const quickLabel = canBuyNow ? 'Comprar' : 'Aportar saldo'
             const quickDisabled =
               buyBusy || remaining < 1 || (coinBalance != null && quickAmount < 1)
+            const contribute = isCore ? onContributeCore : onContributeChunk
+            if (!contribute) return null
             return (
               <form
-                key={anchor.key}
+                key={`${anchor.kind}:${anchor.key}`}
                 className={styles.chunkBuyForm}
                 style={{ left: anchor.x, top: anchor.y }}
                 onPointerEnter={() => {
-                  pinnedBuyChunk.current = { cx: anchor.cx, cy: anchor.cy }
+                  if (isCore) pinnedBuyCore.current = { cx: anchor.cx, cy: anchor.cy }
+                  else pinnedBuyChunk.current = { cx: anchor.cx, cy: anchor.cy }
                 }}
                 onPointerLeave={() => {
-                  pinnedBuyChunk.current = null
+                  if (isCore) pinnedBuyCore.current = null
+                  else pinnedBuyChunk.current = null
                   lastPointer.current = null
                   requestPaint()
                 }}
@@ -965,11 +1002,13 @@ export function PipelineScene({
                   const data = new FormData(event.currentTarget)
                   const amount = Number(data.get('amount'))
                   if (!Number.isInteger(amount) || amount < 1) return
-                  onContributeChunk({ cx: anchor.cx, cy: anchor.cy }, amount)
+                  contribute({ cx: anchor.cx, cy: anchor.cy }, amount)
                 }}
               >
                 <span>
-                  {paid}/{chunkCost} moedas
+                  {isCore ? <strong>Núcleo</strong> : null}
+                  {isCore ? ' · ' : null}
+                  {paid}/{targetCost} moedas
                 </span>
                 <div className={styles.chunkPledgeRow}>
                   <input
@@ -988,12 +1027,12 @@ export function PipelineScene({
                   </button>
                 </div>
                 <button
-                  className={styles.chunkPledgeQuick}
+                  className={`${styles.chunkPledgeQuick} ${styles.chunkBuyButton}`}
                   type="button"
                   disabled={quickDisabled}
                   onClick={() => {
                     if (!Number.isInteger(quickAmount) || quickAmount < 1) return
-                    onContributeChunk({ cx: anchor.cx, cy: anchor.cy }, quickAmount)
+                    contribute({ cx: anchor.cx, cy: anchor.cy }, quickAmount)
                   }}
                 >
                   {quickLabel}
@@ -1260,7 +1299,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
-function previewChunkUnderPointer(
+function chunkCoordUnderPointer(
   frame: PipelineFrame,
   rules: PipelineRules,
   camera: GridCamera,
@@ -1271,12 +1310,36 @@ function previewChunkUnderPointer(
   if (cell.x < 0 || cell.y < 0 || cell.x >= frame.width || cell.y >= frame.height) return null
   const origin = frame.originChunk ?? { cx: 0, cy: 0 }
   const chunkSize = rules.chunkSize
-  const coord = {
+  return {
     cx: origin.cx + Math.floor(cell.x / chunkSize),
     cy: origin.cy + Math.floor(cell.y / chunkSize),
   }
+}
+
+function previewChunkUnderPointer(
+  frame: PipelineFrame,
+  rules: PipelineRules,
+  camera: GridCamera,
+  pointer: { x: number; y: number } | null,
+): { cx: number; cy: number } | null {
+  const coord = chunkCoordUnderPointer(frame, rules, camera, pointer)
+  if (!coord) return null
   const key = `${coord.cx},${coord.cy}`
   if (!(frame.previewChunks ?? []).some((item) => `${item.cx},${item.cy}` === key)) return null
+  return coord
+}
+
+function optionalCoreChunkUnderPointer(
+  frame: PipelineFrame,
+  rules: PipelineRules,
+  camera: GridCamera,
+  pointer: { x: number; y: number } | null,
+): { cx: number; cy: number } | null {
+  const coord = chunkCoordUnderPointer(frame, rules, camera, pointer)
+  if (!coord) return null
+  const key = `${coord.cx},${coord.cy}`
+  if (!(frame.optionalCoreChunkKeys ?? []).includes(key)) return null
+  if (!(frame.ownedChunks ?? []).some((item) => `${item.cx},${item.cy}` === key)) return null
   return coord
 }
 

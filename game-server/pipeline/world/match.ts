@@ -91,6 +91,11 @@ export class Match {
   trashcans: TrashcanMachine[] = []
   tunnels: TunnelPortalMachine[] = []
   chunkPledges: ChunkPledgeRecord[] = []
+  corePledges: ChunkPledgeRecord[] = []
+  /** World chunk keys beyond ring 4 that may be bought as extra cores. */
+  optionalCoreChunkKeys: Set<string> = new Set()
+  /** Lifetime coins charged in this room, per user (ranking only). */
+  spentByUserId: Record<string, number> = {}
   private ownedChunkKeys: Set<string>
   private previewChunkKeys: Set<string>
 
@@ -407,6 +412,19 @@ export class Match {
         paid: pledge.paid,
         backers: pledge.backers.map((backer) => ({ ...backer })),
       })),
+      corePledges:
+        this.corePledges.length > 0
+          ? this.corePledges.map((pledge) => ({
+              cx: pledge.cx,
+              cy: pledge.cy,
+              paid: pledge.paid,
+              backers: pledge.backers.map((backer) => ({ ...backer })),
+            }))
+          : undefined,
+      optionalCoreChunkKeys:
+        this.optionalCoreChunkKeys.size > 0 ? [...this.optionalCoreChunkKeys] : undefined,
+      spentByUserId:
+        Object.keys(this.spentByUserId).length > 0 ? { ...this.spentByUserId } : undefined,
       sources,
       source: { ...sources[0]! },
       core: { ...cores[0]! },
@@ -555,7 +573,10 @@ export class Match {
     )
     match.mergeLast = frame.mergeLast ? { ...frame.mergeLast } : {}
     match.pullLast = frame.pullLast ? { ...frame.pullLast } : {}
-    match.chunkPledges = pledgesFromFrame(frame)
+    match.chunkPledges = pledgesFromFrame(frame.chunkPledges)
+    match.corePledges = pledgesFromFrame(frame.corePledges)
+    match.optionalCoreChunkKeys = new Set(frame.optionalCoreChunkKeys ?? [])
+    match.spentByUserId = frame.spentByUserId ? { ...frame.spentByUserId } : {}
     match.combiners = (frame.combiners ?? []).map(
       (spec) => {
         const machine = new CombinerMachine(
@@ -623,8 +644,7 @@ export class Match {
   }
 }
 
-function pledgesFromFrame(frame: PipelineFrame): ChunkPledgeRecord[] {
-  const raw = frame.chunkPledges
+function pledgesFromFrame(raw: ChunkPledgeRecord[] | undefined): ChunkPledgeRecord[] {
   if (!Array.isArray(raw)) return []
   const pledges: ChunkPledgeRecord[] = []
   for (const item of raw) {

@@ -163,6 +163,10 @@ export type PipelineRules = {
   satelliteCoreRingMin: number
   /** Inclusive Chebyshev max ring from starter chunk. */
   satelliteCoreRingMax: number
+  /** Roll on first generate beyond ring 4 (non-satellite chunks). */
+  optionalCoreSpawnChancePercent: number
+  /** Pooled buy price for an optional core (no progression). */
+  optionalCoreCost: number
   /** Input “[” bracket protrusion as percent of one cell (shallower = recess). */
   slotInputDepthPercent: number
   /** Output bracket protrusion as percent of one cell (deeper = nozzle). */

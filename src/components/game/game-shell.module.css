@@ -1576,6 +1576,17 @@
   62% { opacity: 1; }
   100% { opacity: 0; }
 }
+.playToastNotice {
+  background: var(--accent-soft);
+  color: var(--accent);
+  animation: playToastNoticeFade 2.5s ease forwards;
+}
+@keyframes playToastNoticeFade {
+  0% { opacity: 0; }
+  8% { opacity: 1; }
+  72% { opacity: 1; }
+  100% { opacity: 0; }
+}
 .sceneViewport {
   position: relative;
   min-height: 0;

@@ -22,9 +22,9 @@ Another agent should treat this file as the living checklist for staged delivery
 
 ### Intent
 
-One room, one **3×3** circle source, player-built belts, a **5×5 central core** with **12 input slots** (three central tiles per face, corners solid). Server tick moves packets simultaneously; deliveries accumulate with **no stability bar and no crash**. CMS login required to place or remove belts. Core requirements in a room sidebar (stacked under the canvas on mobile); git blame on belts stays on the canvas.
+One room, starter **3×3** **sources** from `starter_source_ids` in `elements.toml` (currently fire + water), player-built belts, a **5×5 central core** with **12 input slots** (three central tiles per face, corners solid), plus **two free satellite cores** on preview in Chebyshev ring 3–4 — see [progression.md](progression.md) and [elements.md](elements.md). Server tick moves packets simultaneously; **Pontuação** (`deliveries`) accumulates with **no stability bar, no crash, and no victory screen** (endless chapters/waves by design). CMS login required to place or remove belts. Core requirements in a room sidebar (stacked under the canvas on mobile); git blame on belts stays on the canvas.
 
-**Progression pressure (proposal, not v0.1 code yet):** when more packet types are demanded, prior supplies stay required. Dropping an older line does not end the match — it blocks leveling up because the delivery milestone needs every demanded type.
+**Progression pressure:** when more element types are demanded, prior supplies stay required. Dropping an older line does not end the match — it blocks chapter advance because every active demand must clear at once.
 
 ### Repo decisions that differ from the proposal doc
 
@@ -37,7 +37,10 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 | Collaborators | `localStorage` token option | **CMS accounts only**; `join` records nickname |
 | Building cost | Cheap, no coin gate | Per-structure prices in `[pipeline]`; half refund on your own delete — [economy-expansion.md](economy-expansion.md) |
 | Map / progression | Unique players unlock space | Pooled chunk funding; gradual seed gen; no collaborator unlock gate — [Decisions §11](../decisions.md#11-coins-and-chunk-expansion) |
-| Fail / victory | No crash; victory at 9 cores | **No fail state**; **3 cores** + cumulative catalog (9-core path retired) — [progression.md](progression.md); no victory screen yet |
+| Fail / victory | No crash; victory at 9 cores | **No fail state**; **no victory** (endless play, Pontuação keeps growing) — [progression.md](progression.md) |
+| Lobby ranking | Unspecified | Sortable by room **Pontuação** (`deliveries`) |
+| In-room ranking | Contributor stats at win | **Participantes** ranks by **coins spent in room** (`spentByUserId`), not Pontuação — [progression.md#ranking](progression.md#ranking) |
+| Outer cores | Up to 9 federation cores | **Optional purchasable** cores beyond ring 4 + fixed triple — [progression.md#optional-outer-cores](progression.md#optional-outer-cores) |
 
 ### Done (implemented)
 
@@ -69,14 +72,13 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 - [x] Dead **tree/Matter** client and physics removed from live routes — 2026-03-25; orphan **community/** and tree-scene client code **deleted from the tree** — 2026-11-17.
 - [x] Tree-era [`game-server.test.ts`](../tests/game-server.test.ts) **removed** (file no longer in `tests/`) — 2026-11-17.
 - [x] `npm run game:cli` **tree CLI removed** — 2026-03-25.
-- [ ] Legacy SQLite rooms without `kind: "pipeline"` are **hidden** from list; no migration story documented for operators.
 - [x] Minimal **Sala** moderation UI (participantes, propor suspensão, BDFL decide) — 2026-11-17.
-- [ ] Pinch-zoom / pointer edge cases on `PipelineScene` need a real device pass.
+- [ ] **Pinch-zoom / pointer edge cases** on `PipelineScene` — polish debt (**non-blocking** for v0.1).
 - [x] Matter **tree** physics removed from the build path — 2026-03-25.
 
 **Design / proposal alignment**
 
-- [ ] Proposal milestone table still says `3×3` core — update proposal or add errata when user locks 5×5 for v0.1.
+- [x] Proposal errata at top of `open-pipeline-proposal.md` (3 cores + optional outers, cumulative catalog, no 9-core victory) — 2026-11-20.
 - [x] Dual unlock (demands + collaborators) shipped 2026-11-17; **collaborator gate retired** 2026-11-18 (demand-only auto **0.1 → 0.2**; admin `advance`).
 - [x] Chunk TOML keys + `world/chunks/coords.ts` helpers/tests; Participantes unlock meter removed — 2026-11-18.
 - [x] **Structure prices and pooled chunks:** belt/machine costs, passive cap vs wallet cap, and `buy-chunk` contributions — 2026-11-20. See [economy-expansion.md](economy-expansion.md) / [Decisions §11](../decisions.md#11-coins-and-chunk-expansion).
@@ -91,7 +93,7 @@ One room, one **3×3** circle source, player-built belts, a **5×5 central core*
 game-server/pipeline/
   geometry/          direction, cell, clearance (generation pads), seed-rng
   machines/          Machine, Slot, Source (3×3), Core (5×5), Belt, Splitter (1×1), Tunnel portals
-  packets/           Packet (circle only)
+  packets/           Packet (element id from catalog)
   world/             Match, frame, types; chunks/, placement/, tick/, edit/, progression/
   rules.ts           TypeScript mirror of TOML
   load-rules.ts      pipeline.toml validation
@@ -129,7 +131,7 @@ Work in order. Do not implement v0.2+ until the user reviews the previous versio
 | **v0.3** | Square, combiners, tunnels, nested shapes | v0.2 reviewed |
 | **v0.4** | Diamond, modifiers, bugs, legacy zones | v0.3 reviewed |
 | **v1.0** | Full central ports, first satellite core | v0.4 reviewed |
-| **v1.x** | Federation to 9 cores, victory + export | v1.0 reviewed |
+| **v1.x** | Optional outer cores, lobby + Participantes ranking polish | v1.0 reviewed |
 
 For each version, extend **machines/** with subclasses, add tick tests first, then HTTP + canvas, then update this doc’s **Done** and **Gaps** sections.
 
@@ -151,6 +153,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-20 | Design | Locked endless play (no victory), ranking (lobby `deliveries` vs Participantes `spentByUserId`), optional outer cores — progression.md, rules.md, decisions §13–§14, proposal errata |
 | 2026-11-20 | Gameplay | Tunnel ports plug into machine ports like splitters (`portsConnected`); logistics brackets hide on connect; machine brackets stay visible — `building-slots.ts`, `routing.ts` |
 | 2026-11-20 | Gameplay | Auto-tunnels stay as short as the covered solids allow (exit right after the last included run) while still merging within `tunnel_max_gap` — `belt-cross.ts` |
 | 2026-11-20 | Gameplay | Belt-drag auto-tunnel when the stroke starts and ends on cells adjacent to the crossed conveyor line (no extra lead-in/out belts) — `belt-cross.ts` |

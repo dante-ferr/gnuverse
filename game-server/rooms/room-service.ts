@@ -17,6 +17,12 @@ import {
   quoteChunkContribution,
   settleFundedPledges,
 } from '../pipeline/world/chunks/purchase.ts'
+import {
+  applyCoreContribution,
+  quoteCoreContribution,
+  settleFundedCorePledges,
+} from '../pipeline/world/chunks/core-purchase.ts'
+import { recordRoomSpend } from '../economy/room-spend.ts'
 
 export class RoomService {
   private store: GameStore
@@ -50,7 +56,8 @@ export class RoomService {
     })
   }
   publicRoom(room: Room) {
-    const belts = isPipelineFrame(room.frame) ? room.frame.belts.length : 0
+    const frame = isPipelineFrame(room.frame) ? room.frame : null
+    const belts = frame ? frame.belts.length : 0
     return {
       id: room.id,
       name: room.name,
@@ -60,8 +67,9 @@ export class RoomService {
       eligibilityMode: room.eligibilityMode,
       minContributions: room.minContributions,
       beltCount: belts,
+      deliveries: frame?.deliveries ?? 0,
       actionCount: room.actionCount,
-      outcome: isPipelineFrame(room.frame) ? 'playing' : 'lost',
+      outcome: frame ? 'playing' : 'lost',
     }
   }
   detail(room: Room) {
@@ -225,6 +233,7 @@ export class RoomService {
     const refund =
       match.sandbox || !placed.refund ? 0 : speedDowngradeRefund(match.rules, 'tunnel')
     const wallet = this.settle(user, cost, refund)
+    if (cost > 0) recordRoomSpend(match, user.id, cost)
     const committed = this.commitMachine(room, user, participant, match, String(machineId), cost, refund)
     return { ...committed, wallet, cost, refund }
   }
@@ -252,6 +261,7 @@ export class RoomService {
       ? 0
       : placed.refundCells * speedDowngradeRefund(match.rules, 'belt')
     const wallet = this.settle(user, cost, refund)
+    if (cost > 0) recordRoomSpend(match, user.id, cost)
     const structure = speed === match.rules.beltSpeedFast ? 'fast_belt' : 'belt'
     const committed = this.commit(room, user, participant, match, 'place', structure, {
       cost,
@@ -341,6 +351,7 @@ export class RoomService {
       fail(quote.status, quote.error)
     }
     const wallet = this.wallet.spend(user, amount)
+    recordRoomSpend(match, user.id, amount)
     const funded = applyChunkContribution(match, { cx, cy }, user.id, amount)
     room.frame = match.toFrame()
     participant.contributions++
@@ -355,6 +366,47 @@ export class RoomService {
     })
     if (funded.completed) {
       this.history.event(room, 'chunk-buy', user.id, { cx, cy, cost: funded.cost })
+    }
+    this.runtime.afterAction(room)
+    return {
+      frame: room.frame,
+      wallet,
+      cost: funded.cost,
+      paid: funded.paid,
+      amount,
+      completed: funded.completed,
+    }
+  }
+  buyCore(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(room)
+    const extent = this.rules.pipeline.mapChunkExtent
+    const cx = integer(body.cx, 0, extent - 1, 'Chunk X')
+    const cy = integer(body.cy, 0, extent - 1, 'Chunk Y')
+    const amount = integer(body.amount, 1, this.rules.pipeline.walletCap, 'Moedas')
+    settleFundedPledges(match)
+    settleFundedCorePledges(match)
+    room.frame = match.toFrame()
+    const quote = quoteCoreContribution(match, { cx, cy }, amount)
+    if (!quote.ok) {
+      this.runtime.afterAction(room)
+      fail(quote.status, quote.error)
+    }
+    const wallet = this.wallet.spend(user, amount)
+    recordRoomSpend(match, user.id, amount)
+    const funded = applyCoreContribution(match, { cx, cy }, user.id, amount)
+    room.frame = match.toFrame()
+    participant.contributions++
+    room.actionCount++
+    room.lastActorId = user.id
+    this.history.event(room, 'core-fund', user.id, {
+      cx,
+      cy,
+      amount,
+      paid: funded.paid,
+      cost: funded.cost,
+    })
+    if (funded.completed) {
+      this.history.event(room, 'core-buy', user.id, { cx, cy, cost: funded.cost })
     }
     this.runtime.afterAction(room)
     return {

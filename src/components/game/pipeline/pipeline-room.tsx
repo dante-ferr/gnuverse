@@ -13,6 +13,7 @@ import { useRoomLobby } from '../hooks/use-room-lobby'
 import { pipelineRulesFrom } from './model/frame'
 import type { Wallet } from '../model/types'
 import { usePipelineStream } from './hooks/use-pipeline-stream'
+import { useProgressionNotice } from './hooks/use-progression-notice'
 import { RoomChatSidebar } from './room-chat-sidebar'
 import { RoomSidebar } from './room-sidebar'
 import { RoomTutorialOverlay } from './room-tutorial-overlay'
@@ -69,6 +70,12 @@ export function PipelineRoom() {
     if (!session.user || !lobby.roomId) return
     void session.api.request(`/api/rooms/${lobby.roomId}/join`, {}).catch(() => {})
   }, [session.user, session.api, lobby.roomId])
+  useProgressionNotice(live.frame.seed ? live.frame : null, feedback.setNotice)
+  useEffect(() => {
+    if (!feedback.notice) return
+    const timer = setTimeout(() => feedback.setNotice(''), 2500)
+    return () => clearTimeout(timer)
+  }, [feedback.notice, feedback.setNotice])
   const applyWallet = (result: unknown) => {
     if (!result || typeof result !== 'object' || !('wallet' in result)) return
     const wallet = (result as { wallet?: Wallet | null }).wallet
@@ -114,6 +121,20 @@ export function PipelineRoom() {
         frame: unknown
         wallet: NonNullable<typeof session.wallet>
       }>(`/api/rooms/${lobby.roomId}/buy-chunk`, { ...coord, amount })
+      applyWallet(result)
+      await live.refresh()
+    })
+  }
+  const contributeCore = (coord: { cx: number; cy: number }, amount: number) => {
+    if (!session.user) {
+      router.push(loginHref)
+      return
+    }
+    void feedback.run(async () => {
+      const result = await session.api.request<{
+        frame: unknown
+        wallet: NonNullable<typeof session.wallet>
+      }>(`/api/rooms/${lobby.roomId}/buy-core`, { ...coord, amount })
       applyWallet(result)
       await live.refresh()
     })
@@ -190,11 +211,16 @@ export function PipelineRoom() {
           }
         />
       </GameTopBar>
-      {feedback.error && (
+      {feedback.error ? (
         <div className={styles.playToast} role="alert">
           {feedback.error}
         </div>
-      )}
+      ) : null}
+      {feedback.notice ? (
+        <div className={`${styles.playToast} ${styles.playToastNotice}`} role="status">
+          {feedback.notice}
+        </div>
+      ) : null}
       {showCreate && (
         <CreateRoomPanel
           busy={feedback.busy}
@@ -245,6 +271,7 @@ export function PipelineRoom() {
               coinBalance={session.user ? (session.wallet?.balance ?? 0) : null}
               buyBusy={feedback.busy}
               onContributeChunk={contributeChunk}
+              onContributeCore={contributeCore}
               onPlace={place}
               onRemove={remove}
               placeEpoch={placeEpoch}

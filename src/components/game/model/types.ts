@@ -17,6 +17,8 @@ export type Room = {
   eligibilityMode: 'automatic' | 'manual'
   minContributions: number
   beltCount: number
+  /** Lifetime craft deliveries (Pontuação). */
+  deliveries?: number
   actionCount?: number
   outcome?: 'playing' | 'won' | 'lost'
 }

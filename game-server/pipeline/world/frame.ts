@@ -149,7 +149,13 @@ export type PipelineFrame = {
   previewChunks: ChunkCoordRecord[]
   /** Partial funding for preview chunks. Omitted on older saves. */
   chunkPledges?: ChunkPledgeRecord[]
+  /** Partial funding for optional cores on owned chunks. */
+  corePledges?: ChunkPledgeRecord[]
   generatedChunkKeys?: string[]
+  /** Optional core reservations (`"cx,cy"`); cores appear after pooled purchase. */
+  optionalCoreChunkKeys?: string[]
+  /** Lifetime coins charged in-room per user id (spend ranking). */
+  spentByUserId?: Record<string, number>
   /** Reserved satellite core chunks (`"cx,cy"`); cores spawn when previewed. */
   satelliteChunkKeys?: string[]
   grassChunkKey?: string

@@ -93,6 +93,8 @@ export type PipelineRules = {
   satelliteCoreCount: number
   satelliteCoreRingMin: number
   satelliteCoreRingMax: number
+  optionalCoreSpawnChancePercent: number
+  optionalCoreCost: number
   slotInputDepthPercent: number
   slotOutputDepthPercent: number
   slotBracketThickPercent: number
@@ -239,6 +241,9 @@ export type PipelineFrame = {
   ownedChunks?: ChunkCoordRecord[]
   previewChunks?: ChunkCoordRecord[]
   chunkPledges?: ChunkPledgeRecord[]
+  corePledges?: ChunkPledgeRecord[]
+  optionalCoreChunkKeys?: string[]
+  spentByUserId?: Record<string, number>
   sources?: SourceRecord[]
   source: { id: string; x: number; y: number; direction: Direction; shape: PacketShape }
   core: CoreRecord

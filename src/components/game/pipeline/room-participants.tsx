@@ -16,6 +16,7 @@ type Props = {
   members: Member[]
   events: GameEvent[]
   collaborators: PipelineFrame['collaborators']
+  spentByUserId?: Record<string, number>
   busy?: boolean
   onRefresh: () => Promise<void>
   onError: (message: string) => void
@@ -35,6 +36,7 @@ export function RoomParticipants({
   members,
   events,
   collaborators,
+  spentByUserId,
   busy,
   onRefresh,
   onError,
@@ -55,7 +57,10 @@ export function RoomParticipants({
       banned: false,
     })
   }
-  const people = [...peopleById.values()]
+  const spend = spentByUserId ?? {}
+  const people = [...peopleById.values()].sort(
+    (a, b) => (spend[b.id] ?? 0) - (spend[a.id] ?? 0),
+  )
 
   const proposalTargets = people.filter(
     (member) => member.id !== user?.id && !member.banned && member.id !== creatorId,
@@ -91,6 +96,9 @@ export function RoomParticipants({
       <h2 id="room-participants-heading" className={styles.sidebarSectionTitle}>
         Participantes
       </h2>
+      <p className={styles.controlsHint}>
+        Ranking por moedas investidas na sala (aportes e compras), não pela Pontuação do jogo.
+      </p>
       {people.length === 0 ? (
         <p className={styles.controlsHint}>Ninguém na sala ainda.</p>
       ) : (
@@ -109,6 +117,8 @@ export function RoomParticipants({
                 <span className={styles.memberRowText}>
                   <strong>{member.nickname}</strong>
                   <small>
+                    {new Intl.NumberFormat('pt-BR').format(spend[member.id] ?? 0)} moedas investidas
+                    {' · '}
                     {member.contributions} contribuições
                     {collaboratorIds.has(member.id) ? ' · colaborador' : ''}
                     {member.banned ? ' · suspenso' : ''}

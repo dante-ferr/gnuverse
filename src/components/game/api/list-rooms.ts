@@ -3,7 +3,7 @@ import type { Room } from '../model/types'
 
 export type RoomFilters = {
   search: string
-  sort: 'oldest' | 'name' | 'belts-desc'
+  sort: 'oldest' | 'name' | 'belts-desc' | 'score-desc'
   mine: boolean
 }
 export const DEFAULT_ROOM_FILTERS: RoomFilters = {
@@ -51,6 +51,8 @@ export async function listRooms(
     if (filters.sort === 'name') return a.name.localeCompare(b.name, 'pt-BR')
     if (filters.sort === 'belts-desc')
       return (b.beltCount ?? 0) - (a.beltCount ?? 0)
+    if (filters.sort === 'score-desc')
+      return (b.deliveries ?? 0) - (a.deliveries ?? 0)
     return 0
   })
   const pageCount = Math.ceil(rooms.length / limit)

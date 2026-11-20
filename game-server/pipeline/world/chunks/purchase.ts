@@ -9,6 +9,7 @@ import {
   type ChunkCoord,
 } from './coords.ts'
 import { generatePendingPreviewChunks } from './chunk-generation.ts'
+import { applyPledge, quotePledge } from '../../../economy/pooled-funding.ts'
 
 function chunkKey(coord: ChunkCoord) {
   return `${coord.cx},${coord.cy}`
@@ -155,26 +156,26 @@ export function quoteChunkContribution(
   amount: number,
 ): ChunkQuote {
   const key = chunkKey(coord)
-  if (!match.previewChunks.some((item) => chunkKey(item) === key)) {
-    return { ok: false, status: 409, error: 'Esse trecho não está à venda.' }
-  }
-  if (!Number.isInteger(amount) || amount < 1) {
-    return { ok: false, status: 400, error: 'Informe quantas moedas aportar.' }
-  }
+  const preview = match.previewChunks.some((item) => chunkKey(item) === key)
   const cost = nextChunkCost(match)
   const paid = match.chunkPledges.find((pledge) => chunkKey(pledge) === key)?.paid ?? 0
-  const remaining = cost - paid
-  if (remaining <= 0) {
-    return { ok: false, status: 409, error: 'Esse trecho já está pago.' }
-  }
-  if (amount > remaining) {
-    return {
-      ok: false,
-      status: 400,
-      error: `Esse trecho precisa de mais ${remaining} moedas.`,
+  const quote = quotePledge({ paid, cost, amount, eligible: preview })
+  if (!quote.ok) {
+    if (!preview) return { ok: false, status: 409, error: 'Esse trecho não está à venda.' }
+    if (quote.status === 400 && quote.error.startsWith('Faltam ')) {
+      const remaining = cost - paid
+      return {
+        ok: false,
+        status: 400,
+        error: `Esse trecho precisa de mais ${remaining} moedas.`,
+      }
     }
+    if (quote.status === 409 && quote.error === 'Este alvo não aceita aportes agora.') {
+      return { ok: false, status: 409, error: 'Esse trecho não está à venda.' }
+    }
+    return quote
   }
-  return { ok: true, cost, paid, remaining }
+  return quote
 }
 
 /** Add `amount` to a preview chunk. Completes ownership when the pool meets the price. */
@@ -186,18 +187,30 @@ export function applyChunkContribution(
 ): { cost: number; paid: number; completed: boolean } {
   const key = chunkKey(coord)
   const cost = nextChunkCost(match)
-  let pledge = match.chunkPledges.find((item) => chunkKey(item) === key)
-  if (!pledge) {
-    pledge = { cx: coord.cx, cy: coord.cy, paid: 0, backers: [] }
-    match.chunkPledges.push(pledge)
+  const pooled = match.chunkPledges.map((pledge) => ({
+    key: chunkKey(pledge),
+    paid: pledge.paid,
+    backers: pledge.backers.map((backer) => ({ ...backer })),
+  }))
+  const funded = applyPledge(pooled, key, userId, amount, cost, (pledgeKey) => ({
+    key: pledgeKey,
+    paid: 0,
+    backers: [],
+  }))
+  match.chunkPledges.length = 0
+  for (const pledge of pooled) {
+    const sep = pledge.key.indexOf(',')
+    const cx = Number(pledge.key.slice(0, sep))
+    const cy = Number(pledge.key.slice(sep + 1))
+    match.chunkPledges.push({
+      cx,
+      cy,
+      paid: pledge.paid,
+      backers: pledge.backers.map((backer) => ({ ...backer })),
+    })
   }
-  pledge.paid += amount
-  const backer = pledge.backers.find((item) => item.userId === userId)
-  if (backer) backer.amount += amount
-  else pledge.backers.push({ userId, amount })
-  if (pledge.paid < cost) return { cost, paid: pledge.paid, completed: false }
-  const paid = pledge.paid
-  match.chunkPledges = match.chunkPledges.filter((item) => chunkKey(item) !== key)
+  if (!funded.completed) return { cost, paid: funded.paid, completed: false }
+  const paid = funded.paid
   const error = buyPreviewChunk(match, coord)
   if (error) throw new Error(error)
   return { cost, paid, completed: true }

@@ -73,7 +73,7 @@ Locked design direction (2026-11-18; **planned expansion recorded 2026-11-18**, 
 | Identity | Each packet has one element `id` from TOML under `game-server/config/` |
 | Discoverability | Recipes are visible via the elements preview (`make elements-serve`) and in-room help—not via a place-time recipe picker. Sandbox combiners infer output from buffered inputs (exact input-set match to catalog recipes for that machine kind). Core requirements in the Jogo sidebar are clickable and open a production-line ancestry overlay. No hidden alchemy |
 | Glyphs | Simple silhouettes with **thick outlines** (SVG). Client outline mode from `resource_glyph_outline_mode`: `dual`, `single`, or `blur` (halo uses `resource_glyph_outline_blur`); solid colors stay on `resource_glyph_outline_outer` / `_inner`. Machine overlay diameter is `resource_glyph_size_px` with **no footprint clamp**. Generate later (Quiver); until then procedural placeholders may stand in |
-| Scope | Ship the element graph **with combiners** (not before). v0.1 may keep the current single circle packet until that slice |
+| Scope | Element **packets** and chapter-gated core demands in normal rooms — see [Element recipes](game/elements.md) and [progression](game/progression.md) (not the proposal’s concentric shape nesting) |
 | Metaphor | FOSS analogy stays in the logistics / collaboration format; element flavor does not need a strict software metaphor |
 | Authoring | Recipe book stays TOML-driven; preview via `make elements-serve` |
 
@@ -92,7 +92,10 @@ Full detail: [Element recipes](game/elements.md#planned-graph-machines-and-core-
 | Coupled dual output | Dual recipe ports eject together; one blocked belt stalls both | Sandbox sim |
 | Sandbox rooms | `sandbox: true` → element packets + **full-catalog** core demands at once (prototype). Combiners are **not** sandbox-only; normal rooms use chapter-gated demands | Wired |
 | Core demands | Full catalog by the **last** chapter; **`retain_prior_demands`**. Per-shape demand escalation for all active shapes (`escalationWaveByShape`, `escalation_ratio = 2`); global `escalationWave` = room clears for **Onda**. **Pontuação** = lifetime delivery score (`materialUnits × score_effort_factor`; dual outputs halve recipe mass) | Wired — [progression](game/progression.md) |
-| Three cores | **1** central at create + **2** satellites **discovered** in Chebyshev ring **3–4** when their chunks enter preview; agnostic ports; room-global quotas | Wired — [progression](game/progression.md) |
+| Three cores | **1** central at create + **2** satellites **discovered** in Chebyshev ring **3–4** when their chunks enter preview (free on preview); agnostic ports; room-global quotas | Wired — [progression](game/progression.md) |
+| Optional outer cores | Roll on chunks with Chebyshev **> 4**; materialize after chunk **owned** via pooled `optional_core_cost`; same 5×5 / 12-input / global-demand rules | Locked — [progression](game/progression.md#optional-outer-cores) |
+| Endless play | **No victory screen**; catalog + waves after last chapter; Pontuação keeps accumulating | Locked — [progression](game/progression.md#endless-play-no-victory) |
+| Ranking | Lobby sorts by room `deliveries` (Pontuação); **Participantes** sorts by in-room spend `spentByUserId` | Locked — [progression](game/progression.md#ranking) |
 | Catalog loader | One shared loader (`game-server/pipeline/elements/load-catalog.mjs`) for game-server and `make elements-serve`. Starters, **production rates** (`default_rate_per_minute`, `default_source_rate_per_minute`, per-machine / optional per-recipe or per-base overrides in pieces per minute), fill/stroke/glyph, `[[machines]]` (`color`, `decor`), and chapter base caps live in TOML — not hardcoded in TS. Code converts rates with 60 000 ÷ rate and `tick_ms`. Core body colors stay in `[pipeline]`; source bodies use element `fill`; craft machines use fixed `[[machines]].color`; core art is layered (`core-frame` + gears), source uses `source-decor.svg` | Wired |
 | Preview graphs | Design preview keeps orthogonal/highway routing (`[preview]` sizes). In-room overlay (`production-line/`) uses glyph icons + name labels, **direct** arrows, and **repeats** non-adjacent inputs in the previous column so edges stay local; legacy `circle` shows a short fallback | Wired (preview + in-room) |
 
@@ -106,7 +109,7 @@ Locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and ma
 | :--- | :--- |
 | Progression currency | **Coins**, not unique collaborator count |
 | Coin pool | **Per-player** account wallet (`WalletService`) |
-| Earn | **Passive regen** of `coins_per_minute`, including while away, until `passive_cap`. Refunds may exceed that cap up to `wallet_cap`. Criteria-based earning later |
+| Earn | **Passive regen** of `coins_per_minute`, including while away, until `passive_cap`. Refunds may exceed that cap up to `wallet_cap`. Criteria-based bonuses stay **deferred** (§11 open table) |
 | Version unlock | **Deliveries only** (no collaborator gate, no coin spend to advance) |
 | Spend targets | Conveyors (per cell), machines (per building or tunnel pair), **pooled area expansion**, later paid actions. Same-speed redraws are free. Click (or drag along) an owned belt/tunnel with the normal or fast tool selected to change speed: upgrades charge the fast list price; owned fast→normal downgrades and own deletions refund `⌊price × refund_percent / 100⌋` from `[pipeline]` (`refund_percent`, default 50; downgrade uses `fast − normal`). Sandbox placement is free |
 | Map unit | Square **chunks**; side length `chunk_size` cells in `[pipeline]` |
@@ -131,6 +134,27 @@ Locked 2026-11-18 (**implementation in progress**). Full write-up: [Coins and ma
 ## 12. Core gear activity
 
 Locked 2026-11-20. Core decor gears rotate only while that core is receiving packets (and for `core_gear_active_ms` after the last intake). Idle gears hold their last angle. Periods stay `core_gear_outer_ms` / `core_gear_inner_ms`. Detail: [Chapter progression and cores](game/progression.md#core-gear-presentation).
+
+## 13. Endless play and ranking
+
+Locked 2026-11-20. Open Pipeline matches **do not end in victory**. Chapters and **Onda** escalation continue after the final catalog chapter; **Pontuação** (`deliveries`) is the public room score and keeps growing. There is no victory screen, map export win flow, or 9-core federation finish.
+
+| Surface | What players see | Server field |
+| :--- | :--- | :--- |
+| Lobby | Rooms ranked / sortable by **Pontuação** | `deliveries` on the room list |
+| Participantes | Per-collaborator **spend ranking** in this room | `spentByUserId` (structures + chunk contributions here) |
+
+Pontuação measures delivery output; in-room spend ranking measures who paid for the build. Full rules: [progression — Endless play and ranking](game/progression.md#ranking).
+
+## 14. Optional outer cores
+
+Locked 2026-11-20. Beyond the **two free satellite cores** (Chebyshev ring 3–4), outer owned chunks may reserve optional cores:
+
+- Spawn roll: `optional_core_spawn_chance_percent` on chunks with Chebyshev distance **> 4** from the starter chunk.
+- Placement: core does not exist until the chunk is **owned** and players pool **`optional_core_cost`** (default **400**).
+- Gameplay: same **5×5** footprint, **12** inputs, agnostic acceptance, room-global quotas as other cores.
+
+Detail: [Optional outer cores](game/progression.md#optional-outer-cores).
 
 ## Still open
 

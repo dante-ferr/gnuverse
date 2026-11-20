@@ -154,7 +154,7 @@ export class HttpApplication {
         const normalize = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR')
         const search = normalize((params.get('search') ?? '').trim())
         const sort = params.get('sort') ?? 'oldest'
-        if (!['oldest', 'name', 'belts-desc'].includes(sort))
+        if (!['oldest', 'name', 'belts-desc', 'score-desc'].includes(sort))
           fail(400, 'Ordenação inválida.')
         const creatorId = params.get('mine') === 'true'
           ? (await auth.authenticate(req.headers.authorization)).id : null
@@ -167,6 +167,7 @@ export class HttpApplication {
           if (sort === 'name') return a.name.localeCompare(b.name, 'pt-BR')
           if (sort === 'belts-desc')
             return b.frame.belts.length - a.frame.belts.length
+          if (sort === 'score-desc') return b.frame.deliveries - a.frame.deliveries
           return 0
         })
         const total = available.length
@@ -241,7 +242,15 @@ export class HttpApplication {
         if (participant.banned) fail(403, 'Você foi banido desta sala.')
         if (path[3] === 'settings' && path.length === 4)
           return rooms.settings(room, user, body)
-        const pipelineActions = ['place', 'remove', 'join', 'chat', 'buy-chunk', 'place-machine'] as const
+        const pipelineActions = [
+          'place',
+          'remove',
+          'join',
+          'chat',
+          'buy-chunk',
+          'buy-core',
+          'place-machine',
+        ] as const
         if (
           pipelineActions.includes(path[3] as (typeof pipelineActions)[number]) &&
           path.length === 4
@@ -251,6 +260,7 @@ export class HttpApplication {
           if (path[3] === 'remove') return rooms.removeBelt(room, user, participant, body)
           if (path[3] === 'chat') return rooms.chat(room, user, participant, body)
           if (path[3] === 'buy-chunk') return rooms.buyChunk(room, user, participant, body)
+          if (path[3] === 'buy-core') return rooms.buyCore(room, user, participant, body)
           return rooms.join(room, user)
         }
         if (

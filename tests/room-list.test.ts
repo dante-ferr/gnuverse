@@ -9,6 +9,7 @@ const rooms: Room[] = Array.from({ length: 63 }, (_, index) => ({
   creatorId: index % 2 ? 'other' : 'owner',
   cost: 0,
   beltCount: index,
+  deliveries: index * 2,
   allowCreatorBan: false,
   eligibilityMode: 'automatic',
   minContributions: 1,
@@ -62,12 +63,14 @@ test('legacy API results are filtered and sorted globally before pagination', as
   assert.equal(result.total, expected.length)
   assert.equal(result.page, 2)
   assert.deepEqual(result.rooms, expected.slice(12, 24))
-  for (const sort of ['name', 'belts-desc'] as const) {
+  for (const sort of ['name', 'belts-desc', 'score-desc'] as const) {
     const ordered = await listRooms(legacyApi(), { ...DEFAULT_ROOM_FILTERS, sort }, 1)
     const compare =
       sort === 'name'
         ? (a: Room, b: Room) => a.name.localeCompare(b.name, 'pt-BR')
-        : (a: Room, b: Room) => b.beltCount - a.beltCount
+        : sort === 'score-desc'
+          ? (a: Room, b: Room) => (b.deliveries ?? 0) - (a.deliveries ?? 0)
+          : (a: Room, b: Room) => b.beltCount - a.beltCount
     assert.deepEqual(ordered.rooms, [...rooms].sort(compare).slice(0, 12))
   }
 })
