@@ -146,6 +146,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-20 | Gameplay | Logistic buildings (splitter, tunnel) may place ports on other bodies; hidden brackets when covered — `building-slots.ts` |
 | 2026-11-20 | Gameplay | Building I/O ports must not occupy another building’s body (inputs use approach cell; shared port tiles allowed) — `building-slots.ts` |
 | 2026-11-19 | Gameplay | Belt drag inserts tunnels across runs that fit in `tunnel_max_gap` by default (1–2 empty cells stay in the span). Thicker runs and missing portal cells are skipped — `belt-cross.ts` |
 | 2026-11-20 | Design | Progression locked: permanent prior demands, 3 cores at start (Chebyshev ring 3–4), agnostic ports, grass Moore-neighbor guarantee; core gears spin only after intake — [progression.md](progression.md) |

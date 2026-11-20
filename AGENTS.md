@@ -14,7 +14,7 @@ This repo is **make-centric**. Prefer `make <target>` over raw `npm run` for day
 
 ## Open Pipeline
 
-The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipeline-proposal.md`](docs/src/game/open-pipeline-proposal.md). Read [`game-server/config/game.config.toml`](game-server/config/game.config.toml) before changing numbers. Splitters and tunnels are available in all rooms. Progression (cumulative demands, three cores in a Chebyshev ring 3–4, grass neighbor guarantee) is locked in [`docs/src/game/progression.md`](docs/src/game/progression.md); wiring that layout into normal rooms and promoting sandbox combiners wait until the current version is reviewed. Element catalog (36 resources, tier 5) is authored in [`game-server/config/elements.toml`](game-server/config/elements.toml) and loaded into `rules.elements` via the shared catalog loader; preview with `make elements-serve`. Starters, chapters, machines, and presentation keys live in that TOML — do not hardcode element ids in TypeScript. Sandbox already runs 3-in / dual-out craft; see [`docs/src/game/elements.md`](docs/src/game/elements.md) and [`docs/src/decisions.md`](docs/src/decisions.md) §10.
+The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipeline-proposal.md`](docs/src/game/open-pipeline-proposal.md). Read [`game-server/config/game.config.toml`](game-server/config/game.config.toml) before changing numbers. Splitters, tunnels, and combiners are available in all rooms. Progression (cumulative chapter demands, three cores in a Chebyshev ring 3–4, grass Moore neighbor) is documented in [`docs/src/game/progression.md`](docs/src/game/progression.md) and wired for normal rooms. Element catalog (36 resources, tier 5) is authored in [`game-server/config/elements.toml`](game-server/config/elements.toml) and loaded into `rules.elements` via the shared catalog loader; preview with `make elements-serve`. Starters, chapters, machines, and presentation keys live in that TOML — do not hardcode element ids in TypeScript. See [`docs/src/game/elements.md`](docs/src/game/elements.md) and [`docs/src/decisions.md`](docs/src/decisions.md) §10.
 
 ### Stack and URLs (keep as-is)
 
@@ -25,10 +25,10 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 
 ### v0.1 rules
 
-- One **3×3** circle source and a **5×5** central core. Each core face has three input slots on the central tiles. Corners are solid, so the core has 12 inputs. The source has one output on the center of its facing edge.
+- One **3×3** circle source footprint and a **5×5** central core (plus two satellite cores). Each core face has three input slots on the central tiles. Corners are solid, so each core has 12 inputs. Each source emits from the center of its facing edge.
 - Players drag unidirectional belts. Each cell holds one packet.
-- The server moves packets simultaneously. Packets do not swap. An open core slot consumes a circle and counts a delivery.
-- No stability bar and no crash / game over. Deliveries accumulate; later versions keep prior packet demands active so dropping an older supply blocks leveling up rather than ending the match. There is no victory screen yet.
+- The server moves packets simultaneously. Packets do not swap. An open core slot consumes a demanded element packet and counts a delivery.
+- No stability bar and no crash / game over. Deliveries accumulate; prior chapter demands stay active so dropping an older supply blocks leveling up rather than ending the match. There is no victory screen yet.
 - All gameplay and presentation numbers live in the `[pipeline]` table and reach the client on the rules payload. Do not hardcode them in TypeScript. `game:dev` watches `game.config.toml` and hot-reloads `[pipeline]` on save (invalid edits keep the previous rules).
 - In-room copy is Portuguese. The room sidebar has pages **Jogo**, **Participantes**, and **Decisões**; chat stays docked at the bottom. Git blame on belts stays on the canvas hover label.
 - **Placeable structures:** register each structure in [`src/components/game/pipeline/structures/`](src/components/game/pipeline/structures/) (`registerStructure` + side-effect import from `index.ts`). Registration must drive the Jogo sidebar (label + icon) and create-mode placement/`commit` — do not hardcode structure entries in the palette or scene. Add a black-ink SVG under `public/pipeline/` for the sidebar icon.

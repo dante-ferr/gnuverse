@@ -98,6 +98,9 @@ chunk_size = 32 # Cells per chunk side
 map_chunk_extent = 64 # Max chunk index span per axis
 chunk_cost_base = 5 # First purchased chunk
 chunk_cost_step = 2 # Added per later purchase
+satellite_core_count = 2
+satellite_core_ring_min = 3
+satellite_core_ring_max = 4
 
 # Starter sources and non-starter spawn odds live in elements.toml
 # (starter_source_ids + per-base source_spawn_chance_percent).

@@ -83,6 +83,7 @@ export type TunnelPortalRecord = {
 export type PipelineFrame = {
   kind: 'pipeline'
   version: string
+  chapter?: number
   seed: string
   width: number
   height: number
@@ -107,6 +108,8 @@ export type PipelineFrame = {
   originChunk: ChunkCoordRecord
   ownedChunks: ChunkCoordRecord[]
   previewChunks: ChunkCoordRecord[]
+  generatedChunkKeys?: string[]
+  grassChunkKey?: string
   sources: SourceRecord[]
   /** First source mirror for legacy readers. */
   source: Omit<SourceRecord, 'role'> & { role?: SourceRole }

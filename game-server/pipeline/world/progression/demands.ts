@@ -9,66 +9,72 @@ export type CoreDemandRecord = {
 
 export type PipelineFrameVersion = string
 
-/** Shapes the central core counts toward the current version milestone. */
+export function chapterToVersion(chapter: number): string {
+  return `0.${chapter}`
+}
+
+/** Legacy frames stored progression only in `version`. */
+export function chapterFromVersion(version: PipelineFrameVersion): number {
+  const match = /^(\d+)\.(\d+)$/.exec(version.trim())
+  if (!match) return 1
+  const minor = Number(match[2])
+  return Number.isFinite(minor) && minor >= 1 ? minor : 1
+}
+
+/** Shapes the cores count toward the active chapter milestone. */
 export function activeDemandShapes(
-  version: PipelineFrameVersion,
+  chapter: number,
   rules: PipelineRules,
   sandbox = false,
 ): PacketShape[] {
   if (sandbox) return rules.elements.elements.map((el) => el.id)
-  switch (version) {
-    case '0.1':
-      return ['circle']
-    default:
-      return ['circle']
-  }
+  const retain = rules.elements.retainPriorDemands
+  return rules.elements.elements
+    .filter((el) => (retain ? el.demand_chapter <= chapter : el.demand_chapter === chapter))
+    .map((el) => el.id)
 }
 
 function requiredForShape(rules: PipelineRules, shape: PacketShape, sandbox = false): number {
-  if (sandbox) {
-    const el = rules.elements.elements.find((item) => item.id === shape)
-    return el?.demand_required ?? rules.elements.defaultDemandRequired
-  }
-  switch (shape) {
-    case 'circle':
-      return rules.elements.defaultDemandRequired
-    default:
-      return rules.elements.defaultDemandRequired
-  }
+  const el = rules.elements.elements.find((item) => item.id === shape)
+  if (!el) return rules.elements.defaultDemandRequired
+  if (sandbox) return el.demand_required
+  const chapterRow = rules.elements.chapters.find((row) => row.id === el.demand_chapter)
+  const mult = chapterRow?.required_multiplier ?? 1
+  return el.demand_required * mult
 }
 
 export function coreDemands(
   rules: PipelineRules,
-  version: PipelineFrameVersion,
+  chapter: number,
   receivedByShape: Partial<Record<PacketShape, number>>,
   sandbox = false,
 ): CoreDemandRecord[] {
-  return activeDemandShapes(version, rules, sandbox).map((shape) => ({
+  return activeDemandShapes(chapter, rules, sandbox).map((shape) => ({
     shape,
     received: receivedByShape[shape] ?? 0,
     required: requiredForShape(rules, shape, sandbox),
   }))
 }
 
-/** How many more of this shape the core will still accept this version. */
+/** How many more of this shape the cores will still accept this chapter. */
 export function remainingDemand(
   rules: PipelineRules,
-  version: PipelineFrameVersion,
+  chapter: number,
   shape: PacketShape,
   receivedByShape: Partial<Record<PacketShape, number>>,
   sandbox = false,
 ): number {
-  if (!activeDemandShapes(version, rules, sandbox).includes(shape)) return 0
+  if (!activeDemandShapes(chapter, rules, sandbox).includes(shape)) return 0
   return Math.max(0, requiredForShape(rules, shape, sandbox) - (receivedByShape[shape] ?? 0))
 }
 
-/** Whether the central core still counts deliveries for this shape toward the current milestone. */
+/** Whether the cores still count deliveries for this shape toward the current milestone. */
 export function coreAcceptsShape(
   rules: PipelineRules,
-  version: PipelineFrameVersion,
+  chapter: number,
   shape: PacketShape,
   receivedByShape: Partial<Record<PacketShape, number>>,
   sandbox = false,
 ): boolean {
-  return remainingDemand(rules, version, shape, receivedByShape, sandbox) > 0
+  return remainingDemand(rules, chapter, shape, receivedByShape, sandbox) > 0
 }

@@ -84,6 +84,12 @@ export type PipelineRules = {
   chunkCostBase: number
   /** Linear increment per further purchase index (see chunkPurchaseCost). */
   chunkCostStep: number
+  /** Satellite cores besides the central one (normal rooms). */
+  satelliteCoreCount: number
+  /** Inclusive Chebyshev min ring from starter chunk. */
+  satelliteCoreRingMin: number
+  /** Inclusive Chebyshev max ring from starter chunk. */
+  satelliteCoreRingMax: number
   /** Input “[” bracket protrusion as percent of one cell (shallower = recess). */
   slotInputDepthPercent: number
   /** Output bracket protrusion as percent of one cell (deeper = nozzle). */

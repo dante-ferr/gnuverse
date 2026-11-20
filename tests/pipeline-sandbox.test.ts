@@ -21,7 +21,7 @@ test('createSandbox has three cores and tier-1 element sources', () => {
 
 test('sandbox demands include every catalog element id', () => {
   const match = Match.createSandbox('sandbox-demands', rules)
-  const shapes = activeDemandShapes(match.version, rules, true)
+  const shapes = activeDemandShapes(match.chapter, rules, true)
   assert.equal(shapes.length, rules.elements.elements.length)
   const frame = match.toFrame()
   assert.equal(frame.demands.length, rules.elements.elements.length)
@@ -30,9 +30,15 @@ test('sandbox demands include every catalog element id', () => {
   assert.equal(steam.required, rules.elements.elements.find((el) => el.id === 'steam')!.demand_required)
 })
 
-test('Match.create still uses circle packets in normal rooms', () => {
+test('Match.create uses element-shaped packets in normal rooms', () => {
   const match = Match.create('normal', rules)
   assert.equal(match.sandbox, false)
   assert.equal(match.combiners.length, 0)
-  assert.equal(match.sources.every((source) => source.shape === 'circle'), true)
+  const starters = new Set(rules.elements.starterSourceIds)
+  assert.equal(
+    match.sources
+      .filter((source) => starters.has(match.sourceRoles[source.id] ?? source.shape))
+      .every((source) => starters.has(source.shape)),
+    true,
+  )
 })

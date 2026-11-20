@@ -26,7 +26,12 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
 
         <section className={styles.section}>
           <h3>Edição</h3>
-          <p>Escolha uma estrutura na paleta. Em <strong>Criar</strong>, arraste na grade para colocar. Em <strong>Apagar</strong>, arraste sobre as células que quer remover.</p>
+          <p>
+            Escolha uma estrutura na paleta. Em <strong>Criar</strong>, arraste na grade para colocar.
+            Com a esteira selecionada, clique numa esteira sua e arraste para reorientá-la e continuar
+            a linha no caminho do arraste. Em <strong>Apagar</strong>, arraste sobre as células que
+            quer remover.
+          </p>
           <ul className={styles.list} aria-label="Atalhos de edição">
             <li>
               <span className={styles.key}>E</span>
@@ -92,26 +97,27 @@ export function GameHelpOverlay({ sandbox, onClose }: Props) {
           </p>
         </section>
 
-        {sandbox ? (
-          <section className={styles.section}>
-            <h3>Combinadores (sandbox)</h3>
-            <p>
-              Escolha o combinador, ajuste a orientação e clique no centro da grade para posicionar.
-              Você não escolhe receita ao colocar a máquina: a saída segue o conjunto de entradas
-              que chegar aos slots.
-            </p>
-            <ul className={styles.list} aria-label="Combinadores">
-              <li>
-                <span className={styles.key}>Bi-combinador</span>
-                <span>R ou Girar mudam a orientação antes de colocar.</span>
-              </li>
-              <li>
-                <span className={styles.key}>Tri-combinador</span>
-                <span>Três entradas; saídas simples ou duplas conforme o que você alimentar.</span>
-              </li>
-            </ul>
-          </section>
-        ) : null}
+        <section className={styles.section}>
+          <h3>Combinadores{sandbox ? ' (sala teste)' : ''}</h3>
+          <p>
+            Escolha o combinador, ajuste a orientação e clique no centro da grade para posicionar.
+            Você não escolhe receita ao colocar a máquina: a saída segue o conjunto de entradas que
+            chegar aos slots.
+          </p>
+          <ul className={styles.list} aria-label="Combinadores">
+            <li>
+              <span className={styles.key}>Bi-combinador</span>
+              <span>
+                R ou Girar mudam a orientação antes de colocar. Sobre uma célula alimentada por uma
+                única esteira vizinha, o fantasma segue essa direção.
+              </span>
+            </li>
+            <li>
+              <span className={styles.key}>Tri-combinador</span>
+              <span>Três entradas; saídas simples ou duplas conforme o que você alimentar.</span>
+            </li>
+          </ul>
+        </section>
 
         <section className={styles.section}>
           <h3>Sala</h3>

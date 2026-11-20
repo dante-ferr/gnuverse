@@ -51,6 +51,9 @@ const defaults = {
   map_chunk_extent: 64,
   chunk_cost_base: 5,
   chunk_cost_step: 2,
+  satellite_core_count: 2,
+  satellite_core_ring_min: 3,
+  satellite_core_ring_max: 4,
   slot_input_depth_percent: 22,
   slot_output_depth_percent: 34,
   slot_bracket_thick_percent: 18,
@@ -81,6 +84,9 @@ const integers = {
   map_chunk_extent: [3, 128],
   chunk_cost_base: [0, 1_000_000],
   chunk_cost_step: [0, 1_000_000],
+  satellite_core_count: [0, 8],
+  satellite_core_ring_min: [1, 32],
+  satellite_core_ring_max: [1, 32],
   slot_input_depth_percent: [5, 45],
   slot_output_depth_percent: [5, 45],
   slot_bracket_thick_percent: [5, 35],
@@ -142,6 +148,9 @@ const mappings = {
   map_chunk_extent: 'mapChunkExtent',
   chunk_cost_base: 'chunkCostBase',
   chunk_cost_step: 'chunkCostStep',
+  satellite_core_count: 'satelliteCoreCount',
+  satellite_core_ring_min: 'satelliteCoreRingMin',
+  satellite_core_ring_max: 'satelliteCoreRingMax',
   slot_input_depth_percent: 'slotInputDepthPercent',
   slot_output_depth_percent: 'slotOutputDepthPercent',
   slot_bracket_thick_percent: 'slotBracketThickPercent',
@@ -198,6 +207,9 @@ export function pipelineRulesFrom(section: unknown): PipelineRules {
   const rules = { ...(result as Omit<PipelineRules, 'elements'>), elements } as PipelineRules
   if (rules.cameraZoomMin >= rules.cameraZoomMax) {
     throw new Error('camera_zoom_min deve ser menor que camera_zoom_max')
+  }
+  if (rules.satelliteCoreRingMin > rules.satelliteCoreRingMax) {
+    throw new Error('satellite_core_ring_min must be <= satellite_core_ring_max')
   }
   if (rules.elements.starterSourceIds.length < 1) {
     throw new Error('elements.toml: starter_source_ids deve listar ao menos uma base')

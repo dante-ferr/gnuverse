@@ -8,6 +8,7 @@ import {
   visibleAabb,
   type ChunkCoord,
 } from './coords.ts'
+import { generatePendingPreviewChunks } from './chunk-generation.ts'
 
 function chunkKey(coord: ChunkCoord) {
   return `${coord.cx},${coord.cy}`
@@ -92,6 +93,7 @@ export function applyOwnedChunks(match: Match, ownedChunks: ChunkCoord[]): void 
   match.previewChunks.length = 0
   match.previewChunks.push(...previewChunks.map((coord) => ({ ...coord })))
   match.rebuildChunkKeys()
+  generatePendingPreviewChunks(match)
 }
 
 /** Buy a preview chunk. Returns an error message, or null on success. */

@@ -213,7 +213,7 @@ export class Movement {
           shape,
           remainingDemand(
             this.match.rules,
-            this.match.version,
+            this.match.chapter,
             shape,
             this.match.deliveryByShape,
             this.match.sandbox,

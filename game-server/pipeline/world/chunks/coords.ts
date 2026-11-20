@@ -1,3 +1,4 @@
+import { createSeedRng } from '../../geometry/seed-rng.ts'
 import type { Cell } from '../../geometry/cell.ts'
 
 export type ChunkCoord = { cx: number; cy: number }
@@ -9,8 +10,75 @@ const ORTHOGONAL_OFFSETS: readonly [number, number][] = [
   [-1, 0],
 ]
 
-function chunkKey(coord: ChunkCoord): string {
+export function chunkKey(coord: ChunkCoord): string {
   return `${coord.cx},${coord.cy}`
+}
+
+/** Chebyshev distance between chunk indices. */
+export function chebyshevDistance(a: ChunkCoord, b: ChunkCoord): number {
+  return Math.max(Math.abs(a.cx - b.cx), Math.abs(a.cy - b.cy))
+}
+
+/** Eight chunks around `center` at Chebyshev distance 1. */
+export function mooreNeighborChunks(center: ChunkCoord): ChunkCoord[] {
+  const out: ChunkCoord[] = []
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue
+      out.push({ cx: center.cx + dx, cy: center.cy + dy })
+    }
+  }
+  out.sort((a, b) => a.cy - b.cy || a.cx - b.cx)
+  return out
+}
+
+/** Seed-pick `count` satellite chunks in an inclusive Chebyshev ring. */
+export function pickSatelliteChunkCoords(
+  seed: string,
+  starter: ChunkCoord,
+  extent: number,
+  count: number,
+  ringMin: number,
+  ringMax: number,
+): ChunkCoord[] {
+  const candidates: ChunkCoord[] = []
+  for (let dy = -ringMax; dy <= ringMax; dy++) {
+    for (let dx = -ringMax; dx <= ringMax; dx++) {
+      if (dx === 0 && dy === 0) continue
+      const dist = Math.max(Math.abs(dx), Math.abs(dy))
+      if (dist < ringMin || dist > ringMax) continue
+      const coord = { cx: starter.cx + dx, cy: starter.cy + dy }
+      if (chunkInExtent(coord, extent)) candidates.push(coord)
+    }
+  }
+  if (candidates.length < count) {
+    throw new Error(
+      `Not enough satellite slots: need ${count}, ring ${ringMin}-${ringMax} has ${candidates.length}`,
+    )
+  }
+  const rng = createSeedRng(`${seed}:satellites`)
+  const pool = [...candidates]
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j]!, pool[i]!]
+  }
+  return pool.slice(0, count).sort((a, b) => a.cy - b.cy || a.cx - b.cx)
+}
+
+/** Own one Moore neighbor (for the grass guarantee) excluding listed coords. */
+export function pickGrassNeighborChunk(
+  seed: string,
+  starter: ChunkCoord,
+  extent: number,
+  exclude: ChunkCoord[],
+): ChunkCoord {
+  const excludeKeys = new Set(exclude.map(chunkKey))
+  const candidates = mooreNeighborChunks(starter).filter(
+    (coord) => chunkInExtent(coord, extent) && !excludeKeys.has(chunkKey(coord)),
+  )
+  if (candidates.length === 0) throw new Error('No Moore neighbor available for grass guarantee')
+  const rng = createSeedRng(`${seed}:grass`)
+  return candidates[Math.floor(rng() * candidates.length)]!
 }
 
 /** Centered starter chunk index for a square extent (cells per axis = extent chunks). */

@@ -139,7 +139,7 @@ export class MachineEditor {
       width: 1,
       height: 1,
     }
-    if (this.portsOverlapBuildings(probe.slots, [footprint])) {
+    if (this.portsOverlapBuildings(probe.slots, [footprint], { proposedIsLogistic: true })) {
       return 'Entradas ou saídas sobrepõem outra estrutura.'
     }
     const id = `s${this.match.nextSplitterSeq++}`
@@ -195,7 +195,7 @@ export class MachineEditor {
       { origin: entrance, width: 1, height: 1 },
       { origin: exit, width: 1, height: 1 },
     ]
-    if (this.portsOverlapBuildings(tunnelSlots, footprints)) {
+    if (this.portsOverlapBuildings(tunnelSlots, footprints, { proposedIsLogistic: true })) {
       return 'Entradas ou saídas sobrepõem outra estrutura.'
     }
     const pairId = `t${this.match.nextTunnelSeq++}`
@@ -267,7 +267,13 @@ export class MachineEditor {
   private portsOverlapBuildings(
     slots: readonly { cell: { x: number; y: number }; role: 'input' | 'output'; travel: Direction }[],
     footprints: readonly BuildingFootprint[],
+    options?: { proposedIsLogistic?: boolean },
   ) {
-    return portsOverlapBuildings(slots, footprints, matchBuildingMachines(this.match))
+    return portsOverlapBuildings(
+      slots,
+      footprints,
+      matchBuildingMachines(this.match),
+      options,
+    )
   }
 }

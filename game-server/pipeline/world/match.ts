@@ -20,10 +20,11 @@ import { Craft } from './tick/craft.ts'
 import { Emission } from './tick/emission.ts'
 import { Routing } from './tick/routing.ts'
 import type { PacketShape } from '../packets/packet.ts'
-import { coreAcceptsShape, coreDemands } from './progression/demands.ts'
+import { coreAcceptsShape } from './progression/demands.ts'
 import type { CollaboratorRecord, PipelineFrame, SourceRecord } from './frame.ts'
 import type { SourceRole } from './types.ts'
 import { Movement } from './tick/movement.ts'
+import { chapterFromVersion, chapterToVersion, coreDemands } from './progression/demands.ts'
 import { tryAutoUnlock } from './progression/unlock.ts'
 
 /** One Open Pipeline match. The server tick is the only writer. */
@@ -36,6 +37,7 @@ export class Match {
   /** Approach cell key → last winner between input pull and belt flow. */
   pullLast: Record<string, 'pull' | 'flow'> = {}
   version = '0.1'
+  chapter = 1
   tickIndex = 0
   deliveries = 0
   deliveryByShape: Partial<Record<PacketShape, number>> = {}
@@ -54,9 +56,11 @@ export class Match {
   originChunk: ChunkCoord
   readonly ownedChunks: ChunkCoord[]
   readonly previewChunks: ChunkCoord[]
-  readonly sources: SourceMachine[]
-  readonly sourceRoles: Record<string, SourceRole>
+  sources: SourceMachine[]
+  sourceRoles: Record<string, SourceRole>
   readonly cores: CoreMachine[]
+  grassChunkKey: string | null = null
+  generatedChunkKeys: Set<string>
   combiners: CombinerMachine[] = []
   splitters: SplitterMachine[] = []
   tunnels: TunnelPortalMachine[] = []
@@ -75,6 +79,8 @@ export class Match {
     sourceRoles: Record<string, SourceRole>,
     cores: CoreMachine[],
     sandbox = false,
+    grassChunkKey: string | null = null,
+    generatedChunkKeys: Iterable<string> = [],
   ) {
     this.rules = rules
     this.seed = seed
@@ -87,6 +93,8 @@ export class Match {
     this.sources = sources
     this.sourceRoles = sourceRoles
     this.cores = cores
+    this.grassChunkKey = grassChunkKey
+    this.generatedChunkKeys = new Set(generatedChunkKeys)
     this.ownedChunkKeys = chunkKeySet(ownedChunks)
     this.previewChunkKeys = chunkKeySet(previewChunks)
   }
@@ -102,8 +110,8 @@ export class Match {
 
   static create(seed: string, rules: PipelineRules) {
     const layout = layoutMatchFromSeed(rules, seed)
-    const { core, sources, roles } = machinesFromLayout(rules, layout)
-    return new Match(
+    const { cores, sources, roles } = machinesFromLayout(rules, layout)
+    const match = new Match(
       rules,
       seed,
       layout.width,
@@ -113,9 +121,14 @@ export class Match {
       layout.previewChunks,
       sources,
       roles,
-      [core],
+      cores,
       false,
+      layout.grassChunkKey,
+      layout.generatedChunkKeys,
     )
+    match.chapter = 1
+    match.version = chapterToVersion(1)
+    return match
   }
 
   static createSandbox(seed: string, rules: PipelineRules) {
@@ -218,7 +231,7 @@ export class Match {
   }
 
   acceptsDelivery(shape: PacketShape) {
-    return coreAcceptsShape(this.rules, this.version, shape, this.deliveryByShape, this.sandbox)
+    return coreAcceptsShape(this.rules, this.chapter, shape, this.deliveryByShape, this.sandbox)
   }
 
   recordDelivery(shape: PacketShape, coreId?: string) {
@@ -269,7 +282,10 @@ export class Match {
       tick: this.tickIndex,
       deliveries: this.deliveries,
       deliveryByShape: { ...this.deliveryByShape },
-      demands: coreDemands(this.rules, this.version, this.deliveryByShape, this.sandbox),
+      chapter: this.chapter,
+      generatedChunkKeys: [...this.generatedChunkKeys],
+      grassChunkKey: this.grassChunkKey ?? undefined,
+      demands: coreDemands(this.rules, this.chapter, this.deliveryByShape, this.sandbox),
       collaborators: this.collaborators.map((person) => ({ ...person })),
       nextPacketId: this.nextPacketId,
       nextBeltSeq: this.nextBeltSeq,
@@ -383,7 +399,10 @@ export class Match {
       cores,
       frame.sandbox === true,
     )
-    match.version = frame.version ?? '0.1'
+    match.chapter = frame.chapter ?? chapterFromVersion(frame.version ?? '0.1')
+    match.version = frame.version ?? chapterToVersion(match.chapter)
+    match.grassChunkKey = frame.grassChunkKey ?? null
+    match.generatedChunkKeys = new Set(frame.generatedChunkKeys ?? [])
     match.tickIndex = frame.tick
     match.deliveries = frame.deliveries
     match.deliveryByShape = frame.deliveryByShape

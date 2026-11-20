@@ -128,7 +128,7 @@ export function layoutStarterSources(
         `source-${elementId}`,
         candidate.sourceOrigin,
         candidate.sourceDirection,
-        'circle',
+        elementId,
         defaultSourcePeriodTicks(rules.elements, rules.tickMs),
       )
       if (occupied.sourceOverlapsOccupied(probe)) continue
@@ -145,7 +145,7 @@ export function layoutStarterSources(
       id: `source-${elementId}`,
       origin: found.sourceOrigin,
       direction: found.sourceDirection,
-      shape: 'circle',
+      shape: elementId,
       role: elementId,
       sourcePeriodTicks: sourcePeriodTicksForElement(rules.elements, rules.tickMs, el),
     })

@@ -1,5 +1,5 @@
 import type { Match } from '../match.ts'
-import { coreDemands } from './demands.ts'
+import { chapterToVersion, coreDemands } from './demands.ts'
 
 /** Parse `major.minor`, increment minor; missing minor treats as `0.1`. */
 export function bumpPipelineVersion(version: string): string {
@@ -12,19 +12,28 @@ export function bumpPipelineVersion(version: string): string {
 }
 
 export function demandsSatisfied(match: Match): boolean {
-  return coreDemands(match.rules, match.version, match.deliveryByShape, match.sandbox).every(
+  return coreDemands(match.rules, match.chapter, match.deliveryByShape, match.sandbox).every(
     (demand) => demand.received >= demand.required,
   )
 }
 
-/** Auto-advance only from 0.1 → 0.2 when delivery milestones are met. */
+/** Auto-advance to the next chapter when every active demand is met. */
 export function tryAutoUnlock(match: Match): boolean {
-  if (match.version !== '0.1') return false
+  if (match.sandbox) return false
+  const lastChapter = match.rules.elements.chapters.length
+  if (match.chapter >= lastChapter) return false
   if (!demandsSatisfied(match)) return false
-  match.version = bumpPipelineVersion(match.version)
+  match.chapter += 1
+  match.version = chapterToVersion(match.chapter)
   return true
 }
 
 export function forceAdvance(match: Match): void {
+  const lastChapter = match.rules.elements.chapters.length
+  if (match.chapter < lastChapter) {
+    match.chapter += 1
+    match.version = chapterToVersion(match.chapter)
+    return
+  }
   match.version = bumpPipelineVersion(match.version)
 }

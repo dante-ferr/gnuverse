@@ -50,6 +50,9 @@ export type PipelineRules = {
   mapChunkExtent: number
   chunkCostBase: number
   chunkCostStep: number
+  satelliteCoreCount: number
+  satelliteCoreRingMin: number
+  satelliteCoreRingMax: number
   slotInputDepthPercent: number
   slotOutputDepthPercent: number
   slotBracketThickPercent: number
@@ -141,6 +144,7 @@ export type BeltRecord = {
 export type PipelineFrame = {
   kind: 'pipeline'
   version: string
+  chapter?: number
   seed: string
   width: number
   height: number

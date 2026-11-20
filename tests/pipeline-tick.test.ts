@@ -13,6 +13,18 @@ const rules: PipelineRules = testPipelineRules()
 
 const author = { id: 'ada', nickname: 'Ada' }
 
+function rulesWithChapterOneQuota(quota: number, base: PipelineRules = rules): PipelineRules {
+  return {
+    ...base,
+    elements: {
+      ...base.elements,
+      elements: base.elements.elements.map((el) =>
+        el.demand_chapter <= 1 ? { ...el, demand_required: quota } : el,
+      ),
+    },
+  }
+}
+
 function ownedStrip(match: Match) {
   const ox = (match.ownedChunks[0]!.cx - match.originChunk.cx) * rules.chunkSize
   const oy = (match.ownedChunks[0]!.cy - match.originChunk.cy) * rules.chunkSize
@@ -43,10 +55,19 @@ function manhattanBelts(from: Cell, to: Cell, finalDirection: Direction) {
   }))
 }
 
+function firstStarterSource(match: Match) {
+  const starters = new Set(match.rules.elements.starterSourceIds)
+  const source =
+    match.sources.find((machine) => starters.has(match.sourceRoles[machine.id] ?? machine.shape)) ??
+    match.source
+  return source
+}
+
 function connected(matchRules: PipelineRules = rules) {
   const match = Match.create('seed', matchRules)
-  const output = match.source.outputSlots()[0]!.cell
-  const facing = match.source.direction
+  const source = firstStarterSource(match)
+  const output = source.outputSlots()[0]!.cell
+  const facing = source.direction
   const slots = match.core
     .inputSlots()
     .filter((slot) => slot.travel === facing)
@@ -77,7 +98,8 @@ test('a belt line carries a circle into the facing core slot', () => {
   const before = match.deliveries
   for (let i = 0; i < 30; i++) match.tick()
   assert.ok(match.deliveries > before)
-  assert.equal(match.packets.every((packet) => packet.shape === 'circle'), true)
+  const shape = firstStarterSource(match).shape
+  assert.equal(match.packets.every((packet) => packet.shape === shape), true)
 })
 
 test('core input pulls from the approach belt regardless of belt facing', () => {
@@ -86,7 +108,7 @@ test('core input pulls from the approach belt regardless of belt facing', () => 
   assert.ok(slot)
   const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
   assert.equal(match.place([{ ...approach, direction: 'north' }], author), null)
-  match.packets.push(new Packet('p1', approach, 'circle'))
+  match.packets.push(new Packet('p1', approach, 'fire'))
   const before = match.deliveries
   match.tick()
   assert.equal(match.deliveries, before + 1)
@@ -109,26 +131,31 @@ test('coreGearsShouldSpin holds for core_gear_active_ms', async () => {
 test('deliveries count per shape and surface on frame demands', () => {
   const match = connected()
   for (let i = 0; i < 30; i++) match.tick()
-  const circles = match.deliveryByShape.circle ?? 0
-  assert.ok(circles > 0)
-  assert.equal(match.deliveries, circles)
+  const shape = firstStarterSource(match).shape
+  const received = match.deliveryByShape[shape] ?? 0
+  assert.ok(received > 0)
+  assert.equal(match.deliveries, received)
   const frame = match.toFrame()
-  assert.deepEqual(frame.demands, [
-    { shape: 'circle', received: circles, required: rules.elements.defaultDemandRequired },
-  ])
+  const required = rules.elements.defaultDemandRequired
+  assert.deepEqual(
+    frame.demands.map((item) => item.shape).sort(),
+    ['fire', 'steam', 'water'],
+  )
+  const row = frame.demands.find((item) => item.shape === shape)
+  assert.ok(row)
+  assert.equal(row.received, received)
+  assert.equal(row.required, required)
 })
 
 test('core stops accepting a shape once its requirement is met', () => {
-  const match = connected({
-    ...rules,
-    elements: { ...rules.elements, defaultDemandRequired: 1 },
-  })
+  const match = connected(rulesWithChapterOneQuota(1))
+  const shape = firstStarterSource(match).shape
   for (let i = 0; i < 40; i++) match.tick()
-  assert.equal(match.deliveryByShape.circle, 1)
+  assert.equal(match.deliveryByShape[shape], 1)
   assert.equal(match.deliveries, 1)
-  assert.ok(match.packets.length > 0, 'overflow circles should stay on belts')
+  assert.ok(match.packets.length > 0, 'overflow packets should stay on belts')
   for (let i = 0; i < 8; i++) match.tick()
-  assert.equal(match.deliveryByShape.circle, 1)
+  assert.equal(match.deliveryByShape[shape], 1)
   assert.equal(match.deliveries, 1)
   const beltCells = new Set(match.belts.map((belt) => `${belt.origin.x},${belt.origin.y}`))
   const onBelts = match.packets.filter((packet) => beltCells.has(`${packet.cell.x},${packet.cell.y}`))
@@ -308,23 +335,25 @@ test('all belts in a stroke are kept without a per-player cap', () => {
 })
 
 test('auto unlock bumps 0.1 to 0.2 when delivery milestones are met', () => {
-  const match = connected({
-    ...rules,
-    elements: { ...rules.elements, defaultDemandRequired: 3 },
-  })
-  match.deliveryByShape = { circle: 3 }
-  match.deliveries = 3
+  const required = 3
+  const match = connected(rulesWithChapterOneQuota(required))
+  match.deliveryByShape = { fire: required, water: required, steam: required }
+  match.deliveries = required * 3
+  assert.equal(match.chapter, 1)
   assert.equal(match.version, '0.1')
   match.tick()
+  assert.equal(match.chapter, 2)
   assert.equal(match.version, '0.2')
   match.tick()
-  assert.equal(match.version, '0.2')
+  assert.equal(match.chapter, 2)
 })
 
-test('forceAdvance can bump beyond 0.2', () => {
+test('forceAdvance bumps chapter through late progression', () => {
   const match = Match.create('seed', rules)
+  match.chapter = 2
   match.version = '0.2'
   forceAdvance(match)
+  assert.equal(match.chapter, 3)
   assert.equal(match.version, '0.3')
 })
 
@@ -337,13 +366,13 @@ test('a signed placement cannot cover the core', () => {
   )
 })
 
-test('Match.create uses chunked grid with one owned and four preview chunks', () => {
+test('Match.create uses multi-core owned islands plus preview ring', () => {
   const match = Match.create('seed', rules)
-  assert.equal(match.width, rules.chunkSize * 3)
-  assert.equal(match.height, rules.chunkSize * 3)
-  assert.equal(match.ownedChunks.length, 1)
-  assert.equal(match.previewChunks.length, 4)
-  assert.equal(match.sources.length, 2)
+  assert.equal(match.cores.length, 3)
+  assert.equal(match.ownedChunks.length, 4)
+  assert.ok(match.previewChunks.length >= 4)
+  assert.ok(match.width >= rules.chunkSize * 3)
+  assert.ok(match.sources.length >= 2)
 })
 
 test('belt placement on a preview chunk is rejected', () => {
@@ -362,10 +391,14 @@ test('belt placement on a preview chunk is rejected', () => {
   assert.equal(match.place([{ ...ownedCell, direction: 'east' }], author), null)
 })
 
-test('non-starter preview chunks need not contain sources', () => {
+test('preview and owned chunks may host generated tier-1 sources', () => {
   const match = Match.create('layout-preview-empty', rules)
-  assert.equal(match.sources.length, 2)
-  for (const source of match.sources) {
+  assert.ok(match.sources.length > 2)
+  for (const source of match.sources.filter((machine) =>
+    new Set(rules.elements.starterSourceIds).has(
+      match.sourceRoles[machine.id] ?? machine.shape,
+    ),
+  )) {
     assert.equal(match.isOwnedCell(source.origin), true)
   }
 })

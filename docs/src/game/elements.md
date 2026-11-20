@@ -28,7 +28,7 @@ Portuguese labels (`name_pt`) appear in the in-game UI (combiner picker, require
 
 ## Planned graph, machines, and core demands
 
-Status: **TOML catalog + preview layout updated** (2026-11-18). **Sandbox-first** in-game slice (2026-11-19): combiners, typed packets, and full-catalog core demands run only in **Sala teste (elementos)** (`sandbox: true`, prototype + non-production). Normal rooms still use circle packets, fire+water starters, and one core.
+Status: **TOML catalog + preview layout updated** (2026-11-18). **Normal rooms** (2026-11-20): three cores, chapter demands, element-shaped packets, combiners in production rooms. **Sandbox** still runs the full catalog at once for prototype play.
 
 ### Catalog target
 
@@ -37,7 +37,7 @@ Status: **TOML catalog + preview layout updated** (2026-11-18). **Sandbox-first*
 | Distinct resources | **36** | Authored in `elements.toml` |
 | Parallel colors | Up to **3** color families | Approx. cool / warm / green-earth in draft colors |
 | Max tier | **5** | Authored |
-| Core quota | Across match progression, **every** element appears in core demand at least once | Chapter schedule authored in TOML; sim not wired yet |
+| Core quota | Across match progression, **every** element appears in core demand at least once | Wired via chapter advance in normal rooms |
 
 The core does **not** demand the whole low-tier book at match start. Chapter schedule and `max_new_bases` live in TOML (`retain_prior_demands` keeps older demands active). The current book opens with water, fire, and steam, then adds branches gradually. Pollen and garden wait until chapter 8, with the two capstones that consume tier-4 byproducts. The recipe page lists each chapter under **Quando o núcleo pede cada elemento**.
 
@@ -98,12 +98,12 @@ Preview HTML: `scripts/elements/render.mjs`. In-room overlay: `src/components/ga
 | Footprints | `combiner_2` **3×3**, `combiner_3` **5×3** (width×height) |
 | Dual-out | Coupled eject — both ports succeed or neither |
 | Half-rate split | Single-output recipe with **both** output belts: alternate ports each craft; one belt → full rate to that port |
-| Packets | Element `id` on the belt in sandbox; circle only in normal rooms |
+| Packets | Element `id` on the belt in normal and sandbox rooms |
 
 ### Implementation order (remaining)
 
-1. Promote combiners + typed packets from sandbox to normal match progression (chapter gates)
-2. Wire cumulative core demands + **three-core ring layout** so the full catalog is required by late progression outside sandbox — [Chapter progression and cores](progression.md)
-3. Promote tinted catalog glyphs (and `fill` disk fallback) from sandbox to normal match progression as chapter gates land
+1. ~~Promote combiners + typed packets from sandbox to normal match progression (chapter gates)~~ **Done (2026-11-20)**
+2. ~~Wire cumulative core demands + **three-core ring layout**~~ **Done** — [Chapter progression and cores](progression.md)
+3. Promote tinted catalog glyphs (and `fill` disk fallback) client-wide as chapter gates land (server packets already use element ids)
 
 Locked footprints and half-rate behavior above; split rounding remainder is not needed when alternating ports. Prior demands stay permanent (`retain_prior_demands`); the 9-core proposal victory path is retired in favor of three cores + full catalog.

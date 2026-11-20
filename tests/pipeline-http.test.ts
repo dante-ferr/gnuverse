@@ -56,7 +56,7 @@ function beltPathToCore(
   }))
 }
 
-test('a signed-in player can belt a circle into the core and a guest cannot', async () => {
+test('a signed-in player can belt a starter element into the core and a guest cannot', async () => {
   let time = 1_000_000
   const folder = await mkdtemp(join(tmpdir(), 'gnuverse-pipeline-'))
   const identityProvider = createTestIdentityProvider({ now: () => time })
@@ -89,7 +89,8 @@ test('a signed-in player can belt a circle into the core and a guest cannot', as
     const detail = await fetch(`${base}/api/towers/${room.id}`)
     const state = (await detail.json()) as {
       frame: {
-        source: { x: number; y: number; direction: Direction }
+        sources: { x: number; y: number; direction: Direction; shape: string; role?: string }[]
+        source: { x: number; y: number; direction: Direction; shape: string; role?: string }
         core: { x: number; y: number }
         collaborators: { id: string }[]
       }
@@ -100,7 +101,12 @@ test('a signed-in player can belt a circle into the core and a guest cannot', as
       body: JSON.stringify({ cells: [{ x: 0, y: 0, direction: 'east' }] }),
     })
     assert.equal(guest.status, 401)
-    const { source, core } = state.frame
+    const { core } = state.frame
+    const starters = new Set(['fire', 'water'])
+    const source =
+      (state.frame.sources ?? [state.frame.source]).find((item) =>
+        starters.has(item.role ?? item.shape),
+      ) ?? state.frame.source
     const cells = beltPathToCore(source, source.direction, core)
     const placed = await fetch(`${base}/api/towers/${room.id}/place`, {
       method: 'POST',

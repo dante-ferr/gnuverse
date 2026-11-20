@@ -17,10 +17,10 @@ The catalog has **36** elements. One **5×5** core has **12** input ports, so la
 | Acceptance | Any open port on **any** core accepts any **currently demanded** type. Quotas are **room-global** (`deliveryByShape`), not per-core |
 | Central | Centered in the starter chunk (same as today) |
 | Satellites | Seed-picked in a **Chebyshev** ring: distance ∈ [`satellite_core_ring_min`, `satellite_core_ring_max`] (default **3–4**) from the starter chunk. Rings at distance **1–2** are the intentional **2-chunk gap** (no satellite cores there) |
-| Ownership | Starter chunk + both satellite-core chunks are **owned at create** (may be disconnected islands). Belts cannot cross unowned gap chunks; players buy a path to join networks |
-| Generation | Those three chunks materialize at create. Other chunks still generate on first preview entry |
+| Ownership | Starter + both satellite-core chunks + the grass Moore-neighbor chunk are **owned at create** (may be disconnected islands). Belts cannot cross unowned gap chunks; players buy a path to join networks |
+| Generation | Those owned chunks plus their edge previews materialize at create. Further chunks generate on first preview entry |
 
-Intended `[pipeline]` keys (wire with the layout slice):
+`[pipeline]` keys:
 
 | Key | Default | Role |
 | :--- | ---: | :--- |
@@ -35,7 +35,7 @@ Sandbox rooms may keep a compact multi-core layout for prototype play; productio
 | Topic | Rule |
 | :--- | :--- |
 | Starter chunk | Always places `starter_source_ids` (**fire**, **water**) — spawn odds ignored |
-| Grass guarantee | At least one **grass** source in the **Moore neighborhood** (Chebyshev distance 1 — eight chunks around the starter). Match create forces generation of one such neighbor that contains grass (preview until bought unless that chunk is also a satellite-core chunk) |
+| Grass guarantee | At least one **grass** source in the **Moore neighborhood** (Chebyshev distance 1 — eight chunks around the starter). Match create forces generation of one such neighbor that contains grass and **owns that chunk** so the source emits immediately (unless that chunk is also a satellite-core chunk, still owned at create) |
 | Other bases | Per-base `source_spawn_chance_percent` on non-starter generated chunks (see [Coins and map expansion](economy-expansion.md)) |
 
 ## Chapters and unlock

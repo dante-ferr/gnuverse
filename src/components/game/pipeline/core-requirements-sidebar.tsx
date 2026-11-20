@@ -28,8 +28,8 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
       <h2 className={styles.sidebarSectionTitle}>Requisitos do núcleo</h2>
       <dl className={styles.coreRequirements}>
         <div>
-          <dt>Versão</dt>
-          <dd>v{frame.version}</dd>
+          <dt>Capítulo</dt>
+          <dd>{frame.chapter ?? frame.version.replace(/^0\./, '')}</dd>
         </div>
       </dl>
       <ul className={styles.coreRequirementGrid} aria-label="Formas exigidas">
