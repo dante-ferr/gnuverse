@@ -20,8 +20,16 @@ function shiftCell(cell: Cell, dx: number, dy: number) {
 }
 
 function shiftMachine(machine: Machine, dx: number, dy: number) {
-  shiftCell(machine.origin, dx, dy)
-  for (const slot of machine.slots) shiftCell(slot.cell, dx, dy)
+  // Belt, splitter, and tunnel inputs reuse the origin cell object.
+  // Shift each cell once so those buildings do not jump an extra chunk.
+  const seen = new Set<Cell>()
+  const shiftOnce = (cell: Cell) => {
+    if (seen.has(cell)) return
+    seen.add(cell)
+    shiftCell(cell, dx, dy)
+  }
+  shiftOnce(machine.origin)
+  for (const slot of machine.slots) shiftOnce(slot.cell)
 }
 
 function shiftKey(key: string, dx: number, dy: number): string | null {

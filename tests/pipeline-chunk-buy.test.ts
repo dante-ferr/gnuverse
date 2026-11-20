@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { BeltMachine } from '../game-server/pipeline/machines/belt-machine.ts'
+import { CombinerMachine } from '../game-server/pipeline/machines/combiner-machine.ts'
+import { SplitterMachine } from '../game-server/pipeline/machines/splitter-machine.ts'
+import { TunnelPortalMachine } from '../game-server/pipeline/machines/tunnel-machine.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
 import {
   buyPreviewChunk,
@@ -60,6 +64,72 @@ test('buyPreviewChunk remaps every sandbox core when the origin moves west', () 
     assert.equal(core.origin.y, before[index]!.y)
     assert.ok(match.isOwnedCell(core.origin))
   }
+})
+
+test('buyPreviewChunk shifts placed logistics once when the origin moves', () => {
+  const rules = testPipelineRules({ chunkSize: 24, mapChunkExtent: 64 })
+  const match = Match.create('chunk-buy-logistics', rules)
+  const edge = match.previewChunks.find((coord) => coord.cx === match.originChunk.cx)
+  assert.ok(edge, 'expected a preview on the west edge of the visible map')
+
+  const anchor = { x: match.core.origin.x + 6, y: match.core.origin.y }
+  assert.ok(match.isOwnedCell(anchor))
+  const author = { id: 'a', nickname: 'a' }
+  const belt = new BeltMachine('belt-1', { ...anchor }, 'east', { ...author, placedAt: 1 })
+  const splitter = new SplitterMachine(
+    'split-1',
+    { x: anchor.x, y: anchor.y + 2 },
+    'east',
+    author,
+  )
+  const entrance = new TunnelPortalMachine(
+    'tun-in',
+    { x: anchor.x, y: anchor.y + 4 },
+    'entrance',
+    'pair',
+    'east',
+    author,
+    2,
+  )
+  const exit = new TunnelPortalMachine(
+    'tun-out',
+    { x: anchor.x + 3, y: anchor.y + 4 },
+    'exit',
+    'pair',
+    'east',
+    author,
+  )
+  const combiner = new CombinerMachine(
+    'comb-1',
+    'combiner_2',
+    { x: anchor.x, y: anchor.y + 6 },
+    'east',
+  )
+  match.belts.push(belt)
+  match.splitters.push(splitter)
+  match.tunnels.push(entrance, exit)
+  match.combiners.push(combiner)
+  assert.equal(belt.slots[0]!.cell, belt.origin)
+  assert.equal(splitter.slots[0]!.cell, splitter.origin)
+  assert.equal(entrance.slots[0]!.cell, entrance.origin)
+
+  const before = [belt, splitter, entrance, exit, combiner].map((machine) => ({
+    ...machine.origin,
+  }))
+  const originBefore = { ...match.originChunk }
+  assert.equal(buyPreviewChunk(match, edge), null)
+  const dx = (originBefore.cx - match.originChunk.cx) * rules.chunkSize
+  const dy = (originBefore.cy - match.originChunk.cy) * rules.chunkSize
+  assert.ok(dx !== 0 || dy !== 0)
+
+  for (const [index, machine] of [belt, splitter, entrance, exit, combiner].entries()) {
+    assert.equal(machine.origin.x, before[index]!.x + dx)
+    assert.equal(machine.origin.y, before[index]!.y + dy)
+    assert.ok(match.isOwnedCell(machine.origin))
+  }
+  assert.equal(belt.slots[0]!.cell.x, belt.origin.x)
+  assert.equal(belt.outputSlots()[0]!.cell.x, belt.origin.x + 1)
+  assert.equal(exit.origin.x - entrance.origin.x, 3)
 })
 
 test('buyPreviewChunk rejects chunks that are not currently previewed', () => {
