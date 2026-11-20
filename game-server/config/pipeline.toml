@@ -64,13 +64,13 @@ resource_glyph_world_min_zoom = 0.2
 resource_glyph_orbit_px = 4
 resource_glyph_orbit_ms = 4000
 # Outline mode: dual (outer+inner solid), single (one solid ring), blur (soft halo).
-resource_glyph_outline_mode = "dual"
-resource_glyph_outline_outer = "#000000"
+resource_glyph_outline_mode = "single"
+resource_glyph_outline_outer = "#FFFFFF"
 resource_glyph_outline_inner = "#0a1014"
 resource_glyph_outline_blur = "#0a1014"
-resource_glyph_outline_outer_width_px = 0
+resource_glyph_outline_outer_width_px = 2
 resource_glyph_outline_inner_width_px = 2
-resource_glyph_outline_spread = 1.35 # Silhouette offset multiplier (≥0.5)
+resource_glyph_outline_spread = 1.5 # Silhouette offset multiplier (≥0.5)
 
 # Core decor gears (full turn period, ms)
 core_gear_outer_ms = 12000 # Clockwise
