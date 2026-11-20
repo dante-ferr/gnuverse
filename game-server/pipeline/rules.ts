@@ -32,6 +32,16 @@ export type PipelineRules = {
   colorTunnel: string
   /** Max empty cells between tunnel entrance and exit. */
   tunnelMaxGap: number
+  /** Soft underground mole glow radius (% of one cell). */
+  tunnelGhostRadiusPercent: number
+  /** Peak opacity for underground mole ghosts. */
+  tunnelGhostAlpha: number
+  /** Subsurface seam half-width (% of one cell). */
+  tunnelSeamWidthPercent: number
+  /** Subsurface seam shimmer strength. */
+  tunnelSeamAlpha: number
+  /** Portal heartbeat / seam shimmer period (ms). */
+  tunnelPulseMs: number
   /** GNUverse accent; site teal (legacy palette key). */
   colorAccent: string
   /** Palette ink reserved for future UI; machine overlays use darkenHex(body, decorDarkenPercent). */

@@ -314,6 +314,9 @@ export class Match {
   }
 
   tick() {
+    for (const portal of this.tunnels) {
+      if (portal.role === 'entrance') portal.beginTick()
+    }
     const maxSpeed = this.rules.beltSpeedFast
     for (let phase = 0; phase < maxSpeed; phase++) {
       new Movement(this).resolve({ phase })
@@ -447,6 +450,7 @@ export class Match {
         authorId: portal.authorId,
         authorNickname: portal.authorNickname,
         queue: portal.role === 'entrance' ? [...portal.queue] : undefined,
+        transit: portal.role === 'entrance' ? portal.transitShapes() : undefined,
       })),
     }
   }

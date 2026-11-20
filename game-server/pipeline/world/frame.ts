@@ -100,6 +100,11 @@ export type TunnelPortalRecord = {
   authorNickname: string
   /** Entrance only: underground lane occupancy (null = empty). */
   queue?: (PacketShape | null)[]
+  /**
+   * Entrance only: shapes that entered this tick and already left the queue
+   * (gap 0, or a short lane that cleared before the snapshot).
+   */
+  transit?: PacketShape[]
 }
 
 /** Persisted match. Classes are rebuilt from this on each tick. */

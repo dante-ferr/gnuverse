@@ -264,3 +264,102 @@ test('remove either portal removes the pair', () => {
   assert.equal(result.kind, 'tunnel')
   assert.equal(match.tunnels.length, 0)
 })
+
+test('a one-cell gap between a splitter output and a tunnel does not transfer', () => {
+  const match = Match.createSandbox('tunnel-one-gap', rules)
+  assert.equal(
+    match.placeMachine({ machineId: 'splitter', x: 25, y: 30, facing: 'east' }, author),
+    null,
+  )
+  const error = match.placeMachine(
+    {
+      machineId: 'tunnel',
+      entranceX: 27,
+      entranceY: 30,
+      exitX: 30,
+      exitY: 30,
+      facing: 'east',
+    },
+    author,
+  )
+  assert.equal(error, null)
+  const splitter = match.splitters[0]!
+  splitter.buffer = 'fire'
+  match.tick()
+  assert.equal(splitter.buffer, 'fire')
+  const entrance = match.tunnels.find((portal) => portal.role === 'entrance')!
+  assert.ok(entrance.queue.every((slot) => slot == null))
+  assert.equal(match.packets.length, 0)
+})
+
+test('a belt on that one-cell gap carries the packet into the tunnel', () => {
+  const match = Match.createSandbox('tunnel-one-gap-belt', rules)
+  assert.equal(
+    match.placeMachine({ machineId: 'splitter', x: 25, y: 30, facing: 'east' }, author),
+    null,
+  )
+  assert.equal(
+    match.placeMachine(
+      {
+        machineId: 'tunnel',
+        entranceX: 27,
+        entranceY: 30,
+        exitX: 30,
+        exitY: 30,
+        facing: 'east',
+      },
+      author,
+    ),
+    null,
+  )
+  assert.equal(match.place([{ x: 26, y: 30, direction: 'east' }], author), null)
+  match.splitters[0]!.buffer = 'fire'
+  match.tick()
+  match.tick()
+  const entrance = match.tunnels.find((portal) => portal.role === 'entrance')!
+  assert.ok(entrance.queue.some((slot) => slot === 'fire'))
+})
+
+test('a tunnel sitting on a splitter output still receives the packet', () => {
+  const match = Match.createSandbox('tunnel-zero-gap', rules)
+  assert.equal(
+    match.placeMachine({ machineId: 'splitter', x: 25, y: 30, facing: 'east' }, author),
+    null,
+  )
+  assert.equal(
+    match.placeMachine(
+      {
+        machineId: 'tunnel',
+        entranceX: 26,
+        entranceY: 30,
+        exitX: 29,
+        exitY: 30,
+        facing: 'east',
+      },
+      author,
+    ),
+    null,
+  )
+  match.splitters[0]!.buffer = 'fire'
+  match.tick()
+  assert.equal(match.splitters[0]!.buffer, null)
+  const entrance = match.tunnels.find((portal) => portal.role === 'entrance')!
+  assert.ok(entrance.queue.some((slot) => slot === 'fire'))
+})
+
+test('gap 0 pass-through is reported as transit for the client', () => {
+  const match = Match.create('tunnel-gap0-transit', rules)
+  const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const { error, exit } = placeTunnelPair(match, entrance, 0)
+  assert.equal(error, null)
+  const inCell = { x: entrance.x - 1, y: entrance.y }
+  const outCell = { x: exit.x + 1, y: exit.y }
+  assert.equal(match.place([{ ...inCell, direction: 'east' }], author), null)
+  assert.equal(match.place([{ ...outCell, direction: 'east' }], author), null)
+  match.packets.push(new Packet('p-transit', inCell, 'circle'))
+  match.tick()
+  const frame = match.toFrame()
+  const portal = frame.tunnels?.find((item) => item.role === 'entrance')
+  assert.deepEqual(portal?.transit, ['circle'])
+  assert.ok(!portal?.queue?.some((slot) => slot != null))
+})

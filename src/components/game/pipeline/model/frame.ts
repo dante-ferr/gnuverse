@@ -103,6 +103,16 @@ export type PipelineRules = {
   colorTunnel: string
   /** Max empty cells between tunnel entrance and exit. */
   tunnelMaxGap: number
+  /** Soft underground mole glow radius (% of one cell). */
+  tunnelGhostRadiusPercent: number
+  /** Peak opacity for underground mole ghosts. */
+  tunnelGhostAlpha: number
+  /** Subsurface seam half-width (% of one cell). */
+  tunnelSeamWidthPercent: number
+  /** Subsurface seam shimmer strength. */
+  tunnelSeamAlpha: number
+  /** Portal heartbeat / seam shimmer period (ms). */
+  tunnelPulseMs: number
   /** Element catalog from `elements.toml` (same payload as the game-server). */
   elements: ElementCatalogJson
 }
@@ -181,6 +191,8 @@ export type TunnelPortalRecord = {
   authorId: string
   authorNickname: string
   queue?: (PacketShape | null)[]
+  /** Shapes that crossed this tick without remaining in the queue. */
+  transit?: PacketShape[]
 }
 
 export type BeltRecord = {

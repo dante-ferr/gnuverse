@@ -1,7 +1,6 @@
 import { Packet } from '../../packets/packet.ts'
 import type { PacketShape } from '../../packets/packet.ts'
 import type { PortSlot } from '../edit/building-slots.ts'
-import { portAcceptsTunnelExit, portFeedsTunnelEntrance } from '../edit/building-slots.ts'
 import type { Match } from '../match.ts'
 import { combinerAcceptsShape } from './craft.ts'
 import { outputBeltAccepts } from './output-belt.ts'
@@ -190,33 +189,23 @@ function placePacket(match: Match, cell: { x: number; y: number }, shape: Packet
   match.packets.push(new Packet(id, { ...cell }, shape))
 }
 
+/**
+ * Direct plug only: the output cell is the input slot and travel matches
+ * (zero empty cells). A one-cell gap is a belt, not a link — including
+ * tunnels. `from` is unused; callers still pass the emitting body.
+ */
 function outputReaches(
-  from: { x: number; y: number },
+  _from: { x: number; y: number },
   output: PortSlot,
   input: PortSlot,
-  match: Match,
+  _match: Match,
 ) {
   if (input.role !== 'input' || output.role !== 'output') return false
-  if (
+  return (
     output.cell.x === input.cell.x &&
     output.cell.y === input.cell.y &&
     output.travel === input.travel
-  ) {
-    return true
-  }
-  const entrance = match.tunnels.some(
-    (portal) =>
-      portal.role === 'entrance' &&
-      portal.origin.x === input.cell.x &&
-      portal.origin.y === input.cell.y,
   )
-  if (entrance && portFeedsTunnelEntrance([output], input.cell, input.travel)) return true
-  const exit = match.tunnels.some(
-    (portal) =>
-      portal.role === 'exit' && portal.origin.x === from.x && portal.origin.y === from.y,
-  )
-  if (exit && portAcceptsTunnelExit([input], from, output.travel)) return true
-  return false
 }
 
 /** True when the tunnel entrance queue can accept one more packet this tick. */
@@ -243,6 +232,7 @@ export function tunnelAbsorb(match: Match, pairId: string, shape: PacketShape) {
   if (entrance.queue.length > 0) {
     if (entrance.queue[0] != null) return false
     entrance.queue[0] = shape
+    entrance.noteIngress(shape)
     return true
   }
   const exit = match.tunnels.find(
@@ -251,5 +241,7 @@ export function tunnelAbsorb(match: Match, pairId: string, shape: PacketShape) {
   if (!exit) return false
   const out = exit.outputSlots()[0]
   if (!out) return false
-  return deliverTunnelExit(match, exit.origin, out, shape)
+  if (!deliverTunnelExit(match, exit.origin, out, shape)) return false
+  entrance.noteIngress(shape)
+  return true
 }

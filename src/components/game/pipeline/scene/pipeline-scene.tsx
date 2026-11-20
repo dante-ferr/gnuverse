@@ -26,6 +26,7 @@ import { sceneLod, sceneLodKey } from './scene-lod.ts'
 import { loadMachineDecor, MachinePainter } from './painters/machine-painter.ts'
 import { PacketPainter } from './painters/packet-painter.ts'
 import { ReadoutPainter } from './painters/readout-painter.ts'
+import { TunnelOccupancyPainter } from './painters/tunnel-occupancy-painter.ts'
 import { createPacketMotionState, syncPacketMotion } from './packet-motion.ts'
 import styles from '../../game-shell.module.css'
 
@@ -105,6 +106,7 @@ export function PipelineScene({
   const gridPainter = useRef(new GridPainter())
   const beltPainter = useRef(new BeltPainter())
   const packetPainter = useRef(new PacketPainter())
+  const tunnelOccupancyPainter = useRef(new TunnelOccupancyPainter())
   const readoutPainter = useRef(new ReadoutPainter())
   const packetMotion = useRef(createPacketMotionState())
   const groundLayer = useRef<SceneLayer | null>(null)
@@ -298,6 +300,7 @@ export function PipelineScene({
         timeMs,
         lod,
       )
+      tunnelOccupancyPainter.current.drawUnderground(ctx, visible, palette, timeMs, lod)
     })
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.drawImage(machineLayer.current.canvas, 0, 0)
@@ -312,6 +315,15 @@ export function PipelineScene({
         bounds,
         'dynamic',
         lod.machines,
+      )
+      tunnelOccupancyPainter.current.drawPortalPulse(
+        ctx,
+        visible,
+        palette,
+        timeMs,
+        lod,
+        bounds,
+        packetMotion.current.syncedAtMs,
       )
       const structureHints =
         editModeRef.current === 'create'
