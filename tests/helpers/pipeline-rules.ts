@@ -55,7 +55,7 @@ export function testPipelineRules(overrides: Partial<PipelineRules> = {}): Pipel
     beltFastChevronFlowMs: 300,
     beltFastChevronArmPercent: 22,
     beltFastSideInsetPercent: 10,
-    colorFastTunnel: '#c9a227',
+    colorFastTunnel: '#9eb0b7',
     machineClearanceMin: 1,
     coreClearanceExtra: 2,
     chunkSize: 24,

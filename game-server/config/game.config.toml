@@ -72,7 +72,7 @@ color_fast_belt_chevron = "#e2554a" # Red chevrons and side rails
 belt_fast_chevron_flow_ms = 300 # Visual; ~1/3 of belt_chevron_flow_ms
 belt_fast_chevron_arm_percent = 22 # Chevron arm length (% of one cell; normal uses ~14)
 belt_fast_side_inset_percent = 10 # Side-rail inset from belt outer edge (% of one cell)
-color_fast_tunnel = "#c9a227"
+color_fast_tunnel = "#9eb0b7" # Portal body (same gray as color_fast_belt); red details use color_fast_belt_chevron
 tunnel_max_gap = 8 # Empty cells between portals (0 = adjacent; Factorio-style)
 
 # Resource glyphs at sources / belts (dual outline: white outer, black inner)

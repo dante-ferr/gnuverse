@@ -51,7 +51,7 @@ const defaults = {
   belt_fast_chevron_flow_ms: 300,
   belt_fast_chevron_arm_percent: 22,
   belt_fast_side_inset_percent: 10,
-  color_fast_tunnel: '#c9a227',
+  color_fast_tunnel: '#9eb0b7',
   machine_clearance_min: 1,
   core_clearance_extra: 2,
   chunk_size: 24,

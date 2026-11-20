@@ -63,6 +63,8 @@ export type MachineDecorImages = {
   splitter: HTMLImageElement | null
   tunnelEntrance: HTMLImageElement | null
   tunnelExit: HTMLImageElement | null
+  tunnelFastEntrance: HTMLImageElement | null
+  tunnelFastExit: HTMLImageElement | null
   /** Craft machines from `rules.elements.machines` (keyed by machine id). */
   byKind: Record<string, HTMLImageElement | null>
   /** Element and legacy packet-shape glyphs keyed by catalog id. */
@@ -133,16 +135,18 @@ export class MachinePainter {
         spec.facing,
         { id: '', nickname: '' },
       )
-      const decor = role === 'entrance' ? this.images.tunnelEntrance : this.images.tunnelExit
+      const fast = spec.machineId === 'fast_tunnel'
+      const decor = tunnelDecorImage(this.images, role, fast)
       const frame = getPlacementFrame()
       const hideBracket = frame
         ? logisticPortBracketHidden(portal, machinesFromFrame(frame))
         : undefined
-      const body =
-        spec.machineId === 'fast_tunnel' ? rules.colorFastTunnel : rules.colorTunnel
+      const body = fast ? rules.colorFastTunnel : rules.colorTunnel
       this.machine(ctx, portal, body, decor, rules, bracketStyle, {
         decorFacing: spec.facing,
         hidePortBracket: hideBracket,
+        decorInk: fast ? rules.colorFastBeltChevron : undefined,
+        fastSideRails: fast ? spec.facing : undefined,
       })
     }
     ctx.restore()
@@ -376,13 +380,14 @@ export class MachinePainter {
       { id: spec.authorId, nickname: spec.authorNickname },
       spec.queue?.length ?? 0,
     )
-    const decor =
-      spec.role === 'entrance' ? this.images.tunnelEntrance : this.images.tunnelExit
     const fast = (spec.speed ?? 1) > 1
+    const decor = tunnelDecorImage(this.images, spec.role, fast)
     const body = fast ? rules.colorFastTunnel : rules.colorTunnel
     this.machine(ctx, portal, body, decor, rules, bracketStyle, {
       decorFacing: spec.direction,
       hidePortBracket: logisticPortBracketHidden(portal, frameMachines),
+      decorInk: fast ? rules.colorFastBeltChevron : undefined,
+      fastSideRails: fast ? spec.direction : undefined,
     })
   }
 
@@ -421,6 +426,10 @@ export class MachinePainter {
       centerDecor?: boolean
       decorFacing?: Direction
       hidePortBracket?: (slot: PortSlot) => boolean
+      /** Override decor tint (e.g. red arrows on fast tunnels). */
+      decorInk?: string
+      /** Draw red side rails along travel (fast tunnels, matching fast belts). */
+      fastSideRails?: Direction
     } = {},
   ) {
     const { px, py, width, height } = machineRect(machine)
@@ -436,7 +445,10 @@ export class MachinePainter {
       height,
       options.hidePortBracket,
     )
-    const decorInk = darkenHex(bodyColor, rules.decorDarkenPercent)
+    if (options.fastSideRails) {
+      drawFastTunnelSideRails(ctx, px, py, width, height, options.fastSideRails, rules)
+    }
+    const decorInk = options.decorInk ?? darkenHex(bodyColor, rules.decorDarkenPercent)
     if (options.decorFacing) {
       drawTintedDecorRotated(
         ctx,
@@ -717,6 +729,18 @@ export function loadMachineDecor(
     tunnelExit.src = '/pipeline/tunnel-entrance-decor.svg'
   }
   tunnelExit.onload = onLoad
+  const tunnelFastEntrance = new Image()
+  tunnelFastEntrance.src = '/pipeline/tunnel-fast-entrance-decor.svg'
+  tunnelFastEntrance.onerror = () => {
+    tunnelFastEntrance.src = '/pipeline/tunnel-entrance-decor.svg'
+  }
+  tunnelFastEntrance.onload = onLoad
+  const tunnelFastExit = new Image()
+  tunnelFastExit.src = '/pipeline/tunnel-fast-exit-decor.svg'
+  tunnelFastExit.onerror = () => {
+    tunnelFastExit.src = '/pipeline/tunnel-exit-decor.svg'
+  }
+  tunnelFastExit.onload = onLoad
   const byKind: MachineDecorImages['byKind'] = {}
   for (const kind of machineKinds ?? []) {
     if (byKind[kind.id]) continue
@@ -748,9 +772,67 @@ export function loadMachineDecor(
     splitter,
     tunnelEntrance,
     tunnelExit,
+    tunnelFastEntrance,
+    tunnelFastExit,
     byKind,
     resources,
   }
+}
+
+function tunnelDecorImage(
+  images: MachineDecorImages,
+  role: TunnelPortalRole,
+  fast: boolean,
+): HTMLImageElement | null {
+  if (fast) {
+    return role === 'entrance'
+      ? images.tunnelFastEntrance ?? images.tunnelEntrance
+      : images.tunnelFastExit ?? images.tunnelExit
+  }
+  return role === 'entrance' ? images.tunnelEntrance : images.tunnelExit
+}
+
+/** Red rails parallel to travel on a fast tunnel body (same inset/color as fast belts). */
+function drawFastTunnelSideRails(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  width: number,
+  height: number,
+  direction: Direction,
+  rules: PipelineRules,
+) {
+  const inset = (rules.beltFastSideInsetPercent / 100) * cellSize
+  if (inset <= 0 || inset * 2 >= Math.min(width, height)) return
+  const stroke = Math.max(1.5, rules.beltChevronStrokePx * 0.55)
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(px, py, width, height)
+  ctx.clip()
+  ctx.strokeStyle = rules.colorFastBeltChevron
+  ctx.lineWidth = stroke
+  ctx.lineCap = 'butt'
+  const vertical = direction === 'north' || direction === 'south'
+  if (vertical) {
+    ctx.beginPath()
+    ctx.moveTo(px + inset, py)
+    ctx.lineTo(px + inset, py + height)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(px + width - inset, py)
+    ctx.lineTo(px + width - inset, py + height)
+    ctx.stroke()
+  } else {
+    ctx.beginPath()
+    ctx.moveTo(px, py + inset)
+    ctx.lineTo(px + width, py + inset)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(px, py + height - inset)
+    ctx.lineTo(px + width, py + height - inset)
+    ctx.stroke()
+  }
+  ctx.restore()
 }
 
 function drawTintedDecor(

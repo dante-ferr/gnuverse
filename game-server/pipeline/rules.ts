@@ -86,6 +86,7 @@ export type PipelineRules = {
   beltFastChevronArmPercent: number
   /** Side-rail inset from the belt outer edge (% of one cell). */
   beltFastSideInsetPercent: number
+  /** Fast tunnel portal body (gray; red details reuse colorFastBeltChevron). */
   colorFastTunnel: string
   machineClearanceMin: number
   coreClearanceExtra: number
