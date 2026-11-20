@@ -33,7 +33,7 @@ Two experiences; coins, BDFL/voting, 14 posts, external approval.
 Design documentation; side-view towers with Matter.js later landed in `game-server/` as an early prototype.
 
 ### Decision
-**Superseded** as the playable product by Open Pipeline (see below). Lobby URLs (`/jogo/torre/`) and `/api/towers` naming **remain by decision**. Dead Matter/tree tower code and orphan UI were **removed** from the repo; operational gaps (migrations, governance UI) stay in [`open-pipeline-wip.md`](../../open-pipeline-wip.md).
+**Superseded** as the playable product by Open Pipeline (see below). Legacy lobby URL segment `torre` and API segment `towers` were **removed** in favor of `/jogo/sala/?id=` and `/api/rooms`. Dead Matter/tree tower code and orphan UI were **removed** from the repo; operational gaps (migrations, governance UI) stay in [`open-pipeline-wip.md`](../../open-pipeline-wip.md).
 
 ## Open Pipeline (current playable game)
 

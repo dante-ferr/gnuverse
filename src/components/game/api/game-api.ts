@@ -78,7 +78,7 @@ export class GameApi {
   stream(roomId: string) {
     const baseUrl = resolveGameApiUrl() || GAME_API_URL
     return new EventSource(
-      `${baseUrl}/api/towers/${encodeURIComponent(roomId)}/events`,
+      `${baseUrl}/api/rooms/${encodeURIComponent(roomId)}/events`,
     )
   }
 }

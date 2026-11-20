@@ -33,20 +33,20 @@ test('only administrators can advance the pipeline version', async () => {
     })
     const memberBody = (await memberRegister.json()) as { token: string; user: { id: string } }
     const memberToken = memberBody.token
-    const created = await fetch(`${base}/api/towers`, {
+    const created = await fetch(`${base}/api/rooms`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${memberToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Versão' }),
     })
     const { room } = (await created.json()) as { room: { id: string } }
-    const denied = await fetch(`${base}/api/towers/${room.id}/advance`, {
+    const denied = await fetch(`${base}/api/rooms/${room.id}/advance`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${memberToken}`, 'Content-Type': 'application/json' },
       body: '{}',
     })
     assert.equal(denied.status, 403)
     admins.add(memberBody.user.id)
-    const advanced = await fetch(`${base}/api/towers/${room.id}/advance`, {
+    const advanced = await fetch(`${base}/api/rooms/${room.id}/advance`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${memberToken}`, 'Content-Type': 'application/json' },
       body: '{}',

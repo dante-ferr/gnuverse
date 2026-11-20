@@ -114,7 +114,7 @@ const splitterStructure: StructureDefinition = {
   },
   async commit(ctx, payload) {
     if (!isSplitterPayload(payload)) return
-    await ctx.request(`/api/towers/${ctx.roomId}/place-machine`, {
+    await ctx.request(`/api/rooms/${ctx.roomId}/place-machine`, {
       machineId: 'splitter',
       x: payload.x,
       y: payload.y,

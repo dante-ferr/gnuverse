@@ -50,7 +50,7 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       members?: Member[]
       proposals?: Proposal[]
       events?: GameEvent[]
-    }>(`/api/towers/${roomId}`)
+    }>(`/api/rooms/${roomId}`)
     if (selected.current !== result.room.id || !isPipelineFrame(result.frame)) return
     setFrame((current) => (result.frame.tick >= current.tick ? result.frame : current))
     setRules(result.rules)

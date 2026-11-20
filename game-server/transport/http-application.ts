@@ -144,7 +144,7 @@ export class HttpApplication {
         await auth.logout(req.headers.authorization)
         return json(res, 200, { ok: true })
       }
-      if (path[1] !== 'towers') fail(404, 'Não encontrado.')
+      if (path[1] !== 'rooms') fail(404, 'Não encontrado.')
       if (req.method === 'GET' && path.length === 2) {
         const pageSize = Math.min(
           50,

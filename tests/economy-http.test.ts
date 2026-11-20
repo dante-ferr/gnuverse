@@ -33,18 +33,18 @@ test('belt placement spends coins, same-speed redraws are free, and delete refun
     assert.equal(register.status, 201)
     const { token } = (await register.json()) as { token: string }
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-    const created = await fetch(`${base}/api/towers`, {
+    const created = await fetch(`${base}/api/rooms`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ name: 'Custos' }),
     })
     assert.ok(created.status === 200 || created.status === 201)
     const { room } = (await created.json()) as { room: { id: string } }
-    const detail = await fetch(`${base}/api/towers/${room.id}`, { headers })
+    const detail = await fetch(`${base}/api/rooms/${room.id}`, { headers })
     const payload = (await detail.json()) as { frame: { core: { x: number; y: number } } }
     const cell = { x: payload.frame.core.x + 6, y: payload.frame.core.y, direction: 'east' as const }
 
-    const placed = await fetch(`${base}/api/towers/${room.id}/place`, {
+    const placed = await fetch(`${base}/api/rooms/${room.id}/place`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ cells: [cell] }),
@@ -54,7 +54,7 @@ test('belt placement spends coins, same-speed redraws are free, and delete refun
     assert.equal(placedBody.cost, 1)
     assert.equal(placedBody.wallet.balance, 29)
 
-    const redraw = await fetch(`${base}/api/towers/${room.id}/place`, {
+    const redraw = await fetch(`${base}/api/rooms/${room.id}/place`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ cells: [{ ...cell, direction: 'north' }] }),
@@ -64,7 +64,7 @@ test('belt placement spends coins, same-speed redraws are free, and delete refun
     assert.equal(redrawBody.cost, 0)
     assert.equal(redrawBody.wallet.balance, 29)
 
-    const upgraded = await fetch(`${base}/api/towers/${room.id}/place`, {
+    const upgraded = await fetch(`${base}/api/rooms/${room.id}/place`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ cells: [cell], speed: 3 }),
@@ -74,7 +74,7 @@ test('belt placement spends coins, same-speed redraws are free, and delete refun
     assert.equal(upgradedBody.cost, 4)
     assert.equal(upgradedBody.wallet.balance, 25)
 
-    const removed = await fetch(`${base}/api/towers/${room.id}/remove`, {
+    const removed = await fetch(`${base}/api/rooms/${room.id}/remove`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ x: cell.x, y: cell.y }),

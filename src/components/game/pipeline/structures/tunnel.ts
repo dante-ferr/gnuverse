@@ -237,7 +237,7 @@ const tunnelStructure: StructureDefinition = {
   },
   async commit(ctx, payload) {
     if (!isTunnelPayload(payload)) return
-    await ctx.request(`/api/towers/${ctx.roomId}/place-machine`, {
+    await ctx.request(`/api/rooms/${ctx.roomId}/place-machine`, {
       machineId: 'tunnel',
       entranceX: payload.entranceX,
       entranceY: payload.entranceY,

@@ -130,7 +130,7 @@ function registerCombiner(
     },
     async commit(ctx, payload) {
       if (!isCombinerPayload(payload)) return
-      await ctx.request(`/api/towers/${ctx.roomId}/place-machine`, {
+      await ctx.request(`/api/rooms/${ctx.roomId}/place-machine`, {
         machineId: payload.machineId,
         x: payload.x,
         y: payload.y,

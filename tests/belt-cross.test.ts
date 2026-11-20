@@ -246,7 +246,7 @@ test('belt commit places the tunnel before the remaining belts', async () => {
       request.payload,
     )
     assert.equal(calls.length, 2)
-    assert.equal(calls[0]?.path, '/api/towers/room-1/place-machine')
+    assert.equal(calls[0]?.path, '/api/rooms/room-1/place-machine')
     assert.deepEqual(calls[0]?.body, {
       machineId: 'tunnel',
       entranceX: 1,
@@ -255,7 +255,7 @@ test('belt commit places the tunnel before the remaining belts', async () => {
       exitY: 0,
       facing: 'east',
     })
-    assert.equal(calls[1]?.path, '/api/towers/room-1/place')
+    assert.equal(calls[1]?.path, '/api/rooms/room-1/place')
     const cells = (calls[1]?.body as { cells: { x: number }[] }).cells
     assert.deepEqual(cells.map((cell) => cell.x), [0, 4])
   } finally {

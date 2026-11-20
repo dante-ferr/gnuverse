@@ -123,10 +123,10 @@ export async function commitBeltPayload(
 ) {
   const rules = getPlacementRules()
   for (const cell of payload.clearBelts ?? []) {
-    await ctx.request(`/api/towers/${ctx.roomId}/remove`, cell)
+    await ctx.request(`/api/rooms/${ctx.roomId}/remove`, cell)
   }
   for (const tunnel of payload.tunnels ?? []) {
-    await ctx.request(`/api/towers/${ctx.roomId}/place-machine`, {
+    await ctx.request(`/api/rooms/${ctx.roomId}/place-machine`, {
       machineId: options.tunnelMachineId,
       entranceX: tunnel.entranceX,
       entranceY: tunnel.entranceY,
@@ -142,5 +142,5 @@ export async function commitBeltPayload(
     if (fastSpeed == null || fastSpeed <= 1) return
     body.speed = fastSpeed
   }
-  await ctx.request(`/api/towers/${ctx.roomId}/place`, body)
+  await ctx.request(`/api/rooms/${ctx.roomId}/place`, body)
 }

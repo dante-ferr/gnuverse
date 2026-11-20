@@ -221,7 +221,7 @@ const fastTunnelStructure: StructureDefinition = {
   },
   async commit(ctx, payload) {
     if (!isFastTunnelPayload(payload)) return
-    await ctx.request(`/api/towers/${ctx.roomId}/place-machine`, {
+    await ctx.request(`/api/rooms/${ctx.roomId}/place-machine`, {
       machineId: 'fast_tunnel',
       entranceX: payload.entranceX,
       entranceY: payload.entranceY,

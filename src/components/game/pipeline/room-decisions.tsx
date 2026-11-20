@@ -42,7 +42,7 @@ export function RoomDecisions({
     const bodyReason = decideReason[proposalId] ?? ''
     void (async () => {
       try {
-        await api.request(`/api/towers/${roomId}/proposals/${proposalId}/decide`, {
+        await api.request(`/api/rooms/${roomId}/proposals/${proposalId}/decide`, {
           accept,
           reason: bodyReason,
         })

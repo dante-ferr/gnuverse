@@ -31,15 +31,15 @@ export async function listRooms(
     page: String(page), limit: String(limit), search: filters.search,
     sort: filters.sort, mine: String(filters.mine),
   })
-  const result = await api.request<RoomPage>(`/api/towers?${params}`)
+  const result = await api.request<RoomPage>(`/api/rooms?${params}`)
   if (result.filtersApplied === true) return result
 
   // Older game servers silently ignore filters. Read every unfiltered page
   // before filtering locally, so matches outside the visible page are included.
-  const first = await api.request<RoomPage>('/api/towers?page=1&limit=50')
+  const first = await api.request<RoomPage>('/api/rooms?page=1&limit=50')
   const remaining = await Promise.all(Array.from(
     { length: Math.max(0, first.pageCount - 1) },
-    (_, index) => api.request<RoomPage>(`/api/towers?page=${index + 2}&limit=50`),
+    (_, index) => api.request<RoomPage>(`/api/rooms?page=${index + 2}&limit=50`),
   ))
   const normalize = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR')
   const search = normalize(filters.search.trim())

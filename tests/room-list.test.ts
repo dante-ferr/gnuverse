@@ -40,7 +40,7 @@ test('search finds matches on later pages when the API ignores query filters', a
   assert.deepEqual(result.rooms.map((room) => room.id), ['62'])
   assert.equal(result.total, 1)
   assert.equal(result.pageCount, 1)
-  assert.ok(api.paths.includes('/api/towers?page=2&limit=50'))
+  assert.ok(api.paths.includes('/api/rooms?page=2&limit=50'))
   const empty = await listRooms(api, { ...DEFAULT_ROOM_FILTERS, search: 'inexistente' }, 4)
   assert.deepEqual(empty.rooms, [])
   assert.equal(empty.total, 0)

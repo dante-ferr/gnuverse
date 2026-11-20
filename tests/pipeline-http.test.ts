@@ -79,14 +79,14 @@ test('a signed-in player can belt a starter element into the core and a guest ca
     })
     assert.equal(register.status, 201)
     const { token } = (await register.json()) as { token: string }
-    const created = await fetch(`${base}/api/towers`, {
+    const created = await fetch(`${base}/api/rooms`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Núcleo' }),
     })
     assert.equal(created.status, 201)
     const { room } = (await created.json()) as { room: { id: string } }
-    const detail = await fetch(`${base}/api/towers/${room.id}`)
+    const detail = await fetch(`${base}/api/rooms/${room.id}`)
     const state = (await detail.json()) as {
       frame: {
         sources: { x: number; y: number; direction: Direction; shape: string; role?: string }[]
@@ -95,7 +95,7 @@ test('a signed-in player can belt a starter element into the core and a guest ca
         collaborators: { id: string }[]
       }
     }
-    const guest = await fetch(`${base}/api/towers/${room.id}/place`, {
+    const guest = await fetch(`${base}/api/rooms/${room.id}/place`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cells: [{ x: 0, y: 0, direction: 'east' }] }),
@@ -108,13 +108,13 @@ test('a signed-in player can belt a starter element into the core and a guest ca
         starters.has(item.role ?? item.shape),
       ) ?? state.frame.source
     const cells = beltPathToCore(source, source.direction, core)
-    const placed = await fetch(`${base}/api/towers/${room.id}/place`, {
+    const placed = await fetch(`${base}/api/rooms/${room.id}/place`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ cells }),
     })
     assert.equal(placed.status, 200)
-    const joined = await fetch(`${base}/api/towers/${room.id}/join`, {
+    const joined = await fetch(`${base}/api/rooms/${room.id}/join`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: '{}',
@@ -123,7 +123,7 @@ test('a signed-in player can belt a starter element into the core and a guest ca
     assert.equal(body.frame.collaborators[0]?.nickname, 'ada')
     assert.ok(body.frame.belts.length >= 2)
     await new Promise((resolve) => setTimeout(resolve, 4_000))
-    const later = await fetch(`${base}/api/towers/${room.id}`)
+    const later = await fetch(`${base}/api/rooms/${room.id}`)
     const after = (await later.json()) as { frame: { deliveries: number } }
     assert.ok(after.frame.deliveries > 0)
   } finally {

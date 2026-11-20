@@ -104,8 +104,8 @@ test('different seeds can pick different placements', () => {
     'room-7f3a',
     'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     '00000000-1111-2222-3333-444444444444',
-    'torre-demo-1',
-    'torre-demo-2',
+    'sala-demo-1',
+    'sala-demo-2',
     'north-pick',
     'south-pick',
   ]

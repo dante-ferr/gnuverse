@@ -38,14 +38,14 @@ test('players can buy an edge-adjacent preview chunk with coins', async () => {
     })
     assert.equal(register.status, 201)
     const { token } = (await register.json()) as { token: string }
-    const created = await fetch(`${base}/api/towers`, {
+    const created = await fetch(`${base}/api/rooms`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Expansão' }),
     })
     assert.ok(created.status === 200 || created.status === 201)
     const { room } = (await created.json()) as { room: { id: string } }
-    const detail = await fetch(`${base}/api/towers/${room.id}`, {
+    const detail = await fetch(`${base}/api/rooms/${room.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     const payload = (await detail.json()) as {
@@ -55,7 +55,7 @@ test('players can buy an edge-adjacent preview chunk with coins', async () => {
       }
     }
     const target = payload.frame.previewChunks[0]!
-    const partial = await fetch(`${base}/api/towers/${room.id}/buy-chunk`, {
+    const partial = await fetch(`${base}/api/rooms/${room.id}/buy-chunk`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...target, amount: 2 }),
@@ -71,7 +71,7 @@ test('players can buy an edge-adjacent preview chunk with coins', async () => {
     assert.equal(partialBody.frame.ownedChunks.length, 1)
     assert.equal(partialBody.frame.chunkPledges?.[0]?.paid, 2)
 
-    const bought = await fetch(`${base}/api/towers/${room.id}/buy-chunk`, {
+    const bought = await fetch(`${base}/api/rooms/${room.id}/buy-chunk`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...target, amount: 3 }),
@@ -89,7 +89,7 @@ test('players can buy an edge-adjacent preview chunk with coins', async () => {
     assert.equal(body.frame.ownedChunks.length, 2)
     assert.ok(body.frame.ownedChunks.some((c) => c.cx === target.cx && c.cy === target.cy))
 
-    const broke = await fetch(`${base}/api/towers/${room.id}/buy-chunk`, {
+    const broke = await fetch(`${base}/api/rooms/${room.id}/buy-chunk`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...body.frame.ownedChunks[0], amount: 1 }),
@@ -99,12 +99,12 @@ test('players can buy an edge-adjacent preview chunk with coins', async () => {
 
     const nextPreview = (
       (await (
-        await fetch(`${base}/api/towers/${room.id}`, {
+        await fetch(`${base}/api/rooms/${room.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
       ).json()) as { frame: { previewChunks: { cx: number; cy: number }[] } }
     ).frame.previewChunks[0]!
-    const poor = await fetch(`${base}/api/towers/${room.id}/buy-chunk`, {
+    const poor = await fetch(`${base}/api/rooms/${room.id}/buy-chunk`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...nextPreview, amount: 1 }),

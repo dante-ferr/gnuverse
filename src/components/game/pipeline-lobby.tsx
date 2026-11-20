@@ -31,7 +31,7 @@ export function PipelineLobby() {
   const createRoom = (form: HTMLFormElement) => feedback.run(async () => {
     const result = await createRoomFromForm(session.api, form)
     setShowCreate(false)
-    router.push(`/jogo/torre/?id=${encodeURIComponent(result.room.id)}`)
+    router.push(`/jogo/sala/?id=${encodeURIComponent(result.room.id)}`)
   })
 
   return (
@@ -69,7 +69,7 @@ export function PipelineLobby() {
                     return
                   }
                   const result = await createSandboxRoom(session.api)
-                  router.push(`/jogo/torre/?id=${encodeURIComponent(result.room.id)}`)
+                  router.push(`/jogo/sala/?id=${encodeURIComponent(result.room.id)}`)
                 })
               }
             >
@@ -142,7 +142,7 @@ export function PipelineLobby() {
           {lobby.rooms.length ? (
             <div className={styles.roomGrid}>
               {lobby.rooms.map((room) => (
-                <a className={styles.roomCard} key={room.id} href={`/jogo/torre/?id=${encodeURIComponent(room.id)}`}>
+                <a className={styles.roomCard} key={room.id} href={`/jogo/sala/?id=${encodeURIComponent(room.id)}`}>
                   <RoomCover room={room} />
                   <span className={styles.roomCardInfo}>
                     <span className={styles.roomCardTop}>

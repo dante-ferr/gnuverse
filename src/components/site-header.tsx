@@ -20,7 +20,7 @@ export function SiteHeader() {
   const [busy, setBusy] = useState(false)
 
   // In-room chrome owns the top bar; lobby/dashboard uses this site bar.
-  if (pathname?.startsWith('/jogo/torre')) {
+  if (pathname?.startsWith('/jogo/sala')) {
     return null
   }
 

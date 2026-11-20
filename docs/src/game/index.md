@@ -1,6 +1,6 @@
 # How the game works
 
-The playable game is **Open Pipeline** v0.1: a top-down cooperative logistics room on a shared grid. Players route circle packets into a central core. Identity comes from the CMS. Routes stay `/jogo/` and `/jogo/torre/?id=`.
+The playable game is **Open Pipeline** v0.1: a top-down cooperative logistics room on a shared grid. Players route circle packets into a central core. Identity comes from the CMS. Routes stay `/jogo/` and `/jogo/sala/?id=`.
 
 | Chapter | Question |
 | :--- | :--- |

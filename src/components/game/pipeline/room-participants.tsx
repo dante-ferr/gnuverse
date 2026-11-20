@@ -72,7 +72,7 @@ export function RoomParticipants({
     }
     void (async () => {
       try {
-        await api.request(`/api/towers/${roomId}/proposals`, {
+        await api.request(`/api/rooms/${roomId}/proposals`, {
           type: 'ban',
           targetId,
           reason,

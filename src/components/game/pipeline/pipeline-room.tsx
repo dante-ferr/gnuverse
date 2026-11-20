@@ -55,7 +55,7 @@ export function PipelineRoom() {
   }
   useEffect(() => {
     if (!session.user || !lobby.roomId) return
-    void session.api.request(`/api/towers/${lobby.roomId}/join`, {}).catch(() => {})
+    void session.api.request(`/api/rooms/${lobby.roomId}/join`, {}).catch(() => {})
   }, [session.user, session.api, lobby.roomId])
   const applyWallet = (result: unknown) => {
     if (!result || typeof result !== 'object' || !('wallet' in result)) return
@@ -88,7 +88,7 @@ export function PipelineRoom() {
   const advance = () => {
     if (!session.user || !isAdmin) return
     void feedback.run(async () => {
-      await session.api.request(`/api/towers/${lobby.roomId}/advance`, {})
+      await session.api.request(`/api/rooms/${lobby.roomId}/advance`, {})
       await live.refresh()
     })
   }
@@ -101,7 +101,7 @@ export function PipelineRoom() {
       const result = await session.api.request<{
         frame: unknown
         wallet: NonNullable<typeof session.wallet>
-      }>(`/api/towers/${lobby.roomId}/buy-chunk`, { ...coord, amount })
+      }>(`/api/rooms/${lobby.roomId}/buy-chunk`, { ...coord, amount })
       applyWallet(result)
       await live.refresh()
     })
@@ -112,7 +112,7 @@ export function PipelineRoom() {
       return
     }
     void feedback.run(async () => {
-      await session.api.request(`/api/towers/${lobby.roomId}/chat`, { text })
+      await session.api.request(`/api/rooms/${lobby.roomId}/chat`, { text })
     })
   }
   const remove = (cells: { x: number; y: number }[], options: { revert: () => void }) => {
@@ -125,7 +125,7 @@ export function PipelineRoom() {
     let failed = false
     for (const cell of cells) {
       void session.api
-        .request(`/api/towers/${lobby.roomId}/remove`, cell)
+        .request(`/api/rooms/${lobby.roomId}/remove`, cell)
         .then((result) => applyWallet(result))
         .catch((cause) => {
           if (!failed) {
@@ -172,7 +172,7 @@ export function PipelineRoom() {
           )}
           onDelete={() =>
             feedback.run(async () => {
-              await session.api.request(`/api/towers/${lobby.roomId}`, undefined, 'DELETE')
+              await session.api.request(`/api/rooms/${lobby.roomId}`, undefined, 'DELETE')
               router.push('/jogo/')
             })
           }

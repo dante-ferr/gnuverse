@@ -14,7 +14,7 @@ UI copy is Portuguese; code and documentation are English (`AGENTS.md`).
 
 ## Experience
 
-- **Collaborative towers** (`/jogo/`): local multiplayer with physics, coins, votes, and BDFL. Backend in `game-server/`; production hosting still open.
+- **Collaborative Open Pipeline rooms** (`/jogo/`): shared grid logistics with belts, cores, and room chat; create or join at `/jogo/sala/?id=`. Backend in `game-server/`; production hosting still open.
 - **Authorial blog** (`/blog/`, `/artigos/`): team and visitor posts with approval. `author` / `reviewer` / `admin` flow and submission panel are in code; 14 posts and cloud setup are still pending.
 
 Single account in Payload; roles in `core/authz/` and **People and access** on the CMS. Detail: book → Authorization.

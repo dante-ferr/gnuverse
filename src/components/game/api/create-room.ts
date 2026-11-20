@@ -3,7 +3,7 @@ import type { Room } from '../model/types'
 
 export function createRoomFromForm(api: GameApi, form: HTMLFormElement) {
   const data = new FormData(form)
-  return api.request<{ room: Room }>('/api/towers', {
+  return api.request<{ room: Room }>('/api/rooms', {
     name: data.get('name'),
     eligibilityMode: data.get('eligibilityMode') ?? 'automatic',
     minContributions: Number(data.get('minContributions')),
@@ -12,5 +12,5 @@ export function createRoomFromForm(api: GameApi, form: HTMLFormElement) {
 }
 
 export function createSandboxRoom(api: GameApi) {
-  return api.request<{ room: Room }>('/api/towers', { sandbox: true })
+  return api.request<{ room: Room }>('/api/rooms', { sandbox: true })
 }

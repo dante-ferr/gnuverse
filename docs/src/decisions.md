@@ -10,7 +10,7 @@ GNUverse has **Open Pipeline** and an **authorial blog**. Posts are not rooms; p
 
 - Public site: Next.js App Router with `output: "export"`, Cloudflare Pages.
 - Blog / identity / media: Payload in `cms/`, planned on Render Free.
-- Game: `game-server/` (`node:http`, `node:sqlite`, grid tick in `pipeline/`, SSE — not Matter.js for the match), hosting that stays **always on** with persistent disk (Render Free is not enough). Routes stay `/jogo/` and `/jogo/torre/?id=` / `/api/towers`.
+- Game: `game-server/` (`node:http`, `node:sqlite`, grid tick in `pipeline/`, SSE — not Matter.js for the match), hosting that stays **always on** with persistent disk (Render Free is not enough). Routes stay `/jogo/` and `/jogo/sala/?id=` / `/api/rooms`.
 
 ## 3. Content outside Git
 

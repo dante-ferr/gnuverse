@@ -37,7 +37,7 @@ The panel queries the game at `GAME_INTERNAL_URL` (default `http://localhost:${G
 
 ## Room interventions
 
-Admin and `game-moderator` can delete rooms and change settings through `/api/towers` where those routes remain. Open Pipeline v0.1 gameplay itself only needs a signed-in account to place or remove belts; in-room governance UI was dropped for now (see [`open-pipeline-wip.md`](../../open-pipeline-wip.md)).
+Admin and `game-moderator` can delete rooms and change settings through `/api/rooms` where those routes remain. Open Pipeline v0.1 gameplay itself only needs a signed-in account to place or remove belts; in-room governance UI was dropped for now (see [`open-pipeline-wip.md`](../../open-pipeline-wip.md)).
 
 ## Chat moderation (CMS)
 

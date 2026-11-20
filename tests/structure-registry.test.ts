@@ -35,7 +35,7 @@ test('registered structures appear in sidebar order and place through commit', a
     request.payload,
   )
   assert.deepEqual(placed, {
-    path: '/api/towers/room-1/place',
+    path: '/api/rooms/room-1/place',
     body: {
       cells: [
         { x: 1, y: 2, direction: 'east' },
