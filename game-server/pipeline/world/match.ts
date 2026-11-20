@@ -21,7 +21,6 @@ import { Craft } from './tick/craft.ts'
 import { Emission } from './tick/emission.ts'
 import { Routing } from './tick/routing.ts'
 import type { PacketShape } from '../packets/packet.ts'
-import { coreAcceptsShape } from './progression/demands.ts'
 import type {
   ChunkPledgeRecord,
   CollaboratorRecord,
@@ -30,7 +29,14 @@ import type {
 } from './frame.ts'
 import type { SourceRole } from './types.ts'
 import { Movement } from './tick/movement.ts'
-import { chapterFromVersion, chapterToVersion, coreDemands } from './progression/demands.ts'
+import {
+  chapterFromVersion,
+  chapterToVersion,
+  coreAcceptsShape,
+  coreDemands,
+  isBasicDemandShape,
+  matchDemandProgress,
+} from './progression/demands.ts'
 import { tryAutoUnlock } from './progression/unlock.ts'
 
 /** One Open Pipeline match. The server tick is the only writer. */
@@ -44,9 +50,13 @@ export class Match {
   pullLast: Record<string, 'pull' | 'flow'> = {}
   version = '0.1'
   chapter = 1
+  /** Clears completed; crafts escalate with mild geometry. Tier-1 bases ignore this. */
+  escalationWave = 0
   tickIndex = 0
   deliveries = 0
   deliveryByShape: Partial<Record<PacketShape, number>> = {}
+  /** Fresh craft-wave deliveries (reset on each clear). Bases use lifetime only. */
+  waveDeliveryByShape: Partial<Record<PacketShape, number>> = {}
   /** Core id → tick index of last successful intake. */
   coreLastIntakeTick: Record<string, number> = {}
   nextPacketId = 1
@@ -276,13 +286,16 @@ export class Match {
   }
 
   acceptsDelivery(shape: PacketShape) {
-    return coreAcceptsShape(this.rules, this.chapter, shape, this.deliveryByShape, this.sandbox)
+    return coreAcceptsShape(this.rules, matchDemandProgress(this), shape)
   }
 
   recordDelivery(shape: PacketShape, coreId?: string) {
     if (!this.acceptsDelivery(shape)) return
     this.deliveries += 1
     this.deliveryByShape[shape] = (this.deliveryByShape[shape] ?? 0) + 1
+    if (!this.sandbox && !isBasicDemandShape(this.rules, shape)) {
+      this.waveDeliveryByShape[shape] = (this.waveDeliveryByShape[shape] ?? 0) + 1
+    }
     if (coreId) this.coreLastIntakeTick[coreId] = this.tickIndex
   }
 
@@ -330,11 +343,13 @@ export class Match {
       tick: this.tickIndex,
       deliveries: this.deliveries,
       deliveryByShape: { ...this.deliveryByShape },
+      waveDeliveryByShape: { ...this.waveDeliveryByShape },
       chapter: this.chapter,
+      escalationWave: this.escalationWave,
       generatedChunkKeys: [...this.generatedChunkKeys],
       satelliteChunkKeys: [...this.satelliteChunkKeys],
       grassChunkKey: this.grassChunkKey ?? undefined,
-      demands: coreDemands(this.rules, this.chapter, this.deliveryByShape, this.sandbox),
+      demands: coreDemands(this.rules, matchDemandProgress(this)),
       collaborators: this.collaborators.map((person) => ({ ...person })),
       nextPacketId: this.nextPacketId,
       nextBeltSeq: this.nextBeltSeq,
@@ -460,6 +475,10 @@ export class Match {
     )
     match.chapter = frame.chapter ?? chapterFromVersion(frame.version ?? '0.1')
     match.version = frame.version ?? chapterToVersion(match.chapter)
+    match.escalationWave = frame.escalationWave ?? 0
+    match.waveDeliveryByShape = frame.waveDeliveryByShape
+      ? { ...frame.waveDeliveryByShape }
+      : {}
     match.grassChunkKey = frame.grassChunkKey ?? null
     match.generatedChunkKeys = new Set(frame.generatedChunkKeys ?? [])
     match.satelliteChunkKeys = new Set(frame.satelliteChunkKeys ?? [])

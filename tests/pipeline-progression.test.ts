@@ -9,7 +9,10 @@ import {
 } from '../game-server/pipeline/world/chunks/coords.ts'
 import { buyPreviewChunk } from '../game-server/pipeline/world/chunks/purchase.ts'
 import { Match } from '../game-server/pipeline/world/match.ts'
-import { activeDemandShapes } from '../game-server/pipeline/world/progression/demands.ts'
+import {
+  activeDemandShapes,
+  requiredForShape,
+} from '../game-server/pipeline/world/progression/demands.ts'
 import { testPipelineRules } from './helpers/pipeline-rules.ts'
 
 const rules = testPipelineRules()
@@ -112,10 +115,59 @@ test('auto unlock advances chapter when chapter-1 demands are met', () => {
   const match = Match.create('chapter-advance', rules)
   const required = rules.elements.defaultDemandRequired
   match.deliveryByShape = { fire: required, water: required, steam: required }
+  match.waveDeliveryByShape = { steam: required }
   match.deliveries = required * 3
   assert.equal(match.chapter, 1)
-  assert.equal(match.version, '0.1')
+  assert.equal(match.escalationWave, 0)
   match.tick()
   assert.equal(match.chapter, 2)
-  assert.equal(match.version, '0.2')
+  assert.equal(match.escalationWave, 1)
+  assert.deepEqual(match.waveDeliveryByShape, {})
+})
+
+test('tier-1 bases stay flat while crafts escalate after a clear', () => {
+  const match = Match.create('escalate-crafts', rules)
+  const base = rules.elements.defaultDemandRequired
+  match.deliveryByShape = { fire: base, water: base, steam: base }
+  match.waveDeliveryByShape = { steam: base }
+  match.deliveries = base * 3
+  match.tick()
+  assert.equal(match.escalationWave, 1)
+  assert.equal(requiredForShape(rules, 'fire', 1, false), base)
+  assert.equal(
+    requiredForShape(rules, 'steam', 1, false),
+    Math.ceil(base * rules.elements.escalationRatio),
+  )
+  const frame = match.toFrame()
+  const fire = frame.demands.find((d) => d.shape === 'fire')
+  const steam = frame.demands.find((d) => d.shape === 'steam')
+  assert.ok(fire)
+  assert.ok(steam)
+  assert.equal(fire.required, base)
+  assert.ok(fire.received >= base)
+  assert.equal(steam.received, 0)
+  assert.equal(steam.required, Math.ceil(base * rules.elements.escalationRatio))
+})
+
+test('clearing on the last chapter keeps chapter and keeps escalating crafts', () => {
+  const match = Match.create('last-chapter-wave', rules)
+  const last = rules.elements.chapters.length
+  match.chapter = last
+  match.version = `0.${last}`
+  match.escalationWave = 2
+  const shapes = activeDemandShapes(last, rules, false)
+  let lifetime = 0
+  for (const shape of shapes) {
+    const el = rules.elements.elements.find((item) => item.id === shape)
+    const need = requiredForShape(rules, shape, 2, false)
+    match.deliveryByShape[shape] = need
+    lifetime += need
+    if (el && el.tier > 1) match.waveDeliveryByShape[shape] = need
+  }
+  match.deliveries = lifetime
+  match.tick()
+  assert.equal(match.chapter, last)
+  assert.equal(match.escalationWave, 3)
+  assert.deepEqual(match.waveDeliveryByShape, {})
+  assert.equal(match.deliveries, lifetime)
 })

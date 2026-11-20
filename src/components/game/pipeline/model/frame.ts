@@ -172,6 +172,8 @@ export type PipelineFrame = {
   kind: 'pipeline'
   version: string
   chapter?: number
+  escalationWave?: number
+  waveDeliveryByShape?: Partial<Record<PacketShape, number>>
   seed: string
   width: number
   height: number

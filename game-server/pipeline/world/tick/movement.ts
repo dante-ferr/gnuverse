@@ -2,7 +2,7 @@ import { cellKey, sameCell } from '../../geometry/cell.ts'
 import { ahead, opposite } from '../../geometry/direction.ts'
 import type { PacketShape } from '../../packets/packet.ts'
 import type { Packet } from '../../packets/packet.ts'
-import { remainingDemand } from '../progression/demands.ts'
+import { matchDemandProgress, remainingDemand } from '../progression/demands.ts'
 import type { Match } from '../match.ts'
 import { combinerAcceptsShape } from './craft.ts'
 import { mergeInputs } from './merge.ts'
@@ -212,13 +212,7 @@ export class Movement {
       if (!budget.has(shape)) {
         budget.set(
           shape,
-          remainingDemand(
-            this.match.rules,
-            this.match.chapter,
-            shape,
-            this.match.deliveryByShape,
-            this.match.sandbox,
-          ),
+          remainingDemand(this.match.rules, matchDemandProgress(this.match), shape),
         )
       }
       const left = budget.get(shape) ?? 0

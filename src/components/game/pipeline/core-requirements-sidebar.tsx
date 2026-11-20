@@ -11,6 +11,12 @@ type Props = {
   rules: PipelineRules | null
 }
 
+const countFormat = new Intl.NumberFormat('pt-BR')
+
+function formatCount(n: number): string {
+  return countFormat.format(n)
+}
+
 /** Delivery readouts for the central core (Jogo page). */
 export function CoreRequirementsSidebar({ frame, rules }: Props) {
   const [selectedShape, setSelectedShape] = useState<string | null>(null)
@@ -23,6 +29,10 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
     )
   }
 
+  const wave = frame.escalationWave ?? 0
+  const lastChapter = rules?.elements.chapters.length ?? 0
+  const onLastChapter = (frame.chapter ?? 0) >= lastChapter && lastChapter > 0
+
   return (
     <div className={styles.sidebarStats}>
       <h2 className={styles.sidebarSectionTitle}>Requisitos do núcleo</h2>
@@ -31,6 +41,18 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
           <dt>Capítulo</dt>
           <dd>{frame.chapter ?? frame.version.replace(/^0\./, '')}</dd>
         </div>
+        {wave > 0 ? (
+          <div>
+            <dt>Onda</dt>
+            <dd>{formatCount(wave)}</dd>
+          </div>
+        ) : null}
+        {onLastChapter || wave > 0 ? (
+          <div>
+            <dt>Pontuação</dt>
+            <dd>{formatCount(frame.deliveries)}</dd>
+          </div>
+        ) : null}
       </dl>
       <ul className={styles.coreRequirementGrid} aria-label="Formas exigidas">
         {frame.demands.map((demand) => {
@@ -60,7 +82,7 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
                 <span
                   className={`${styles.coreRequirementCount}${met ? ` ${styles.coreRequirementMet}` : ''}`}
                 >
-                  {demand.received} / {demand.required}
+                  {formatCount(demand.received)} / {formatCount(demand.required)}
                 </span>
               </button>
             </li>

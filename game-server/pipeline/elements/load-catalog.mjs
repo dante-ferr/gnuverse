@@ -65,6 +65,7 @@ import { parse } from 'smol-toml'
  *   defaultGlyphSizePx: number,
  *   defaultStroke: string,
  *   defaultDemandRequired: number,
+ *   escalationRatio: number,
  *   starterSourceIds: string[],
  *   preview: PreviewConfig,
  *   machines: MachineKind[],
@@ -109,6 +110,7 @@ export function loadElementCatalog(configDir = defaultElementsConfigDir()) {
     defaultGlyphSizePx: 28,
     defaultStroke: '#0a1014',
     defaultDemandRequired: 20,
+    escalationRatio: 1.18,
     starterSourceIds: [],
     preview: { ...DEFAULT_PREVIEW },
   }
@@ -176,6 +178,7 @@ export function loadElementCatalog(configDir = defaultElementsConfigDir()) {
     defaultGlyphSizePx: globals.defaultGlyphSizePx,
     defaultStroke: globals.defaultStroke,
     defaultDemandRequired: globals.defaultDemandRequired,
+    escalationRatio: globals.escalationRatio,
     starterSourceIds: [...globals.starterSourceIds],
     preview: globals.preview,
     machines: [...machinesById.values()],
@@ -200,6 +203,7 @@ export function catalogToJson(catalog) {
     defaultGlyphSizePx: catalog.defaultGlyphSizePx,
     defaultStroke: catalog.defaultStroke,
     defaultDemandRequired: catalog.defaultDemandRequired,
+    escalationRatio: catalog.escalationRatio,
     starterSourceIds: catalog.starterSourceIds,
     preview: catalog.preview,
     machines: catalog.machines,
@@ -230,6 +234,13 @@ function mergeGlobals(globals, raw) {
   if (raw.default_stroke != null) globals.defaultStroke = String(raw.default_stroke)
   if (raw.default_demand_required != null) {
     globals.defaultDemandRequired = int(raw.default_demand_required, 'default_demand_required', 1)
+  }
+  if (raw.escalation_ratio != null) {
+    const ratio = Number(raw.escalation_ratio)
+    if (!Number.isFinite(ratio) || ratio < 1.01 || ratio > 2) {
+      fail(`escalation_ratio must be in [1.01, 2] (got ${raw.escalation_ratio})`)
+    }
+    globals.escalationRatio = ratio
   }
   if (raw.starter_source_ids != null) {
     globals.starterSourceIds = normalizeIdList(raw.starter_source_ids, 'starter_source_ids')

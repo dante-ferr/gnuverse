@@ -7,7 +7,7 @@ Open Pipeline packets are **elements** defined in TOML under `game-server/config
 - Primary book: `game-server/config/elements.toml` (**36** ids, max tier **5**)
 - Optional extras: any `*.toml` under `game-server/config/elements/`
 - Shared loader: `game-server/pipeline/elements/load-catalog.mjs` (also used by the game-server `rules.elements` payload)
-- Globals in TOML: `max_tier`, `retain_prior_demands`, `default_rate_per_minute`, `default_source_rate_per_minute`, `default_productivity`, `default_glyph_size_px`, `default_stroke`, `default_demand_required`, `starter_source_ids`
+- Globals in TOML: `max_tier`, `retain_prior_demands`, `default_rate_per_minute`, `default_source_rate_per_minute`, `default_productivity`, `default_glyph_size_px`, `default_stroke`, `default_demand_required`, `escalation_ratio`, `starter_source_ids`
 - `[[machines]]` (`color`, `decor` under `public/pipeline/` like element glyphs; `default_rate_per_minute`; core/source body colors stay in `[pipeline]`), `[[chapters]]` (`max_new_bases`, `required_multiplier`), `[preview]` layout sizes
 - Per element: `fill` / `stroke` / `glyph` / `family` / `sort_key`; bases add optional `source_rate_per_minute` and `source_spawn_chance_percent` (omit to inherit `default_source_rate_per_minute`); crafts add `machine`, optional `rate_per_minute` (omit to use the machine default), `productivity`
 - Sim converts authored rates with period ms = 60 000 ÷ rate and ticks = max(1, round(period ms ÷ `tick_ms` from `[pipeline]`)). `productivity` stays a separate multiplier — not folded into rate

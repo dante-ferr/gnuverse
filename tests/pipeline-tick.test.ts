@@ -338,23 +338,27 @@ test('auto unlock bumps 0.1 to 0.2 when delivery milestones are met', () => {
   const required = 3
   const match = connected(rulesWithChapterOneQuota(required))
   match.deliveryByShape = { fire: required, water: required, steam: required }
+  match.waveDeliveryByShape = { steam: required }
   match.deliveries = required * 3
   assert.equal(match.chapter, 1)
   assert.equal(match.version, '0.1')
   match.tick()
   assert.equal(match.chapter, 2)
   assert.equal(match.version, '0.2')
+  assert.equal(match.escalationWave, 1)
   match.tick()
   assert.equal(match.chapter, 2)
+  assert.equal(match.escalationWave, 1)
 })
 
-test('forceAdvance bumps chapter through late progression', () => {
+test('forceAdvance bumps chapter and escalation wave', () => {
   const match = Match.create('seed', rules)
   match.chapter = 2
   match.version = '0.2'
   forceAdvance(match)
   assert.equal(match.chapter, 3)
   assert.equal(match.version, '0.3')
+  assert.equal(match.escalationWave, 1)
 })
 
 test('a signed placement cannot cover the core', () => {
