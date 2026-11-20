@@ -68,6 +68,22 @@ export class Routing {
   }
 }
 
+/**
+ * Direct port plug first, then a belt on the output cell.
+ * `from` is the cell the output attaches to (source rim, machine body, tunnel exit).
+ */
+export function ejectOnto(
+  match: Match,
+  from: { x: number; y: number },
+  output: PortSlot,
+  shape: PacketShape,
+) {
+  if (deliverToLinkedInput(match, from, output, shape)) return true
+  if (!outputBeltAccepts(match, output.cell, output.travel)) return false
+  placePacket(match, output.cell, shape)
+  return true
+}
+
 /** Port plug first, then a belt on the output cell. */
 function deliverToLinkedInput(
   match: Match,
@@ -75,6 +91,14 @@ function deliverToLinkedInput(
   output: PortSlot,
   shape: PacketShape,
 ) {
+  for (const core of match.cores) {
+    for (const slot of core.inputSlots()) {
+      if (!outputReaches(from, output, slot, match)) continue
+      if (!match.acceptsDelivery(shape)) return false
+      match.recordDelivery(shape, core.id)
+      return true
+    }
+  }
   for (const combiner of match.combiners) {
     for (const slot of combiner.inputSlots()) {
       if (!outputReaches(from, output, slot, match)) continue
@@ -120,6 +144,12 @@ function canDeliverToLinkedInput(
   output: PortSlot,
   shape: PacketShape,
 ) {
+  for (const core of match.cores) {
+    for (const slot of core.inputSlots()) {
+      if (!outputReaches(from, output, slot, match)) continue
+      return match.acceptsDelivery(shape)
+    }
+  }
   for (const combiner of match.combiners) {
     for (const slot of combiner.inputSlots()) {
       if (!outputReaches(from, output, slot, match)) continue

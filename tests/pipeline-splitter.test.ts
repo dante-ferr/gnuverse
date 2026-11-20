@@ -180,6 +180,59 @@ test('portsConnected is a direct plug onto the input slot, not a shared gap cell
   )
 })
 
+test('source emits into a splitter plugged onto its output', () => {
+  const match = Match.create('splitter-on-source', rules)
+  const source = match.sources[0]!
+  const output = source.outputSlots()[0]!
+  assert.equal(
+    match.placeMachine(
+      { machineId: 'splitter', x: output.cell.x, y: output.cell.y, facing: output.travel },
+      author,
+    ),
+    null,
+  )
+  const splitter = match.splitters[0]!
+  const forward = splitter.outputSlots().find((slot) => slot.travel === output.travel)!
+  assert.equal(match.place([{ ...forward.cell, direction: forward.travel }], author), null)
+  source.ticksUntilEmit = 0
+  match.tick()
+  assert.equal(splitter.buffer, source.shape)
+  assert.equal(match.packets.length, 0)
+  match.tick()
+  assert.equal(splitter.buffer, null)
+  assert.equal(
+    match.packets.some((packet) => packet.cell.x === forward.cell.x && packet.cell.y === forward.cell.y),
+    true,
+  )
+})
+
+test('splitter plugged into a core input delivers on eject', () => {
+  const match = Match.create('splitter-core-plug', rules)
+  const slot = match.core.inputSlots().find((item) => item.travel === 'east')
+  assert.ok(slot)
+  const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
+  assert.equal(
+    match.placeMachine(
+      { machineId: 'splitter', x: approach.x, y: approach.y, facing: slot.travel },
+      author,
+    ),
+    null,
+  )
+  const splitter = match.splitters[0]!
+  const into = splitter.outputSlots().find((out) => out.travel === slot.travel)!
+  assert.equal(portsConnected(into, slot), true)
+
+  const inCell = ahead(approach.x, approach.y, opposite(slot.travel))
+  assert.equal(match.place([{ ...inCell, direction: slot.travel }], author), null)
+  match.packets.push(new Packet('p1', inCell, 'fire'))
+  const before = match.deliveries
+  match.tick()
+  assert.equal(splitter.buffer, null)
+  assert.equal(match.deliveries, before + 1)
+  assert.equal(match.packets.length, 0)
+  assert.equal(match.coreLastIntakeTick[match.core.id], 0)
+})
+
 test('placeMachine allows splitter plugged into a combiner input', () => {
   const match = Match.createSandbox('splitter-combiner-plug', rules)
   assert.equal(

@@ -1,8 +1,8 @@
-import { Packet } from '../../packets/packet.ts'
+import { ahead, opposite } from '../../geometry/direction.ts'
 import type { Match } from '../match.ts'
-import { outputBeltAccepts } from './output-belt.ts'
+import { ejectOnto } from './routing.ts'
 
-/** Emits from each in-play source when its output belt cell is empty and faces out. */
+/** Emits from each in-play source onto a belt or a machine plugged into the output. */
 export class Emission {
   private match: Match
 
@@ -19,10 +19,8 @@ export class Emission {
         source.ticksUntilEmit -= 1
         continue
       }
-      if (!outputBeltAccepts(this.match, output.cell, output.travel)) continue
-      this.match.packets.push(
-        new Packet(`p${this.match.nextPacketId++}`, { ...output.cell }, source.shape),
-      )
+      const rim = ahead(output.cell.x, output.cell.y, opposite(output.travel))
+      if (!ejectOnto(this.match, rim, output, source.shape)) continue
       source.ticksUntilEmit = Math.max(0, source.periodTicks - 1)
     }
   }
