@@ -22,7 +22,7 @@
   --scene-line: #1f3038;
   --ground: #152229;
   --ground-edge: #6a7b83;
-  --block-face: #8ea3ab;
+  --block-face: #667b83;
 }
 @theme inline {
   --color-background: var(--background);
