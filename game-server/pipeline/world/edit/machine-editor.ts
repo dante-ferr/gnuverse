@@ -6,6 +6,11 @@ import {
   TunnelPortalMachine,
   tunnelPairGeometry,
 } from '../../machines/tunnel-machine.ts'
+import {
+  matchBuildingMachines,
+  portsOverlapBuildings,
+  type BuildingFootprint,
+} from './building-slots.ts'
 import type { Match } from '../match.ts'
 
 type Author = { id: string; nickname: string }
@@ -94,6 +99,20 @@ export class MachineEditor {
     if (this.overlapsBelts(spec.x, spec.y, width, height)) {
       return 'Há esteiras nesse espaço.'
     }
+    const probe = new CombinerMachine(
+      'probe',
+      spec.machineId,
+      { x: spec.x, y: spec.y },
+      spec.facing,
+    )
+    const footprint: BuildingFootprint = {
+      origin: { x: spec.x, y: spec.y },
+      width,
+      height,
+    }
+    if (this.portsOverlapBuildings(probe.slots, [footprint])) {
+      return 'Entradas ou saídas sobrepõem outra estrutura.'
+    }
     const id = `c${this.match.nextCombinerSeq++}`
     this.match.combiners.push(
       new CombinerMachine(id, spec.machineId, { x: spec.x, y: spec.y }, spec.facing),
@@ -109,6 +128,20 @@ export class MachineEditor {
       return 'Espaço ocupado por outra estrutura.'
     }
     if (this.overlapsBelts(spec.x, spec.y, 1, 1)) return 'Há esteiras nesse espaço.'
+    const probe = new SplitterMachine(
+      'probe',
+      { x: spec.x, y: spec.y },
+      spec.facing,
+      author,
+    )
+    const footprint: BuildingFootprint = {
+      origin: { x: spec.x, y: spec.y },
+      width: 1,
+      height: 1,
+    }
+    if (this.portsOverlapBuildings(probe.slots, [footprint])) {
+      return 'Entradas ou saídas sobrepõem outra estrutura.'
+    }
     const id = `s${this.match.nextSplitterSeq++}`
     this.match.splitters.push(
       new SplitterMachine(id, { x: spec.x, y: spec.y }, spec.facing, {
@@ -138,6 +171,32 @@ export class MachineEditor {
     }
     if (this.overlapsBelts(entrance.x, entrance.y, 1, 1) || this.overlapsBelts(exit.x, exit.y, 1, 1)) {
       return 'Há esteiras nesse espaço.'
+    }
+    const probeIn = new TunnelPortalMachine(
+      'probe:in',
+      entrance,
+      'entrance',
+      'probe',
+      spec.facing,
+      author,
+      geometry.gap,
+    )
+    const probeOut = new TunnelPortalMachine(
+      'probe:out',
+      exit,
+      'exit',
+      'probe',
+      spec.facing,
+      author,
+      0,
+    )
+    const tunnelSlots = [...probeIn.slots, ...probeOut.slots]
+    const footprints: BuildingFootprint[] = [
+      { origin: entrance, width: 1, height: 1 },
+      { origin: exit, width: 1, height: 1 },
+    ]
+    if (this.portsOverlapBuildings(tunnelSlots, footprints)) {
+      return 'Entradas ou saídas sobrepõem outra estrutura.'
     }
     const pairId = `t${this.match.nextTunnelSeq++}`
     this.match.tunnels.push(
@@ -203,5 +262,12 @@ export class MachineEditor {
         belt.origin.y >= y &&
         belt.origin.y < y + height,
     )
+  }
+
+  private portsOverlapBuildings(
+    slots: readonly { cell: { x: number; y: number }; role: 'input' | 'output'; travel: Direction }[],
+    footprints: readonly BuildingFootprint[],
+  ) {
+    return portsOverlapBuildings(slots, footprints, matchBuildingMachines(this.match))
   }
 }

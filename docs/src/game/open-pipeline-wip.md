@@ -146,6 +146,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 
 | Date | Agent / human | Note |
 | --- | --- | --- |
+| 2026-11-20 | Gameplay | Building I/O ports must not occupy another building’s body (inputs use approach cell; shared port tiles allowed) — `building-slots.ts` |
 | 2026-11-19 | Gameplay | Belt drag inserts tunnels across runs that fit in `tunnel_max_gap` by default (1–2 empty cells stay in the span). Thicker runs and missing portal cells are skipped — `belt-cross.ts` |
 | 2026-11-20 | Design | Progression locked: permanent prior demands, 3 cores at start (Chebyshev ring 3–4), agnostic ports, grass Moore-neighbor guarantee; core gears spin only after intake — [progression.md](progression.md) |
 | 2026-11-19 | Gameplay | Splitter 1×1 (1-in/3-out RR) + Factorio tunnels (`tunnel_max_gap`) in all rooms; QuiverAI decor; tests `pipeline-splitter` / `pipeline-tunnel` — early vs proposal v0.2/v0.3 |

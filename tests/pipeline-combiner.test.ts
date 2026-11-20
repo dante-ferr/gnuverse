@@ -122,6 +122,29 @@ test('placeMachine accepts combiner footprint in owned sandbox cells', () => {
   assert.equal(match.combiners[0]!.activeRecipeId, null)
 })
 
+test('placeMachine rejects body on another combiner input approach', () => {
+  const match = Match.createSandbox('port-approach', rules)
+  // Facing south: inputs on the north rim; approach is one cell further north.
+  assert.equal(
+    match.placeMachine({ machineId: 'combiner_2', x: 25, y: 28, facing: 'south' }, author),
+    null,
+  )
+  const first = match.combiners[0]!
+  const approach = approachCellForInput(first)
+  // Place a second 3×3 so its south-west cell covers that approach (screenshot case).
+  const error = match.placeMachine(
+    {
+      machineId: 'combiner_2',
+      x: approach.x,
+      y: approach.y - 2,
+      facing: 'south',
+    },
+    author,
+  )
+  assert.equal(error, 'Entradas ou saídas sobrepõem outra estrutura.')
+  assert.equal(match.combiners.length, 1)
+})
+
 test('matchRecipeFromBuffer resolves steam when water and fire are buffered', () => {
   const combiner = new CombinerMachine('c', 'combiner_2', { x: 5, y: 5 }, 'east')
   combiner.buffer = { water: 1, fire: 1 }

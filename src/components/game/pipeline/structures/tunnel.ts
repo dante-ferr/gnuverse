@@ -1,7 +1,14 @@
 import { ahead } from '../../../../../game-server/pipeline/geometry/direction.ts'
-import { tunnelPairGeometry } from '../../../../../game-server/pipeline/machines/tunnel-machine.ts'
+import {
+  TunnelPortalMachine,
+  tunnelPairGeometry,
+} from '../../../../../game-server/pipeline/machines/tunnel-machine.ts'
 import { cycleCombinerFacing, getCombinerPlaceOptions } from '../combiner-place-options.ts'
-import { getPlacementRules } from '../placement-rules.ts'
+import { getPlacementFrame, getPlacementRules } from '../placement-rules.ts'
+import {
+  proposedBuildingPlacementBlocked,
+  tunnelProbeSlots,
+} from '../placement-building-slots.ts'
 import type { Direction } from '../model/frame.ts'
 import { registerStructure } from './registry.ts'
 import type {
@@ -71,7 +78,35 @@ function exitPlacementValid(
   exit: { x: number; y: number },
   facing: Direction,
 ): boolean {
-  return tunnelPairGeometry(entrance, exit, facing, tunnelMaxGap()).ok
+  const geom = tunnelPairGeometry(entrance, exit, facing, tunnelMaxGap())
+  if (!geom.ok) return false
+  const frame = getPlacementFrame()
+  if (!frame) return true
+  const slots = tunnelProbeSlots(entrance, exit, facing, geom.gap)
+  const footprints = [
+    { origin: entrance, width: 1, height: 1 },
+    { origin: exit, width: 1, height: 1 },
+  ]
+  return !proposedBuildingPlacementBlocked(frame, slots, footprints)
+}
+
+function entrancePlacementValid(
+  cell: { x: number; y: number },
+  frame: import('../model/frame.ts').PipelineFrame | undefined,
+): boolean {
+  if (!frame) return true
+  const { facing } = getCombinerPlaceOptions()
+  const slots = new TunnelPortalMachine(
+    'probe',
+    cell,
+    'entrance',
+    'probe',
+    facing,
+    { id: 'preview', nickname: 'preview' },
+    0,
+  ).slots
+  const footprints = [{ origin: cell, width: 1, height: 1 }]
+  return !proposedBuildingPlacementBlocked(frame, slots, footprints)
 }
 
 /**
@@ -92,9 +127,11 @@ function validExitCells(entrance: GridCell, facing: Direction): GridCell[] {
 function tunnelPreviewMachines(
   entrance: { x: number; y: number },
   exit: { x: number; y: number } | null,
+  frame?: import('../model/frame.ts').PipelineFrame,
 ): StructurePreviewMachine[] {
   const { facing } = getCombinerPlaceOptions()
-  const machines = [previewPortal(entrance, 'entrance', facing)]
+  const entranceValid = entrancePlacementValid(entrance, frame)
+  const machines = [previewPortal(entrance, 'entrance', facing, entranceValid)]
   if (exit) {
     machines.push(previewPortal(exit, 'exit', facing, exitPlacementValid(entrance, exit, facing)))
   }
@@ -123,7 +160,7 @@ function createTunnelSession(): StructurePlacementSession {
     },
     previewMachines() {
       if (!entrance) return []
-      return tunnelPreviewMachines(entrance, exit)
+      return tunnelPreviewMachines(entrance, exit, getPlacementFrame() ?? undefined)
     },
     previewHintCells() {
       if (!entrance) return []
@@ -154,19 +191,20 @@ function createTunnelSession(): StructurePlacementSession {
   }
 }
 
-function tunnelHoverGhost(cell: { x: number; y: number }): StructureHoverGhost {
+function tunnelHoverGhost(
+  cell: { x: number; y: number },
+  frame?: import('../model/frame.ts').PipelineFrame,
+): StructureHoverGhost {
   const { facing } = getCombinerPlaceOptions()
   if (pendingEntrance) {
-    const valid = exitPlacementValid(pendingEntrance, cell, facing)
     return {
-      machines: tunnelPreviewMachines(pendingEntrance, cell).map((machine) =>
-        machine.tunnelRole === 'exit' ? { ...machine, placementValid: valid } : machine,
-      ),
+      machines: tunnelPreviewMachines(pendingEntrance, cell, frame),
       hintCells: validExitCells(pendingEntrance, facing),
     }
   }
+  const entranceValid = entrancePlacementValid(cell, frame)
   return {
-    machine: previewPortal(cell, 'entrance', facing),
+    machine: previewPortal(cell, 'entrance', facing, entranceValid),
     hintCells: validExitCells(cell, facing),
   }
 }

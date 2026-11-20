@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { BeltRecord, PipelineFrame, PipelineRules } from '../model/frame.ts'
 import { CombinerMachine } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
-import { setPlacementRules } from '../placement-rules.ts'
+import { setPlacementFrame, setPlacementRules } from '../placement-rules.ts'
 import {
   getStructure,
   type StructureHoverGhost,
@@ -93,6 +93,7 @@ export function PipelineScene({
   frameRef.current = frame
   rulesRef.current = rules
   setPlacementRules(rules)
+  setPlacementFrame(frame)
   editModeRef.current = editMode
   structureIdRef.current = structureId
   onToggleEditModeRef.current = onToggleEditMode
@@ -718,7 +719,7 @@ function hoverStructureGhost(
   if (!structure?.hoverGhost) return null
   const cell = camera.cellAt(pointer.x, pointer.y, cellSize)
   if (cell.x < 0 || cell.y < 0 || cell.x >= frame.width || cell.y >= frame.height) return null
-  return structure.hoverGhost(cell)
+  return structure.hoverGhost(cell, frame)
 }
 
 function hoverLabel(

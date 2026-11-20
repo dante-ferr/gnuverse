@@ -1,5 +1,5 @@
 import type { CombinerMachineId } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
-import type { Direction } from '../model/frame'
+import type { Direction, PipelineFrame } from '../model/frame'
 
 export type PreviewMachineId = CombinerMachineId | 'splitter' | 'tunnel'
 
@@ -76,7 +76,7 @@ export type StructureDefinition = {
   createSession: () => StructurePlacementSession
   commit: (ctx: StructureCommitContext, payload: unknown) => Promise<void>
   /** Hover ghost while selected in create mode (no drag required). */
-  hoverGhost?: (cell: GridCell) => StructureHoverGhost | null
+  hoverGhost?: (cell: GridCell, frame?: PipelineFrame) => StructureHoverGhost | null
   /**
    * Soft cell highlights for an in-progress multi-step placement
    * (for example tunnel exit range after the entrance is chosen).

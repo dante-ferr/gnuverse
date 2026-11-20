@@ -5,6 +5,12 @@ import {
 } from '../combiner-place-options.ts'
 import type { Direction } from '../model/frame.ts'
 import { originFromCenter } from '../place-geometry.ts'
+import {
+  combinerProbeSlots,
+  proposedBuildingPlacementBlocked,
+} from '../placement-building-slots.ts'
+import { getPlacementFrame } from '../placement-rules.ts'
+import type { PipelineFrame } from '../model/frame.ts'
 import { registerStructure } from './registry.ts'
 import type {
   StructureDefinition,
@@ -33,6 +39,7 @@ function isCombinerPayload(payload: unknown): payload is CombinerPayload {
 function previewMachineAt(
   machineId: CombinerMachineId,
   center: { x: number; y: number },
+  placementValid = true,
 ): StructurePreviewMachine {
   const { facing } = getCombinerPlaceOptions()
   const { width, height } = CombinerMachine.sizeFor(machineId, facing)
@@ -44,7 +51,22 @@ function previewMachineAt(
     facing,
     width,
     height,
+    placementValid,
   }
+}
+
+function combinerPlacementValid(
+  machineId: CombinerMachineId,
+  center: { x: number; y: number },
+  frame: PipelineFrame | null | undefined,
+): boolean {
+  if (!frame) return true
+  const { facing } = getCombinerPlaceOptions()
+  const { width, height } = CombinerMachine.sizeFor(machineId, facing)
+  const origin = originFromCenter(center, width, height)
+  const slots = combinerProbeSlots(machineId, origin.x, origin.y, facing)
+  const footprints = [{ origin, width, height }]
+  return !proposedBuildingPlacementBlocked(frame, slots, footprints)
 }
 
 function createCombinerSession(machineId: CombinerMachineId): StructurePlacementSession {
@@ -58,7 +80,10 @@ function createCombinerSession(machineId: CombinerMachineId): StructurePlacement
       return []
     },
     previewMachine() {
-      return center ? previewMachineAt(machineId, center) : null
+      if (!center) return null
+      const frame = getPlacementFrame()
+      const valid = combinerPlacementValid(machineId, center, frame)
+      return previewMachineAt(machineId, center, valid)
     },
     isEmpty() {
       return !center
@@ -82,8 +107,10 @@ function createCombinerSession(machineId: CombinerMachineId): StructurePlacement
 function combinerHoverGhost(
   machineId: CombinerMachineId,
   cell: { x: number; y: number },
+  frame?: PipelineFrame,
 ): StructureHoverGhost {
-  return { machine: previewMachineAt(machineId, cell) }
+  const valid = combinerPlacementValid(machineId, cell, frame)
+  return { machine: previewMachineAt(machineId, cell, valid) }
 }
 
 function registerCombiner(
@@ -95,10 +122,9 @@ function registerCombiner(
     id: machineId,
     label,
     iconSrc,
-    sandboxOnly: true,
     signInMessage: 'Entre para colocar combinadores.',
     createSession: () => createCombinerSession(machineId),
-    hoverGhost: (cell) => combinerHoverGhost(machineId, cell),
+    hoverGhost: (cell, frame) => combinerHoverGhost(machineId, cell, frame),
     rotate: () => {
       cycleCombinerFacing()
     },

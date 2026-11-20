@@ -140,6 +140,63 @@ test('remove deletes splitter', () => {
   assert.equal(match.splitters.length, 0)
 })
 
+test('placeMachine rejects splitter output on another machine body', () => {
+  const { match, origin } = matchWithSplitter('east')
+  // Bodies do not overlap; the first splitter’s east output lands on the new body.
+  const clash = { x: origin.x + 1, y: origin.y }
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: clash.x, y: clash.y, facing: 'west' },
+    author,
+  )
+  assert.equal(error, 'Entradas ou saídas sobrepõem outra estrutura.')
+  assert.equal(match.splitters.length, 1)
+})
+
+test('placeMachine allows two splitters sharing an output cell', () => {
+  const { match, origin, splitter } = matchWithSplitter('east')
+  const forward = splitter.orderedOutputSlots().find((slot) => slot.travel === 'east')!
+  const clashOrigin = { x: forward.cell.x + 1, y: forward.cell.y }
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: clashOrigin.x, y: clashOrigin.y, facing: 'west' },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.splitters.length, 2)
+})
+
+test('placeMachine allows splitter output orthogonally adjacent to another body', () => {
+  const { match, origin } = matchWithSplitter('east')
+  const clear = { x: origin.x - 2, y: origin.y }
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: clear.x, y: clear.y, facing: 'east' },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.splitters.length, 2)
+})
+
+test('placeMachine allows body orthogonally adjacent to another output slot', () => {
+  const { match, origin } = matchWithSplitter('east')
+  const clear = { x: origin.x + 2, y: origin.y }
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: clear.x, y: clear.y, facing: 'east' },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.splitters.length, 2)
+})
+
+test('placeMachine allows splitter with clear I/O slots', () => {
+  const { match, origin } = matchWithSplitter('east')
+  const clear = { x: origin.x, y: origin.y + 4 }
+  const error = match.placeMachine(
+    { machineId: 'splitter', x: clear.x, y: clear.y, facing: 'east' },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.splitters.length, 2)
+})
+
 test('SplitterMachine constructs for every facing', () => {
   for (const facing of ['north', 'east', 'south', 'west'] as const) {
     const machine = new SplitterMachine('s', { x: 3, y: 3 }, facing, author)
