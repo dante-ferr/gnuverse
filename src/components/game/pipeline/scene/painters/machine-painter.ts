@@ -11,6 +11,7 @@ import { SourceMachine } from '../../../../../../game-server/pipeline/machines/s
 import type { Machine } from '../../../../../../game-server/pipeline/machines/machine.ts'
 import { CombinerMachine } from '../../../../../../game-server/pipeline/machines/combiner-machine.ts'
 import { SplitterMachine } from '../../../../../../game-server/pipeline/machines/splitter-machine.ts'
+import { TrashcanMachine } from '../../../../../../game-server/pipeline/machines/trashcan-machine.ts'
 import {
   TunnelPortalMachine,
   type TunnelPortalRole,
@@ -62,6 +63,7 @@ export type MachineDecorImages = {
   coreGearInner: HTMLImageElement | null
   source: HTMLImageElement | null
   splitter: HTMLImageElement | null
+  trashcan: HTMLImageElement | null
   tunnelEntrance: HTMLImageElement | null
   tunnelExit: HTMLImageElement | null
   tunnelFastEntrance: HTMLImageElement | null
@@ -125,6 +127,16 @@ export class MachinePainter {
         decorFacing: spec.facing,
         hidePortBracket: hideBracket,
       })
+      ctx.restore()
+      return
+    }
+    if (spec.machineId === 'trashcan') {
+      const trashcan = new TrashcanMachine(
+        'ghost',
+        { x: spec.x, y: spec.y },
+        spec.facing,
+      )
+      this.machine(ctx, trashcan, rules.colorTrashcan, this.images.trashcan, rules, bracketStyle)
       ctx.restore()
       return
     }
@@ -192,6 +204,7 @@ export class MachinePainter {
     mark(this.images.coreFrame)
     mark(this.images.source)
     mark(this.images.splitter)
+    mark(this.images.trashcan)
     mark(this.images.tunnelEntrance)
     mark(this.images.tunnelExit)
     mark(this.images.tunnelFastEntrance)
@@ -246,6 +259,21 @@ export class MachinePainter {
       }
       // Craft / output glyphs stay visible at every zoom band.
       if (drawMotion) this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, motion)
+    }
+    for (const spec of frame.trashcans ?? []) {
+      if (
+        !footprintVisible(spec.x, spec.y, TrashcanMachine.width, TrashcanMachine.height, bounds)
+      ) {
+        continue
+      }
+      const trashcan = new TrashcanMachine(spec.id, { x: spec.x, y: spec.y }, spec.facing)
+      if (drawBodies && showNonCore) {
+        if (flat) {
+          this.drawFlatPlate(ctx, trashcan, rules.colorTrashcan, rules)
+        } else {
+          this.machine(ctx, trashcan, rules.colorTrashcan, this.images.trashcan, rules, bracketStyle)
+        }
+      }
     }
     if (drawBodies && showNonCore && ports) {
       for (const spec of frame.splitters ?? []) {
@@ -373,6 +401,15 @@ export class MachinePainter {
       if (!footprintVisible(spec.x, spec.y, size.width, size.height, bounds)) continue
       const combiner = new CombinerMachine(spec.id, spec.machineId, { x: spec.x, y: spec.y }, spec.facing)
       this.drawSlotBrackets(ctx, combiner, this.machineColor(rules, spec.machineId), rules, bracketStyle)
+    }
+    for (const spec of frame.trashcans ?? []) {
+      if (
+        !footprintVisible(spec.x, spec.y, TrashcanMachine.width, TrashcanMachine.height, bounds)
+      ) {
+        continue
+      }
+      const trashcan = new TrashcanMachine(spec.id, { x: spec.x, y: spec.y }, spec.facing)
+      this.drawSlotBrackets(ctx, trashcan, rules.colorTrashcan, rules, bracketStyle)
     }
   }
 
@@ -852,6 +889,9 @@ export function loadMachineDecor(
   const splitter = new Image()
   splitter.src = '/pipeline/splitter-decor.svg'
   splitter.onload = onLoad
+  const trashcan = new Image()
+  trashcan.src = '/pipeline/trashcan-decor.svg'
+  trashcan.onload = onLoad
   const tunnelEntrance = new Image()
   tunnelEntrance.src = '/pipeline/tunnel-entrance-decor.svg'
   tunnelEntrance.onload = onLoad
@@ -902,6 +942,7 @@ export function loadMachineDecor(
     coreGearInner,
     source,
     splitter,
+    trashcan,
     tunnelEntrance,
     tunnelExit,
     tunnelFastEntrance,

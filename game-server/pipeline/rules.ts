@@ -26,6 +26,8 @@ export type PipelineRules = {
   colorSource: string
   /** 1×1 splitter machine body. */
   colorSplitter: string
+  /** 4×4 trashcan machine body. */
+  colorTrashcan: string
   /** Underground tunnel portal body. */
   colorTunnel: string
   /** Max empty cells between tunnel entrance and exit. */
@@ -121,6 +123,8 @@ export type PipelineRules = {
   fastBeltCost: number
   /** Coin cost of one splitter. */
   splitterCost: number
+  /** Coin cost of one trashcan. */
+  trashcanCost: number
   /** Coin cost of one combiner. */
   combinerCost: number
   /** Coin cost of one tunnel pair. */

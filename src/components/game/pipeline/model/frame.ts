@@ -36,7 +36,7 @@ export type PipelineRules = {
   colorInk: string
   decorStrokeWidth: number
   resourceGlyphSizePx: number
-  /** Machine overlays: at/below, scale with the world; above, lock screen size at this zoom. */
+  /** Machine overlays: at/below, world scale; above, screen-lock to resourceGlyphSizePx. */
   resourceGlyphWorldMinZoom: number
   resourceGlyphOrbitPx: number
   resourceGlyphOrbitMs: number
@@ -70,6 +70,7 @@ export type PipelineRules = {
   beltCost: number
   fastBeltCost: number
   splitterCost: number
+  trashcanCost: number
   combinerCost: number
   tunnelCost: number
   fastTunnelCost: number
@@ -82,6 +83,8 @@ export type PipelineRules = {
   slotFlowMarkDepthPercent: number
   /** 1×1 splitter machine body. */
   colorSplitter: string
+  /** 4×4 trashcan machine body. */
+  colorTrashcan: string
   /** Underground tunnel portal body. */
   colorTunnel: string
   /** Max empty cells between tunnel entrance and exit. */
@@ -129,6 +132,15 @@ export type CombinerRecord = {
   craftRemaining?: number | null
   pendingOutputs?: string[] | null
   nextSplitPort?: 0 | 1
+  authorId: string
+  authorNickname: string
+}
+
+export type TrashcanRecord = {
+  id: string
+  x: number
+  y: number
+  facing: Direction
   authorId: string
   authorNickname: string
 }
@@ -203,6 +215,7 @@ export type PipelineFrame = {
   cores?: CoreRecord[]
   combiners?: CombinerRecord[]
   splitters?: SplitterRecord[]
+  trashcans?: TrashcanRecord[]
   tunnels?: TunnelPortalRecord[]
 }
 

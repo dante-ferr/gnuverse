@@ -199,6 +199,13 @@ export class RoomService {
         y: integer(body.y, 0, match.height - 1, 'Y'),
         facing: body.facing,
       }
+    } else if (machineId === 'trashcan') {
+      spec = {
+        machineId: 'trashcan',
+        x: integer(body.x, 0, match.width - 1, 'X'),
+        y: integer(body.y, 0, match.height - 1, 'Y'),
+        facing: body.facing,
+      }
     } else if (machineId === 'tunnel' || machineId === 'fast_tunnel') {
       spec = {
         machineId,
@@ -267,7 +274,12 @@ export class RoomService {
             ? 'fast_tunnel'
             : 'tunnel'
           : (result.kind ?? 'belt')
-    if (result.kind === 'combiner' || result.kind === 'splitter' || result.kind === 'tunnel') {
+    if (
+      result.kind === 'combiner' ||
+      result.kind === 'splitter' ||
+      result.kind === 'trashcan' ||
+      result.kind === 'tunnel'
+    ) {
       room.frame = match.toFrame()
       participant.contributions++
       room.actionCount++
@@ -277,6 +289,7 @@ export class RoomService {
         refund,
         combiners: match.combiners.length,
         splitters: match.splitters.length,
+        trashcans: match.trashcans.length,
         tunnels: match.tunnels.length,
       })
       this.runtime.afterAction(room)
@@ -435,6 +448,7 @@ export class RoomService {
       cost,
       combiners: match.combiners.length,
       splitters: match.splitters.length,
+      trashcans: match.trashcans.length,
       tunnels: match.tunnels.length,
     })
     this.runtime.afterAction(room)

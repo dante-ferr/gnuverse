@@ -1,7 +1,7 @@
 import type { CombinerMachineId } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
 import type { Direction, PipelineFrame } from '../model/frame'
 
-export type PreviewMachineId = CombinerMachineId | 'splitter' | 'tunnel' | 'fast_tunnel'
+export type PreviewMachineId = CombinerMachineId | 'splitter' | 'trashcan' | 'tunnel' | 'fast_tunnel'
 
 export type GridCell = { x: number; y: number }
 

@@ -68,6 +68,15 @@ export type CombinerRecord = {
   authorNickname: string
 }
 
+export type TrashcanRecord = {
+  id: string
+  x: number
+  y: number
+  facing: Direction
+  authorId: string
+  authorNickname: string
+}
+
 export type SplitterRecord = {
   id: string
   x: number
@@ -118,6 +127,7 @@ export type PipelineFrame = {
   nextCombinerSeq?: number
   nextSplitterSeq?: number
   nextTunnelSeq?: number
+  nextTrashcanSeq?: number
   sandbox?: boolean
   belts: BeltRecord[]
   packets: PacketRecord[]
@@ -141,6 +151,7 @@ export type PipelineFrame = {
   cores?: CoreRecord[]
   combiners?: CombinerRecord[]
   splitters?: SplitterRecord[]
+  trashcans?: TrashcanRecord[]
   tunnels?: TunnelPortalRecord[]
 }
 

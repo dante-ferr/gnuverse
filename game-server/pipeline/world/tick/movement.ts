@@ -63,6 +63,10 @@ export class Movement {
         absorbedIds.add(move.packet.id)
         continue
       }
+      if (move.to.startsWith('absorb:trashcan:')) {
+        absorbedIds.add(move.packet.id)
+        continue
+      }
       if (move.to.startsWith('absorb:tunnel:')) {
         const pairId = move.to.slice('absorb:tunnel:'.length)
         if (!tunnelAbsorb(this.match, pairId, move.packet.shape)) continue
@@ -126,6 +130,13 @@ export class Movement {
         return `absorb:splitter:${splitter.id}`
       }
     }
+    for (const trashcan of this.match.trashcans) {
+      for (const slot of trashcan.inputSlots()) {
+        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
+        if (!sameCell(approach, cell)) continue
+        return `absorb:trashcan:${trashcan.id}`
+      }
+    }
     for (const portal of this.match.tunnels) {
       if (portal.role !== 'entrance') continue
       for (const slot of portal.inputSlots()) {
@@ -186,6 +197,12 @@ export class Movement {
       if (!sameCell(from, ahead(slot.cell.x, slot.cell.y, opposite(slot.travel)))) return 'blocked'
       if (splitter.buffer !== null) return 'blocked'
       return `absorb:splitter:${splitter.id}`
+    }
+    for (const trashcan of this.match.trashcans) {
+      const slot = trashcan.slotAt(cell, 'input')
+      if (!slot) continue
+      if (!sameCell(from, ahead(slot.cell.x, slot.cell.y, opposite(slot.travel)))) return 'blocked'
+      return `absorb:trashcan:${trashcan.id}`
     }
     for (const portal of this.match.tunnels) {
       if (portal.role !== 'entrance') continue

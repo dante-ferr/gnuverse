@@ -46,6 +46,7 @@ export function matchBuildingMachines(match: Match): Machine[] {
     ...match.sources,
     ...match.combiners,
     ...match.splitters,
+    ...match.trashcans,
     ...match.tunnels,
   ]
 }

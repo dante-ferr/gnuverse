@@ -6,6 +6,7 @@ import { CombinerMachine } from '../machines/combiner-machine.ts'
 import { CoreMachine } from '../machines/core-machine.ts'
 import { SourceMachine } from '../machines/source-machine.ts'
 import { SplitterMachine } from '../machines/splitter-machine.ts'
+import { TrashcanMachine } from '../machines/trashcan-machine.ts'
 import { TunnelPortalMachine } from '../machines/tunnel-machine.ts'
 import { Packet } from '../packets/packet.ts'
 import { sourcePeriodTicksForRole } from '../elements/rate.ts'
@@ -69,6 +70,7 @@ export class Match {
   nextCombinerSeq = 1
   nextSplitterSeq = 1
   nextTunnelSeq = 1
+  nextTrashcanSeq = 1
   readonly rules: PipelineRules
   readonly seed: string
   readonly sandbox: boolean
@@ -86,6 +88,7 @@ export class Match {
   generatedChunkKeys: Set<string>
   combiners: CombinerMachine[] = []
   splitters: SplitterMachine[] = []
+  trashcans: TrashcanMachine[] = []
   tunnels: TunnelPortalMachine[] = []
   chunkPledges: ChunkPledgeRecord[] = []
   private ownedChunkKeys: Set<string>
@@ -221,6 +224,7 @@ export class Match {
     if (this.sources.some((source) => source.covers(cell))) return 'source'
     if (this.combiners.some((machine) => machine.covers(cell))) return 'combiner'
     if (this.splitters.some((machine) => machine.covers(cell))) return 'splitter'
+    if (this.trashcans.some((machine) => machine.covers(cell))) return 'trashcan'
     if (this.tunnels.some((portal) => portal.covers(cell))) return 'tunnel'
     return null
   }
@@ -260,7 +264,7 @@ export class Match {
     author: CollaboratorRecord,
   ): {
     error: string | null
-    kind: 'belt' | 'combiner' | 'splitter' | 'tunnel' | null
+    kind: 'belt' | 'combiner' | 'splitter' | 'trashcan' | 'tunnel' | null
     authorId: string | null
     listPrice: number
     speed: number
@@ -367,6 +371,7 @@ export class Match {
       nextCombinerSeq: this.nextCombinerSeq,
       nextSplitterSeq: this.nextSplitterSeq,
       nextTunnelSeq: this.nextTunnelSeq,
+      nextTrashcanSeq: this.nextTrashcanSeq,
       sandbox: this.sandbox ? true : undefined,
       belts: this.belts.map((belt) => ({
         id: belt.id,
@@ -410,6 +415,14 @@ export class Match {
         craftRemaining: machine.craftRemaining,
         pendingOutputs: machine.pendingOutputs ? [...machine.pendingOutputs] : null,
         nextSplitPort: machine.nextSplitPort,
+        authorId: machine.authorId,
+        authorNickname: machine.authorNickname,
+      })),
+      trashcans: this.trashcans.map((machine) => ({
+        id: machine.id,
+        x: machine.origin.x,
+        y: machine.origin.y,
+        facing: machine.facing,
         authorId: machine.authorId,
         authorNickname: machine.authorNickname,
       })),
@@ -512,6 +525,7 @@ export class Match {
     match.nextCombinerSeq = frame.nextCombinerSeq ?? 1
     match.nextSplitterSeq = frame.nextSplitterSeq ?? 1
     match.nextTunnelSeq = frame.nextTunnelSeq ?? 1
+    match.nextTrashcanSeq = frame.nextTrashcanSeq ?? 1
     match.belts = frame.belts.map(
       (belt) =>
         new BeltMachine(
@@ -551,6 +565,18 @@ export class Match {
         machine.nextSplitPort = spec.nextSplitPort
         return machine
       },
+    )
+    match.trashcans = (frame.trashcans ?? []).map(
+      (spec) =>
+        new TrashcanMachine(
+          spec.id,
+          { x: spec.x, y: spec.y },
+          spec.facing,
+          {
+            id: spec.authorId ?? '',
+            nickname: spec.authorNickname ?? '',
+          },
+        ),
     )
     match.splitters = (frame.splitters ?? []).map((spec) => {
       const machine = new SplitterMachine(

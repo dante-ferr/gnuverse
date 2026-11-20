@@ -2,6 +2,7 @@ import { CombinerMachine } from '../../../../game-server/pipeline/machines/combi
 import { CoreMachine } from '../../../../game-server/pipeline/machines/core-machine.ts'
 import { SourceMachine } from '../../../../game-server/pipeline/machines/source-machine.ts'
 import { SplitterMachine } from '../../../../game-server/pipeline/machines/splitter-machine.ts'
+import { TrashcanMachine } from '../../../../game-server/pipeline/machines/trashcan-machine.ts'
 import { TunnelPortalMachine } from '../../../../game-server/pipeline/machines/tunnel-machine.ts'
 import type { Machine } from '../../../../game-server/pipeline/machines/machine.ts'
 import type { Direction } from '../../../../game-server/pipeline/geometry/direction.ts'
@@ -79,6 +80,14 @@ export function splitterProbeSlots(
   return new SplitterMachine('probe', { x, y }, facing, PREVIEW_AUTHOR).slots
 }
 
+export function trashcanProbeSlots(
+  x: number,
+  y: number,
+  facing: Direction,
+): readonly { cell: { x: number; y: number } }[] {
+  return new TrashcanMachine('probe', { x, y }, facing).slots
+}
+
 export function combinerProbeSlots(
   machineId: 'combiner_2' | 'combiner_3',
   x: number,
@@ -144,6 +153,16 @@ export function machinesFromFrame(frame: PipelineFrame): Machine[] {
         combiner.machineId,
         { x: combiner.x, y: combiner.y },
         combiner.facing,
+      ),
+    )
+  }
+  for (const trashcan of frame.trashcans ?? []) {
+    machines.push(
+      new TrashcanMachine(
+        trashcan.id,
+        { x: trashcan.x, y: trashcan.y },
+        trashcan.facing,
+        { id: trashcan.authorId, nickname: trashcan.authorNickname },
       ),
     )
   }

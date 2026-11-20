@@ -17,6 +17,8 @@ function structurePriceLabel(
       return `${rules.fastBeltCost} / célula`
     case 'splitter':
       return String(rules.splitterCost)
+    case 'trashcan':
+      return String(rules.trashcanCost)
     case 'combiner_2':
     case 'combiner_3':
       return String(rules.combinerCost)

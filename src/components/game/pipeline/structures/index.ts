@@ -2,6 +2,7 @@
 import './belt.ts'
 import './fast-belt.ts'
 import './combiner.ts'
+import './trashcan.ts'
 import './splitter.ts'
 import './tunnel.ts'
 import './fast-tunnel.ts'

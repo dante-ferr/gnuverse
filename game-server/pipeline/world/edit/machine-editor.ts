@@ -2,6 +2,7 @@ import { cellKey, type Cell } from '../../geometry/cell.ts'
 import { isDirection, type Direction } from '../../geometry/direction.ts'
 import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
 import { SplitterMachine } from '../../machines/splitter-machine.ts'
+import { TrashcanMachine } from '../../machines/trashcan-machine.ts'
 import {
   TunnelPortalMachine,
   tunnelPairGeometry,
@@ -31,6 +32,13 @@ export type SplitterPlaceRequest = {
   facing: Direction
 }
 
+export type TrashcanPlaceRequest = {
+  machineId: 'trashcan'
+  x: number
+  y: number
+  facing: Direction
+}
+
 export type TunnelPlaceRequest = {
   machineId: 'tunnel' | 'fast_tunnel'
   entranceX: number
@@ -40,10 +48,14 @@ export type TunnelPlaceRequest = {
   facing: Direction
 }
 
-export type MachinePlaceRequest = CombinerPlaceRequest | SplitterPlaceRequest | TunnelPlaceRequest
+export type MachinePlaceRequest =
+  | CombinerPlaceRequest
+  | SplitterPlaceRequest
+  | TrashcanPlaceRequest
+  | TunnelPlaceRequest
 
 export type Removal = {
-  kind: 'combiner' | 'splitter' | 'tunnel'
+  kind: 'combiner' | 'splitter' | 'trashcan' | 'tunnel'
   authorId: string
   listPrice: number
   speed: number
@@ -62,6 +74,7 @@ export class MachineEditor {
       return this.placeTunnel(spec, author)
     }
     if (spec.machineId === 'splitter') return this.placeSplitter(spec, author)
+    if (spec.machineId === 'trashcan') return this.placeTrashcan(spec, author)
     return this.placeCombiner(spec, author)
   }
 
@@ -97,6 +110,21 @@ export class MachineEditor {
       return removal
     }
 
+    const trashcanIndex = this.match.trashcans.findIndex((machine) => machine.covers(cell))
+    if (trashcanIndex >= 0) {
+      const removed = this.match.trashcans[trashcanIndex]!
+      const removal: Removal = {
+        kind: 'trashcan',
+        authorId: removed.authorId,
+        listPrice: this.match.rules.trashcanCost,
+        speed: 1,
+      }
+      this.match.trashcans.splice(trashcanIndex, 1)
+      this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
+      this.match.noteCollaborator(author)
+      return removal
+    }
+
     const index = this.match.combiners.findIndex((machine) => machine.covers(cell))
     if (index < 0) return null
     const removed = this.match.combiners[index]!
@@ -110,6 +138,38 @@ export class MachineEditor {
     this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
     this.match.noteCollaborator(author)
     return removal
+  }
+
+  private placeTrashcan(spec: TrashcanPlaceRequest, author: Author) {
+    const width = TrashcanMachine.width
+    const height = TrashcanMachine.height
+    if (!this.footprintInOwned(spec.x, spec.y, width, height)) {
+      return 'Fora da área liberada.'
+    }
+    if (this.overlapsMachines(spec.x, spec.y, width, height)) {
+      return 'Espaço ocupado por outra estrutura.'
+    }
+    if (this.overlapsBelts(spec.x, spec.y, width, height)) {
+      return 'Há esteiras nesse espaço.'
+    }
+    const probe = new TrashcanMachine('probe', { x: spec.x, y: spec.y }, spec.facing)
+    const footprint: BuildingFootprint = {
+      origin: { x: spec.x, y: spec.y },
+      width,
+      height,
+    }
+    if (this.portsOverlapBuildings(probe.slots, [footprint])) {
+      return 'Entradas ou saídas sobrepõem outra estrutura.'
+    }
+    const id = `tc${this.match.nextTrashcanSeq++}`
+    this.match.trashcans.push(
+      new TrashcanMachine(id, { x: spec.x, y: spec.y }, spec.facing, {
+        id: author.id,
+        nickname: author.nickname,
+      }),
+    )
+    this.match.noteCollaborator(author)
+    return null
   }
 
   private placeCombiner(spec: CombinerPlaceRequest, author: Author) {
@@ -311,6 +371,13 @@ export class MachineEditor {
       return true
     }
     if (this.match.splitters.some((machine) => covers(machine.origin.x, machine.origin.y, 1, 1))) {
+      return true
+    }
+    if (
+      this.match.trashcans.some((machine) =>
+        covers(machine.origin.x, machine.origin.y, machine.width, machine.height),
+      )
+    ) {
       return true
     }
     return this.match.tunnels.some((portal) => covers(portal.origin.x, portal.origin.y, 1, 1))

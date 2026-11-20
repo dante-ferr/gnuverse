@@ -23,6 +23,7 @@ type Props = {
 const FACING_STRUCTURE_HEADINGS: Record<string, string> = {
   combiner_2: 'Combinador',
   combiner_3: 'Tri-combinador',
+  trashcan: 'Lixeira',
   splitter: 'Divisor',
   tunnel: 'Túnel',
 }

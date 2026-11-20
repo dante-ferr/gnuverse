@@ -29,6 +29,7 @@ color_packet = "#52d6c9" # Site teal
 color_core = "#ffffff"
 color_source = "#52d6c9"
 color_splitter = "#c9a87c" # Warm sand logistic body
+color_trashcan = "#8b6540" # Deeper brown; splitter is warm sand
 color_tunnel = "#6d8490" # Cool slate portals
 color_accent = "#52d6c9" # Site teal
 color_decor = "#143a38" # = --accent-soft; machine decor darkened per body
@@ -93,6 +94,7 @@ coins_per_minute = 12 # Passive coins, including while away, until passive_cap
 belt_cost = 1 # Per belt cell
 fast_belt_cost = 4 # Per fast belt cell
 splitter_cost = 10
+trashcan_cost = 8
 combiner_cost = 15
 tunnel_cost = 6 # Per entrance–exit pair
 fast_tunnel_cost = 18 # Per fast pair

@@ -10,6 +10,8 @@ export function machineListPrice(rules: PipelineRules, machineId: string): numbe
   switch (machineId) {
     case 'splitter':
       return rules.splitterCost
+    case 'trashcan':
+      return rules.trashcanCost
     case 'combiner_2':
     case 'combiner_3':
       return rules.combinerCost

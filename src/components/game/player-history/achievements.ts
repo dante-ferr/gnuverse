@@ -25,6 +25,7 @@ const MACHINE_PLACE_LABELS: Record<string, string> = {
   combiner_2: 'Combinador',
   combiner_3: 'Tri-combinador',
   splitter: 'Divisor',
+  trashcan: 'Lixeira',
   tunnel: 'Túnel',
 }
 
