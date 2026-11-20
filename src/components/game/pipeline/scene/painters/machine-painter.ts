@@ -239,7 +239,8 @@ export class MachinePainter {
         shouldOrbit,
       )
     }
-    // Non-logistic brackets above logistics so adjacent plugs cannot bury them.
+    // Core/combiner brackets above logistics so adjacent plugs cannot bury them.
+    // Source outputs stay under the circle (drawn once in drawSource).
     this.drawNonLogisticBrackets(ctx, frame, rules, bracketStyle)
   }
 
@@ -264,14 +265,6 @@ export class MachinePainter {
       const kind = rules.elements.machines.find((item) => item.id === spec.machineId)
       const body = kind?.color ?? rules.colorAccent
       this.drawSlotBrackets(ctx, combiner, body, rules, bracketStyle)
-    }
-    const sources = frame.sources?.length ? frame.sources : [frame.source]
-    for (const spec of sources) {
-      if (!spec) continue
-      const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
-      const glyphId = sourceGlyphId(spec)
-      const body = elementFill(rules, glyphId) ?? rules.colorSource
-      this.drawSlotBrackets(ctx, source, body, rules, bracketStyle)
     }
   }
 

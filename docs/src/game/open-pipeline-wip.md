@@ -147,7 +147,7 @@ Manual: sign in → create room → drag belts source → core → see deliverie
 | Date | Agent / human | Note |
 | --- | --- | --- |
 | 2026-11-20 | Design | Port connection locked: direct plug on input slot + matching `travel`; shared gap cells are belts; tick routing aligned — [decisions §9](../decisions.md#9-open-pipeline-machines), `building-slots.ts`, `routing.ts` |
-| 2026-11-20 | Design | Brackets: hide logistics only on `portsConnected`; core/source/combiner always visible; second paint pass — `machine-painter.ts` |
+| 2026-11-20 | Design | Brackets: hide logistics only on `portsConnected`; core/combiner always visible (second paint pass); source output stays under the circle — `machine-painter.ts` |
 | 2026-11-20 | Design | Splitter body-adjacent only with compatible plug; tunnel body-adjacent only with feed/accept link; combiners in all rooms — `building-slots.ts`, `machine-editor.ts` |
 | 2026-11-20 | Gameplay | Tunnel placement keeps surface belts between portals; stroke facing before portal belts — `machine-editor.ts` |
 | 2026-11-20 | Gameplay | A tunnel may touch a machine when an output feeds the entrance or an input accepts the exit; belt drag treats that port as the missing lead-in or lead-out belt — `building-slots.ts`, `belt-cross.ts` |
