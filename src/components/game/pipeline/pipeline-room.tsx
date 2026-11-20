@@ -202,6 +202,7 @@ export function PipelineRoom() {
               rules={rules}
               editMode={editMode}
               structureId={structureId}
+              userId={session.user?.id ?? null}
               chunkCost={
                 rules
                   ? rules.chunkCostBase +

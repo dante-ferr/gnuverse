@@ -1,9 +1,6 @@
 import { cycleCombinerFacing } from '../combiner-place-options.ts'
 import { resolveLogisticFacing } from '../logistic-place-facing.ts'
-import {
-  proposedBuildingPlacementBlocked,
-  splitterProbeSlots,
-} from '../placement-building-slots.ts'
+import { proposedSplitterPlacementBlocked, splitterProbeSlots } from '../placement-building-slots.ts'
 import { getPlacementFrame } from '../placement-rules.ts'
 import type { PipelineFrame } from '../model/frame.ts'
 import type { Direction } from '../model/frame.ts'
@@ -58,7 +55,7 @@ function splitterPlacementValid(
   const facing = resolveLogisticFacing(cell, frame)
   const slots = splitterProbeSlots(cell.x, cell.y, facing)
   const footprints = [{ origin: { x: cell.x, y: cell.y }, width: 1, height: 1 }]
-  return !proposedBuildingPlacementBlocked(frame, slots, footprints, true)
+  return !proposedSplitterPlacementBlocked(frame, slots, footprints)
 }
 
 function createSplitterSession(): StructurePlacementSession {

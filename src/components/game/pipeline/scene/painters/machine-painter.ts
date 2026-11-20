@@ -1,5 +1,9 @@
 import { CoreMachine } from '../../../../../../game-server/pipeline/machines/core-machine.ts'
 import {
+  portsConnected,
+  type PortSlot,
+} from '../../../../../../game-server/pipeline/world/edit/building-slots.ts'
+import {
   slotBracketStyleFromRules,
   type SlotBracketStyle,
 } from '../../../../../../game-server/pipeline/machines/machine.ts'
@@ -24,6 +28,8 @@ import type {
   SplitterRecord,
   TunnelPortalRecord,
 } from '../../model/frame.ts'
+import { machinesFromFrame } from '../../placement-building-slots.ts'
+import { getPlacementFrame } from '../../placement-rules.ts'
 import type { StructurePreviewMachine } from '../../structures/types.ts'
 import {
   combinerCraftProgress,
@@ -106,8 +112,13 @@ export class MachinePainter {
         spec.facing,
         { id: '', nickname: '' },
       )
+      const previewFrame = getPlacementFrame()
+      const hideBracket = previewFrame
+        ? logisticPortBracketHidden(splitter, machinesFromFrame(previewFrame))
+        : undefined
       this.machine(ctx, splitter, rules.colorSplitter, this.images.splitter, rules, bracketStyle, {
         decorFacing: spec.facing,
+        hidePortBracket: hideBracket,
       })
       ctx.restore()
       return
@@ -123,8 +134,13 @@ export class MachinePainter {
         { id: '', nickname: '' },
       )
       const decor = role === 'entrance' ? this.images.tunnelEntrance : this.images.tunnelExit
+      const frame = getPlacementFrame()
+      const hideBracket = frame
+        ? logisticPortBracketHidden(portal, machinesFromFrame(frame))
+        : undefined
       this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle, {
         decorFacing: spec.facing,
+        hidePortBracket: hideBracket,
       })
     }
     ctx.restore()
@@ -171,6 +187,7 @@ export class MachinePainter {
     const coreSpecs = frame.cores?.length ? frame.cores : [frame.core]
     const specs = frame.sources?.length ? frame.sources : [frame.source]
     const bracketStyle = slotBracketStyleFromRules(rules)
+    const frameMachines = machinesFromFrame(frame)
     for (const coreSpec of coreSpecs) {
       const core = new CoreMachine(coreSpec.id, { x: coreSpec.x, y: coreSpec.y })
       this.noteCoreIntake(coreSpec, timeMs)
@@ -191,10 +208,10 @@ export class MachinePainter {
       this.drawCombinerCraftOverlay(ctx, combiner, spec, rules, cameraZoom, timeMs, motion)
     }
     for (const spec of frame.splitters ?? []) {
-      this.drawSplitter(ctx, spec, rules, bracketStyle)
+      this.drawSplitter(ctx, spec, rules, bracketStyle, frameMachines)
     }
     for (const spec of frame.tunnels ?? []) {
-      this.drawTunnelPortal(ctx, spec, rules, bracketStyle)
+      this.drawTunnelPortal(ctx, spec, rules, bracketStyle, frameMachines)
     }
     for (const spec of specs) {
       const source = new SourceMachine(spec.id, { x: spec.x, y: spec.y }, spec.direction, spec.shape, 1)
@@ -300,6 +317,7 @@ export class MachinePainter {
     spec: SplitterRecord,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
+    frameMachines: Machine[],
   ) {
     const splitter = new SplitterMachine(
       spec.id,
@@ -309,6 +327,7 @@ export class MachinePainter {
     )
     this.machine(ctx, splitter, rules.colorSplitter, this.images.splitter, rules, bracketStyle, {
       decorFacing: spec.facing,
+      hidePortBracket: logisticPortBracketHidden(splitter, frameMachines),
     })
   }
 
@@ -317,6 +336,7 @@ export class MachinePainter {
     spec: TunnelPortalRecord,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
+    frameMachines: Machine[],
   ) {
     const portal = new TunnelPortalMachine(
       spec.id,
@@ -331,6 +351,7 @@ export class MachinePainter {
       spec.role === 'entrance' ? this.images.tunnelEntrance : this.images.tunnelExit
     this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle, {
       decorFacing: spec.direction,
+      hidePortBracket: logisticPortBracketHidden(portal, frameMachines),
     })
   }
 
@@ -365,10 +386,25 @@ export class MachinePainter {
     decor: HTMLImageElement | null,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
-    options: { centerDecor?: boolean; decorFacing?: Direction } = {},
+    options: {
+      centerDecor?: boolean
+      decorFacing?: Direction
+      hidePortBracket?: (slot: PortSlot) => boolean
+    } = {},
   ) {
     const { px, py, width, height } = machineRect(machine)
-    this.drawMachineBody(ctx, machine, bodyColor, rules, bracketStyle, px, py, width, height)
+    this.drawMachineBody(
+      ctx,
+      machine,
+      bodyColor,
+      rules,
+      bracketStyle,
+      px,
+      py,
+      width,
+      height,
+      options.hidePortBracket,
+    )
     const decorInk = darkenHex(bodyColor, rules.decorDarkenPercent)
     if (options.decorFacing) {
       drawTintedDecorRotated(
@@ -401,9 +437,10 @@ export class MachinePainter {
     py: number,
     width: number,
     height: number,
+    hidePortBracket?: (slot: PortSlot) => boolean,
   ) {
     // Ports under the body so the plate covers the bracket root.
-    this.drawSlotBrackets(ctx, machine, bodyColor, rules, bracketStyle)
+    this.drawSlotBrackets(ctx, machine, bodyColor, rules, bracketStyle, hidePortBracket)
     ctx.fillStyle = bodyColor
     ctx.fillRect(px, py, width, height)
     ctx.strokeStyle = rules.colorOutline
@@ -417,8 +454,10 @@ export class MachinePainter {
     bodyColor: string,
     rules: PipelineRules,
     bracketStyle: SlotBracketStyle,
+    hidePortBracket?: (slot: PortSlot) => boolean,
   ) {
     for (const slot of machine.slots) {
+      if (hidePortBracket?.(slot)) continue
       const path = machine.slotBracket(slot, cellSize, bracketStyle)
       ctx.beginPath()
       ctx.moveTo(path[0]!.x, path[0]!.y)
@@ -526,6 +565,19 @@ export class MachinePainter {
 
 function sourceGlyphId(spec: SourceRecord): string {
   return spec.role ?? spec.shape
+}
+
+function logisticPortBracketHidden(
+  machine: Machine,
+  frameMachines: Machine[],
+): ((slot: PortSlot) => boolean) | undefined {
+  const foreignSlots: PortSlot[] = []
+  for (const other of frameMachines) {
+    if (other.id === machine.id) continue
+    foreignSlots.push(...other.slots)
+  }
+  if (foreignSlots.length === 0) return undefined
+  return (slot) => foreignSlots.some((other) => portsConnected(slot, other))
 }
 
 /** Primary output id for the active craft / pending eject, if any. */

@@ -111,6 +111,18 @@ test('combiner_3 single-output alternates between output ports when both belts e
   assert.ok(match.packets.some((packet) => packet.shape === 'crystal' && packet.cell.x === second.x))
 })
 
+test('placeMachine accepts combiner in a normal room', () => {
+  const match = Match.create('combiner-normal', rules)
+  const origin = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const error = match.placeMachine(
+    { machineId: 'combiner_2', x: origin.x, y: origin.y, facing: 'east' },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.sandbox, false)
+  assert.equal(match.combiners.length, 1)
+})
+
 test('placeMachine accepts combiner footprint in owned sandbox cells', () => {
   const match = Match.createSandbox('place', rules)
   const error = match.placeMachine(

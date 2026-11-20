@@ -11,8 +11,10 @@ import {
   type StructurePlaceRequest,
   type StructurePreviewMachine,
 } from '../structures'
+import { machinesFromFrame } from '../placement-building-slots.ts'
 import { occupancyFromFrame, setBeltCrossQuery, resetBeltCrossQuery } from './belt-cross.ts'
 import { BeltEraseStroke } from './belt-erase-stroke.ts'
+import { createBeltRedirectSession } from './belt-redirect.ts'
 import { GridCamera } from './grid-camera.ts'
 import { BeltPainter } from './painters/belt-painter.ts'
 import { cellSize, GridPainter } from './painters/grid-painter.ts'
@@ -37,6 +39,8 @@ type Props = {
   rules: PipelineRules | null
   editMode: EditMode
   structureId: string
+  /** Signed-in player id; used to redirect owned belts. */
+  userId?: string | null
   chunkCost: number | null
   buyBusy?: boolean
   onBuyChunk: (coord: { cx: number; cy: number }) => void
@@ -60,6 +64,7 @@ export function PipelineScene({
   rules,
   editMode,
   structureId,
+  userId = null,
   chunkCost,
   buyBusy,
   onBuyChunk,
@@ -74,6 +79,7 @@ export function PipelineScene({
   const rulesRef = useRef(rules)
   const editModeRef = useRef(editMode)
   const structureIdRef = useRef(structureId)
+  const userIdRef = useRef(userId)
   const onToggleEditModeRef = useRef(onToggleEditMode)
   const originChunkRef = useRef<{ cx: number; cy: number } | null>(null)
   const images = useRef(loadMachineDecor(() => {}))
@@ -96,6 +102,7 @@ export function PipelineScene({
   setPlacementFrame(frame)
   editModeRef.current = editMode
   structureIdRef.current = structureId
+  userIdRef.current = userId
   onToggleEditModeRef.current = onToggleEditMode
 
   const catalogDecorKey = [
@@ -420,6 +427,12 @@ export function PipelineScene({
     setBeltCrossQuery({
       maxGap: () => rulesRef.current?.tunnelMaxGap ?? 8,
       occupancy: () => occupancyFromFrame(frameRef.current),
+      belts: () => frameRef.current?.belts ?? [],
+      ports: () => {
+        const frame = frameRef.current
+        if (!frame) return []
+        return machinesFromFrame(frame).flatMap((machine) => machine.slots)
+      },
     })
     const typingTarget = (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) return false
@@ -556,10 +569,19 @@ export function PipelineScene({
     }
     event.preventDefault()
     canvasRef.current?.setPointerCapture(event.pointerId)
-    if (current) {
-      const belt = beltAt(current, cell)
-      if (belt) scheduleLongPress(belt, event.clientX, event.clientY)
-      else pinnedBlame.current = null
+    const belt = current ? beltAt(current, cell) : undefined
+    if (belt) scheduleLongPress(belt, event.clientX, event.clientY)
+    else pinnedBlame.current = null
+    const ownerId = userIdRef.current
+    if (
+      structureIdRef.current === 'belt' &&
+      belt &&
+      ownerId &&
+      belt.authorId === ownerId
+    ) {
+      placement.current = createBeltRedirectSession(belt)
+      eraseStroke.current = null
+      return
     }
     const session = structure.createSession()
     session.push(cell)

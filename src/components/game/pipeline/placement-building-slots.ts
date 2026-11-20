@@ -6,7 +6,11 @@ import { TunnelPortalMachine } from '../../../../game-server/pipeline/machines/t
 import type { Machine } from '../../../../game-server/pipeline/machines/machine.ts'
 import type { Direction } from '../../../../game-server/pipeline/geometry/direction.ts'
 import type { BuildingFootprint } from '../../../../game-server/pipeline/world/edit/building-slots.ts'
-import { portsOverlapBuildings } from '../../../../game-server/pipeline/world/edit/building-slots.ts'
+import {
+  buildingBodyKeySet,
+  logisticContactBlocked,
+  portsOverlapBuildings,
+} from '../../../../game-server/pipeline/world/edit/building-slots.ts'
 import type { PacketShape } from '../../../../game-server/pipeline/packets/packet.ts'
 import type { PipelineFrame } from './model/frame.ts'
 
@@ -20,12 +24,51 @@ export function proposedBuildingPlacementBlocked(
     travel: Direction
   }[],
   proposedFootprints: readonly BuildingFootprint[],
+  proposedIsLogistic = false,
 ): boolean {
-  return portsOverlapBuildings(
-    proposedSlots,
-    proposedFootprints,
-    machinesFromFrame(frame),
-  )
+  return portsOverlapBuildings(proposedSlots, proposedFootprints, machinesFromFrame(frame), {
+    proposedIsLogistic,
+  })
+}
+
+export function proposedSplitterPlacementBlocked(
+  frame: PipelineFrame,
+  proposedSlots: readonly {
+    cell: { x: number; y: number }
+    role: 'input' | 'output'
+    travel: Direction
+  }[],
+  proposedFootprints: readonly BuildingFootprint[],
+): boolean {
+  const machines = machinesFromFrame(frame)
+  if (
+    portsOverlapBuildings(proposedSlots, proposedFootprints, machines, {
+      proposedIsLogistic: true,
+    })
+  ) {
+    return true
+  }
+  return logisticContactBlocked(proposedSlots, proposedFootprints, machines, 'splitter') !== null
+}
+
+export function proposedTunnelPlacementBlocked(
+  frame: PipelineFrame,
+  proposedSlots: readonly {
+    cell: { x: number; y: number }
+    role: 'input' | 'output'
+    travel: Direction
+  }[],
+  proposedFootprints: readonly BuildingFootprint[],
+): boolean {
+  const machines = machinesFromFrame(frame)
+  if (logisticContactBlocked(proposedSlots, proposedFootprints, machines, 'tunnel') !== null) {
+    return true
+  }
+  return portsOverlapBuildings(proposedSlots, proposedFootprints, machines)
+}
+
+export function buildingBodyKeysFromFrame(frame: PipelineFrame): Set<string> {
+  return buildingBodyKeySet(machinesFromFrame(frame))
 }
 
 export function splitterProbeSlots(
@@ -72,7 +115,7 @@ export function tunnelProbeSlots(
   return [...entrancePortal.slots, ...exitPortal.slots]
 }
 
-function machinesFromFrame(frame: PipelineFrame): Machine[] {
+export function machinesFromFrame(frame: PipelineFrame): Machine[] {
   const machines: Machine[] = []
   const cores = frame.cores?.length ? frame.cores : [frame.core]
   for (const core of cores) {

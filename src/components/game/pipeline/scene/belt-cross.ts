@@ -4,6 +4,11 @@ import { CombinerMachine } from '../../../../../game-server/pipeline/machines/co
 import { CoreMachine } from '../../../../../game-server/pipeline/machines/core-machine.ts'
 import { SourceMachine } from '../../../../../game-server/pipeline/machines/source-machine.ts'
 import { tunnelPairGeometry } from '../../../../../game-server/pipeline/machines/tunnel-machine.ts'
+import {
+  portAcceptsTunnelExit,
+  portFeedsTunnelEntrance,
+  type PortSlot,
+} from '../../../../../game-server/pipeline/world/edit/building-slots.ts'
 import type { PipelineFrame } from '../model/frame.ts'
 import type { StrokeCell } from './belt-stroke.ts'
 
@@ -37,11 +42,16 @@ const EMPTY_OCCUPANCY: BeltOccupancy = { conveyors: new Set(), blocked: new Set(
 export type BeltCrossQuery = {
   maxGap: () => number
   occupancy: () => BeltOccupancy
+  /** Live belts for inbound facing and owned-belt clears before a tunnel. */
+  belts?: () => readonly { x: number; y: number; direction: Direction; authorId?: string }[]
+  /** Machine ports that can feed an entrance or accept an exit without a spacer belt. */
+  ports?: () => readonly PortSlot[]
 }
 
 let beltCrossQuery: BeltCrossQuery = {
   maxGap: () => 8,
   occupancy: () => EMPTY_OCCUPANCY,
+  belts: () => [],
 }
 
 export function setBeltCrossQuery(next: BeltCrossQuery) {
@@ -52,6 +62,7 @@ export function resetBeltCrossQuery() {
   beltCrossQuery = {
     maxGap: () => 8,
     occupancy: () => EMPTY_OCCUPANCY,
+    belts: () => [],
   }
 }
 
@@ -97,13 +108,14 @@ export function planBeltCrossings(
   conveyors: ReadonlySet<string>,
   blocked: ReadonlySet<string>,
   maxGap: number,
+  ports: readonly PortSlot[] = [],
 ): BeltCrossPlan {
   if (maxGap < 1 || cells.length === 0) return { belts: [...cells], tunnels: [] }
   const omit = new Set<number>()
   const tunnels: PlannedTunnel[] = []
   for (const [start, end] of legRanges(cells)) {
     const leg = cells.slice(start, end)
-    const local = planLeg(leg, conveyors, blocked, maxGap)
+    const local = planLeg(leg, conveyors, blocked, maxGap, ports)
     for (const index of local.omit) omit.add(start + index)
     tunnels.push(...local.tunnels)
   }
@@ -130,6 +142,7 @@ function planLeg(
   conveyors: ReadonlySet<string>,
   blocked: ReadonlySet<string>,
   maxGap: number,
+  ports: readonly PortSlot[],
 ): { omit: number[]; tunnels: PlannedTunnel[] } {
   const omit: number[] = []
   const tunnels: PlannedTunnel[] = []
@@ -143,7 +156,7 @@ function planLeg(
       continue
     }
     const runEnd = endOfSolid(leg, index, conveyors, blocked)
-    const cover = coverCluster(leg, index, conveyors, blocked, maxGap)
+    const cover = coverCluster(leg, index, conveyors, blocked, maxGap, ports)
     if (cover) {
       for (let cursor = cover.entrance; cursor <= cover.exit; cursor++) omit.push(cursor)
       const entrance = leg[cover.entrance]!
@@ -175,12 +188,16 @@ function coverCluster(
   conveyors: ReadonlySet<string>,
   blocked: ReadonlySet<string>,
   maxGap: number,
+  ports: readonly PortSlot[],
 ): { entrance: number; exit: number } | null {
   const entrance = start - 1
-  // The cell behind the entrance must be a belt from this stroke. Otherwise the
-  // portal would pull packets off the conveyor it is trying to cross.
-  if (entrance < 1 || kind(leg[entrance - 1]!, conveyors, blocked) !== 'free') return null
-  if (kind(leg[entrance]!, conveyors, blocked) !== 'free') return null
+  // A stroke belt behind the entrance, or a machine output plugged into it.
+  // The port replaces the extra conveyor tile in front of the entrance.
+  if (entrance < 0 || kind(leg[entrance]!, conveyors, blocked) !== 'free') return null
+  const backedByBelt = entrance >= 1 && kind(leg[entrance - 1]!, conveyors, blocked) === 'free'
+  const portal = leg[entrance]!
+  const backedByPort = portFeedsTunnelEntrance(ports, portal, portal.direction)
+  if (!backedByBelt && !backedByPort) return null
 
   let solidStart = start
   let hasConveyor = false
@@ -205,7 +222,7 @@ function coverCluster(
       continue
     }
     if (!hasConveyor) return null
-    if (!outputClear(leg, solidEnd, conveyors, blocked)) return null
+    if (!outputClear(leg, solidEnd, conveyors, blocked, ports)) return null
     const exit = leg[solidEnd]!
     const portal = leg[entrance]!
     if (!tunnelPairGeometry(portal, exit, portal.direction, maxGap).ok) return null
@@ -214,15 +231,18 @@ function coverCluster(
   return null
 }
 
-/** The exit ejects onto the next stroke cell, which this drag places as a belt. */
+/** A belt after the exit, or an input whose approach is that exit. */
 function outputClear(
   leg: readonly StrokeCell[],
   exitIndex: number,
   conveyors: ReadonlySet<string>,
   blocked: ReadonlySet<string>,
+  ports: readonly PortSlot[],
 ) {
   const next = exitIndex + 1
-  return next < leg.length && kind(leg[next]!, conveyors, blocked) === 'free'
+  if (next < leg.length && kind(leg[next]!, conveyors, blocked) === 'free') return true
+  const exit = leg[exitIndex]!
+  return portAcceptsTunnelExit(ports, exit, exit.direction)
 }
 
 function endOfSolid(

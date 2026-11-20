@@ -7,7 +7,7 @@ import { cycleCombinerFacing } from '../combiner-place-options.ts'
 import { resolveLogisticFacing, resolveTunnelFacing } from '../logistic-place-facing.ts'
 import { getPlacementFrame, getPlacementRules } from '../placement-rules.ts'
 import {
-  proposedBuildingPlacementBlocked,
+  proposedTunnelPlacementBlocked,
   tunnelProbeSlots,
 } from '../placement-building-slots.ts'
 import type { Direction } from '../model/frame.ts'
@@ -88,7 +88,7 @@ function exitPlacementValid(
     { origin: entrance, width: 1, height: 1 },
     { origin: exit, width: 1, height: 1 },
   ]
-  return !proposedBuildingPlacementBlocked(frame, slots, footprints, true)
+  return !proposedTunnelPlacementBlocked(frame, slots, footprints)
 }
 
 function entrancePlacementValid(
@@ -107,7 +107,7 @@ function entrancePlacementValid(
     0,
   ).slots
   const footprints = [{ origin: cell, width: 1, height: 1 }]
-  return !proposedBuildingPlacementBlocked(frame, slots, footprints, true)
+  return !proposedTunnelPlacementBlocked(frame, slots, footprints)
 }
 
 /**

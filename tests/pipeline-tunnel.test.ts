@@ -94,12 +94,13 @@ test('placeMachine replaces own belts on tunnel span and inherits facing', () =>
     author,
   )
   assert.equal(error, null)
-  assert.equal(match.belts.length, 0)
+  assert.equal(match.belts.length, gap)
+  assert.ok(match.belts.every((belt) => belt.origin.x > entrance.x && belt.origin.x < exit.x))
   const entrancePortal = match.tunnels.find((p) => p.role === 'entrance')!
   assert.equal(entrancePortal.direction, 'east')
 })
 
-test('placeMachine rejects tunnel when a belt in the span belongs to another player', () => {
+test('placeMachine keeps a foreign belt in the tunnel gap', () => {
   const match = Match.create('tunnel-foreign-gap', rules)
   const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
   const gap = 2
@@ -109,6 +110,28 @@ test('placeMachine rejects tunnel when a belt in the span belongs to another pla
   assert.equal(match.place([{ ...entrance, direction: 'east' }], author), null)
   assert.equal(match.place([{ ...mid, direction: 'east' }], other), null)
   assert.equal(match.place([{ ...exit, direction: 'east' }], author), null)
+  const error = match.placeMachine(
+    {
+      machineId: 'tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exit.x,
+      exitY: exit.y,
+      facing: 'east',
+    },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.belts.length, 1)
+  assert.equal(match.belts[0]!.authorId, other.id)
+})
+
+test('placeMachine rejects a tunnel when a portal cell is another player belt', () => {
+  const match = Match.create('tunnel-foreign-portal', rules)
+  const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
+  const exit = { x: entrance.x + 3, y: entrance.y }
+  const other = { id: 'u2', nickname: 'Bob' }
+  assert.equal(match.place([{ ...exit, direction: 'east' }], other), null)
   const error = match.placeMachine(
     {
       machineId: 'tunnel',
@@ -147,7 +170,67 @@ test('tunnel placement clears packets on removed span belts', () => {
     author,
   )
   assert.equal(error, null)
-  assert.equal(match.packets.length, 0)
+  assert.equal(match.packets.length, 1)
+  assert.equal(match.packets[0]!.shape, 'square')
+  assert.equal(match.packets[0]!.cell.x, mid.x)
+})
+
+test('placeMachine rejects tunnel portal beside a splitter with no port link', () => {
+  const match = Match.create('tunnel-splitter-touch', rules)
+  const splitterCell = { x: match.core.origin.x - 4, y: match.core.origin.y + 2 }
+  assert.equal(
+    match.placeMachine(
+      { machineId: 'splitter', x: splitterCell.x, y: splitterCell.y, facing: 'east' },
+      author,
+    ),
+    null,
+  )
+  const entrance = { x: splitterCell.x - 1, y: splitterCell.y }
+  const exit = { x: entrance.x - 4, y: entrance.y }
+  const error = match.placeMachine(
+    {
+      machineId: 'tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exit.x,
+      exitY: exit.y,
+      facing: 'west',
+    },
+    author,
+  )
+  assert.equal(error, 'Túneis não podem ficar em contato com outras estruturas.')
+  assert.equal(match.tunnels.length, 0)
+})
+
+test('tunnel links a splitter output to a combiner input across one belt', () => {
+  const match = Match.createSandbox('tunnel-splitter-combiner', rules)
+  assert.equal(
+    match.placeMachine({ machineId: 'combiner_2', x: 25, y: 24, facing: 'north' }, author),
+    null,
+  )
+  assert.equal(
+    match.placeMachine({ machineId: 'splitter', x: 25, y: 30, facing: 'north' }, author),
+    null,
+  )
+  assert.equal(match.place([{ x: 25, y: 28, direction: 'east' }], author), null)
+  const error = match.placeMachine(
+    {
+      machineId: 'tunnel',
+      entranceX: 25,
+      entranceY: 29,
+      exitX: 25,
+      exitY: 27,
+      facing: 'north',
+    },
+    author,
+  )
+  assert.equal(error, null)
+  assert.equal(match.belts.length, 1)
+  assert.equal(match.belts[0]!.origin.y, 28)
+  const splitter = match.splitters[0]!
+  splitter.buffer = 'fire'
+  for (let i = 0; i < 4; i++) match.tick()
+  assert.equal(match.combiners[0]!.buffer.fire, 1)
 })
 
 test('remove either portal removes the pair', () => {

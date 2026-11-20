@@ -1,4 +1,6 @@
-import { cycleBeltPlaceDirection, getBeltPlaceDirection } from '../belt-place-options.ts'
+import { resolveBeltPlaceDirection } from '../belt-inbound.ts'
+import { cycleBeltPlaceDirection } from '../belt-place-options.ts'
+import type { PipelineFrame } from '../model/frame.ts'
 import { planBeltCrossings, readBeltCrossQuery, type PlannedTunnel } from '../scene/belt-cross.ts'
 import { BeltStroke, type StrokeCell } from '../scene/belt-stroke.ts'
 import { registerStructure } from './registry.ts'
@@ -10,13 +12,23 @@ import type {
   StructurePreviewMachine,
 } from './types.ts'
 
-type BeltPayload = { cells: StrokeCell[]; tunnels?: PlannedTunnel[] }
+function placementBelts() {
+  return readBeltCrossQuery().belts?.() ?? []
+}
+
+type BeltPayload = {
+  cells: StrokeCell[]
+  tunnels?: PlannedTunnel[]
+  /** Belts removed so a tunnel portal can occupy that cell. */
+  clearBelts?: { x: number; y: number }[]
+}
 
 function isBeltPayload(payload: unknown): payload is BeltPayload {
   if (!payload || typeof payload !== 'object') return false
   const record = payload as BeltPayload
   if (!Array.isArray(record.cells)) return false
-  return record.tunnels == null || Array.isArray(record.tunnels)
+  if (record.tunnels != null && !Array.isArray(record.tunnels)) return false
+  return record.clearBelts == null || Array.isArray(record.clearBelts)
 }
 
 function previewPortal(
@@ -36,12 +48,20 @@ function previewPortal(
 }
 
 function createBeltSession(): StructurePlacementSession {
-  const stroke = new BeltStroke()
+  const stroke = new BeltStroke(undefined, (cell) =>
+    resolveBeltPlaceDirection(cell, placementBelts()),
+  )
 
   const plan = () => {
     const query = readBeltCrossQuery()
     const { conveyors, blocked } = query.occupancy()
-    return planBeltCrossings(stroke.cells, conveyors, blocked, query.maxGap())
+    return planBeltCrossings(
+      stroke.cells,
+      conveyors,
+      blocked,
+      query.maxGap(),
+      query.ports?.() ?? [],
+    )
   }
 
   return {
@@ -78,14 +98,18 @@ function createBeltSession(): StructurePlacementSession {
   }
 }
 
-function beltHoverGhost(cell: { x: number; y: number }): StructureHoverGhost {
+function beltHoverGhost(
+  cell: { x: number; y: number },
+  frame?: PipelineFrame,
+): StructureHoverGhost {
+  const belts = frame?.belts ?? placementBelts()
   return {
     belts: [
       {
         id: 'hover-belt',
         x: cell.x,
         y: cell.y,
-        direction: getBeltPlaceDirection(),
+        direction: resolveBeltPlaceDirection(cell, belts),
         authorId: '',
         authorNickname: '',
         placedAt: 0,
@@ -106,6 +130,9 @@ const beltStructure: StructureDefinition = {
   },
   async commit(ctx, payload) {
     if (!isBeltPayload(payload)) return
+    for (const cell of payload.clearBelts ?? []) {
+      await ctx.request(`/api/towers/${ctx.roomId}/remove`, cell)
+    }
     for (const tunnel of payload.tunnels ?? []) {
       await ctx.request(`/api/towers/${ctx.roomId}/place-machine`, {
         machineId: 'tunnel',

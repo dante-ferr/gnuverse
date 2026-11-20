@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { CombinerMachine } from '../game-server/pipeline/machines/combiner-machine.ts'
+import { SplitterMachine } from '../game-server/pipeline/machines/splitter-machine.ts'
 import { planBeltCrossings, resetBeltCrossQuery, setBeltCrossQuery } from '../src/components/game/pipeline/scene/belt-cross.ts'
 import type { StrokeCell } from '../src/components/game/pipeline/scene/belt-stroke.ts'
 import { getStructure } from '../src/components/game/pipeline/structures/index.ts'
@@ -105,6 +107,26 @@ test('a single belt after a too-thick run is not tunneled off that run', () => {
   const plan = planBeltCrossings(east(0, 13), conveyors, keys(), 8)
   assert.deepEqual(plan.tunnels, [])
   assert.deepEqual(plan.belts.map((cell) => cell.x), [0, 10, 12, 13])
+})
+
+test('a port-fed entrance and a port-accepted exit need no spacer belts', () => {
+  const combiner = new CombinerMachine('c', 'combiner_2', { x: 25, y: 24 }, 'north')
+  const splitter = new SplitterMachine('s', { x: 25, y: 30 }, 'north', {
+    id: 'u',
+    nickname: 'Ada',
+  })
+  const stroke = line(29, 27, 'y', 25, 'north')
+  const plan = planBeltCrossings(stroke, keys({ x: 25, y: 28 }), keys(), 8, [
+    ...splitter.slots,
+    ...combiner.slots,
+  ])
+  assert.deepEqual(plan.tunnels, [
+    { entranceX: 25, entranceY: 29, exitX: 25, exitY: 27, facing: 'north' },
+  ])
+  assert.deepEqual(
+    plan.belts.map((cell) => cell.y),
+    [],
+  )
 })
 
 test('a stroke that starts or ends on belts does not invent a portal', () => {

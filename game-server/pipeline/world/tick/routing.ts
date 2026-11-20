@@ -1,6 +1,9 @@
 import { Packet } from '../../packets/packet.ts'
 import type { PacketShape } from '../../packets/packet.ts'
+import type { PortSlot } from '../edit/building-slots.ts'
+import { portAcceptsTunnelExit, portFeedsTunnelEntrance } from '../edit/building-slots.ts'
 import type { Match } from '../match.ts'
+import { combinerAcceptsShape } from './craft.ts'
 import { outputBeltAccepts } from './output-belt.ts'
 
 /** Ejects splitter buffers and advances underground tunnel queues. */
@@ -25,7 +28,13 @@ export class Routing {
     for (let i = 0; i < outputs.length; i++) {
       const index = ((start + i) % outputs.length) as 0 | 1 | 2
       const slot = outputs[index]
-      if (!slot || !outputBeltAccepts(this.match, slot.cell, slot.travel)) continue
+      if (!slot) continue
+      if (this.deliverToLinkedInput(splitter.origin, slot, splitter.buffer)) {
+        splitter.buffer = null
+        splitter.nextSplitPort = ((index + 1) % outputs.length) as 0 | 1 | 2
+        return
+      }
+      if (!outputBeltAccepts(this.match, slot.cell, slot.travel)) continue
       this.placePacket(slot.cell, splitter.buffer)
       splitter.buffer = null
       splitter.nextSplitPort = ((index + 1) % outputs.length) as 0 | 1 | 2
@@ -44,8 +53,7 @@ export class Routing {
     const out = exit.outputSlots()[0]
     if (!out) return
     const end = slots.length - 1
-    if (slots[end] && outputBeltAccepts(this.match, out.cell, out.travel)) {
-      this.placePacket(out.cell, slots[end]!)
+    if (slots[end] && this.deliverTunnelExit(exit.origin, out, slots[end]!)) {
       slots[end] = null
     }
     for (let i = end; i > 0; i--) {
@@ -56,10 +64,77 @@ export class Routing {
     }
   }
 
+  /** Port plug first, then a belt on the output cell. */
+  private deliverToLinkedInput(
+    from: { x: number; y: number },
+    output: PortSlot,
+    shape: PacketShape,
+  ) {
+    for (const combiner of this.match.combiners) {
+      for (const slot of combiner.inputSlots()) {
+        if (!outputReaches(from, output, slot, this.match)) continue
+        if (!combinerAcceptsShape(combiner, this.match.rules, shape)) return false
+        combiner.buffer[shape] = (combiner.buffer[shape] ?? 0) + 1
+        return true
+      }
+    }
+    for (const other of this.match.splitters) {
+      if (other.origin.x === from.x && other.origin.y === from.y) continue
+      for (const slot of other.inputSlots()) {
+        if (!outputReaches(from, output, slot, this.match)) continue
+        if (other.buffer !== null) return false
+        other.buffer = shape
+        return true
+      }
+    }
+    for (const portal of this.match.tunnels) {
+      if (portal.role !== 'entrance') continue
+      for (const slot of portal.inputSlots()) {
+        if (!outputReaches(from, output, slot, this.match)) continue
+        return tunnelAbsorb(this.match, portal.pairId, shape)
+      }
+    }
+    return false
+  }
+
+  private deliverTunnelExit(
+    from: { x: number; y: number },
+    output: PortSlot,
+    shape: PacketShape,
+  ) {
+    if (this.deliverToLinkedInput(from, output, shape)) return true
+    if (!outputBeltAccepts(this.match, output.cell, output.travel)) return false
+    this.placePacket(output.cell, shape)
+    return true
+  }
+
   private placePacket(cell: { x: number; y: number }, shape: PacketShape) {
     const id = `p${this.match.nextPacketId++}`
     this.match.packets.push(new Packet(id, { ...cell }, shape))
   }
+}
+
+function outputReaches(
+  from: { x: number; y: number },
+  output: PortSlot,
+  input: PortSlot,
+  match: Match,
+) {
+  if (input.role !== 'input' || output.role !== 'output') return false
+  if (output.cell.x === input.cell.x && output.cell.y === input.cell.y) return true
+  const entrance = match.tunnels.some(
+    (portal) =>
+      portal.role === 'entrance' &&
+      portal.origin.x === input.cell.x &&
+      portal.origin.y === input.cell.y,
+  )
+  if (entrance && portFeedsTunnelEntrance([output], input.cell, input.travel)) return true
+  const exit = match.tunnels.some(
+    (portal) =>
+      portal.role === 'exit' && portal.origin.x === from.x && portal.origin.y === from.y,
+  )
+  if (exit && portAcceptsTunnelExit([input], from, output.travel)) return true
+  return false
 }
 
 /** True when the tunnel entrance queue can accept one more packet this tick. */

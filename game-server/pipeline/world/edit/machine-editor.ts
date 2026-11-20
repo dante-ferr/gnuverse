@@ -1,5 +1,5 @@
 import { cellKey, type Cell } from '../../geometry/cell.ts'
-import { ahead, isDirection, type Direction } from '../../geometry/direction.ts'
+import { isDirection, type Direction } from '../../geometry/direction.ts'
 import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
 import { SplitterMachine } from '../../machines/splitter-machine.ts'
 import {
@@ -7,9 +7,11 @@ import {
   tunnelPairGeometry,
 } from '../../machines/tunnel-machine.ts'
 import {
+  logisticContactBlocked,
   matchBuildingMachines,
   portsOverlapBuildings,
   type BuildingFootprint,
+  type PortSlot,
 } from './building-slots.ts'
 import type { Match } from '../match.ts'
 
@@ -42,7 +44,7 @@ export type MachinePlaceRequest = CombinerPlaceRequest | SplitterPlaceRequest | 
 
 export type RemoveKind = 'combiner' | 'splitter' | 'tunnel' | null
 
-/** Places and removes player machines (combiners sandbox-only; splitter/tunnel everywhere). */
+/** Places and removes player machines (combiner, splitter, tunnel). */
 export class MachineEditor {
   private match: Match
 
@@ -78,7 +80,6 @@ export class MachineEditor {
 
     const index = this.match.combiners.findIndex((machine) => machine.covers(cell))
     if (index < 0) return null
-    if (!this.match.sandbox) return null
     const [removed] = this.match.combiners.splice(index, 1)
     if (removed) {
       this.match.packets = this.match.packets.filter((packet) => !removed.covers(packet.cell))
@@ -88,7 +89,6 @@ export class MachineEditor {
   }
 
   private placeCombiner(spec: CombinerPlaceRequest, author: Author) {
-    if (!this.match.sandbox) return 'Combinadores só estão disponíveis na sala teste.'
     const { width, height } = CombinerMachine.sizeFor(spec.machineId, spec.facing)
     if (!this.footprintInOwned(spec.x, spec.y, width, height)) {
       return 'Fora da área liberada.'
@@ -145,6 +145,8 @@ export class MachineEditor {
     if (this.portsOverlapBuildings(probe.slots, [footprint], { proposedIsLogistic: true })) {
       return 'Entradas ou saídas sobrepõem outra estrutura.'
     }
+    const contactError = this.logisticContactBlocked(probe.slots, [footprint], 'splitter')
+    if (contactError) return contactError
     this.clearBeltAt(cell)
     const id = `s${this.match.nextSplitterSeq++}`
     this.match.splitters.push(
@@ -177,9 +179,8 @@ export class MachineEditor {
     if (this.overlapsMachines(entrance.x, entrance.y, 1, 1) || this.overlapsMachines(exit.x, exit.y, 1, 1)) {
       return 'Espaço ocupado por outra estrutura.'
     }
-    const between = this.cellsBetweenTunnel(entrance, exit, facing)
-    const span = [entrance, ...between, exit]
-    const beltError = this.assertReplaceableBelts(span, author)
+    const portals = [entrance, exit]
+    const beltError = this.assertReplaceableBelts(portals, author)
     if (beltError) return beltError
     const probeIn = new TunnelPortalMachine(
       'probe:in',
@@ -204,10 +205,17 @@ export class MachineEditor {
       { origin: entrance, width: 1, height: 1 },
       { origin: exit, width: 1, height: 1 },
     ]
-    if (this.portsOverlapBuildings(tunnelSlots, footprints, { proposedIsLogistic: true })) {
+    const contactError = this.logisticContactBlocked(tunnelSlots, footprints, 'tunnel')
+    if (contactError) return contactError
+    if (
+      this.portsOverlapBuildings(tunnelSlots, footprints, {
+        linkedTunnelSlots: tunnelSlots,
+      })
+    ) {
       return 'Entradas ou saídas sobrepõem outra estrutura.'
     }
-    this.clearBeltsAt(span)
+    // Gap belts stay on the surface. Only the portal cells are replaced.
+    this.clearBeltsAt(portals)
     const pairId = `t${this.match.nextTunnelSeq++}`
     this.match.tunnels.push(
       new TunnelPortalMachine(
@@ -297,21 +305,10 @@ export class MachineEditor {
     this.match.packets = this.match.packets.filter((packet) => !keys.has(cellKey(packet.cell)))
   }
 
-  private cellsBetweenTunnel(entrance: Cell, exit: Cell, facing: Direction): Cell[] {
-    const cells: Cell[] = []
-    let cursor = ahead(entrance.x, entrance.y, facing)
-    const exitKey = cellKey(exit)
-    while (cellKey(cursor) !== exitKey) {
-      cells.push(cursor)
-      cursor = ahead(cursor.x, cursor.y, facing)
-    }
-    return cells
-  }
-
   private portsOverlapBuildings(
-    slots: readonly { cell: { x: number; y: number }; role: 'input' | 'output'; travel: Direction }[],
+    slots: readonly PortSlot[],
     footprints: readonly BuildingFootprint[],
-    options?: { proposedIsLogistic?: boolean },
+    options?: { proposedIsLogistic?: boolean; linkedTunnelSlots?: readonly PortSlot[] },
   ) {
     return portsOverlapBuildings(
       slots,
@@ -319,5 +316,13 @@ export class MachineEditor {
       matchBuildingMachines(this.match),
       options,
     )
+  }
+
+  private logisticContactBlocked(
+    slots: readonly PortSlot[],
+    footprints: readonly BuildingFootprint[],
+    mode: 'splitter' | 'tunnel',
+  ) {
+    return logisticContactBlocked(slots, footprints, matchBuildingMachines(this.match), mode)
   }
 }
