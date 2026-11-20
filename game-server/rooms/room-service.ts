@@ -86,13 +86,17 @@ export class RoomService {
     }
   }
   create(user: User, body: Record<string, unknown>) {
-    if (
-      Object.keys(this.store.state.rooms).length >= this.rules.maxRooms ||
-      Object.values(this.store.state.rooms).filter(
-        (t) => t.creatorId === user.id,
-      ).length >= 10
-    )
+    if (Object.keys(this.store.state.rooms).length >= this.rules.maxRooms)
       fail(409, 'Limite de salas atingido.')
+    const isAdmin = (user.roles ?? []).includes('admin')
+    if (
+      !isAdmin &&
+      Object.values(this.store.state.rooms).filter(
+        (room) => room.creatorId === user.id,
+      ).length >= this.rules.maxRoomsPerCreator
+    )
+      fail(409, 'Você já criou o máximo de salas permitidas.')
+
     if (Object.hasOwn(body, 'allowCreatorBan') || Object.hasOwn(body, 'cost'))
       fail(400, 'Custo de referência e suspensão do criador não são mais suportados.')
     const sandbox = body.sandbox === true

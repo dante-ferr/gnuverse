@@ -12,6 +12,7 @@ ban_duration_ms = 600000 # Moderation ban length
 # Prototype and session limits
 max_belts = 200 # Belt cells per pipeline room
 max_rooms = 200 # Concurrent rooms on this server
+max_rooms_per_creator = 3 # Rooms one non-admin player may own at once
 session_duration_ms = 604800000 # Room lifetime before expiry
 prototype = true # Prototype-only behaviors
 bdfl_veto = false # Reserved; must stay false in v0.1

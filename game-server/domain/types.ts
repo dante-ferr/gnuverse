@@ -12,6 +12,7 @@ export type Rules = {
   minContributions: number
   maxBelts: number
   maxRooms: number
+  maxRoomsPerCreator: number
   tokenLifetimeMs: number
   banDurationMs: number
   chatMessageMaxLength: number

@@ -12,6 +12,7 @@ export type GameRules = {
   banDurationMs: number
   maxBelts: number
   maxRooms: number
+  maxRoomsPerCreator: number
   sessionDurationMs: number
   chatMessageMaxLength: number
   chatHistoryLimit: number
@@ -32,6 +33,7 @@ const economyDefaults = {
   ban_duration_ms: 600_000,
   max_belts: 200,
   max_rooms: 200,
+  max_rooms_per_creator: 3,
   session_duration_ms: 604_800_000,
   chat_message_max_length: 280,
   chat_history_limit: 100,
@@ -47,6 +49,7 @@ const economyMappings = {
   ban_duration_ms: 'banDurationMs',
   max_belts: 'maxBelts',
   max_rooms: 'maxRooms',
+  max_rooms_per_creator: 'maxRoomsPerCreator',
   session_duration_ms: 'sessionDurationMs',
   chat_message_max_length: 'chatMessageMaxLength',
   chat_history_limit: 'chatHistoryLimit',
@@ -62,6 +65,7 @@ const economyIntegerRules: Record<string, { min: number; max: number }> = {
   ban_duration_ms: { min: 1_000, max: 31_536_000_000 },
   max_belts: { min: 1, max: 500 },
   max_rooms: { min: 1, max: 100_000 },
+  max_rooms_per_creator: { min: 1, max: 100_000 },
   session_duration_ms: { min: 60_000, max: 31_536_000_000 },
   chat_message_max_length: { min: 1, max: 2000 },
   chat_history_limit: { min: 10, max: 500 },
