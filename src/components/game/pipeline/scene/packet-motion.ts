@@ -1,6 +1,11 @@
-import { ahead, opposite } from '../../../../../game-server/pipeline/geometry/direction.ts'
+import {
+  ahead,
+  opposite,
+  type Direction,
+} from '../../../../../game-server/pipeline/geometry/direction.ts'
 import { CombinerMachine } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
 import { SplitterMachine } from '../../../../../game-server/pipeline/machines/splitter-machine.ts'
+import { TrashcanMachine } from '../../../../../game-server/pipeline/machines/trashcan-machine.ts'
 import { TunnelPortalMachine } from '../../../../../game-server/pipeline/machines/tunnel-machine.ts'
 import { CoreMachine } from '../../../../../game-server/pipeline/machines/core-machine.ts'
 import { SourceMachine } from '../../../../../game-server/pipeline/machines/source-machine.ts'
@@ -67,13 +72,12 @@ export function syncPacketMotion(
   if (frame.tick === state.lastTick) return
 
   const nextIds = new Set(frame.packets.map((packet) => packet.id))
+  const maxHop = Math.max(rules.beltSpeedFast, 1)
 
   for (const [id, prev] of state.at) {
     if (nextIds.has(id)) continue
-    const belt = beltAt(frame, prev.x, prev.y, state.beltByCell)
-    if (!belt) continue
-    const dest = ahead(prev.x, prev.y, belt.direction)
-    if (!isMachineInputCell(frame, dest)) continue
+    const dest = findInputAlongBelt(frame, prev, state.beltByCell, maxHop)
+    if (!dest) continue
 
     const ghostFrame: PipelineFrame = {
       ...frame,
@@ -96,7 +100,10 @@ export function syncPacketMotion(
   const nextFrom = new Map<string, { x: number; y: number }>()
   for (const packet of frame.packets) {
     const prev = state.at.get(packet.id)
-    nextFrom.set(packet.id, prev ?? spawnOrigin(frame, packet.x, packet.y, state.beltByCell))
+    nextFrom.set(
+      packet.id,
+      prev ?? spawnOrigin(frame, packet.x, packet.y, state.beltByCell, maxHop),
+    )
   }
   state.from = nextFrom
   state.at = new Map(
@@ -110,15 +117,24 @@ export function syncPacketMotion(
  * Invented previous cell for a packet that just appeared on a belt.
  * Prefer the machine port behind an output slot so sideways / parallel belts
  * still animate out of the machine instead of from empty air behind the belt.
+ * Walks upstream on fast lines so same-tick multi-hop ejects still start at the port.
  */
 function spawnOrigin(
   frame: PipelineFrame,
   x: number,
   y: number,
   belts?: Map<string, BeltRecord>,
+  maxUpstream = 1,
 ) {
-  const fromPort = outputPortOrigin(frame, x, y)
-  if (fromPort) return fromPort
+  let cell = { x, y }
+  for (let step = 0; step <= maxUpstream; step++) {
+    const fromPort = outputPortOrigin(frame, cell.x, cell.y)
+    if (fromPort) return fromPort
+    if (step === maxUpstream) break
+    const belt = beltAt(frame, cell.x, cell.y, belts)
+    if (!belt) break
+    cell = ahead(cell.x, cell.y, opposite(belt.direction))
+  }
   const belt = beltAt(frame, x, y, belts)
   if (!belt) return { x, y }
   return ahead(x, y, opposite(belt.direction))
@@ -190,7 +206,7 @@ function beltAt(frame: PipelineFrame, x: number, y: number, index?: Map<string, 
   return frame.belts.find((belt) => belt.x === x && belt.y === y)
 }
 
-/** Cells a packet may paint in this tick: the belt walk, plus the coast target. */
+/** Cells a packet may paint in this tick: the belt walk, plus late-frame coast cells. */
 export function packetClipCells(
   packet: { id: string; x: number; y: number },
   state: PacketMotionState,
@@ -199,20 +215,47 @@ export function packetClipCells(
   const cells = path && path.length > 0 ? path.slice() : [{ x: packet.x, y: packet.y }]
   const belt = state.beltByCell.get(`${packet.x},${packet.y}`)
   if (!belt) return cells
-  const next = ahead(packet.x, packet.y, belt.direction)
-  const last = cells[cells.length - 1]!
-  if (last.x !== next.x || last.y !== next.y) cells.push(next)
+  let cell = { x: packet.x, y: packet.y }
+  const coastSteps = Math.max(1, belt.speed ?? 1)
+  for (let i = 0; i < coastSteps; i++) {
+    const here = state.beltByCell.get(`${cell.x},${cell.y}`)
+    if (!here) break
+    cell = ahead(cell.x, cell.y, here.direction)
+    const last = cells[cells.length - 1]!
+    if (last.x !== cell.x || last.y !== cell.y) cells.push(cell)
+  }
   return cells
 }
 
-/** True when `cell` is an input slot that can absorb a packet (core, craft, splitter, tunnel). */
+/** True when `cell` is an input slot that can absorb a packet (core, craft, splitter, tunnel, trash). */
 function isMachineInputCell(frame: PipelineFrame, cell: { x: number; y: number }) {
+  return machineInputAt(frame, cell) !== null
+}
+
+/** Input slot cell when `approach` sits directly behind an accepting port. */
+function inputFromApproach(frame: PipelineFrame, approach: { x: number; y: number }) {
+  for (const input of allInputCells(frame)) {
+    const behind = ahead(input.x, input.y, opposite(input.travel))
+    if (sameCell(behind, approach)) return { x: input.x, y: input.y }
+  }
+  return null
+}
+
+function machineInputAt(frame: PipelineFrame, cell: { x: number; y: number }) {
+  for (const input of allInputCells(frame)) {
+    if (sameCell(input, cell)) return input
+  }
+  return null
+}
+
+function allInputCells(frame: PipelineFrame): { x: number; y: number; travel: Direction }[] {
+  const out: { x: number; y: number; travel: Direction }[] = []
   const cores = frame.cores?.length
     ? frame.cores
     : [{ id: frame.core.id, x: frame.core.x, y: frame.core.y }]
   for (const spec of cores) {
     const core = new CoreMachine(spec.id, { x: spec.x, y: spec.y })
-    if (core.slotAt(cell, 'input')) return true
+    for (const slot of core.inputSlots()) out.push({ x: slot.cell.x, y: slot.cell.y, travel: slot.travel })
   }
   for (const spec of frame.combiners ?? []) {
     const machine = new CombinerMachine(
@@ -221,7 +264,7 @@ function isMachineInputCell(frame: PipelineFrame, cell: { x: number; y: number }
       { x: spec.x, y: spec.y },
       spec.facing,
     )
-    if (machine.slotAt(cell, 'input')) return true
+    for (const slot of machine.inputSlots()) out.push({ x: slot.cell.x, y: slot.cell.y, travel: slot.travel })
   }
   for (const spec of frame.splitters ?? []) {
     const machine = new SplitterMachine(
@@ -230,7 +273,16 @@ function isMachineInputCell(frame: PipelineFrame, cell: { x: number; y: number }
       spec.facing,
       { id: '', nickname: '' },
     )
-    if (machine.slotAt(cell, 'input')) return true
+    for (const slot of machine.inputSlots()) out.push({ x: slot.cell.x, y: slot.cell.y, travel: slot.travel })
+  }
+  for (const spec of frame.trashcans ?? []) {
+    const machine = new TrashcanMachine(
+      spec.id,
+      { x: spec.x, y: spec.y },
+      spec.facing,
+      { id: '', nickname: '' },
+    )
+    for (const slot of machine.inputSlots()) out.push({ x: slot.cell.x, y: slot.cell.y, travel: slot.travel })
   }
   for (const spec of frame.tunnels ?? []) {
     if (spec.role !== 'entrance') continue
@@ -242,9 +294,33 @@ function isMachineInputCell(frame: PipelineFrame, cell: { x: number; y: number }
       spec.direction,
       { id: '', nickname: '' },
     )
-    if (portal.slotAt(cell, 'input')) return true
+    for (const slot of portal.inputSlots()) out.push({ x: slot.cell.x, y: slot.cell.y, travel: slot.travel })
   }
-  return false
+  return out
+}
+
+/**
+ * Fast belts may absorb several cells past the last painted position in one tick.
+ * Walk forward along the belt (and approach pull) to find the input that took the packet.
+ */
+function findInputAlongBelt(
+  frame: PipelineFrame,
+  start: { x: number; y: number },
+  belts: Map<string, BeltRecord> | undefined,
+  maxSteps: number,
+) {
+  let cell = start
+  for (let step = 0; step <= maxSteps; step++) {
+    const pulled = inputFromApproach(frame, cell)
+    if (pulled) return pulled
+    const belt = beltAt(frame, cell.x, cell.y, belts)
+    if (!belt) return null
+    const next = ahead(cell.x, cell.y, belt.direction)
+    if (isMachineInputCell(frame, next)) return next
+    if (step === maxSteps) return null
+    cell = next
+  }
+  return null
 }
 
 function cellCenter(x: number, y: number, cellSize: number) {
@@ -339,6 +415,28 @@ function lerpAlongCells(
   return points[points.length - 1]!
 }
 
+/**
+ * Belt speed used to pace a hop. Short exit/approach hops on a fast belt must
+ * finish in hopCells/speed of a tick so visual speed stays constant (otherwise
+ * a 1-cell port exit crawls, then the next 3-cell hop zooms).
+ */
+function hopBeltSpeed(
+  frame: PipelineFrame,
+  path: { x: number; y: number }[] | undefined,
+  to: { x: number; y: number },
+  belts?: Map<string, BeltRecord>,
+) {
+  if (path) {
+    for (let i = path.length - 1; i >= 0; i--) {
+      const cell = path[i]!
+      const belt = beltAt(frame, cell.x, cell.y, belts)
+      if (belt) return Math.max(1, belt.speed ?? 1)
+    }
+  }
+  const belt = beltAt(frame, to.x, to.y, belts)
+  return Math.max(1, belt?.speed ?? 1)
+}
+
 /** Screen-space center for a packet, interpolated between server ticks (and optionally coasting on the belt). */
 export function packetDisplayCenter(
   packet: { id: string; x: number; y: number; shape?: string },
@@ -352,18 +450,29 @@ export function packetDisplayCenter(
   const from = state.from.get(packet.id) ?? to
   const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
   const elapsed = Math.max(0, nowMs - state.syncedAtMs)
-  const phase = elapsed / tickMs
+  const tickPhase = elapsed / tickMs
 
-  if (phase < 1) {
-    const maxSteps = Math.max(rules.beltSpeedFast, 1) + 2
-    if (!state.paths.has(packet.id)) {
-      state.paths.set(packet.id, findBeltPath(frame, from, to, maxSteps, state.beltByCell) ?? [])
-    }
-    const path = state.paths.get(packet.id)
-    if (path && path.length >= 2) return lerpAlongCells(path, phase, cellSize)
+  const maxSteps = Math.max(rules.beltSpeedFast, 1) + 2
+  if (!state.paths.has(packet.id)) {
+    state.paths.set(packet.id, findBeltPath(frame, from, to, maxSteps, state.beltByCell) ?? [])
+  }
+  const path = state.paths.get(packet.id)
+  const hopCells =
+    path && path.length >= 2
+      ? path.length - 1
+      : sameCell(from, to)
+        ? 0
+        : Math.max(1, Math.abs(to.x - from.x) + Math.abs(to.y - from.y))
+  const speed = hopBeltSpeed(frame, path, to, state.beltByCell)
+  // Cover `hopCells` at `speed` cells/tick — short hops on fast belts finish early and hold.
+  const hopDurationMs = hopCells > 0 ? (tickMs * hopCells) / speed : 0
+  const hopPhase = hopDurationMs > 0 ? elapsed / hopDurationMs : 1
+
+  if (hopPhase < 1) {
+    if (path && path.length >= 2) return lerpAlongCells(path, hopPhase, cellSize)
     const a = cellCenter(from.x, from.y, cellSize)
     const b = cellCenter(to.x, to.y, cellSize)
-    return { px: lerp(a.px, b.px, phase), py: lerp(a.py, b.py, phase) }
+    return { px: lerp(a.px, b.px, hopPhase), py: lerp(a.py, b.py, hopPhase) }
   }
 
   const belt = beltAt(frame, to.x, to.y, state.beltByCell)
@@ -371,15 +480,38 @@ export function packetDisplayCenter(
     return cellCenter(to.x, to.y, cellSize)
   }
 
-  const coast = Math.min(1, phase - 1)
-  if (coast <= 0) {
+  // Coast only after the next tick is late — advance at this belt's speed.
+  const late = Math.max(0, tickPhase - 1)
+  if (late <= 0) {
     return cellCenter(to.x, to.y, cellSize)
   }
 
-  const next = ahead(to.x, to.y, belt.direction)
-  const a = cellCenter(to.x, to.y, cellSize)
-  const b = cellCenter(next.x, next.y, cellSize)
-  return { px: lerp(a.px, b.px, coast), py: lerp(a.py, b.py, coast) }
+  const coastSpeed = Math.max(1, belt.speed ?? 1)
+  const coastCells = Math.min(coastSpeed, late * coastSpeed)
+  return lerpAlongBelt(frame, to, coastCells, cellSize, state.beltByCell)
+}
+
+/** Walk `distance` cells along outbound belts from `start` (fractional OK). */
+function lerpAlongBelt(
+  frame: PipelineFrame,
+  start: { x: number; y: number },
+  distance: number,
+  cellSize: number,
+  belts?: Map<string, BeltRecord>,
+) {
+  if (distance <= 0) return cellCenter(start.x, start.y, cellSize)
+  const cells: { x: number; y: number }[] = [start]
+  let cell = start
+  const steps = Math.max(1, Math.ceil(distance))
+  for (let i = 0; i < steps; i++) {
+    const belt = beltAt(frame, cell.x, cell.y, belts)
+    if (!belt) break
+    cell = ahead(cell.x, cell.y, belt.direction)
+    cells.push(cell)
+  }
+  if (cells.length < 2) return cellCenter(start.x, start.y, cellSize)
+  const t = Math.min(1, distance / (cells.length - 1))
+  return lerpAlongCells(cells, t, cellSize)
 }
 
 /** Screen-space center while a packet slides into a machine input (drawn under machines). */

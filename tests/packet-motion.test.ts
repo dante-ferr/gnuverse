@@ -66,11 +66,12 @@ test('packetDisplayCenter coasts along belt after one tickMs', () => {
 
 test('packetDisplayCenter follows an L-shaped multi-hop path instead of cutting the corner', () => {
   const motion = createPacketMotionState()
+  const fast = rules.beltSpeedFast
   const belts = [
-    { id: 'b0', x: 0, y: 0, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 0 },
-    { id: 'b1', x: 1, y: 0, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 1 },
-    { id: 'b2', x: 2, y: 0, direction: 'north' as const, authorId: 'a', authorNickname: 'n', placedAt: 2 },
-    { id: 'b3', x: 2, y: -1, direction: 'north' as const, authorId: 'a', authorNickname: 'n', placedAt: 3 },
+    { id: 'b0', x: 0, y: 0, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 0, speed: fast },
+    { id: 'b1', x: 1, y: 0, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 1, speed: fast },
+    { id: 'b2', x: 2, y: 0, direction: 'north' as const, authorId: 'a', authorNickname: 'n', placedAt: 2, speed: fast },
+    { id: 'b3', x: 2, y: -1, direction: 'north' as const, authorId: 'a', authorNickname: 'n', placedAt: 3, speed: fast },
   ]
   const f0 = frame(0, [{ id: 'p1', x: 0, y: 0, shape: 'circle' }])
   f0.belts = belts
@@ -89,6 +90,113 @@ test('packetDisplayCenter follows an L-shaped multi-hop path instead of cutting 
   // Straight diagonal from start→end would leave the track (y drifts north early).
   const diagonalPy = (0.5 * cell + -0.5 * cell) / 2
   assert.notEqual(mid.py, diagonalPy)
+})
+
+test('packetDisplayCenter exits onto a fast belt at belt speed, not a full-tick crawl', () => {
+  const motion = createPacketMotionState()
+  const fast = rules.beltSpeedFast
+  // Source at (0,0) facing east → output (3,1). Fast belt continues east.
+  const belts = [
+    { id: 'b0', x: 3, y: 1, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 0, speed: fast },
+    { id: 'b1', x: 4, y: 1, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 1, speed: fast },
+    { id: 'b2', x: 5, y: 1, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 2, speed: fast },
+  ]
+  const f = frame(1, [{ id: 'p1', x: 3, y: 1, shape: 'circle' }])
+  f.belts = belts
+  f.source = { id: 'source', x: 0, y: 0, direction: 'east', shape: 'circle' }
+  syncPacketMotion(motion, f, rules, 1000, cell)
+
+  // One-cell port→belt hop on a speed-3 belt finishes in tickMs/3, then holds.
+  const afterSubtick = packetDisplayCenter(
+    { id: 'p1', x: 3, y: 1, shape: 'circle' },
+    f,
+    rules,
+    motion,
+    1000 + rules.tickMs / fast,
+    cell,
+  )
+  assert.ok(Math.abs(afterSubtick.px - 3.5 * cell) < 1e-6)
+  assert.ok(Math.abs(afterSubtick.py - 1.5 * cell) < 1e-6)
+
+  const midTick = packetDisplayCenter(
+    { id: 'p1', x: 3, y: 1, shape: 'circle' },
+    f,
+    rules,
+    motion,
+    1000 + rules.tickMs / 2,
+    cell,
+  )
+  assert.ok(Math.abs(midTick.px - 3.5 * cell) < 1e-6)
+  assert.ok(Math.abs(midTick.py - 1.5 * cell) < 1e-6)
+})
+
+test('spawnOrigin reaches upstream machine port after same-tick fast multi-hop', () => {
+  const motion = createPacketMotionState()
+  const fast = rules.beltSpeedFast
+  // Tunnel exit at (5,2) facing east; packet already two cells downstream.
+  const tunnels = [
+    {
+      id: 't1:in',
+      pairId: 't1',
+      role: 'entrance' as const,
+      x: 0,
+      y: 2,
+      direction: 'east' as const,
+      authorId: 'a',
+      authorNickname: 'n',
+      queue: [null, null],
+    },
+    {
+      id: 't1:out',
+      pairId: 't1',
+      role: 'exit' as const,
+      x: 5,
+      y: 2,
+      direction: 'east' as const,
+      authorId: 'a',
+      authorNickname: 'n',
+    },
+  ]
+  const belts = [
+    { id: 'b0', x: 5, y: 2, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 0, speed: fast },
+    { id: 'b1', x: 6, y: 2, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 1, speed: fast },
+    { id: 'b2', x: 7, y: 2, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 2, speed: fast },
+  ]
+  const f = frame(2, [{ id: 'p1', x: 7, y: 2, shape: 'circle' }])
+  f.belts = belts
+  f.tunnels = tunnels
+  syncPacketMotion(motion, f, rules, 1000, cell)
+
+  const start = packetDisplayCenter({ id: 'p1', x: 7, y: 2, shape: 'circle' }, f, rules, motion, 1000, cell)
+  // Exit at (5,2) east → output belt cell (6,2); port origin is the portal (5,2).
+  assert.equal(start.px, 5.5 * cell)
+  assert.equal(start.py, 2.5 * cell)
+})
+
+test('syncPacketMotion sinks a packet absorbed mid-tick on a fast approach', () => {
+  const motion = createPacketMotionState()
+  const fast = rules.beltSpeedFast
+  const core = { id: 'core', x: 10, y: 10 }
+  // West face input at (10,12); approach is (11,12). Packet last seen two cells out.
+  const belts = [
+    { id: 'b0', x: 13, y: 12, direction: 'west' as const, authorId: 'a', authorNickname: 'n', placedAt: 0, speed: fast },
+    { id: 'b1', x: 12, y: 12, direction: 'west' as const, authorId: 'a', authorNickname: 'n', placedAt: 1, speed: fast },
+    { id: 'b2', x: 11, y: 12, direction: 'west' as const, authorId: 'a', authorNickname: 'n', placedAt: 2, speed: fast },
+  ]
+  const onBelt = frame(4, [{ id: 'p1', x: 13, y: 12, shape: 'circle' }])
+  onBelt.core = core
+  onBelt.belts = belts
+  syncPacketMotion(motion, onBelt, rules, 1000, cell)
+
+  const delivered = frame(5, [])
+  delivered.core = core
+  delivered.belts = belts
+  syncPacketMotion(motion, delivered, rules, 1000, cell)
+
+  assert.equal(motion.sinks.length, 1)
+  const sink = motion.sinks[0]!
+  assert.equal(sink.endPx, (10 + 0.5) * cell)
+  assert.equal(sink.endPy, (12 + 0.5) * cell)
 })
 
 test('spawnOrigin exits the source even when the belt is parallel to the output face', () => {
