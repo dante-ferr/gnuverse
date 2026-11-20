@@ -1,7 +1,7 @@
 import type { CombinerMachineId } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
 import type { Direction, PipelineFrame } from '../model/frame'
 
-export type PreviewMachineId = CombinerMachineId | 'splitter' | 'tunnel'
+export type PreviewMachineId = CombinerMachineId | 'splitter' | 'tunnel' | 'fast_tunnel'
 
 export type GridCell = { x: number; y: number }
 
@@ -11,6 +11,7 @@ export type StructurePreviewBelt = {
   x: number
   y: number
   direction: Direction
+  speed?: number
   authorId: string
   authorNickname: string
   placedAt: number

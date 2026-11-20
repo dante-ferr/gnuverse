@@ -574,7 +574,7 @@ export function PipelineScene({
     else pinnedBlame.current = null
     const ownerId = userIdRef.current
     if (
-      structureIdRef.current === 'belt' &&
+      (structureIdRef.current === 'belt' || structureIdRef.current === 'fast_belt') &&
       belt &&
       ownerId &&
       belt.authorId === ownerId

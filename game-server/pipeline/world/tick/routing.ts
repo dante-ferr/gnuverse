@@ -14,9 +14,12 @@ export class Routing {
     this.match = match
   }
 
-  resolve() {
-    for (const splitter of this.match.splitters) this.ejectSplitter(splitter)
+  resolve(options: { phase: number }) {
+    if (options.phase === 0) {
+      for (const splitter of this.match.splitters) this.ejectSplitter(splitter)
+    }
     for (const entrance of this.match.tunnels.filter((portal) => portal.role === 'entrance')) {
+      if (entrance.speed <= options.phase) continue
       this.advanceTunnel(entrance)
     }
   }

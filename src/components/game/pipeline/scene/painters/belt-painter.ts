@@ -3,47 +3,35 @@ import { ahead } from '../grid-math.ts'
 import { drawFlowChevron } from './flow-chevron.ts'
 import { cellSize } from './grid-painter.ts'
 
-/** Draws each belt cell as a square-ended track with chevrons clipped to that cell. */
+type Point = { x: number; y: number }
+
+/**
+ * Draws each belt cell as a straight square-ended track along its own
+ * direction (no adjacency-based corner bends), with chevrons clipped to that cell.
+ */
 export class BeltPainter {
   draw(ctx: CanvasRenderingContext2D, belts: BeltRecord[], rules: PipelineRules, timeMs: number) {
-    const byCell = new Map(belts.map((b) => [`${b.x},${b.y}`, b]))
     const beltWidth = cellSize * 0.88
     for (const belt of belts) {
-      const fromDir = enterSide(belt, byCell)
-      const feeder = ahead(belt.x, belt.y, fromDir)
-      const exit = ahead(belt.x, belt.y, belt.direction)
-      const start = edgeMid(feeder, belt)
-      const end = edgeMid(belt, exit)
-      const cx = (belt.x + 0.5) * cellSize
-      const cy = (belt.y + 0.5) * cellSize
+      const behind = ahead(belt.x, belt.y, opposite(belt.direction))
+      const aheadCell = ahead(belt.x, belt.y, belt.direction)
+      const start = edgeMid(behind, belt)
+      const end = edgeMid(belt, aheadCell)
+      const path: Point[] = [start, end]
+      const fast = isFastBelt(belt, rules)
       ctx.beginPath()
       ctx.moveTo(start.x, start.y)
-      ctx.lineTo(cx, cy)
       ctx.lineTo(end.x, end.y)
-      ctx.strokeStyle = rules.colorBelt
+      // Fast belts keep the same gray track; red is chevrons + side rails only.
+      ctx.strokeStyle = fast ? rules.colorFastBelt : rules.colorBelt
       ctx.lineWidth = beltWidth
       ctx.lineCap = 'butt'
       ctx.lineJoin = 'miter'
       ctx.stroke()
-      chevrons(ctx, belt, rules, timeMs)
+      if (fast) sideRails(ctx, belt, path, beltWidth, rules)
+      chevrons(ctx, belt, rules, timeMs, fast)
     }
   }
-}
-
-function enterSide(belt: BeltRecord, byCell: Map<string, BeltRecord>): Direction {
-  const exit = belt.direction
-  const sides: Direction[] = ['north', 'south', 'east', 'west']
-  for (const side of sides) {
-    // A head-on neighbor on the exit side must not count as entry — that collapses
-    // the track onto one edge (half belt) when a line is partially reversed.
-    if (side === exit) continue
-    const neighborPos = ahead(belt.x, belt.y, side)
-    const neighbor = byCell.get(`${neighborPos.x},${neighborPos.y}`)
-    if (!neighbor) continue
-    const dest = ahead(neighbor.x, neighbor.y, neighbor.direction)
-    if (dest.x === belt.x && dest.y === belt.y) return side
-  }
-  return opposite(belt.direction)
 }
 
 function opposite(direction: Direction): Direction {
@@ -60,12 +48,72 @@ function edgeMid(from: { x: number; y: number }, to: { x: number; y: number }) {
   }
 }
 
-function chevrons(ctx: CanvasRenderingContext2D, belt: BeltRecord, rules: PipelineRules, timeMs: number) {
+function isFastBelt(belt: BeltRecord, rules: PipelineRules) {
+  return (belt.speed ?? 1) === rules.beltSpeedFast
+}
+
+/** Thin red rails near both long edges of a fast belt (clipped to the cell). */
+function sideRails(
+  ctx: CanvasRenderingContext2D,
+  belt: BeltRecord,
+  path: Point[],
+  beltWidth: number,
+  rules: PipelineRules,
+) {
+  const inset = (rules.beltFastSideInsetPercent / 100) * cellSize
+  const offset = beltWidth / 2 - inset
+  if (offset <= 0) return
+  const stroke = Math.max(1.5, rules.beltChevronStrokePx * 0.55)
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(belt.x * cellSize, belt.y * cellSize, cellSize, cellSize)
+  ctx.clip()
+  ctx.strokeStyle = rules.colorFastBeltChevron
+  ctx.lineWidth = stroke
+  ctx.lineCap = 'butt'
+  ctx.lineJoin = 'round'
+  for (const sign of [-1, 1] as const) {
+    strokeOffsetPath(ctx, path, offset * sign)
+  }
+  ctx.restore()
+}
+
+function strokeOffsetPath(ctx: CanvasRenderingContext2D, path: Point[], offset: number) {
+  ctx.beginPath()
+  let started = false
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i]!
+    const b = path[i + 1]!
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const len = Math.hypot(dx, dy)
+    if (len < 1e-6) continue
+    const ox = (-dy / len) * offset
+    const oy = (dx / len) * offset
+    if (!started) {
+      ctx.moveTo(a.x + ox, a.y + oy)
+      started = true
+    } else {
+      ctx.lineTo(a.x + ox, a.y + oy)
+    }
+    ctx.lineTo(b.x + ox, b.y + oy)
+  }
+  if (started) ctx.stroke()
+}
+
+function chevrons(
+  ctx: CanvasRenderingContext2D,
+  belt: BeltRecord,
+  rules: PipelineRules,
+  timeMs: number,
+  fast: boolean,
+) {
   const delta = directionDelta(belt.direction)
   const alongAxis = delta.dx !== 0
   const sign = alongAxis ? delta.dx : delta.dy
   const step = cellSize * 0.42
-  const travel = (timeMs / rules.beltChevronFlowMs) * cellSize * sign
+  const flowMs = fast ? rules.beltFastChevronFlowMs : rules.beltChevronFlowMs
+  const travel = (timeMs / flowMs) * cellSize * sign
   const center = (alongAxis ? belt.x : belt.y) * cellSize + cellSize / 2
   const cross = (alongAxis ? belt.y : belt.x) * cellSize + cellSize / 2
   const reach = cellSize * 0.25
@@ -82,14 +130,16 @@ function chevrons(ctx: CanvasRenderingContext2D, belt: BeltRecord, rules: Pipeli
     const coord = n * step + travel
     const x = alongAxis ? coord : cross
     const y = alongAxis ? cross : coord
+    const arm =
+      cellSize * ((fast ? rules.beltFastChevronArmPercent : 14) / 100)
     drawFlowChevron(
       ctx,
       x,
       y,
       belt.direction,
-      cellSize * 0.14,
+      arm,
       rules.beltChevronStrokePx,
-      rules.colorBeltChevron,
+      fast ? rules.colorFastBeltChevron : rules.colorBeltChevron,
     )
   }
   ctx.restore()

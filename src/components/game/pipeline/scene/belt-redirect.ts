@@ -31,20 +31,26 @@ export function deriveDirectionFromDrag(
   return 'north'
 }
 
-type RedirectBelt = { x: number; y: number; direction: Direction; authorId?: string }
+type RedirectBelt = { x: number; y: number; direction: Direction; authorId?: string; speed?: number }
 
 type GridPoint = { x: number; y: number }
 
 type RedirectPlan = BeltCrossPlan & { clearBelts: GridPoint[] }
 
-type BeltPayload = { cells: StrokeCell[]; tunnels?: PlannedTunnel[]; clearBelts?: GridPoint[] }
+type BeltPayload = {
+  cells: StrokeCell[]
+  speed?: number
+  tunnels?: PlannedTunnel[]
+  clearBelts?: GridPoint[]
+}
 
 function previewPortal(
   tunnel: PlannedTunnel,
   role: 'entrance' | 'exit',
+  tunnelMachineId: 'tunnel' | 'fast_tunnel',
 ): StructurePreviewMachine {
   return {
-    machineId: 'tunnel',
+    machineId: tunnelMachineId,
     x: role === 'entrance' ? tunnel.entranceX : tunnel.exitX,
     y: role === 'entrance' ? tunnel.entranceY : tunnel.exitY,
     facing: tunnel.facing,
@@ -63,6 +69,10 @@ export function createBeltRedirectSession(belt: RedirectBelt): StructurePlacemen
   const stroke = new BeltStroke(belt.direction)
   stroke.push({ x: belt.x, y: belt.y })
   const initialDirection = belt.direction
+  const beltSpeed = belt.speed ?? 1
+  const fast = beltSpeed > 1
+  const structureId = fast ? 'fast_belt' : 'belt'
+  const tunnelMachineId = fast ? 'fast_tunnel' : 'tunnel'
 
   const plan = (): RedirectPlan => {
     const query = readBeltCrossQuery()
@@ -99,6 +109,7 @@ export function createBeltRedirectSession(belt: RedirectBelt): StructurePlacemen
         x: cell.x,
         y: cell.y,
         direction: cell.direction,
+        ...(beltSpeed > 1 ? { speed: beltSpeed } : {}),
         authorId: '',
         authorNickname: '',
         placedAt: index,
@@ -106,8 +117,8 @@ export function createBeltRedirectSession(belt: RedirectBelt): StructurePlacemen
     },
     previewMachines(): StructurePreviewMachine[] {
       return plan().tunnels.flatMap((tunnel) => [
-        previewPortal(tunnel, 'entrance'),
-        previewPortal(tunnel, 'exit'),
+        previewPortal(tunnel, 'entrance', tunnelMachineId),
+        previewPortal(tunnel, 'exit', tunnelMachineId),
       ])
     },
     isEmpty() {
@@ -124,9 +135,10 @@ export function createBeltRedirectSession(belt: RedirectBelt): StructurePlacemen
         next.belts[0]?.direction === initialDirection
       if (onlyOrigin) return null
       const payload: BeltPayload = { cells: next.belts }
+      if (fast) payload.speed = beltSpeed
       if (next.tunnels.length > 0) payload.tunnels = next.tunnels
       if (next.clearBelts.length > 0) payload.clearBelts = next.clearBelts
-      return { structureId: 'belt', payload }
+      return { structureId, payload }
     },
   }
 }

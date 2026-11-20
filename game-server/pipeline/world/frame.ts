@@ -8,6 +8,7 @@ export type BeltRecord = {
   x: number
   y: number
   direction: Direction
+  speed?: number
   authorId: string
   authorNickname: string
   placedAt: number
@@ -73,6 +74,7 @@ export type TunnelPortalRecord = {
   x: number
   y: number
   direction: Direction
+  speed?: number
   authorId: string
   authorNickname: string
   /** Entrance only: underground lane occupancy (null = empty). */

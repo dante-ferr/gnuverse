@@ -44,6 +44,13 @@ export type PipelineRules = {
   coreGearActiveMs: number
   beltChevronStrokePx: number
   beltChevronFlowMs: number
+  beltSpeedFast: number
+  colorFastBelt: string
+  colorFastBeltChevron: string
+  beltFastChevronFlowMs: number
+  beltFastChevronArmPercent: number
+  beltFastSideInsetPercent: number
+  colorFastTunnel: string
   machineClearanceMin: number
   coreClearanceExtra: number
   chunkSize: number
@@ -126,6 +133,7 @@ export type TunnelPortalRecord = {
   x: number
   y: number
   direction: Direction
+  speed?: number
   authorId: string
   authorNickname: string
   queue?: (PacketShape | null)[]
@@ -136,6 +144,7 @@ export type BeltRecord = {
   x: number
   y: number
   direction: Direction
+  speed?: number
   authorId: string
   authorNickname: string
   placedAt: number

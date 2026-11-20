@@ -20,11 +20,12 @@ export class Movement {
     this.match = match
   }
 
-  resolve() {
+  resolve(options: { phase: number }) {
     const occupied = new Map<string, Packet>()
     for (const packet of this.match.packets) occupied.set(cellKey(packet.cell), packet)
     const moves: Move[] = []
     for (const belt of this.match.belts) {
+      if (belt.speed <= options.phase) continue
       const packet = occupied.get(cellKey(belt.origin))
       if (!packet) continue
       const output = belt.outputSlots()[0]

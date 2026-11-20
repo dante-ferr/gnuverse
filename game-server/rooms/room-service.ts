@@ -208,9 +208,9 @@ export class RoomService {
         y: integer(body.y, 0, match.height - 1, 'Y'),
         facing: body.facing,
       }
-    } else if (machineId === 'tunnel') {
+    } else if (machineId === 'tunnel' || machineId === 'fast_tunnel') {
       spec = {
-        machineId: 'tunnel',
+        machineId,
         entranceX: integer(body.entranceX, 0, match.width - 1, 'Entrada X'),
         entranceY: integer(body.entranceY, 0, match.height - 1, 'Entrada Y'),
         exitX: integer(body.exitX, 0, match.width - 1, 'Saída X'),
@@ -230,9 +230,20 @@ export class RoomService {
     if (!Array.isArray(raw) || raw.length === 0 || raw.length > 64)
       fail(400, 'Informe as células da esteira.')
     const cells = raw.map((cell) => this.stroke(cell, match.width, match.height))
-    const error = match.place(cells, { id: user.id, nickname: user.nickname })
+    const speedRaw = body.speed
+    const speed =
+      speedRaw === undefined
+        ? 1
+        : typeof speedRaw === 'number' && Number.isSafeInteger(speedRaw)
+          ? speedRaw
+          : NaN
+    if (!Number.isSafeInteger(speed) || (speed !== 1 && speed !== match.rules.beltSpeedFast)) {
+      fail(400, 'Velocidade da esteira inválida.')
+    }
+    const error = match.place(cells, { id: user.id, nickname: user.nickname }, speed)
     if (error) fail(409, error)
-    return this.commit(room, user, participant, match, 'place')
+    const structure = speed === match.rules.beltSpeedFast ? 'fast_belt' : 'belt'
+    return this.commit(room, user, participant, match, 'place', structure)
   }
   removeBelt(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
@@ -383,7 +394,14 @@ export class RoomService {
     this.runtime.afterAction(room)
     return { frame: room.frame }
   }
-  private commit(room: Room, user: User, participant: Member, match: Match, eventType: string) {
+  private commit(
+    room: Room,
+    user: User,
+    participant: Member,
+    match: Match,
+    eventType: string,
+    structure: 'belt' | 'fast_belt' = 'belt',
+  ) {
     room.frame = match.toFrame()
     participant.contributions++
     room.actionCount++
@@ -395,7 +413,7 @@ export class RoomService {
     )
       participant.eligible = true
     this.history.event(room, eventType, user.id, {
-      structure: 'belt',
+      structure,
       belts: room.beltCount,
     })
     this.runtime.afterAction(room)

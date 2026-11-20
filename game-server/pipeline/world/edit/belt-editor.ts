@@ -15,8 +15,11 @@ export class BeltEditor {
     this.match = match
   }
 
-  place(cells: Stroke[], author: Author) {
+  place(cells: Stroke[], author: Author, speed = 1) {
     if (cells.length === 0) return 'Escolha ao menos uma célula.'
+    if (speed !== 1 && speed !== this.match.rules.beltSpeedFast) {
+      return 'Velocidade da esteira inválida.'
+    }
     const allowed: Stroke[] = []
     for (const cell of cells) {
       if (this.onMachine(cell)) continue
@@ -25,7 +28,7 @@ export class BeltEditor {
       allowed.push(cell)
     }
     if (allowed.length === 0) return 'Essa célula pertence a uma máquina.'
-    for (const cell of allowed) this.write(cell, author)
+    for (const cell of allowed) this.write(cell, author, speed)
     this.match.noteCollaborator(author)
     return null
   }
@@ -81,17 +84,23 @@ export class BeltEditor {
     return keptExisting + pendingKeys.size
   }
 
-  private write(cell: Stroke, author: Author) {
+  private write(cell: Stroke, author: Author, speed: number) {
     const key = cellKey(cell)
     this.match.belts = this.match.belts.filter((belt) => cellKey(belt.origin) !== key)
     this.match.packets = this.match.packets.filter((packet) => cellKey(packet.cell) !== key)
     const placedAt = this.match.nextBeltSeq++
     this.match.belts.push(
-      new BeltMachine(`b${placedAt}`, { x: cell.x, y: cell.y }, cell.direction, {
-        id: author.id,
-        nickname: author.nickname,
-        placedAt,
-      }),
+      new BeltMachine(
+        `b${placedAt}`,
+        { x: cell.x, y: cell.y },
+        cell.direction,
+        {
+          id: author.id,
+          nickname: author.nickname,
+          placedAt,
+        },
+        speed,
+      ),
     )
   }
 }

@@ -207,8 +207,12 @@ export class Match {
       this.collaborators.push({ id: author.id, nickname: author.nickname })
   }
 
-  place(cells: { x: number; y: number; direction: Direction }[], author: CollaboratorRecord) {
-    return new BeltEditor(this).place(cells, author)
+  place(
+    cells: { x: number; y: number; direction: Direction }[],
+    author: CollaboratorRecord,
+    speed = 1,
+  ) {
+    return new BeltEditor(this).place(cells, author, speed)
   }
 
   /**
@@ -247,8 +251,11 @@ export class Match {
   }
 
   tick() {
-    new Movement(this).resolve()
-    new Routing(this).resolve()
+    const maxSpeed = this.rules.beltSpeedFast
+    for (let phase = 0; phase < maxSpeed; phase++) {
+      new Movement(this).resolve({ phase })
+      new Routing(this).resolve({ phase })
+    }
     new Craft(this).resolve()
     new Emission(this).emit()
     this.tickIndex += 1
@@ -304,6 +311,7 @@ export class Match {
         x: belt.origin.x,
         y: belt.origin.y,
         direction: belt.direction,
+        speed: belt.speed,
         authorId: belt.authorId,
         authorNickname: belt.authorNickname,
         placedAt: belt.placedAt,
@@ -352,6 +360,7 @@ export class Match {
         x: portal.origin.x,
         y: portal.origin.y,
         direction: portal.direction,
+        speed: portal.speed,
         authorId: portal.authorId,
         authorNickname: portal.authorNickname,
         queue: portal.role === 'entrance' ? [...portal.queue] : undefined,
@@ -428,11 +437,17 @@ export class Match {
     match.nextTunnelSeq = frame.nextTunnelSeq ?? 1
     match.belts = frame.belts.map(
       (belt) =>
-        new BeltMachine(belt.id, { x: belt.x, y: belt.y }, belt.direction, {
-          id: belt.authorId,
-          nickname: belt.authorNickname,
-          placedAt: belt.placedAt,
-        }),
+        new BeltMachine(
+          belt.id,
+          { x: belt.x, y: belt.y },
+          belt.direction,
+          {
+            id: belt.authorId,
+            nickname: belt.authorNickname,
+            placedAt: belt.placedAt,
+          },
+          belt.speed ?? 1,
+        ),
     )
     match.packets = frame.packets.map(
       (packet) => new Packet(packet.id, { x: packet.x, y: packet.y }, packet.shape),
@@ -476,6 +491,7 @@ export class Match {
         spec.direction,
         { id: spec.authorId, nickname: spec.authorNickname },
         capacity,
+        spec.speed ?? 1,
       )
       if (spec.role === 'entrance' && spec.queue) {
         portal.queue = [...spec.queue]

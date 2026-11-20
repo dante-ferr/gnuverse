@@ -64,6 +64,33 @@ test('packetDisplayCenter coasts along belt after one tickMs', () => {
   assert.equal(coastMid.px, 3 * cell)
 })
 
+test('packetDisplayCenter follows an L-shaped multi-hop path instead of cutting the corner', () => {
+  const motion = createPacketMotionState()
+  const belts = [
+    { id: 'b0', x: 0, y: 0, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 0 },
+    { id: 'b1', x: 1, y: 0, direction: 'east' as const, authorId: 'a', authorNickname: 'n', placedAt: 1 },
+    { id: 'b2', x: 2, y: 0, direction: 'north' as const, authorId: 'a', authorNickname: 'n', placedAt: 2 },
+    { id: 'b3', x: 2, y: -1, direction: 'north' as const, authorId: 'a', authorNickname: 'n', placedAt: 3 },
+  ]
+  const f0 = frame(0, [{ id: 'p1', x: 0, y: 0, shape: 'circle' }])
+  f0.belts = belts
+  syncPacketMotion(motion, f0, rules, 1000, cell)
+
+  // One tick on a fast line: (0,0) → (1,0) → (2,0) → (2,-1)
+  const f1 = frame(1, [{ id: 'p1', x: 2, y: -1, shape: 'circle' }])
+  f1.belts = belts
+  syncPacketMotion(motion, f1, rules, 1000, cell)
+
+  const mid = packetDisplayCenter({ id: 'p1', x: 2, y: -1, shape: 'circle' }, f1, rules, motion, 1125, cell)
+  // Three equal segments; halfway is mid-edge on the approach into the corner (still on the L).
+  assert.equal(mid.px, 2 * cell)
+  assert.equal(mid.py, 0.5 * cell)
+
+  // Straight diagonal from start→end would leave the track (y drifts north early).
+  const diagonalPy = (0.5 * cell + -0.5 * cell) / 2
+  assert.notEqual(mid.py, diagonalPy)
+})
+
 test('spawnOrigin exits the source even when the belt is parallel to the output face', () => {
   const motion = createPacketMotionState()
   // Source at (0,0) facing east → output cell (3,1). Belt runs north along that face.

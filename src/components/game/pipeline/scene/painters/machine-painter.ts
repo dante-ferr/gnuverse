@@ -123,7 +123,7 @@ export class MachinePainter {
       ctx.restore()
       return
     }
-    if (spec.machineId === 'tunnel') {
+    if (spec.machineId === 'tunnel' || spec.machineId === 'fast_tunnel') {
       const role: TunnelPortalRole = spec.tunnelRole ?? 'entrance'
       const portal = new TunnelPortalMachine(
         'ghost',
@@ -138,7 +138,9 @@ export class MachinePainter {
       const hideBracket = frame
         ? logisticPortBracketHidden(portal, machinesFromFrame(frame))
         : undefined
-      this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle, {
+      const body =
+        spec.machineId === 'fast_tunnel' ? rules.colorFastTunnel : rules.colorTunnel
+      this.machine(ctx, portal, body, decor, rules, bracketStyle, {
         decorFacing: spec.facing,
         hidePortBracket: hideBracket,
       })
@@ -376,7 +378,9 @@ export class MachinePainter {
     )
     const decor =
       spec.role === 'entrance' ? this.images.tunnelEntrance : this.images.tunnelExit
-    this.machine(ctx, portal, rules.colorTunnel, decor, rules, bracketStyle, {
+    const fast = (spec.speed ?? 1) > 1
+    const body = fast ? rules.colorFastTunnel : rules.colorTunnel
+    this.machine(ctx, portal, body, decor, rules, bracketStyle, {
       decorFacing: spec.direction,
       hidePortBracket: logisticPortBracketHidden(portal, frameMachines),
     })

@@ -74,6 +74,19 @@ export type PipelineRules = {
   beltChevronStrokePx: number
   /** Ms for chevrons to drift one grid cell along the belt. */
   beltChevronFlowMs: number
+  /** Belt/tunnel cells (or queue steps) advanced per match tick for fast variants. */
+  beltSpeedFast: number
+  /** Fast belt track fill (gray; typically matches colorBelt). */
+  colorFastBelt: string
+  /** Red chevrons and side rails on fast belts. */
+  colorFastBeltChevron: string
+  /** Chevron drift period for fast belts (ms). */
+  beltFastChevronFlowMs: number
+  /** Fast belt chevron arm length (% of one cell). */
+  beltFastChevronArmPercent: number
+  /** Side-rail inset from the belt outer edge (% of one cell). */
+  beltFastSideInsetPercent: number
+  colorFastTunnel: string
   machineClearanceMin: number
   coreClearanceExtra: number
   /** Cells on one side of a purchasable map chunk (starter owned chunk uses the same size). */

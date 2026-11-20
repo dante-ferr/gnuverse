@@ -15,6 +15,7 @@ export class TunnelPortalMachine extends Machine {
   readonly role: TunnelPortalRole
   readonly pairId: string
   readonly direction: Direction
+  readonly speed: number
   readonly authorId: string
   readonly authorNickname: string
   /**
@@ -31,11 +32,13 @@ export class TunnelPortalMachine extends Machine {
     direction: Direction,
     author: { id: string; nickname: string },
     capacity = 0,
+    speed = 1,
   ) {
     super(id, origin, 1, 1)
     this.role = role
     this.pairId = pairId
     this.direction = direction
+    this.speed = speed
     this.authorId = author.id
     this.authorNickname = author.nickname
     if (role === 'entrance' && capacity > 0) {

@@ -52,6 +52,14 @@ export function tunnelPlacementPending(): boolean {
   return pendingEntrance !== null
 }
 
+export function tunnelPendingEntrance() {
+  return pendingEntrance
+}
+
+export function markTunnelEntrance(cell: { x: number; y: number }) {
+  pendingEntrance = cell
+}
+
 function tunnelMaxGap(): number {
   return getPlacementRules()?.tunnelMaxGap ?? 8
 }
@@ -150,7 +158,7 @@ function createTunnelSession(): StructurePlacementSession {
         return true
       }
       entrance = cell
-      pendingEntrance = cell
+      markTunnelEntrance(cell)
       return true
     },
     previewBelts() {
@@ -176,7 +184,7 @@ function createTunnelSession(): StructurePlacementSession {
       const frame = getPlacementFrame()
       const facing = resolveTunnelFacing(entrance, exit, frame)
       const geom = tunnelPairGeometry(entrance, exit, facing, tunnelMaxGap())
-      pendingEntrance = null
+      clearTunnelPlacement()
       if (!geom.ok) return null
       return {
         structureId: 'tunnel',

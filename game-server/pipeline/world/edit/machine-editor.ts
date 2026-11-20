@@ -32,7 +32,7 @@ export type SplitterPlaceRequest = {
 }
 
 export type TunnelPlaceRequest = {
-  machineId: 'tunnel'
+  machineId: 'tunnel' | 'fast_tunnel'
   entranceX: number
   entranceY: number
   exitX: number
@@ -53,7 +53,9 @@ export class MachineEditor {
   }
 
   place(spec: MachinePlaceRequest, author: Author) {
-    if (spec.machineId === 'tunnel') return this.placeTunnel(spec, author)
+    if (spec.machineId === 'tunnel' || spec.machineId === 'fast_tunnel') {
+      return this.placeTunnel(spec, author)
+    }
     if (spec.machineId === 'splitter') return this.placeSplitter(spec, author)
     return this.placeCombiner(spec, author)
   }
@@ -215,6 +217,8 @@ export class MachineEditor {
     // Gap belts stay on the surface. Only the portal cells are replaced.
     this.clearBeltsAt(portals)
     const pairId = `t${this.match.nextTunnelSeq++}`
+    const speed = spec.machineId === 'fast_tunnel' ? this.match.rules.beltSpeedFast : 1
+    const authorRecord = { id: author.id, nickname: author.nickname }
     this.match.tunnels.push(
       new TunnelPortalMachine(
         `${pairId}:in`,
@@ -222,8 +226,9 @@ export class MachineEditor {
         'entrance',
         pairId,
         facing,
-        { id: author.id, nickname: author.nickname },
+        authorRecord,
         geometry.gap,
+        speed,
       ),
       new TunnelPortalMachine(
         `${pairId}:out`,
@@ -231,8 +236,9 @@ export class MachineEditor {
         'exit',
         pairId,
         facing,
-        { id: author.id, nickname: author.nickname },
+        authorRecord,
         0,
+        speed,
       ),
     )
     this.match.noteCollaborator(author)

@@ -190,8 +190,91 @@ function cellCenter(x: number, y: number, cellSize: number) {
   return { px: (x + 0.5) * cellSize, py: (y + 0.5) * cellSize }
 }
 
+function sameCell(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return a.x === b.x && a.y === b.y
+}
+
+function cellKey(cell: { x: number; y: number }) {
+  return `${cell.x},${cell.y}`
+}
+
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
+}
+
+function neighbors4(cell: { x: number; y: number }) {
+  return [
+    { x: cell.x + 1, y: cell.y },
+    { x: cell.x - 1, y: cell.y },
+    { x: cell.x, y: cell.y + 1 },
+    { x: cell.x, y: cell.y - 1 },
+  ]
+}
+
+/**
+ * Reconstruct the surface belt walk from `from` → `to` (including multi-hop
+ * fast-belt corners). On a belt cell only the outbound direction is allowed;
+ * off-belt cells (spawn origin) may step onto any orthogonal neighbor.
+ */
+function findBeltPath(
+  frame: PipelineFrame,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  maxSteps: number,
+): { x: number; y: number }[] | null {
+  if (sameCell(from, to)) return [from]
+  type Node = { cell: { x: number; y: number }; path: { x: number; y: number }[] }
+  const queue: Node[] = [{ cell: from, path: [from] }]
+  const seen = new Set([cellKey(from)])
+  while (queue.length > 0) {
+    const { cell, path } = queue.shift()!
+    if (path.length > maxSteps + 1) continue
+    const belt = beltAt(frame, cell.x, cell.y)
+    const nexts = belt ? [ahead(cell.x, cell.y, belt.direction)] : neighbors4(cell)
+    for (const next of nexts) {
+      const key = cellKey(next)
+      if (seen.has(key)) continue
+      const nextPath = [...path, next]
+      if (sameCell(next, to)) return nextPath
+      seen.add(key)
+      if (nextPath.length <= maxSteps + 1) queue.push({ cell: next, path: nextPath })
+    }
+  }
+  return null
+}
+
+/** Arc-length lerp along cell-center waypoints (stays on the L through corners). */
+function lerpAlongCells(
+  cells: { x: number; y: number }[],
+  t: number,
+  cellSize: number,
+): { px: number; py: number } {
+  if (cells.length === 0) return { px: 0, py: 0 }
+  if (cells.length === 1) return cellCenter(cells[0]!.x, cells[0]!.y, cellSize)
+  const points = cells.map((cell) => cellCenter(cell.x, cell.y, cellSize))
+  const lengths: number[] = []
+  let total = 0
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i]!
+    const b = points[i + 1]!
+    const len = Math.hypot(b.px - a.px, b.py - a.py)
+    lengths.push(len)
+    total += len
+  }
+  if (total < 1e-6) return points[points.length - 1]!
+  const clamped = Math.min(1, Math.max(0, t))
+  let remain = clamped * total
+  for (let i = 0; i < lengths.length; i++) {
+    const seg = lengths[i]!
+    const a = points[i]!
+    const b = points[i + 1]!
+    if (remain <= seg || i === lengths.length - 1) {
+      const u = seg < 1e-6 ? 1 : Math.min(1, remain / seg)
+      return { px: lerp(a.px, b.px, u), py: lerp(a.py, b.py, u) }
+    }
+    remain -= seg
+  }
+  return points[points.length - 1]!
 }
 
 /** Screen-space center for a packet, interpolated between server ticks (and optionally coasting on the belt). */
@@ -210,6 +293,9 @@ export function packetDisplayCenter(
   const phase = elapsed / tickMs
 
   if (phase < 1) {
+    const maxSteps = Math.max(rules.beltSpeedFast, 1) + 2
+    const path = findBeltPath(frame, from, to, maxSteps)
+    if (path && path.length >= 2) return lerpAlongCells(path, phase, cellSize)
     const a = cellCenter(from.x, from.y, cellSize)
     const b = cellCenter(to.x, to.y, cellSize)
     return { px: lerp(a.px, b.px, phase), py: lerp(a.py, b.py, phase) }
