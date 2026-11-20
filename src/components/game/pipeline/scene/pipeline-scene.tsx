@@ -42,6 +42,8 @@ type Props = {
   /** Signed-in player id; used to redirect owned belts. */
   userId?: string | null
   chunkCost: number | null
+  /** Player coin balance; `null` when signed out. */
+  coinBalance: number | null
   buyBusy?: boolean
   onContributeChunk: (coord: { cx: number; cy: number }, amount: number) => void
   onPlace: (request: StructurePlaceRequest) => void
@@ -66,6 +68,7 @@ export function PipelineScene({
   structureId,
   userId = null,
   chunkCost,
+  coinBalance,
   buyBusy,
   onContributeChunk,
   onPlace,
@@ -700,6 +703,11 @@ export function PipelineScene({
               frame?.chunkPledges?.find((pledge) => pledge.cx === anchor.cx && pledge.cy === anchor.cy)
                 ?.paid ?? 0
             const remaining = Math.max(0, chunkCost - paid)
+            const canBuyNow = coinBalance == null || coinBalance >= remaining
+            const quickAmount = canBuyNow ? remaining : coinBalance
+            const quickLabel = canBuyNow ? 'Comprar' : 'Aportar saldo'
+            const quickDisabled =
+              buyBusy || remaining < 1 || (coinBalance != null && quickAmount < 1)
             return (
               <form
                 key={anchor.key}
@@ -740,6 +748,17 @@ export function PipelineScene({
                     Aportar
                   </button>
                 </div>
+                <button
+                  className={styles.chunkPledgeQuick}
+                  type="button"
+                  disabled={quickDisabled}
+                  onClick={() => {
+                    if (!Number.isInteger(quickAmount) || quickAmount < 1) return
+                    onContributeChunk({ cx: anchor.cx, cy: anchor.cy }, quickAmount)
+                  }}
+                >
+                  {quickLabel}
+                </button>
               </form>
             )
           })}

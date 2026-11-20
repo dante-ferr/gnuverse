@@ -228,6 +228,7 @@ export function PipelineRoom() {
                       Math.max(0, (live.frame.ownedChunks?.length ?? 1) - 1)
                   : null
               }
+              coinBalance={session.user ? (session.wallet?.balance ?? 0) : null}
               buyBusy={feedback.busy}
               onContributeChunk={contributeChunk}
               onPlace={place}
