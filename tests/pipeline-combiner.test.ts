@@ -60,6 +60,43 @@ test('combiner crafts steam after rate-based craft ticks when inputs are buffere
   assert.ok(steam)
 })
 
+test('combiner ejects into a tunnel entrance plugged on the output cell', () => {
+  const { match, combiner } = sandboxWithCombiner()
+  const out = combiner.orderedOutputSlots()[0]!
+  const entrance = { ...out.cell }
+  const exit = { x: entrance.x + 2, y: entrance.y }
+  assert.equal(
+    match.placeMachine(
+      {
+        machineId: 'tunnel',
+        entranceX: entrance.x,
+        entranceY: entrance.y,
+        exitX: exit.x,
+        exitY: exit.y,
+        facing: out.travel,
+      },
+      author,
+    ),
+    null,
+  )
+  const outBelt = { x: exit.x + 1, y: exit.y }
+  beltAt(match, outBelt, out.travel)
+  combiner.activeRecipeId = 'steam'
+  combiner.pendingOutputs = ['steam']
+  match.tick()
+  assert.equal(combiner.pendingOutputs, null)
+  const entrancePortal = match.tunnels.find((portal) => portal.role === 'entrance')!
+  const inTransit =
+    entrancePortal.pendingIngress === 'steam' ||
+    entrancePortal.queue.some((slot) => slot === 'steam') ||
+    entrancePortal.pendingEgress === 'steam' ||
+    match.packets.some(
+      (packet) =>
+        packet.shape === 'steam' && packet.cell.x === outBelt.x && packet.cell.y === outBelt.y,
+    )
+  assert.ok(inTransit)
+})
+
 test('dual-output craft ejects coupled or blocks when one port is full', () => {
   const match = Match.createSandbox('dual', rules)
   const combiner = new CombinerMachine('c1', 'combiner_3', { x: 25, y: 24 }, 'east')

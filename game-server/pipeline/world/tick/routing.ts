@@ -97,6 +97,17 @@ export function ejectOnto(
   return true
 }
 
+/** True when `ejectOnto` would succeed without mutating the match. */
+export function canEjectOnto(
+  match: Match,
+  from: { x: number; y: number },
+  output: PortSlot,
+  shape: PacketShape,
+) {
+  if (canDeliverToLinkedInput(match, from, output, shape)) return true
+  return outputBeltAccepts(match, output.cell, output.travel)
+}
+
 /** Port plug first, then a belt on the output cell. */
 function deliverToLinkedInput(
   match: Match,

@@ -1,11 +1,10 @@
 import type { ElementRecord } from '../../elements/index.ts'
 import { craftTicksForRecipe } from '../../elements/rate.ts'
-import type { Direction } from '../../geometry/direction.ts'
 import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
-import { Packet } from '../../packets/packet.ts'
+import type { Slot } from '../../machines/slot.ts'
 import type { PipelineRules } from '../../rules.ts'
 import type { Match } from '../match.ts'
-import { outputBeltAccepts } from './output-belt.ts'
+import { canEjectOnto, ejectOnto } from './routing.ts'
 
 /** Runs combiner buffers, craft countdown, and output eject. */
 export class Craft {
@@ -69,12 +68,12 @@ export class Craft {
     if (coupled) {
       const shapes = pending
       if (outputs.length < shapes.length) return true
-      const placements: { slot: (typeof outputs)[0]; shape: string }[] = []
+      const placements: { slot: Slot; shape: string }[] = []
       for (let i = 0; i < shapes.length; i++) {
         placements.push({ slot: outputs[i]!, shape: shapes[i]! })
       }
-      if (!this.canPlaceAll(placements)) return true
-      for (const plan of placements) this.placePacket(plan.slot, plan.shape)
+      if (!this.canPlaceAll(combiner, placements)) return true
+      for (const plan of placements) this.placePacket(combiner, plan.slot, plan.shape)
       combiner.pendingOutputs = null
       combiner.craftRemaining = null
       combiner.activeRecipeId = null
@@ -83,20 +82,20 @@ export class Craft {
 
     const shape = pending[0]!
     const machineKind = this.match.rules.elements.machines.find((m) => m.id === combiner.machineId)
-    const readyPorts = outputs.filter((slot) => this.canPlace(slot, shape))
+    const readyPorts = outputs.filter((slot) => this.canPlace(combiner, slot, shape))
     if (readyPorts.length === 0) return true
 
     if (machineKind?.split_single_across_ports && outputs.length >= 2) {
       if (readyPorts.length >= 2) {
         const port = combiner.nextSplitPort
         const slot = readyPorts[port] ?? readyPorts[0]!
-        this.placePacket(slot, shape)
+        this.placePacket(combiner, slot, shape)
         combiner.nextSplitPort = port === 0 ? 1 : 0
       } else {
-        this.placePacket(readyPorts[0]!, shape)
+        this.placePacket(combiner, readyPorts[0]!, shape)
       }
     } else {
-      this.placePacket(readyPorts[0]!, shape)
+      this.placePacket(combiner, readyPorts[0]!, shape)
     }
 
     combiner.pendingOutputs = null
@@ -105,18 +104,16 @@ export class Craft {
     return false
   }
 
-  private canPlaceAll(placements: { slot: { cell: { x: number; y: number } }; shape: string }[]) {
-    return placements.every((plan) => this.canPlace(plan.slot, plan.shape))
+  private canPlaceAll(combiner: CombinerMachine, placements: { slot: Slot; shape: string }[]) {
+    return placements.every((plan) => this.canPlace(combiner, plan.slot, plan.shape))
   }
 
-  private canPlace(slot: { cell: { x: number; y: number }; travel: Direction }, _shape: string) {
-    return outputBeltAccepts(this.match, slot.cell, slot.travel)
+  private canPlace(combiner: CombinerMachine, slot: Slot, shape: string) {
+    return canEjectOnto(this.match, combiner.origin, slot, shape)
   }
 
-  private placePacket(slot: { cell: { x: number; y: number } }, shape: string) {
-    this.match.packets.push(
-      new Packet(`p${this.match.nextPacketId++}`, { ...slot.cell }, shape),
-    )
+  private placePacket(combiner: CombinerMachine, slot: Slot, shape: string) {
+    ejectOnto(this.match, combiner.origin, slot, shape)
   }
 }
 
