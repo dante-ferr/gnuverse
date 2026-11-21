@@ -1832,6 +1832,24 @@
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+.structureHotkey {
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 1.4;
+  flex: none;
+  min-width: 1.25em;
+  text-align: center;
+}
+.structureItem[aria-pressed='true'] .structureHotkey {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  color: var(--ink);
+}
 .structureIcon {
   display: block;
   width: 20px;

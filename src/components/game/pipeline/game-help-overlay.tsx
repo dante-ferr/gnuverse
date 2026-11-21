@@ -46,6 +46,10 @@ export function GameHelpOverlay({ sandbox, onClose, onOpenTutorial }: Props) {
           </p>
           <ul className={styles.list} aria-label="Atalhos de edição">
             <li>
+              <span className={styles.key}>1–9 · 0</span>
+              <span>Seleciona a estrutura na ordem da paleta (e volta ao modo criar).</span>
+            </li>
+            <li>
               <span className={styles.key}>E</span>
               <span>Alterna entre criar e apagar.</span>
             </li>

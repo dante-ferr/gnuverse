@@ -7,6 +7,7 @@ import { TrashcanMachine } from '../../../../../game-server/pipeline/machines/tr
 import { setPlacementFrame, setPlacementRules } from '../placement-rules.ts'
 import {
   getStructure,
+  structureForHotkey,
   type StructureHoverGhost,
   type StructurePlacementSession,
   type StructurePlaceRequest,
@@ -64,6 +65,8 @@ type Props = {
   /** `revert` undoes the optimistic hide if auth or the API rejects the removal. */
   onRemove: (cells: { x: number; y: number }[], options: { revert: () => void }) => void
   onToggleEditMode: () => void
+  /** Number hotkeys (1–9, 0) select a placeable structure. */
+  onSelectStructure: (id: string) => void
   /** Bumped when sidebar Girar (or similar) changes place options. */
   placeEpoch?: number
 }
@@ -98,6 +101,7 @@ export function PipelineScene({
   onPlace,
   onRemove,
   onToggleEditMode,
+  onSelectStructure,
   placeEpoch = 0,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -108,6 +112,7 @@ export function PipelineScene({
   const structureIdRef = useRef(structureId)
   const userIdRef = useRef(userId)
   const onToggleEditModeRef = useRef(onToggleEditMode)
+  const onSelectStructureRef = useRef(onSelectStructure)
   const originChunkRef = useRef<{ cx: number; cy: number } | null>(null)
   const images = useRef(loadMachineDecor(() => {}))
   const machinePainter = useRef(new MachinePainter(images.current))
@@ -138,6 +143,7 @@ export function PipelineScene({
   structureIdRef.current = structureId
   userIdRef.current = userId
   onToggleEditModeRef.current = onToggleEditMode
+  onSelectStructureRef.current = onSelectStructure
 
   const flushCameraSave = (roomIdOverride?: string) => {
     if (cameraSaveTimer.current) {
@@ -677,13 +683,25 @@ export function PipelineScene({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (typingTarget(event.target)) return
+      const plain =
+        !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey
+      if (plain) {
+        const digitStructure = structureForHotkey(event.key, {
+          sandbox: frameRef.current?.sandbox === true,
+        })
+        if (digitStructure) {
+          event.preventDefault()
+          onSelectStructureRef.current(digitStructure.id)
+          return
+        }
+      }
       const key = event.key.toLowerCase()
-      if (key === 'e' && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      if (key === 'e' && plain) {
         event.preventDefault()
         onToggleEditModeRef.current()
         return
       }
-      if (key === 'r' && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      if (key === 'r' && plain) {
         event.preventDefault()
         const structure = getStructure(structureIdRef.current)
         structure?.rotate?.()

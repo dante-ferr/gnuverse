@@ -43,6 +43,11 @@ export function PipelineRoom() {
   const [editMode, setEditMode] = useState<EditMode>('create')
   const [structureId, setStructureId] = useState(defaultStructureId)
   const [placeEpoch, setPlaceEpoch] = useState(0)
+  const selectStructure = (id: string) => {
+    clearTunnelPlacement()
+    setStructureId(id)
+    setEditMode('create')
+  }
   const chatMaxLength =
     typeof live.rules?.chatMessageMaxLength === 'number' && live.rules.chatMessageMaxLength > 0
       ? live.rules.chatMessageMaxLength
@@ -278,16 +283,14 @@ export function PipelineRoom() {
               onToggleEditMode={() =>
                 setEditMode((current) => (current === 'create' ? 'delete' : 'create'))
               }
+              onSelectStructure={selectStructure}
             />
           </div>
           <RoomSidebar
             frame={live.frame.seed ? live.frame : null}
             rules={rules}
             structureId={structureId}
-            onSelectStructure={(id) => {
-              clearTunnelPlacement()
-              setStructureId(id)
-            }}
+            onSelectStructure={selectStructure}
             editMode={editMode}
             onEditModeChange={setEditMode}
             onRotate={() => {

@@ -7,7 +7,15 @@ import './splitter.ts'
 import './tunnel.ts'
 import './fast-tunnel.ts'
 
-export { defaultStructureId, getStructure, listStructures, registerStructure } from './registry.ts'
+export {
+  defaultStructureId,
+  getStructure,
+  hotkeyForStructureIndex,
+  listPlaceableStructures,
+  listStructures,
+  registerStructure,
+  structureForHotkey,
+} from './registry.ts'
 export type {
   StructureCommitContext,
   StructureDefinition,

@@ -1,6 +1,10 @@
 import type { EditMode } from './scene/pipeline-scene'
 import type { PipelineFrame, PipelineRules } from './model/frame'
-import { getStructure, listStructures } from './structures'
+import {
+  getStructure,
+  hotkeyForStructureIndex,
+  listPlaceableStructures,
+} from './structures'
 import styles from '../game-shell.module.css'
 
 function structurePriceLabel(
@@ -52,7 +56,7 @@ export function StructurePalette({
   onRotate,
 }: Props) {
   const sandbox = frame?.sandbox === true
-  const structures = listStructures().filter((item) => !item.sandboxOnly || sandbox)
+  const structures = listPlaceableStructures(sandbox)
   const canRotate = Boolean(getStructure(selectedStructureId)?.rotate)
 
   return (
@@ -61,18 +65,26 @@ export function StructurePalette({
         Estruturas
       </h2>
       <div className={styles.structureList} role="list">
-        {structures.map((structure) => {
+        {structures.map((structure, index) => {
           const selected = structure.id === selectedStructureId
           const price = structurePriceLabel(structure.id, rules, sandbox)
+          const hotkey = hotkeyForStructureIndex(index)
           return (
             <button
               key={structure.id}
               type="button"
               className={styles.structureItem}
               aria-pressed={selected}
+              aria-keyshortcuts={hotkey ?? undefined}
               role="listitem"
+              title={hotkey ? `${structure.label} — ${hotkey}` : structure.label}
               onClick={() => onSelectStructure(structure.id)}
             >
+              {hotkey ? (
+                <kbd className={styles.structureHotkey} aria-hidden>
+                  {hotkey}
+                </kbd>
+              ) : null}
               <span
                 className={styles.structureIcon}
                 style={{

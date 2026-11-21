@@ -3,8 +3,11 @@ import test from 'node:test'
 import {
   defaultStructureId,
   getStructure,
+  hotkeyForStructureIndex,
+  listPlaceableStructures,
   listStructures,
   registerStructure,
+  structureForHotkey,
   type StructureDefinition,
 } from '../src/components/game/pipeline/structures/index.ts'
 
@@ -62,4 +65,17 @@ test('registerStructure updates listStructures without hardcoding the palette', 
   registerStructure(probe)
   assert.ok(listStructures().some((item) => item.id === probe.id))
   assert.equal(getStructure(probe.id)?.label, 'Sonda')
+})
+
+test('number hotkeys follow placeable palette order', () => {
+  const placeable = listPlaceableStructures(false)
+  assert.ok(placeable.length >= 1)
+  assert.equal(structureForHotkey('1')?.id, placeable[0]?.id)
+  assert.equal(hotkeyForStructureIndex(0), '1')
+  if (placeable.length >= 2) {
+    assert.equal(structureForHotkey('2')?.id, placeable[1]?.id)
+  }
+  assert.equal(structureForHotkey('a'), null)
+  assert.equal(hotkeyForStructureIndex(9), '0')
+  assert.equal(hotkeyForStructureIndex(10), null)
 })
