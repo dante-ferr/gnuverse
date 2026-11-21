@@ -13,6 +13,7 @@ import {
   drawOutlinedResourceDisk,
   drawOutlinedResourceGlyph,
   resourceGlyphOutline,
+  snapTileRect,
   type ResourceGlyphOutline,
 } from './resource-glyph.ts'
 
@@ -65,10 +66,17 @@ export class PacketPainter {
           drawPacket(px, py, packet.shape)
           continue
         }
-        const cells = packetClipCells(packet, motion)
+        const cells = packetClipCells(packet, motion, cellSize)
         ctx.save()
         ctx.beginPath()
-        for (const cell of cells) ctx.rect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize)
+        for (const cell of cells) {
+          const rect = snapTileRect(ctx, cell.x * cellSize, cell.y * cellSize, cellSize, cellSize)
+          if (rect.w <= 0 || rect.h <= 0) {
+            ctx.rect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize)
+            continue
+          }
+          ctx.rect(rect.x, rect.y, rect.w, rect.h)
+        }
         ctx.clip()
         drawPacket(px, py, packet.shape)
         ctx.restore()

@@ -41,6 +41,11 @@ export type PacketMotionState = {
   beltByCell: Map<string, BeltRecord>
   /** Belt walk for the current tick, filled on first use and cleared when the tick changes. */
   paths: Map<string, { x: number; y: number }[]>
+  /**
+   * World-pixel polyline for this hop when it must continue from a mid-cell
+   * position. Empty means the hop starts on the previous cell center.
+   */
+  course: Map<string, { px: number; py: number }[]>
   /** Geometry stamp for `beltByCell`. Updates when belts change without a new tick. */
   layoutStamp: number
 }
@@ -54,6 +59,7 @@ export function createPacketMotionState(): PacketMotionState {
     sinks: [],
     beltByCell: new Map(),
     paths: new Map(),
+    course: new Map(),
     layoutStamp: -1,
   }
 }
@@ -78,14 +84,34 @@ export function syncPacketMotion(
   const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
   state.sinks = state.sinks.filter((sink) => nowMs - sink.startedAtMs < tickMs)
 
+  const tickAdvanced = frame.tick !== state.lastTick
+  const continuations = new Map<string, { px: number; py: number }[]>()
+  if (tickAdvanced && state.lastTick >= 0 && nowMs > state.syncedAtMs) {
+    for (const packet of frame.packets) {
+      const prev = state.at.get(packet.id)
+      if (!prev) continue
+      const course = continuationCourse(
+        state,
+        { id: packet.id, x: packet.x, y: packet.y, shape: packet.shape },
+        prev,
+        frame,
+        rules,
+        nowMs,
+        cellSize,
+      )
+      if (course) continuations.set(packet.id, course)
+    }
+  }
+
   const stamp = beltLayoutStamp(frame.belts)
   if (stamp !== state.layoutStamp) {
     state.beltByCell = indexBelts(frame)
     state.layoutStamp = stamp
     state.paths = new Map()
+    state.course = new Map()
   }
 
-  if (frame.tick === state.lastTick) return
+  if (!tickAdvanced) return
 
   const nextIds = new Set(frame.packets.map((packet) => packet.id))
   const maxHop = Math.max(rules.beltSpeedFast, 1)
@@ -144,6 +170,7 @@ export function syncPacketMotion(
   }
 
   state.paths = new Map()
+  state.course = continuations
   const nextFrom = new Map<string, { x: number; y: number }>()
   for (const packet of frame.packets) {
     const prev = state.at.get(packet.id)
@@ -340,23 +367,40 @@ function beltAt(frame: PipelineFrame, x: number, y: number, index?: Map<string, 
   return frame.belts.find((belt) => belt.x === x && belt.y === y)
 }
 
-/** Cells a packet may paint in this tick: the belt walk, plus late-frame coast cells. */
+/** Cells a packet may paint in this tick: the belt walk, plus one outbound cell for glyph overhang. */
 export function packetClipCells(
   packet: { id: string; x: number; y: number },
   state: PacketMotionState,
+  cellPx: number,
 ) {
+  const cells: { x: number; y: number }[] = []
+  const seen = new Set<string>()
+  const add = (x: number, y: number) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return
+    const key = `${x},${y}`
+    if (seen.has(key)) return
+    seen.add(key)
+    cells.push({ x, y })
+  }
+
   const path = state.paths.get(packet.id)
-  const cells = path && path.length > 0 ? path.slice() : [{ x: packet.x, y: packet.y }]
+  if (path && path.length > 0) {
+    for (const cell of path) add(cell.x, cell.y)
+  } else {
+    add(packet.x, packet.y)
+  }
+
+  const course = state.course.get(packet.id)
+  if (course && cellPx > 0) {
+    for (const point of course) {
+      add(Math.round(point.px / cellPx - 0.5), Math.round(point.py / cellPx - 0.5))
+    }
+  }
+
   const belt = state.beltByCell.get(`${packet.x},${packet.y}`)
-  if (!belt) return cells
-  let cell = { x: packet.x, y: packet.y }
-  const coastSteps = Math.max(1, belt.speed ?? 1)
-  for (let i = 0; i < coastSteps; i++) {
-    const here = state.beltByCell.get(`${cell.x},${cell.y}`)
-    if (!here) break
-    cell = ahead(cell.x, cell.y, here.direction)
-    const last = cells[cells.length - 1]!
-    if (last.x !== cell.x || last.y !== cell.y) cells.push(cell)
+  if (belt) {
+    const next = ahead(packet.x, packet.y, belt.direction)
+    add(next.x, next.y)
   }
   return cells
 }
@@ -515,38 +559,119 @@ function findBeltPath(
   return null
 }
 
-/** Arc-length lerp along cell-center waypoints (stays on the L through corners). */
-function lerpAlongCells(
-  cells: { x: number; y: number }[],
-  t: number,
-  cellSize: number,
-): { px: number; py: number } {
-  if (cells.length === 0) return { px: 0, py: 0 }
-  if (cells.length === 1) return cellCenter(cells[0]!.x, cells[0]!.y, cellSize)
-  const points = cells.map((cell) => cellCenter(cell.x, cell.y, cellSize))
-  const lengths: number[] = []
-  let total = 0
+type WorldPoint = { px: number; py: number }
+
+/** Point `distance` pixels along a polyline. Extra distance holds on the last point. */
+function pointAlong(points: WorldPoint[], distance: number): WorldPoint {
+  if (points.length === 0) return { px: 0, py: 0 }
+  if (points.length === 1 || distance <= 0) return points[0]!
+  let remain = distance
   for (let i = 0; i < points.length - 1; i++) {
     const a = points[i]!
     const b = points[i + 1]!
     const len = Math.hypot(b.px - a.px, b.py - a.py)
-    lengths.push(len)
-    total += len
-  }
-  if (total < 1e-6) return points[points.length - 1]!
-  const clamped = Math.min(1, Math.max(0, t))
-  let remain = clamped * total
-  for (let i = 0; i < lengths.length; i++) {
-    const seg = lengths[i]!
-    const a = points[i]!
-    const b = points[i + 1]!
-    if (remain <= seg || i === lengths.length - 1) {
-      const u = seg < 1e-6 ? 1 : Math.min(1, remain / seg)
+    if (remain <= len || i === points.length - 1) {
+      const u = len < 1e-6 ? 1 : Math.min(1, remain / len)
       return { px: lerp(a.px, b.px, u), py: lerp(a.py, b.py, u) }
     }
-    remain -= seg
+    remain -= len
   }
   return points[points.length - 1]!
+}
+
+/** Untraveled suffix of `points`, starting at `distance` along the polyline. */
+function suffixAfter(points: WorldPoint[], distance: number): WorldPoint[] {
+  if (points.length === 0) return []
+  if (distance <= 0) return points.slice()
+  let remain = distance
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i]!
+    const b = points[i + 1]!
+    const len = Math.hypot(b.px - a.px, b.py - a.py)
+    if (remain < len - 1e-4) {
+      const u = len < 1e-6 ? 1 : remain / len
+      return [{ px: lerp(a.px, b.px, u), py: lerp(a.py, b.py, u) }, ...points.slice(i + 1)]
+    }
+    remain -= len
+  }
+  return [points[points.length - 1]!]
+}
+
+function dedupePoints(points: WorldPoint[]) {
+  const out: WorldPoint[] = []
+  for (const point of points) {
+    const prev = out[out.length - 1]
+    if (prev && Math.hypot(prev.px - point.px, prev.py - point.py) < 0.5) continue
+    out.push(point)
+  }
+  return out
+}
+
+/**
+ * Polyline for the hop that is on screen now. A stored course keeps a mid-cell
+ * start so the next server tick does not snap the icon back to a cell center.
+ */
+function hopPolyline(
+  packet: { id: string; x: number; y: number },
+  frame: PipelineFrame,
+  rules: PipelineRules,
+  state: PacketMotionState,
+  cellSize: number,
+): { poly: WorldPoint[]; pxPerMs: number } {
+  const to = { x: packet.x, y: packet.y }
+  const from = state.from.get(packet.id) ?? to
+  const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
+  const maxSteps = Math.max(rules.beltSpeedFast, 1) + 2
+  if (!state.paths.has(packet.id)) {
+    state.paths.set(packet.id, findBeltPath(frame, from, to, maxSteps, state.beltByCell) ?? [])
+  }
+  const path = state.paths.get(packet.id)
+  const speed = hopBeltSpeed(frame, path && path.length > 0 ? path : undefined, to, state.beltByCell)
+  const pxPerMs = (cellSize * speed) / tickMs
+  const custom = state.course.get(packet.id)
+  if (custom && custom.length >= 2) return { poly: custom, pxPerMs }
+
+  const cells =
+    path && path.length >= 2 ? path : sameCell(from, to) ? [to] : [from, to]
+  const poly = cells.map((cell) => cellCenter(cell.x, cell.y, cellSize))
+  if (poly.length === 1) poly.push(poly[0]!)
+  return { poly, pxPerMs }
+}
+
+/**
+ * When the next tick arrives before the icon has reached the previous cell,
+ * keep the unfinished polyline and append the new belt walk. On-time and late
+ * ticks return null so the hop starts on the cell center the icon is already on.
+ */
+function continuationCourse(
+  state: PacketMotionState,
+  packet: { id: string; x: number; y: number; shape: string },
+  prev: { x: number; y: number },
+  frame: PipelineFrame,
+  rules: PipelineRules,
+  nowMs: number,
+  cellSize: number,
+) {
+  const ghost = { id: packet.id, x: prev.x, y: prev.y, shape: packet.shape }
+  const { poly, pxPerMs } = hopPolyline(ghost, frame, rules, state, cellSize)
+  const elapsed = Math.max(0, nowMs - state.syncedAtMs)
+  const suffix = suffixAfter(poly, pxPerMs * elapsed)
+  if (suffix.length < 2) return null
+  const end = poly[poly.length - 1]
+  const start = suffix[0]
+  if (end && start && Math.hypot(start.px - end.px, start.py - end.py) < 0.5) return null
+
+  const maxSteps = Math.max(rules.beltSpeedFast, 1) + 2
+  const next = { x: packet.x, y: packet.y }
+  const path =
+    findBeltPath(frame, prev, next, maxSteps, state.beltByCell) ??
+    (sameCell(prev, next) ? [prev] : [prev, next])
+  const centers = path.map((cell) => cellCenter(cell.x, cell.y, cellSize))
+  const joined = end
+    ? centers.filter((point, index) => index > 0 || Math.hypot(point.px - end.px, point.py - end.py) >= 0.5)
+    : centers
+  const merged = dedupePoints([...suffix, ...joined])
+  return merged.length >= 2 ? merged : null
 }
 
 /**
@@ -571,7 +696,11 @@ function hopBeltSpeed(
   return Math.max(1, belt?.speed ?? 1)
 }
 
-/** Screen-space center for a packet, interpolated between server ticks (and optionally coasting on the belt). */
+/**
+ * Screen-space center for a packet. Motion stays on the belt polyline at belt
+ * speed and holds on the server cell when the next tick is late — it does not
+ * run ahead, because the following tick would pull the icon backward.
+ */
 export function packetDisplayCenter(
   packet: { id: string; x: number; y: number; shape?: string },
   frame: PipelineFrame,
@@ -580,72 +709,9 @@ export function packetDisplayCenter(
   nowMs: number,
   cellSize: number,
 ) {
-  const to = { x: packet.x, y: packet.y }
-  const from = state.from.get(packet.id) ?? to
-  const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
+  const { poly, pxPerMs } = hopPolyline(packet, frame, rules, state, cellSize)
   const elapsed = Math.max(0, nowMs - state.syncedAtMs)
-  const tickPhase = elapsed / tickMs
-
-  const maxSteps = Math.max(rules.beltSpeedFast, 1) + 2
-  if (!state.paths.has(packet.id)) {
-    state.paths.set(packet.id, findBeltPath(frame, from, to, maxSteps, state.beltByCell) ?? [])
-  }
-  const path = state.paths.get(packet.id)
-  const hopCells =
-    path && path.length >= 2
-      ? path.length - 1
-      : sameCell(from, to)
-        ? 0
-        : Math.max(1, Math.abs(to.x - from.x) + Math.abs(to.y - from.y))
-  const speed = hopBeltSpeed(frame, path, to, state.beltByCell)
-  // Cover `hopCells` at `speed` cells/tick — short hops on fast belts finish early and hold.
-  const hopDurationMs = hopCells > 0 ? (tickMs * hopCells) / speed : 0
-  const hopPhase = hopDurationMs > 0 ? elapsed / hopDurationMs : 1
-
-  if (hopPhase < 1) {
-    if (path && path.length >= 2) return lerpAlongCells(path, hopPhase, cellSize)
-    const a = cellCenter(from.x, from.y, cellSize)
-    const b = cellCenter(to.x, to.y, cellSize)
-    return { px: lerp(a.px, b.px, hopPhase), py: lerp(a.py, b.py, hopPhase) }
-  }
-
-  const belt = beltAt(frame, to.x, to.y, state.beltByCell)
-  if (!belt) {
-    return cellCenter(to.x, to.y, cellSize)
-  }
-
-  // Coast only after the next tick is late — advance at this belt's speed.
-  const late = Math.max(0, tickPhase - 1)
-  if (late <= 0) {
-    return cellCenter(to.x, to.y, cellSize)
-  }
-
-  const coastSpeed = Math.max(1, belt.speed ?? 1)
-  const coastCells = Math.min(coastSpeed, late * coastSpeed)
-  return lerpAlongBelt(frame, to, coastCells, cellSize, state.beltByCell)
-}
-
-/** Walk `distance` cells along outbound belts from `start` (fractional OK). */
-function lerpAlongBelt(
-  frame: PipelineFrame,
-  start: { x: number; y: number },
-  distance: number,
-  cellSize: number,
-  belts?: Map<string, BeltRecord>,
-) {
-  if (distance <= 0) return cellCenter(start.x, start.y, cellSize)
-  const cells: { x: number; y: number }[] = [start]
-  let cell = start
-  const steps = Math.max(1, Math.ceil(distance))
-  for (let i = 0; i < steps; i++) {
-    const belt = beltAt(frame, cell.x, cell.y, belts)
-    if (!belt) break
-    cell = ahead(cell.x, cell.y, belt.direction)
-    cells.push(cell)
-  }
-  if (cells.length < 2) return cellCenter(start.x, start.y, cellSize)
-  const t = Math.min(1, distance / (cells.length - 1))
-  return lerpAlongCells(cells, t, cellSize)
+  return pointAlong(poly, pxPerMs * elapsed)
 }
 
 /** Screen-space center while a packet slides into a machine input (drawn under machines). */

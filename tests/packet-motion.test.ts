@@ -52,16 +52,99 @@ test('packetDisplayCenter lerps between ticks', () => {
   assert.equal(mid.px, (3 * cell))
 })
 
-test('packetDisplayCenter coasts along belt after one tickMs', () => {
+test('packetDisplayCenter holds on the cell when the next tick is late', () => {
   const motion = createPacketMotionState()
   const f = frame(3, [{ id: 'p1', x: 2, y: 2, shape: 'circle' }])
   syncPacketMotion(motion, f, rules, 0, cell)
 
   const settled = packetDisplayCenter({ id: 'p1', x: 2, y: 2, shape: 'circle' }, f, rules, motion, 250, cell)
-  const coastMid = packetDisplayCenter({ id: 'p1', x: 2, y: 2, shape: 'circle' }, f, rules, motion, 375, cell)
+  const late = packetDisplayCenter({ id: 'p1', x: 2, y: 2, shape: 'circle' }, f, rules, motion, 375, cell)
 
   assert.equal(settled.px, 2.5 * cell)
-  assert.equal(coastMid.px, 3 * cell)
+  assert.equal(late.px, 2.5 * cell)
+})
+
+test('packetDisplayCenter does not rewind when a late tick arrives', () => {
+  const motion = createPacketMotionState()
+  const belts = [0, 1, 2].map((x) => ({
+    id: `b${x}`,
+    x,
+    y: 2,
+    direction: 'east' as const,
+    authorId: 'a',
+    authorNickname: 'n',
+    placedAt: x,
+  }))
+  const at = (tick: number, x: number) => {
+    const next = frame(tick, [{ id: 'p1', x, y: 2, shape: 'circle' }])
+    next.belts = belts
+    return next
+  }
+
+  syncPacketMotion(motion, at(0, 0), rules, 0, cell)
+  syncPacketMotion(motion, at(1, 1), rules, rules.tickMs, cell)
+  const held = packetDisplayCenter(
+    { id: 'p1', x: 1, y: 2, shape: 'circle' },
+    at(1, 1),
+    rules,
+    motion,
+    rules.tickMs * 2,
+    cell,
+  )
+  assert.ok(Math.abs(held.px - 1.5 * cell) < 1e-6)
+
+  syncPacketMotion(motion, at(2, 2), rules, rules.tickMs * 2 + 100, cell)
+  const resumed = packetDisplayCenter(
+    { id: 'p1', x: 2, y: 2, shape: 'circle' },
+    at(2, 2),
+    rules,
+    motion,
+    rules.tickMs * 2 + 100,
+    cell,
+  )
+  assert.ok(Math.abs(resumed.px - held.px) < 1e-6)
+  const advanced = packetDisplayCenter(
+    { id: 'p1', x: 2, y: 2, shape: 'circle' },
+    at(2, 2),
+    rules,
+    motion,
+    rules.tickMs * 2 + 200,
+    cell,
+  )
+  assert.ok(advanced.px > resumed.px)
+})
+
+test('packetDisplayCenter continues from the on-screen point when the next tick arrives early', () => {
+  const motion = createPacketMotionState()
+  const belts = [0, 1, 2, 3].map((x) => ({
+    id: `b${x}`,
+    x,
+    y: 2,
+    direction: 'east' as const,
+    authorId: 'a',
+    authorNickname: 'n',
+    placedAt: x,
+  }))
+  const at = (tick: number, x: number) => {
+    const next = frame(tick, [{ id: 'p1', x, y: 2, shape: 'circle' }])
+    next.belts = belts
+    return next
+  }
+
+  syncPacketMotion(motion, at(0, 0), rules, 0, cell)
+  syncPacketMotion(motion, at(1, 1), rules, 250, cell)
+  const before = packetDisplayCenter({ id: 'p1', x: 1, y: 2, shape: 'circle' }, at(1, 1), rules, motion, 400, cell)
+  // 150ms of a 250ms hop from cell 0 to cell 1 → 0.6 cell past the start center.
+  assert.ok(Math.abs(before.px - (0.5 + 0.6) * cell) < 1e-6)
+
+  syncPacketMotion(motion, at(2, 2), rules, 400, cell)
+  const atTick = packetDisplayCenter({ id: 'p1', x: 2, y: 2, shape: 'circle' }, at(2, 2), rules, motion, 400, cell)
+  assert.ok(Math.abs(atTick.px - before.px) < 1e-6)
+  assert.ok(Math.abs(atTick.py - 2.5 * cell) < 1e-6)
+
+  const later = packetDisplayCenter({ id: 'p1', x: 2, y: 2, shape: 'circle' }, at(2, 2), rules, motion, 500, cell)
+  assert.ok(later.px > atTick.px)
+  assert.ok(later.px < 2.5 * cell)
 })
 
 test('packetDisplayCenter follows an L-shaped multi-hop path instead of cutting the corner', () => {

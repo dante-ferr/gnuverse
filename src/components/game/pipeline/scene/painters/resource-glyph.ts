@@ -45,13 +45,79 @@ export function drawOutlinedResourceGlyph(
   if (!image || !image.complete || image.naturalWidth <= 0 || size <= 0) return
   const baked = getOutlinedGlyph(image, fill, size, outline, cache)
   if (!baked) return
-  ctx.drawImage(
-    baked.canvas,
+  const rect = snapSpriteRect(
+    ctx,
     cx - baked.displaySize / 2,
     cy - baked.displaySize / 2,
     baked.displaySize,
     baked.displaySize,
   )
+  if (rect.w < 0.01 || rect.h < 0.01) return
+  ctx.drawImage(baked.canvas, rect.x, rect.y, rect.w, rect.h)
+}
+
+/**
+ * Snap a sprite's top-left to a device pixel and keep its size constant.
+ * Rounding both edges makes the width flicker by one pixel as the sprite moves.
+ */
+export function snapSpriteRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+) {
+  const t = ctx.getTransform()
+  if (!axisScale(t.a) || !axisScale(t.d)) return { x, y, w, h }
+  const snappedW = Math.max(1, Math.round(w * t.a))
+  const snappedH = Math.max(1, Math.round(h * t.d))
+  const x0 = Math.round(x * t.a + t.e)
+  const y0 = Math.round(y * t.d + t.f)
+  return {
+    x: (x0 - t.e) / t.a,
+    y: (y0 - t.f) / t.d,
+    w: snappedW / t.a,
+    h: snappedH / t.d,
+  }
+}
+
+/**
+ * Snap a tile so shared edges meet. Floor both sides so neighboring belt cells
+ * neither gap nor overlap after the camera transform.
+ */
+export function snapTileRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+) {
+  const t = ctx.getTransform()
+  if (!axisScale(t.a) || !axisScale(t.d)) return { x, y, w, h }
+  const x0 = Math.floor(x * t.a + t.e)
+  const y0 = Math.floor(y * t.d + t.f)
+  const x1 = Math.floor((x + w) * t.a + t.e)
+  const y1 = Math.floor((y + h) * t.d + t.f)
+  return {
+    x: (x0 - t.e) / t.a,
+    y: (y0 - t.f) / t.d,
+    w: (x1 - x0) / t.a,
+    h: (y1 - y0) / t.d,
+  }
+}
+
+function axisScale(scale: number) {
+  return Number.isFinite(scale) && Math.abs(scale) >= 1e-6
+}
+
+function snapDevice(value: number, scale: number, origin: number) {
+  if (!axisScale(scale)) return value
+  return (Math.round(value * scale + origin) - origin) / scale
+}
+
+function snapWorldPoint(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const t = ctx.getTransform()
+  return { x: snapDevice(x, t.a, t.e), y: snapDevice(y, t.d, t.f) }
 }
 
 /**
@@ -66,6 +132,9 @@ export function drawOutlinedResourceDisk(
   radius: number,
   outline: ResourceGlyphOutline,
 ) {
+  const snapped = snapWorldPoint(ctx, cx, cy)
+  cx = snapped.x
+  cy = snapped.y
   const black = Math.max(0, outline.innerWidthPx)
   const white = Math.max(0, outline.outerWidthPx)
   const spread = Math.max(0.5, outline.spread)
