@@ -94,7 +94,7 @@ export class MachineEditor {
       const error = this.placeTrashcan(spec, author)
       return { error, billable: error == null, refund: false }
     }
-    const error = this.placeCombiner(spec, author)
+    const error = this.placeCombiner(spec as CombinerPlaceRequest, author)
     return { error, billable: error == null, refund: false }
   }
 

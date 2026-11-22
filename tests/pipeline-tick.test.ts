@@ -136,7 +136,7 @@ test('deliveries count per shape and surface on frame demands', () => {
   const received = match.deliveryByShape[shape] ?? 0
   assert.ok(received > 0)
   const scoreTotal = Object.entries(match.deliveryByShape).reduce(
-    (sum, [s, count]) => sum + deliveryScore(rules, s) * count,
+    (sum, [s, count]) => sum + deliveryScore(rules, s) * (count ?? 0),
     0,
   )
   assert.equal(match.deliveries, scoreTotal)

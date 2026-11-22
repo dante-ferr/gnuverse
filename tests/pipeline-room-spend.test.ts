@@ -31,13 +31,16 @@ test('publicRoom exposes deliveries score', () => {
     events: [],
     snapshots: [],
     proposals: [],
+    allowCreatorBan: false,
+    chat: [],
+    beltCount: 0,
   }
   const rooms = new RoomService(
     { state: { rooms: {} } } as never,
     { pipeline: testPipelineRules(), maxRooms: 1, maxRoomsPerCreator: 1, chatCooldownMs: 0, chatHistoryLimit: 1, chatMessageMaxLength: 100, startingBalance: 0, startingPassiveCap: 0 } as never,
     () => 0,
     { read: () => ({ balance: 0 }), spend: () => ({ balance: 0 }), credit: () => ({ balance: 0 }) } as never,
-    { publicFrame: (r) => r.frame, afterAction: () => {}, remove: () => {}, publishChat: () => {} } as never,
+    { publicFrame: (r: { frame: unknown }) => r.frame, afterAction: () => {}, remove: () => {}, publishChat: () => {} } as never,
     { event: () => {} } as never,
   )
   assert.equal(rooms.publicRoom(room).deliveries, 42)

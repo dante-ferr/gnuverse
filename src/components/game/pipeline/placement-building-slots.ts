@@ -71,11 +71,17 @@ export function buildingBodyKeysFromFrame(frame: PipelineFrame): Set<string> {
   return buildingBodyKeySet(machinesFromFrame(frame))
 }
 
+type ProbeSlot = {
+  cell: { x: number; y: number }
+  role: 'input' | 'output'
+  travel: Direction
+}
+
 export function splitterProbeSlots(
   x: number,
   y: number,
   facing: Direction,
-): readonly { cell: { x: number; y: number } }[] {
+): readonly ProbeSlot[] {
   return new SplitterMachine('probe', { x, y }, facing, PREVIEW_AUTHOR).slots
 }
 
@@ -83,7 +89,7 @@ export function trashcanProbeSlots(
   x: number,
   y: number,
   facing: Direction,
-): readonly { cell: { x: number; y: number } }[] {
+): readonly ProbeSlot[] {
   return new TrashcanMachine('probe', { x, y }, facing).slots
 }
 
@@ -92,7 +98,7 @@ export function combinerProbeSlots(
   x: number,
   y: number,
   facing: Direction,
-): readonly { cell: { x: number; y: number } }[] {
+): readonly ProbeSlot[] {
   return new CombinerMachine('probe', machineId, { x, y }, facing).slots
 }
 
@@ -101,7 +107,7 @@ export function tunnelProbeSlots(
   exit: { x: number; y: number },
   facing: Direction,
   gap: number,
-): readonly { cell: { x: number; y: number } }[] {
+): readonly ProbeSlot[] {
   const entrancePortal = new TunnelPortalMachine(
     'probe:in',
     entrance,

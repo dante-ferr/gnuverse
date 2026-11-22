@@ -25,10 +25,13 @@ function chunkLocalOrigin(coord: ChunkCoord, originChunk: ChunkCoord, chunkSize:
   }
 }
 
+export type SandboxLayout = Omit<
+  MatchLayout,
+  'generatedChunkKeys' | 'satelliteChunkKeys' | 'grassChunkKey'
+>
+
 /** Sandbox grid: 3×3 owned chunks, three cores, all tier-1 element sources. */
-export function layoutSandboxFromSeed(rules: PipelineRules, seed: string): MatchLayout & {
-  coreOrigins: Cell[]
-} {
+export function layoutSandboxFromSeed(rules: PipelineRules, seed: string): SandboxLayout {
   const chunkSize = rules.chunkSize
   const extent = rules.mapChunkExtent
   const starter = starterChunkCoord(extent)
@@ -52,8 +55,6 @@ export function layoutSandboxFromSeed(rules: PipelineRules, seed: string): Match
     { x: center.x + chunkSize + inset, y: center.y + inset },
     { x: center.x + inset, y: center.y + chunkSize + inset },
   ]
-  const coreOrigin = coreOrigins[0]!
-
   const sources = layoutSandboxTierOneSources(rules, seed, coreOrigins, width, height)
 
   return {
@@ -62,7 +63,6 @@ export function layoutSandboxFromSeed(rules: PipelineRules, seed: string): Match
     height,
     ownedChunks,
     previewChunks,
-    coreOrigin,
     coreOrigins,
     sources,
   }
@@ -143,9 +143,9 @@ function layoutSandboxTierOneSources(
 
 export function sandboxMachinesFromLayout(
   rules: PipelineRules,
-  layout: MatchLayout & { coreOrigins?: Cell[] },
+  layout: SandboxLayout | MatchLayout,
 ) {
-  const coreOrigins = layout.coreOrigins ?? [layout.coreOrigin]
+  const coreOrigins = layout.coreOrigins
   const cores = coreOrigins.map((origin, index) => new CoreMachine(`core-${index}`, origin))
   const roles: Record<string, PlacedSource['role']> = {}
   const sources = layout.sources.map((spec) => {

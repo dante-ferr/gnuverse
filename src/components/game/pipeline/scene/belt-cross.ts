@@ -36,7 +36,7 @@ export type BeltCrossQuery = {
   maxGap: () => number
   occupancy: () => BeltOccupancy
   /** Live belts for owned-belt clears before a tunnel portal. */
-  belts?: () => readonly { x: number; y: number; direction: Direction; authorId?: string }[]
+  belts?: () => readonly { x: number; y: number; direction: Direction; authorId?: string; speed?: number }[]
   /** Machine ports that can feed an entrance or accept an exit without a spacer belt. */
   ports?: () => readonly PortSlot[]
 }

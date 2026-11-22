@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev cms site sync build preview check test typecheck mailpit cms-reset cms-seed cms-fresh cms-set-host-admin test-blog test-blog-ci docs-serve elements-serve
+.PHONY: help setup dev cms site sync build preview check test typecheck hooks mailpit cms-reset cms-seed cms-fresh cms-set-host-admin test-blog test-blog-ci docs-serve elements-serve
 
 help:
 	@printf '%s\n' 'GNUverse — commands' '' \
@@ -27,6 +27,7 @@ setup:
 	npm run cms:setup
 	node scripts/setup-site.mjs
 	npm run cms:bootstrap
+	$(MAKE) hooks
 
 dev:
 	node scripts/dev.ts
@@ -77,6 +78,10 @@ check:
 test:
 	npm test
 	npm --prefix cms test
+
+# Run typecheck before every push (CI's `next build` fails on type errors; `next dev` does not).
+hooks:
+	git config core.hooksPath .githooks
 
 typecheck:
 	npm run typecheck

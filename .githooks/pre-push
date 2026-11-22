@@ -1,0 +1,3 @@
+#!/bin/sh
+# Catch the type errors that `next dev` ignores but `next build` (CI deploy) rejects.
+npm run typecheck

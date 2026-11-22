@@ -27,9 +27,6 @@ function frameWithTunnel(speed = 1): PipelineFrame {
       id: 'c',
       x: 20,
       y: 20,
-      width: 5,
-      height: 5,
-      demands: [],
     },
     tunnels: [
       {
@@ -103,8 +100,8 @@ test('createTunnelUpgradeSession commits the selected tunnel speed on finish', (
     facing: 'east',
   })
   assert.equal(session.push({ x: 10, y: 12 }), false)
-  assert.equal(session.previewMachines()?.[0]?.machineId, 'tunnel')
-  assert.deepEqual(session.finish(), {
+  assert.equal(session.previewMachines?.()?.[0]?.machineId, 'tunnel')
+  assert.deepEqual(session.finish!(), {
     structureId: 'tunnel',
     payload: {
       machineId: 'tunnel',

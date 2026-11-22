@@ -1381,6 +1381,7 @@ function previewBuyAnchor(
   const centerY = top + extent / 2
   return [
     {
+      kind: 'chunk' as const,
       key: `${coord.cx},${coord.cy}`,
       cx: coord.cx,
       cy: coord.cy,

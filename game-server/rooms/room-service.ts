@@ -529,7 +529,7 @@ export class RoomService {
     participant: Member,
     match: Match,
     eventType: string,
-    structure: 'belt' | 'fast_belt' | 'fast_tunnel' | 'tunnel' | 'splitter' | 'combiner' = 'belt',
+    structure: 'belt' | 'fast_belt' | 'fast_tunnel' | 'tunnel' | 'splitter' | 'combiner' | 'trashcan' = 'belt',
     detail: Record<string, unknown> = {},
   ) {
     room.frame = match.toFrame()
