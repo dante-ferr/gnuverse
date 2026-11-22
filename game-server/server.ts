@@ -16,6 +16,7 @@ import {
   applyLoadedGameConfig,
   resolveGameConfigPath,
 } from './config/load-game-config.ts'
+import { resolveGameAllowedOrigins } from './config/runtime-env.ts'
 import { watchGameConfig } from './config/watch-game-config.ts'
 
 /** Composition root. Domain services own behavior; transport only maps requests. */
@@ -58,14 +59,7 @@ export function createGameServer(options: ServerOptions = {}) {
     history,
   )
   const governance = new GovernanceService(rules, now, runtime, history)
-  const origins =
-    options.allowedOrigins ??
-    (
-      process.env.GAME_ALLOWED_ORIGINS ??
-      'http://localhost:3000,http://127.0.0.1:3000'
-    )
-      .split(',')
-      .map((value) => value.trim())
+  const origins = options.allowedOrigins ?? resolveGameAllowedOrigins()
   const application = new HttpApplication({
     store,
     rules,

@@ -21,6 +21,7 @@
     "test:blog": "node scripts/test-blog.ts",
     "test:blog:ci": "node scripts/test-blog.ts --once --no-browser",
     "game:dev": "node --watch --env-file-if-exists=.env.local game-server/index.ts",
+    "game:start": "node game-server/index.ts",
     "elements:build": "node --experimental-strip-types scripts/elements/build.mjs",
     "elements:serve": "node --experimental-strip-types scripts/elements/serve.mjs",
     "elements:graph": "node scripts/visualize-elements.mjs"

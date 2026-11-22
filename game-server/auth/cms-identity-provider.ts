@@ -7,13 +7,7 @@ import type {
 import { ROLES } from '../../core/authz/policy.ts'
 import { fail } from '../domain/validation.ts'
 import { cmsErrorMessage } from './cms-error.ts'
-
-function resolveCMSBaseURL() {
-  const explicit = process.env.CMS_URL?.trim()
-  if (explicit) return explicit.replace(/\/$/, '')
-  const port = process.env.CMS_PORT?.trim() || '3001'
-  return `http://localhost:${port}`
-}
+import { resolveCMSBaseURL } from '../config/runtime-env.ts'
 
 /** Payload is an adapter to the identity contract, never a second credential database. */
 export class CMSIdentityProvider implements IdentityProvider {

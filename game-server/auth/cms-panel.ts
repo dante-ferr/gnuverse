@@ -1,4 +1,5 @@
 import { fail } from '../domain/validation.ts'
+import { resolveCMSBaseURL } from '../config/runtime-env.ts'
 
 type PanelHeaders = { cookie?: string; authorization?: string }
 
@@ -6,7 +7,7 @@ type PanelHeaders = { cookie?: string; authorization?: string }
 export async function verifyCMSPanel(
   headers: PanelHeaders,
   path: '/api/access-management/verify' | '/api/access-management/verify-chat-moderator',
-  cmsURL = process.env.CMS_URL || `http://localhost:${process.env.CMS_PORT || 3001}`,
+  cmsURL = resolveCMSBaseURL(),
 ) {
   if (!headers.cookie && !headers.authorization) fail(401, 'Entre no painel administrativo.')
   let response: Response

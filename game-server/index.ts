@@ -1,8 +1,9 @@
 import { createGameServer } from './server.ts'
+import { resolveGameHost, resolveGamePort } from './config/runtime-env.ts'
 
 const game = createGameServer()
-const port = Number(process.env.GAME_PORT ?? 3002)
-const host = process.env.GAME_HOST ?? '127.0.0.1'
+const port = resolveGamePort()
+const host = resolveGameHost()
 await game.listen(port, host)
 console.log(`GNUverse game listening on http://${host}:${port}`)
 for (const signal of ['SIGINT', 'SIGTERM'])
