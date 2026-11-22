@@ -1,12 +1,14 @@
 import type { Direction } from '../geometry/direction.ts'
 import type { PacketShape } from '../packets/packet.ts'
-import type { CoreDemandRecord } from './demands.ts'
+import type { CoreDemandRecord } from './progression/demands.ts'
+import type { SourceRole } from './types.ts'
 
 export type BeltRecord = {
   id: string
   x: number
   y: number
   direction: Direction
+  speed?: number
   authorId: string
   authorNickname: string
   placedAt: number
@@ -21,32 +23,151 @@ export type PacketRecord = {
 
 export type CollaboratorRecord = { id: string; nickname: string }
 
+export type ChunkCoordRecord = { cx: number; cy: number }
+
+export type ChunkBackerRecord = { userId: string; amount: number }
+
+/** Coins already added toward one preview chunk. The price is not stored; it follows the room's next chunk cost. */
+export type ChunkPledgeRecord = {
+  cx: number
+  cy: number
+  paid: number
+  backers: ChunkBackerRecord[]
+}
+
+export type SourceRecord = {
+  id: string
+  x: number
+  y: number
+  direction: Direction
+  shape: PacketShape
+  role: SourceRole
+  cooldown: number
+}
+
+export type CoreRecord = {
+  id: string
+  x: number
+  y: number
+  /** Match tick index of the last packet this core consumed (omit / undefined = never). */
+  lastIntakeTick?: number
+}
+
+export type CombinerRecord = {
+  id: string
+  machineId: 'combiner_2' | 'combiner_3'
+  recipeId: string | null
+  x: number
+  y: number
+  facing: Direction
+  buffer: Record<string, number>
+  craftRemaining: number | null
+  pendingOutputs: string[] | null
+  nextSplitPort: 0 | 1
+  authorId: string
+  authorNickname: string
+}
+
+export type TrashcanRecord = {
+  id: string
+  x: number
+  y: number
+  facing: Direction
+  authorId: string
+  authorNickname: string
+}
+
+export type SplitterRecord = {
+  id: string
+  x: number
+  y: number
+  facing: Direction
+  authorId: string
+  authorNickname: string
+  nextSplitPort: 0 | 1 | 2
+  buffer: PacketShape | null
+}
+
+export type TunnelPortalRecord = {
+  id: string
+  pairId: string
+  role: 'entrance' | 'exit'
+  x: number
+  y: number
+  direction: Direction
+  speed?: number
+  authorId: string
+  authorNickname: string
+  /** Entrance only: underground gap cells (null = empty). */
+  queue?: (PacketShape | null)[]
+  /** Entrance only: packet dwelling on the entrance tile (gap ≥ 1). */
+  pendingIngress?: PacketShape | null
+  /** Entrance only: packet dwelling on the exit tile (gap ≥ 1). */
+  pendingEgress?: PacketShape | null
+  /**
+   * Entrance only: shapes that entered this tick and already left the lane
+   * (gap 0, or a short lane that cleared before the snapshot).
+   */
+  transit?: PacketShape[]
+}
+
 /** Persisted match. Classes are rebuilt from this on each tick. */
 export type PipelineFrame = {
   kind: 'pipeline'
   version: string
+  chapter?: number
+  /** Room clears completed (sidebar Onda). */
+  escalationWave?: number
+  /** Per-shape craft escalation wave. */
+  escalationWaveByShape?: Partial<Record<PacketShape, number>>
+  /** Fresh craft-wave deliveries (omit / empty during sandbox). */
+  waveDeliveryByShape?: Partial<Record<PacketShape, number>>
   seed: string
   width: number
   height: number
   tick: number
-  /** Sum of all shape deliveries (legacy aggregate; mirrors deliveryByShape). */
+  /** Lifetime delivery score (Pontuação); per-shape packet counts live in demands / deliveryByShape. */
   deliveries: number
   deliveryByShape: Partial<Record<PacketShape, number>>
   demands: CoreDemandRecord[]
   collaborators: CollaboratorRecord[]
   nextPacketId: number
   nextBeltSeq: number
+  nextCombinerSeq?: number
+  nextSplitterSeq?: number
+  nextTunnelSeq?: number
+  nextTrashcanSeq?: number
+  sandbox?: boolean
   belts: BeltRecord[]
   packets: PacketRecord[]
-  source: {
-    id: string
-    x: number
-    y: number
-    direction: Direction
-    shape: PacketShape
-    cooldown: number
-  }
-  core: { id: string; x: number; y: number }
+  /** Destination cell key → last inbound cell key that won a merge into it. */
+  mergeLast?: Record<string, string>
+  /** Approach cell key → last winner between input pull and belt-forward flow. */
+  pullLast?: Record<string, 'pull' | 'flow'>
+  originChunk: ChunkCoordRecord
+  ownedChunks: ChunkCoordRecord[]
+  previewChunks: ChunkCoordRecord[]
+  /** Partial funding for preview chunks. Omitted on older saves. */
+  chunkPledges?: ChunkPledgeRecord[]
+  /** Partial funding for optional cores on owned chunks. */
+  corePledges?: ChunkPledgeRecord[]
+  generatedChunkKeys?: string[]
+  /** Optional core reservations (`"cx,cy"`); cores appear after pooled purchase. */
+  optionalCoreChunkKeys?: string[]
+  /** Lifetime coins charged in-room per user id (spend ranking). */
+  spentByUserId?: Record<string, number>
+  /** Reserved satellite core chunks (`"cx,cy"`); cores spawn when previewed. */
+  satelliteChunkKeys?: string[]
+  grassChunkKey?: string
+  sources: SourceRecord[]
+  /** First source mirror for legacy readers. */
+  source: Omit<SourceRecord, 'role'> & { role?: SourceRole }
+  core: CoreRecord
+  cores?: CoreRecord[]
+  combiners?: CombinerRecord[]
+  splitters?: SplitterRecord[]
+  trashcans?: TrashcanRecord[]
+  tunnels?: TunnelPortalRecord[]
 }
 
 export function isPipelineFrame(value: unknown): value is PipelineFrame {

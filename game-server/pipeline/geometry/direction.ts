@@ -19,3 +19,16 @@ export function opposite(direction: Direction): Direction {
   if (direction === 'east') return 'west'
   return 'east'
 }
+
+/** Left relative to travel (facing). */
+export function leftOf(direction: Direction): Direction {
+  if (direction === 'north') return 'west'
+  if (direction === 'east') return 'north'
+  if (direction === 'south') return 'east'
+  return 'south'
+}
+
+/** Right relative to travel (facing). */
+export function rightOf(direction: Direction): Direction {
+  return opposite(leftOf(direction))
+}

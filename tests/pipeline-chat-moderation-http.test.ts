@@ -51,7 +51,7 @@ test('CMS chat moderators can list, delete, and clear room chat', async () => {
     })
     assert.equal(register.status, 201)
     const { token } = (await register.json()) as { token: string }
-    const created = await fetch(`${base}/api/towers`, {
+    const created = await fetch(`${base}/api/rooms`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Sala moderada' }),
@@ -61,7 +61,7 @@ test('CMS chat moderators can list, delete, and clear room chat', async () => {
 
     for (const text of ['primeira', 'segunda', 'terceira']) {
       time += 1000
-      const posted = await fetch(`${base}/api/towers/${room.id}/chat`, {
+      const posted = await fetch(`${base}/api/rooms/${room.id}/chat`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -112,7 +112,7 @@ test('CMS chat moderators can list, delete, and clear room chat', async () => {
     assert.equal(afterClear.removed, 2)
     assert.equal(afterClear.chat.length, 0)
 
-    const publicDetail = await fetch(`${base}/api/towers/${room.id}`)
+    const publicDetail = await fetch(`${base}/api/rooms/${room.id}`)
     const state = (await publicDetail.json()) as { chat: unknown[] }
     assert.equal(state.chat.length, 0)
   } finally {

@@ -1,7 +1,10 @@
 export type User = { id: string; nickname: string; roles?: readonly import('../../../../core/authz/policy').Role[] }
 export type Wallet = {
   balance: number
+  /** Passive-income cap shown in the HUD. */
   cap: number
+  /** Absolute balance maximum. */
+  absoluteCap?: number
   nextCoinAt: number | null
   intervalMs: number
 }
@@ -14,6 +17,8 @@ export type Room = {
   eligibilityMode: 'automatic' | 'manual'
   minContributions: number
   beltCount: number
+  /** Lifetime craft deliveries (Pontuação). */
+  deliveries?: number
   actionCount?: number
   outcome?: 'playing' | 'won' | 'lost'
 }

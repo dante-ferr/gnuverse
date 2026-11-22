@@ -1,63 +1,23 @@
-# Regras ajustáveis do protótipo local do GNUverse.
-# Durações usam milissegundos, exceto quando o nome explicita outra unidade.
+# GNUverse local prototype rules. Durations in ms unless noted.
+# Server / lobby / chat / session. Gameplay and presentation live in pipeline.toml;
+# the element catalog lives in elements.toml. game:dev hot-reloads those siblings on save.
 
-# Carteira e ritmo (Open Pipeline: +1 a cada 6s, teto 5, saldo inicial 5)
-balance_cap = 5
-initial_balance = 5
-coin_interval_ms = 6000
-action_cooldown_ms = 0
-default_cost = 1
-max_cost = 20
+# Account wallet. Income rate, caps, and structure prices live in pipeline.toml.
+initial_balance = 120 # Starting coins (cannot exceed passive_cap)
+action_cooldown_ms = 0 # Min gap between billable placements (0 = none)
+# Proposals and participation
+min_contributions = 10 # Distinct contributors to advance a proposal
+ban_duration_ms = 600000 # Moderation ban length
 
-# Propostas e participação
-min_contributions = 3
-ban_duration_ms = 600000
+# Prototype and session limits
+max_belts = 200 # Belt cells per pipeline room
+max_rooms = 200 # Concurrent rooms on this server
+max_rooms_per_creator = 3 # Rooms one non-admin player may own at once
+session_duration_ms = 604800000 # Room lifetime before expiry
+prototype = true # Prototype-only behaviors
+bdfl_veto = false # Reserved; must stay false in v0.1
 
-# Limites do protótipo
-max_belts = 200
-max_rooms = 200
-session_duration_ms = 604800000
+# In-room chat
 chat_message_max_length = 280
-chat_history_limit = 100
-chat_cooldown_ms = 1000
-prototype = true
-bdfl_veto = false
-
-# Open Pipeline v0.1. Source is 3×3; core is 5×5 with 3 inputs per face (12 total).
-[pipeline]
-tick_ms = 250
-grid_width = 24
-grid_height = 24
-tile_cap = 25
-source_period_ticks = 4
-color_background = "#0e171d"
-color_grid = "#23343c"
-color_belt = "#9eb0b7"
-color_packet = "#52d6c9"
-color_core = "#ffffff"
-color_source = "#52d6c9"
-color_accent = "#52d6c9"
-color_decor = "#1a4542"
-decor_darken_percent = 35
-outline_width_px = 3
-color_outline = "#0a1014"
-color_surface = "#17252c"
-color_muted = "#6a7b83"
-color_highlight = "#86e7dd"
-color_warning = "#ff8b7d"
-color_success = "#5ed4b0"
-color_ink = "#293c45"
-decor_stroke_width = 28
-resource_glyph_size_px = 28
-resource_glyph_orbit_px = 4
-resource_glyph_orbit_ms = 4000
-belt_chevron_stroke_px = 6
-belt_chevron_flow_ms = 900
-machine_clearance_min = 1
-core_clearance_extra = 2
-core_demand_circle = 20
-slot_input_depth_percent = 22
-slot_output_depth_percent = 34
-slot_bracket_thick_percent = 18
-slot_flow_mark_depth_percent = 12
-unlock_collaborators = 2
+chat_history_limit = 100 # Messages kept for reconnect
+chat_cooldown_ms = 1000 # Min gap between sends per player

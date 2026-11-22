@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CreateRoomPanel } from './construction/create-room-panel'
-import { createRoomFromForm } from './api/create-room'
+import { createRoomFromForm, createSandboxRoom } from './api/create-room'
 import { useActionFeedback } from './hooks/use-action-feedback'
 import { DEFAULT_ROOM_FILTERS, type RoomFilters, useRoomLobby } from './hooks/use-room-lobby'
 import { useGameSession } from './hooks/use-game-session'
 import { RoomCover } from './construction/room-cover'
 import styles from './game-shell.module.css'
+
+function formatPontuacao(value: number): string {
+  return new Intl.NumberFormat('pt-BR').format(value)
+}
 
 export function PipelineLobby() {
   const session = useGameSession()
@@ -18,7 +22,7 @@ export function PipelineLobby() {
   const [showCreate, setShowCreate] = useState(false)
   const [search, setSearch] = useState('')
   const { filters, setFilters } = lobby
-  const hasFilters = Boolean(filters.search.trim() || filters.cost !== 'all' || filters.mine)
+  const hasFilters = Boolean(filters.search.trim() || filters.mine)
 
   useEffect(() => {
     if (!session.user && filters.mine) setFilters({ mine: false })
@@ -31,7 +35,7 @@ export function PipelineLobby() {
   const createRoom = (form: HTMLFormElement) => feedback.run(async () => {
     const result = await createRoomFromForm(session.api, form)
     setShowCreate(false)
-    router.push(`/jogo/torre/?id=${encodeURIComponent(result.room.id)}`)
+    router.push(`/jogo/sala/?id=${encodeURIComponent(result.room.id)}`)
   })
 
   return (
@@ -42,14 +46,41 @@ export function PipelineLobby() {
           <h1>Open Pipeline</h1>
           <p>Escolha uma sala para ligar esteiras com a comunidade.</p>
         </div>
-        <button type="button" className={styles.primary} onClick={() => {
-          feedback.setError('')
-          if (!session.user) {
-            router.push('/login/?next=%2Fjogo%2F%3Fnovo%3D1&notice=login-required')
-            return
-          }
-          setShowCreate(true)
-        }}>Nova sala</button>
+        <div className={styles.roomFilterActions}>
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={() => {
+              feedback.setError('')
+              if (!session.user) {
+                router.push('/login/?next=%2Fjogo%2F%3Fnovo%3D1&notice=login-required')
+                return
+              }
+              setShowCreate(true)
+            }}
+          >
+            Nova sala
+          </button>
+          {lobby.rules?.sandboxAllowed === true ? (
+            <button
+              type="button"
+              className={styles.secondary}
+              disabled={feedback.busy || !session.user}
+              onClick={() =>
+                feedback.run(async () => {
+                  if (!session.user) {
+                    router.push('/login/?next=%2Fjogo%2F%3Fnovo%3D1&notice=login-required')
+                    return
+                  }
+                  const result = await createSandboxRoom(session.api)
+                  router.push(`/jogo/sala/?id=${encodeURIComponent(result.room.id)}`)
+                })
+              }
+            >
+              Sala teste (elementos)
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {feedback.notice && <p className={styles.message} role="status">{feedback.notice}</p>}
@@ -60,8 +91,6 @@ export function PipelineLobby() {
           error={feedback.error || (lobby.connection === 'offline' ? 'Servidor indisponível. Reconectando…' : '')}
           loading={!lobby.rules}
           loginHref={session.user ? undefined : '/login/?next=%2Fjogo%2F%3Fnovo%3D1'}
-          maxCost={Number(lobby.rules?.maxCost ?? 0)}
-          defaultCost={Number(lobby.rules?.defaultCost ?? 0)}
           minContributions={Number(lobby.rules?.minContributions ?? 1)}
           onClose={() => setShowCreate(false)}
           onCreateRoom={createRoom}
@@ -92,21 +121,12 @@ export function PipelineLobby() {
             </div>
           </div>
           <label>
-            Custo de referência
-            <select value={filters.cost} onChange={(event) => setFilters({ cost: event.target.value as RoomFilters['cost'] })}>
-              <option value="all">Todos os custos</option>
-              <option value="free">Gratuitas</option>
-              <option value="paid">Com custo</option>
-            </select>
-          </label>
-          <label>
             Ordenar por
             <select value={filters.sort} onChange={(event) => setFilters({ sort: event.target.value as RoomFilters['sort'] })}>
               <option value="oldest">Ordem de criação</option>
               <option value="name">Nome (A–Z)</option>
-              <option value="cost-asc">Menor custo</option>
-              <option value="cost-desc">Maior custo</option>
               <option value="belts-desc">Mais esteiras</option>
+              <option value="score-desc">Pontuação</option>
             </select>
           </label>
           <div className={styles.roomFilterActions}>
@@ -127,14 +147,16 @@ export function PipelineLobby() {
           {lobby.rooms.length ? (
             <div className={styles.roomGrid}>
               {lobby.rooms.map((room) => (
-                <a className={styles.roomCard} key={room.id} href={`/jogo/torre/?id=${encodeURIComponent(room.id)}`}>
+                <a className={styles.roomCard} key={room.id} href={`/jogo/sala/?id=${encodeURIComponent(room.id)}`}>
                   <RoomCover room={room} />
                   <span className={styles.roomCardInfo}>
                     <span className={styles.roomCardTop}>
-                      <span>{room.beltCount} esteiras</span><span aria-hidden="true">↗</span>
+                      <span>
+                        {room.beltCount} esteiras · Pontuação {formatPontuacao(room.deliveries ?? 0)}
+                      </span>
+                      <span aria-hidden="true">↗</span>
                     </span>
                     <strong>{room.name}</strong>
-                    <span className={styles.roomCardMeta}>Custo ref.: {room.cost} moedas</span>
                   </span>
                 </a>
               ))}

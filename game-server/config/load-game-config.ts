@@ -1,21 +1,19 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { parse } from 'smol-toml'
+import type { Rules } from '../domain/types.ts'
 import { pipelineRulesFrom } from '../pipeline/load-rules.ts'
 import type { PipelineRules } from '../pipeline/rules.ts'
 
 export type GameRules = {
-  balanceCap: number
   initialBalance: number
-  coinIntervalMs: number
   actionCooldownMs: number
-  defaultCost: number
-  maxCost: number
   minContributions: number
   banDurationMs: number
   maxBelts: number
   maxRooms: number
+  maxRoomsPerCreator: number
   sessionDurationMs: number
   chatMessageMaxLength: number
   chatHistoryLimit: number
@@ -30,16 +28,13 @@ export type LoadedGameConfig = {
 }
 
 const economyDefaults = {
-  balance_cap: 5,
-  initial_balance: 5,
-  coin_interval_ms: 6_000,
+  initial_balance: 120,
   action_cooldown_ms: 0,
-  default_cost: 1,
-  max_cost: 20,
-  min_contributions: 3,
+  min_contributions: 10,
   ban_duration_ms: 600_000,
   max_belts: 200,
   max_rooms: 200,
+  max_rooms_per_creator: 3,
   session_duration_ms: 604_800_000,
   chat_message_max_length: 280,
   chat_history_limit: 100,
@@ -49,16 +44,13 @@ const economyDefaults = {
 } satisfies Record<string, number | boolean>
 
 const economyMappings = {
-  balance_cap: 'balanceCap',
   initial_balance: 'initialBalance',
-  coin_interval_ms: 'coinIntervalMs',
   action_cooldown_ms: 'actionCooldownMs',
-  default_cost: 'defaultCost',
-  max_cost: 'maxCost',
   min_contributions: 'minContributions',
   ban_duration_ms: 'banDurationMs',
   max_belts: 'maxBelts',
   max_rooms: 'maxRooms',
+  max_rooms_per_creator: 'maxRoomsPerCreator',
   session_duration_ms: 'sessionDurationMs',
   chat_message_max_length: 'chatMessageMaxLength',
   chat_history_limit: 'chatHistoryLimit',
@@ -68,16 +60,13 @@ const economyMappings = {
 } as const
 
 const economyIntegerRules: Record<string, { min: number; max: number }> = {
-  balance_cap: { min: 1, max: 1_000_000 },
-  initial_balance: { min: 0, max: 1_000_000 },
-  coin_interval_ms: { min: 1_000, max: 31_536_000_000 },
+  initial_balance: { min: 0, max: 1_000_000_000_000 },
   action_cooldown_ms: { min: 0, max: 86_400_000 },
-  default_cost: { min: 0, max: 1_000_000 },
-  max_cost: { min: 0, max: 1_000_000 },
   min_contributions: { min: 1, max: 1_000_000 },
   ban_duration_ms: { min: 1_000, max: 31_536_000_000 },
   max_belts: { min: 1, max: 500 },
   max_rooms: { min: 1, max: 100_000 },
+  max_rooms_per_creator: { min: 1, max: 100_000 },
   session_duration_ms: { min: 60_000, max: 31_536_000_000 },
   chat_message_max_length: { min: 1, max: 2000 },
   chat_history_limit: { min: 10, max: 500 },
@@ -85,7 +74,7 @@ const economyIntegerRules: Record<string, { min: number; max: number }> = {
 }
 
 const economyKeys = Object.keys(economyDefaults) as (keyof typeof economyDefaults)[]
-const knownKeys = new Set<string>([...economyKeys, 'pipeline'])
+const knownKeys = new Set<string>([...economyKeys])
 
 let cached: LoadedGameConfig | null = null
 
@@ -102,45 +91,58 @@ function validateEconomy(values: Record<string, unknown>): GameRules {
         value > range.max
       ) {
         throw new Error(
-          `${key} deve ser inteiro entre ${range.min} e ${range.max}`,
+          `${key} must be an integer between ${range.min} and ${range.max}`,
         )
       }
     } else if (key === 'prototype' || key === 'bdfl_veto') {
       if (typeof value !== 'boolean')
-        throw new Error(`${key} deve ser booleano`)
+        throw new Error(`${key} must be a boolean`)
     }
     result[economyMappings[key as keyof typeof economyMappings]] = value
   }
   const rules = result as GameRules
-  if (rules.initialBalance > rules.balanceCap) {
-    throw new Error('initial_balance não pode exceder balance_cap')
-  }
-  if (rules.defaultCost > rules.maxCost) {
-    throw new Error('default_cost não pode exceder max_cost')
-  }
   if (rules.bdflVeto) {
-    throw new Error(
-      'bdfl_veto está reservado e não pode ser ativado nesta versão',
-    )
+    throw new Error('bdfl_veto is reserved and cannot be enabled in this version')
   }
   return rules
 }
 
-function parseConfig(contents: Record<string, unknown>): LoadedGameConfig {
+/** Sibling `pipeline.toml` uses flat keys only (no `[pipeline]` wrapper). */
+function readSiblingPipelineTable(configAbsolutePath: string): Record<string, unknown> {
+  const siblingPath = path.join(path.dirname(configAbsolutePath), 'pipeline.toml')
+  if (!existsSync(siblingPath)) return {}
+  const parsed = parse(readFileSync(siblingPath, 'utf8')) as Record<string, unknown>
+  if ('pipeline' in parsed) {
+    throw new Error('pipeline.toml: use flat keys, not a [pipeline] table')
+  }
+  return parsed
+}
+
+function parseConfig(
+  contents: Record<string, unknown>,
+  configAbsolutePath: string,
+): LoadedGameConfig {
+  if (contents.pipeline !== undefined) {
+    throw new Error(
+      'pipeline must live in pipeline.toml; remove the [pipeline] table from game.config.toml',
+    )
+  }
   for (const key of Object.keys(contents)) {
     if (!knownKeys.has(key))
-      throw new Error(`Configuração de jogo desconhecida: ${key}`)
+      throw new Error(`Unknown game config: ${key}`)
   }
-  return {
-    rules: validateEconomy(contents),
-    pipeline: pipelineRulesFrom(contents.pipeline),
+  const rules = validateEconomy(contents)
+  const pipeline = pipelineRulesFrom(readSiblingPipelineTable(configAbsolutePath))
+  if (rules.initialBalance > pipeline.passiveCap) {
+    throw new Error('initial_balance must not exceed passive_cap')
   }
+  return { rules, pipeline }
 }
 
 function readGameConfigFromDisk(absolutePath: string): LoadedGameConfig {
   const contents = readFileSync(absolutePath, 'utf8')
   const parsed = parse(contents) as Record<string, unknown>
-  return parseConfig(parsed)
+  return parseConfig(parsed, absolutePath)
 }
 
 /** Resolves `GAME_CONFIG_PATH` or the packaged default to an absolute path. */
@@ -149,8 +151,13 @@ export function resolveGameConfigPath(configPath?: string): string {
     new URL('./game.config.toml', import.meta.url),
   )
   const projectRootPath = fileURLToPath(new URL('../../', import.meta.url))
+  // Empty `GAME_CONFIG_PATH=` from .env must not win over the default: `??`
+  // only skips null/undefined, so "" was resolved as the repo root and the
+  // watcher looked for `../elements.toml` outside the project.
   const selectedPath =
-    configPath ?? (process.env.GAME_CONFIG_PATH || defaultConfigPath)
+    configPath?.trim() ||
+    process.env.GAME_CONFIG_PATH?.trim() ||
+    defaultConfigPath
   return path.isAbsolute(selectedPath)
     ? selectedPath
     : path.resolve(projectRootPath, selectedPath)
@@ -176,4 +183,26 @@ export function loadGameConfig(configPath?: string): LoadedGameConfig {
   const config = readGameConfigFromDisk(absolutePath)
   if (!configPath) cached = config
   return config
+}
+
+/** Copies a reloaded TOML snapshot into the live server rules object. */
+export function applyLoadedGameConfig(rules: Rules, loaded: LoadedGameConfig): void {
+  const pipeline = rules.pipeline as unknown as Record<string, unknown>
+  for (const key of Object.keys(pipeline)) delete pipeline[key]
+  Object.assign(rules.pipeline, loaded.pipeline)
+  rules.cap = loaded.pipeline.walletCap
+  rules.initialBalance = loaded.rules.initialBalance
+  rules.intervalMs = Math.max(1, Math.round(60_000 / loaded.pipeline.coinsPerMinute))
+  rules.cooldownMs = loaded.rules.actionCooldownMs
+  rules.minContributions = loaded.rules.minContributions
+  rules.maxBelts = loaded.rules.maxBelts
+  rules.maxRooms = loaded.rules.maxRooms
+  rules.maxRoomsPerCreator = loaded.rules.maxRoomsPerCreator
+  rules.tokenLifetimeMs = loaded.rules.sessionDurationMs
+  rules.banDurationMs = loaded.rules.banDurationMs
+  rules.chatMessageMaxLength = loaded.rules.chatMessageMaxLength
+  rules.chatHistoryLimit = loaded.rules.chatHistoryLimit
+  rules.chatCooldownMs = loaded.rules.chatCooldownMs
+  rules.prototype = loaded.rules.prototype
+  rules.bdflVeto = loaded.rules.bdflVeto
 }

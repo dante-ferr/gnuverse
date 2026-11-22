@@ -30,7 +30,6 @@ export function useRoomLobby(api: GameApi, userId?: string) {
     url.searchParams.delete('novo')
     if (id) url.searchParams.set('id', id)
     else url.searchParams.delete('id')
-    url.searchParams.delete('torre')
     window.history.replaceState(null, '', url)
   }, [])
   const refresh = useCallback(async (requestedPage = page) => {
@@ -46,7 +45,7 @@ export function useRoomLobby(api: GameApi, userId?: string) {
     setPageCount(data.pageCount)
     setTotal(data.total)
     const locationParams = new URLSearchParams(window.location.search)
-    const requestedRoom = locationParams.get('torre') || locationParams.get('id')
+    const requestedRoom = locationParams.get('id')
     setRoomId((current) => requestedRoom || (
       data.rooms.some((room) => room.id === current)
         ? current

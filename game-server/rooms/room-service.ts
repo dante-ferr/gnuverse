@@ -2,14 +2,27 @@ import { randomUUID } from 'node:crypto'
 import type { ChatMessage, Member, Rules, Room, User } from '../domain/types.ts'
 import { fail, text, integer, mode } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
+import { machineListPrice, speedDowngradeRefund, structureRefund } from '../economy/prices.ts'
 import { WalletService } from '../economy/wallet-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { HistoryService } from './history-service.ts'
 import { isDirection } from '../pipeline/geometry/direction.ts'
 import { Match } from '../pipeline/world/match.ts'
+import type { MachinePlaceRequest } from '../pipeline/world/edit/machine-editor.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import { canManageRoom } from '../../core/authz/policy.ts'
-import { forceAdvance } from '../pipeline/world/unlock.ts'
+import { forceAdvance } from '../pipeline/world/progression/unlock.ts'
+import {
+  applyChunkContribution,
+  quoteChunkContribution,
+  settleFundedPledges,
+} from '../pipeline/world/chunks/purchase.ts'
+import {
+  applyCoreContribution,
+  quoteCoreContribution,
+  settleFundedCorePledges,
+} from '../pipeline/world/chunks/core-purchase.ts'
+import { recordRoomSpend } from '../economy/room-spend.ts'
 
 export class RoomService {
   private store: GameStore
@@ -43,7 +56,8 @@ export class RoomService {
     })
   }
   publicRoom(room: Room) {
-    const belts = isPipelineFrame(room.frame) ? room.frame.belts.length : 0
+    const frame = isPipelineFrame(room.frame) ? room.frame : null
+    const belts = frame ? frame.belts.length : 0
     return {
       id: room.id,
       name: room.name,
@@ -53,8 +67,9 @@ export class RoomService {
       eligibilityMode: room.eligibilityMode,
       minContributions: room.minContributions,
       beltCount: belts,
+      deliveries: frame?.deliveries ?? 0,
       actionCount: room.actionCount,
-      outcome: isPipelineFrame(room.frame) ? 'playing' : 'lost',
+      outcome: frame ? 'playing' : 'lost',
     }
   }
   detail(room: Room) {
@@ -79,30 +94,31 @@ export class RoomService {
     }
   }
   create(user: User, body: Record<string, unknown>) {
-    if (
-      Object.keys(this.store.state.rooms).length >= this.rules.maxRooms ||
-      Object.values(this.store.state.rooms).filter(
-        (t) => t.creatorId === user.id,
-      ).length >= 10
-    )
+    if (Object.keys(this.store.state.rooms).length >= this.rules.maxRooms)
       fail(409, 'Limite de salas atingido.')
+    const isAdmin = (user.roles ?? []).includes('admin')
     if (
-      body.allowCreatorBan !== undefined &&
-      typeof body.allowCreatorBan !== 'boolean'
+      !isAdmin &&
+      Object.values(this.store.state.rooms).filter(
+        (room) => room.creatorId === user.id,
+      ).length >= this.rules.maxRoomsPerCreator
     )
-      fail(400, 'A opção de suspensão do criador deve ser booleana.')
+      fail(409, 'Você já criou o máximo de salas permitidas.')
+
+    if (Object.hasOwn(body, 'allowCreatorBan') || Object.hasOwn(body, 'cost'))
+      fail(400, 'Custo de referência e suspensão do criador não são mais suportados.')
+    const sandbox = body.sandbox === true
+    if (sandbox && (!this.rules.prototype || process.env.NODE_ENV === 'production')) {
+      fail(403, 'Sala teste indisponível neste ambiente.')
+    }
     const roomId = randomUUID()
+    const defaultName = sandbox ? 'Sandbox elementos' : undefined
     const room: Room = {
       id: roomId,
-      name: text(body.name, 3, 60, 'Nome'),
+      name: text(body.name ?? defaultName, 3, 60, 'Nome'),
       creatorId: user.id,
-      allowCreatorBan: body.allowCreatorBan === true,
-      cost: integer(
-        body.cost ?? this.rules.defaultCost,
-        0,
-        this.rules.maxCost,
-        'Custo',
-      ),
+      allowCreatorBan: false,
+      cost: 0,
       eligibilityMode: mode(
         body.eligibilityMode,
         ['automatic', 'manual'],
@@ -121,13 +137,14 @@ export class RoomService {
       proposals: [],
       beltCount: 0,
       actionCount: 0,
-      frame: Match.create(roomId, this.rules.pipeline).toFrame(),
+      frame: (sandbox
+        ? Match.createSandbox(roomId, this.rules.pipeline)
+        : Match.create(roomId, this.rules.pipeline)
+      ).toFrame(),
     }
     this.member(room, user)
     this.store.state.rooms[room.id] = room
     this.history.event(room, 'created', user.id, {
-      allowCreatorBan: room.allowCreatorBan,
-      cost: room.cost,
       eligibilityMode: room.eligibilityMode,
       minContributions: room.minContributions,
     })
@@ -137,8 +154,8 @@ export class RoomService {
   settings(room: Room, user: User, body: Record<string, unknown>) {
     if (!canManageRoom({ id: user.id, roles: user.roles ?? [] }, 'update', room.creatorId))
       fail(403, 'Apenas o criador pode alterar as regras.')
-    if (Object.hasOwn(body, 'allowCreatorBan'))
-      fail(400, 'A opção de suspensão do criador é imutável após criar a sala.')
+    if (Object.hasOwn(body, 'allowCreatorBan') || Object.hasOwn(body, 'cost'))
+      fail(400, 'Custo de referência e suspensão do criador não são mais suportados.')
     if (
       room.proposals.some((proposal) => proposal.status === 'pending')
     )
@@ -146,16 +163,11 @@ export class RoomService {
     const reason = text(body.reason, 3, 500, 'Justificativa')
     const before = {
       name: room.name,
-      cost: room.cost,
       eligibilityMode: room.eligibilityMode,
       minContributions: room.minContributions,
     }
     const after = {
       name: body.name === undefined ? room.name : text(body.name, 3, 60, 'Nome'),
-      cost:
-        body.cost === undefined
-          ? room.cost
-          : integer(body.cost, 0, this.rules.maxCost, 'Custo'),
       eligibilityMode:
         body.eligibilityMode === undefined
           ? room.eligibilityMode
@@ -176,27 +188,135 @@ export class RoomService {
     this.history.event(room, 'settings', user.id, { before, after, reason })
     return { room: this.publicRoom(room) }
   }
+  placeMachine(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(room)
+    const machineId = body.machineId
+    if (!isDirection(body.facing)) fail(400, 'Direção inválida.')
+    let spec: MachinePlaceRequest
+    if (machineId === 'combiner_2' || machineId === 'combiner_3') {
+      spec = {
+        machineId,
+        x: integer(body.x, 0, match.width - 1, 'X'),
+        y: integer(body.y, 0, match.height - 1, 'Y'),
+        facing: body.facing,
+      }
+    } else if (machineId === 'splitter') {
+      spec = {
+        machineId: 'splitter',
+        x: integer(body.x, 0, match.width - 1, 'X'),
+        y: integer(body.y, 0, match.height - 1, 'Y'),
+        facing: body.facing,
+      }
+    } else if (machineId === 'trashcan') {
+      spec = {
+        machineId: 'trashcan',
+        x: integer(body.x, 0, match.width - 1, 'X'),
+        y: integer(body.y, 0, match.height - 1, 'Y'),
+        facing: body.facing,
+      }
+    } else if (machineId === 'tunnel' || machineId === 'fast_tunnel') {
+      spec = {
+        machineId,
+        entranceX: integer(body.entranceX, 0, match.width - 1, 'Entrada X'),
+        entranceY: integer(body.entranceY, 0, match.height - 1, 'Entrada Y'),
+        exitX: integer(body.exitX, 0, match.width - 1, 'Saída X'),
+        exitY: integer(body.exitY, 0, match.height - 1, 'Saída Y'),
+        facing: body.facing,
+      }
+    } else {
+      fail(400, 'Máquina inválida.')
+    }
+    const placed = match.placeMachineBilling(spec, { id: user.id, nickname: user.nickname })
+    if (placed.error) fail(409, placed.error)
+    const listPrice = machineListPrice(match.rules, String(machineId))
+    const cost = match.sandbox || !placed.billable ? 0 : listPrice
+    const refund =
+      match.sandbox || !placed.refund ? 0 : speedDowngradeRefund(match.rules, 'tunnel')
+    const wallet = this.settle(user, cost, refund)
+    if (cost > 0) recordRoomSpend(match, user.id, cost)
+    const committed = this.commitMachine(room, user, participant, match, String(machineId), cost, refund)
+    return { ...committed, wallet, cost, refund }
+  }
   place(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
     const raw = body.cells
     if (!Array.isArray(raw) || raw.length === 0 || raw.length > 64)
       fail(400, 'Informe as células da esteira.')
     const cells = raw.map((cell) => this.stroke(cell, match.width, match.height))
-    const error = match.place(cells, { id: user.id, nickname: user.nickname })
-    if (error) fail(409, error)
-    return this.commit(room, user, participant, match, 'place')
+    const speedRaw = body.speed
+    const speed =
+      speedRaw === undefined
+        ? 1
+        : typeof speedRaw === 'number' && Number.isSafeInteger(speedRaw)
+          ? speedRaw
+          : NaN
+    if (!Number.isSafeInteger(speed) || (speed !== 1 && speed !== match.rules.beltSpeedFast)) {
+      fail(400, 'Velocidade da esteira inválida.')
+    }
+    const placed = match.placeBilling(cells, { id: user.id, nickname: user.nickname }, speed)
+    if (placed.error) fail(409, placed.error)
+    const unit = speed === match.rules.beltSpeedFast ? match.rules.fastBeltCost : match.rules.beltCost
+    const cost = match.sandbox ? 0 : placed.billableCells * unit
+    const refund = match.sandbox
+      ? 0
+      : placed.refundCells * speedDowngradeRefund(match.rules, 'belt')
+    const wallet = this.settle(user, cost, refund)
+    if (cost > 0) recordRoomSpend(match, user.id, cost)
+    const structure = speed === match.rules.beltSpeedFast ? 'fast_belt' : 'belt'
+    const committed = this.commit(room, user, participant, match, 'place', structure, {
+      cost,
+      refund,
+    })
+    return { ...committed, wallet, cost, refund }
   }
   removeBelt(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
-    const error = match.remove(
+    const result = match.remove(
       {
         x: integer(body.x, 0, match.width - 1, 'X'),
         y: integer(body.y, 0, match.height - 1, 'Y'),
       },
       { id: user.id, nickname: user.nickname },
     )
-    if (error) fail(409, error)
-    return this.commit(room, user, participant, match, 'remove')
+    if (result.error) fail(409, result.error)
+    const refund =
+      match.sandbox || result.authorId !== user.id
+        ? 0
+        : structureRefund(match.rules, result.listPrice)
+    const wallet = this.refund(user, refund)
+    const structure =
+      result.kind === 'belt'
+        ? result.speed === match.rules.beltSpeedFast
+          ? 'fast_belt'
+          : 'belt'
+        : result.kind === 'tunnel'
+          ? result.speed === match.rules.beltSpeedFast
+            ? 'fast_tunnel'
+            : 'tunnel'
+          : (result.kind ?? 'belt')
+    if (
+      result.kind === 'combiner' ||
+      result.kind === 'splitter' ||
+      result.kind === 'trashcan' ||
+      result.kind === 'tunnel'
+    ) {
+      room.frame = match.toFrame()
+      participant.contributions++
+      room.actionCount++
+      room.lastActorId = user.id
+      this.history.event(room, 'machine-remove', user.id, {
+        structure,
+        refund,
+        combiners: match.combiners.length,
+        splitters: match.splitters.length,
+        trashcans: match.trashcans.length,
+        tunnels: match.tunnels.length,
+      })
+      this.runtime.afterAction(room)
+      return { frame: room.frame, wallet, refund }
+    }
+    const committed = this.commit(room, user, participant, match, 'remove', structure, { refund })
+    return { ...committed, wallet, refund }
   }
   join(room: Room, user: User) {
     const match = this.editable(room)
@@ -216,6 +336,87 @@ export class RoomService {
     this.history.event(room, 'version-advance', user.id, { from, to: match.version })
     this.runtime.afterAction(room)
     return { frame: room.frame }
+  }
+  buyChunk(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(room)
+    const extent = this.rules.pipeline.mapChunkExtent
+    const cx = integer(body.cx, 0, extent - 1, 'Chunk X')
+    const cy = integer(body.cy, 0, extent - 1, 'Chunk Y')
+    const amount = integer(body.amount, 1, this.rules.pipeline.walletCap, 'Moedas')
+    settleFundedPledges(match)
+    room.frame = match.toFrame()
+    const quote = quoteChunkContribution(match, { cx, cy }, amount)
+    if (!quote.ok) {
+      this.runtime.afterAction(room)
+      fail(quote.status, quote.error)
+    }
+    const wallet = this.wallet.spend(user, amount)
+    recordRoomSpend(match, user.id, amount)
+    const funded = applyChunkContribution(match, { cx, cy }, user.id, amount)
+    room.frame = match.toFrame()
+    participant.contributions++
+    room.actionCount++
+    room.lastActorId = user.id
+    this.history.event(room, 'chunk-fund', user.id, {
+      cx,
+      cy,
+      amount,
+      paid: funded.paid,
+      cost: funded.cost,
+    })
+    if (funded.completed) {
+      this.history.event(room, 'chunk-buy', user.id, { cx, cy, cost: funded.cost })
+    }
+    this.runtime.afterAction(room)
+    return {
+      frame: room.frame,
+      wallet,
+      cost: funded.cost,
+      paid: funded.paid,
+      amount,
+      completed: funded.completed,
+    }
+  }
+  buyCore(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    const match = this.editable(room)
+    const extent = this.rules.pipeline.mapChunkExtent
+    const cx = integer(body.cx, 0, extent - 1, 'Chunk X')
+    const cy = integer(body.cy, 0, extent - 1, 'Chunk Y')
+    const amount = integer(body.amount, 1, this.rules.pipeline.walletCap, 'Moedas')
+    settleFundedPledges(match)
+    settleFundedCorePledges(match)
+    room.frame = match.toFrame()
+    const quote = quoteCoreContribution(match, { cx, cy }, amount)
+    if (!quote.ok) {
+      this.runtime.afterAction(room)
+      fail(quote.status, quote.error)
+    }
+    const wallet = this.wallet.spend(user, amount)
+    recordRoomSpend(match, user.id, amount)
+    const funded = applyCoreContribution(match, { cx, cy }, user.id, amount)
+    room.frame = match.toFrame()
+    participant.contributions++
+    room.actionCount++
+    room.lastActorId = user.id
+    this.history.event(room, 'core-fund', user.id, {
+      cx,
+      cy,
+      amount,
+      paid: funded.paid,
+      cost: funded.cost,
+    })
+    if (funded.completed) {
+      this.history.event(room, 'core-buy', user.id, { cx, cy, cost: funded.cost })
+    }
+    this.runtime.afterAction(room)
+    return {
+      frame: room.frame,
+      wallet,
+      cost: funded.cost,
+      paid: funded.paid,
+      amount,
+      completed: funded.completed,
+    }
   }
   chat(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     this.editable(room)
@@ -284,7 +485,53 @@ export class RoomService {
       direction: record.direction,
     }
   }
-  private commit(room: Room, user: User, participant: Member, match: Match, eventType: string) {
+  private pay(user: User, amount: number) {
+    if (amount <= 0) return this.wallet.read(user)
+    return this.wallet.spend(user, amount)
+  }
+  private refund(user: User, amount: number) {
+    if (amount <= 0) return this.wallet.read(user)
+    return this.wallet.credit(user, amount)
+  }
+  /** Spend then credit so a mixed stroke can charge some cells and refund others. */
+  private settle(user: User, cost: number, refund: number) {
+    this.pay(user, cost)
+    return this.refund(user, refund)
+  }
+  private commitMachine(
+    room: Room,
+    user: User,
+    participant: Member,
+    match: Match,
+    structure: string,
+    cost = 0,
+    refund = 0,
+  ) {
+    room.frame = match.toFrame()
+    participant.contributions++
+    room.actionCount++
+    room.lastActorId = user.id
+    this.history.event(room, 'machine-place', user.id, {
+      structure,
+      cost,
+      refund,
+      combiners: match.combiners.length,
+      splitters: match.splitters.length,
+      trashcans: match.trashcans.length,
+      tunnels: match.tunnels.length,
+    })
+    this.runtime.afterAction(room)
+    return { frame: room.frame }
+  }
+  private commit(
+    room: Room,
+    user: User,
+    participant: Member,
+    match: Match,
+    eventType: string,
+    structure: 'belt' | 'fast_belt' | 'fast_tunnel' | 'tunnel' | 'splitter' | 'combiner' = 'belt',
+    detail: Record<string, unknown> = {},
+  ) {
     room.frame = match.toFrame()
     participant.contributions++
     room.actionCount++
@@ -295,7 +542,11 @@ export class RoomService {
       participant.contributions >= room.minContributions
     )
       participant.eligible = true
-    this.history.event(room, eventType, user.id, { belts: room.beltCount })
+    this.history.event(room, eventType, user.id, {
+      structure,
+      belts: room.beltCount,
+      ...detail,
+    })
     this.runtime.afterAction(room)
     return { frame: room.frame }
   }

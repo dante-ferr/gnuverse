@@ -1,6 +1,7 @@
 import type { Cell } from '../geometry/cell.ts'
 
-export type PacketShape = 'circle'
+/** Element id from the catalog, or the interim circle shape. */
+export type PacketShape = string
 
 /** One geometric packet occupying a single cell. */
 export class Packet {

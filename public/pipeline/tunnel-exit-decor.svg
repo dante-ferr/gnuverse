@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <!-- Orientation hint: travel north (up) out of the portal. Rotated at draw time. -->
+  <g fill="none" stroke="#000000" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Portal mouth (south edge) -->
+    <path d="M128 392 H384"/>
+    <path d="M160 424 H352"/>
+    <!-- Flow out of portal -->
+    <path d="M256 360 V144"/>
+    <path d="M176 224 L256 112 L336 224"/>
+    <path d="M196 304 L256 212 L316 304"/>
+  </g>
+</svg>

@@ -4,43 +4,38 @@ import styles from '../game-shell.module.css'
 
 type Props = {
   connection: Connection
-  roomName?: string
+  title: string
+  product?: string
+  showBack?: boolean
   onCreate: () => void
   canDelete: boolean
   onDelete: () => void
-  canAdvance?: boolean
-  onAdvance?: () => void
-  busy?: boolean
 }
 
 export function RoomToolbar({
   connection,
-  roomName,
+  title,
+  product = 'Open Pipeline',
+  showBack = true,
   onCreate,
   canDelete,
   onDelete,
-  canAdvance,
-  onAdvance,
-  busy,
 }: Props) {
   return (
     <div className={styles.detailToolbar}>
-      <a className={styles.backLink} href="/jogo/">
-        ← Salas
-      </a>
+      {showBack && (
+        <a className={styles.backLink} href="/jogo/">
+          ← Salas
+        </a>
+      )}
       <div className={styles.gameTitleBlock}>
-        <p className={styles.gameProduct}>Open Pipeline</p>
-        <h1 className={styles.gameTitle}>{roomName?.trim() || 'Sala'}</h1>
+        <p className={styles.gameProduct}>{product}</p>
+        <h1 className={styles.gameTitle}>{title.trim() || 'Sala'}</h1>
       </div>
       <span className={`${styles.connection} ${connection === 'live' ? styles.live : ''}`}>
         <i />
         {connection === 'live' ? 'Ao vivo' : connection === 'connecting' ? 'Conectando' : 'Offline'}
       </span>
-      {canAdvance && onAdvance ? (
-        <button type="button" className={styles.quiet} disabled={busy} onClick={onAdvance}>
-          Avançar versão
-        </button>
-      ) : null}
       <button className={styles.secondary} onClick={onCreate}>
         Nova sala
       </button>

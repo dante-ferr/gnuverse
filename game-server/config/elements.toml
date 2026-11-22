@@ -1,0 +1,576 @@
+# Open Pipeline element recipe book — fully data-driven.
+# Game and preview must read this file (and optional elements/**/*.toml).
+# Do not hardcode element ids, chapters, starters, or craft rates in TypeScript.
+# See docs/src/game/elements.md and decisions §10.
+
+max_tier = 5
+retain_prior_demands = true
+default_rate_per_minute = 20
+default_source_rate_per_minute = 60
+default_glyph_size_px = 28
+default_stroke = "#0a1014"
+default_demand_required = 20
+# Per-shape demand waves: new shapes start at base; each clear bumps that shape's wave.
+# escalation_ratio = 2 → 20→40 after first clear (all active demands, bases and crafts).
+escalation_ratio = 2
+# Multiplier on recursive material units per core delivery (Pontuação).
+score_effort_factor = 1
+starter_source_ids = ["fire", "water"]
+
+[preview]
+node_width = 104
+node_height = 52
+column_gap = 72
+row_gap = 18
+highway_lane = 16
+
+[[machines]]
+id = "combiner_2"
+name_pt = "Combinador"
+input_slots = 2
+output_slots = 1
+coupled_dual_output = true
+split_single_across_ports = true
+color = "#6eb8c9" # Cool cyan plate (cool family)
+decor = "pipeline/combiner-2-decor.svg"
+default_rate_per_minute = 20
+
+[[machines]]
+id = "combiner_3"
+name_pt = "Tri-combinador"
+input_slots = 3
+output_slots = 2
+coupled_dual_output = true
+split_single_across_ports = true
+color = "#c9a87c" # Warm sand plate (matches splitter family)
+decor = "pipeline/combiner-3-decor.svg"
+default_rate_per_minute = 20
+
+
+[[chapters]]
+id = 1
+name_pt = "Ignição"
+summary_pt = "Duas fontes e uma fórmula. O núcleo só pede água, fogo e vapor."
+max_new_bases = 2
+required_multiplier = 1
+
+[[chapters]]
+id = 2
+name_pt = "Canteiro"
+summary_pt = "Entra a grama. Uma fórmula nova (musgo), sem abrir a terra ainda."
+max_new_bases = 1
+required_multiplier = 1
+
+[[chapters]]
+id = 3
+name_pt = "Solo"
+summary_pt = "Entra a terra. A linha verde sobe até o broto e para por aí."
+max_new_bases = 1
+required_multiplier = 1
+
+[[chapters]]
+id = 4
+name_pt = "Vento"
+summary_pt = "Entra o vento. Névoa, brasa, poeira e nuvem — o resto do tier 2 fica para depois."
+max_new_bases = 1
+required_multiplier = 1
+
+[[chapters]]
+id = 5
+name_pt = "Temporal"
+summary_pt = "A cinza só entra agora, porque a tempestade precisa dela — e a tempestade solta o raio."
+max_new_bases = 0
+required_multiplier = 1
+
+[[chapters]]
+id = 6
+name_pt = "Forno"
+summary_pt = "Lama, lava e a linha de barro. A fornalha queima a argila e solta o tijolo."
+max_new_bases = 0
+required_multiplier = 1
+
+[[chapters]]
+id = 7
+name_pt = "Mina"
+summary_pt = "A última base é o minério. Cristal, liga, lente, bateria — e a fundição, que solta sucata."
+max_new_bases = 1
+required_multiplier = 1
+
+[[chapters]]
+id = 8
+name_pt = "Federação"
+summary_pt = "O que sobrou: pólen e jardim, mais os dois finais. O temporal recolhe o raio; a forja junta tijolo e sucata."
+max_new_bases = 0
+required_multiplier = 1
+
+# --- Tier 1: bases (sources) -----------------------------------------------
+
+[[elements]]
+id = "water"
+name_pt = "Água"
+tier = 1
+family = "cool"
+sort_key = 10
+fill = "#3db8d0"
+stroke = "#0a1014"
+glyph = "pipeline/elements/water.svg"
+demand_chapter = 1
+source_spawn_chance_percent = 15
+
+[[elements]]
+id = "fire"
+name_pt = "Fogo"
+tier = 1
+family = "warm"
+sort_key = 20
+fill = "#ff7a5c"
+stroke = "#0a1014"
+glyph = "pipeline/elements/fire.svg"
+demand_chapter = 1
+source_spawn_chance_percent = 15
+
+[[elements]]
+id = "grass"
+name_pt = "Grama"
+tier = 1
+family = "earth"
+sort_key = 30
+fill = "#5cbf72"
+stroke = "#0a1014"
+glyph = "pipeline/elements/grass.svg"
+demand_chapter = 2
+source_spawn_chance_percent = 15
+
+[[elements]]
+id = "earth"
+name_pt = "Terra"
+tier = 1
+family = "earth"
+sort_key = 40
+fill = "#c4a574"
+stroke = "#0a1014"
+glyph = "pipeline/elements/earth.svg"
+demand_chapter = 3
+source_spawn_chance_percent = 15
+
+[[elements]]
+id = "wind"
+name_pt = "Vento"
+tier = 1
+family = "cool"
+sort_key = 50
+fill = "#8bb8c4"
+stroke = "#0a1014"
+glyph = "pipeline/elements/wind.svg"
+demand_chapter = 4
+source_spawn_chance_percent = 12
+
+[[elements]]
+id = "ore"
+name_pt = "Minério"
+tier = 1
+family = "earth"
+sort_key = 60
+fill = "#857d88"
+stroke = "#0a1014"
+glyph = "pipeline/elements/ore.svg"
+demand_chapter = 7
+source_spawn_chance_percent = 10
+
+# --- Tier 2: 2 inputs → 1 output -------------------------------------------
+
+[[elements]]
+id = "steam"
+name_pt = "Vapor"
+tier = 2
+family = "cool"
+sort_key = 110
+fill = "#b4d5de"
+stroke = "#0a1014"
+glyph = "pipeline/elements/steam.svg"
+demand_chapter = 1
+inputs = ["water", "fire"]
+machine = "combiner_2"
+
+[[elements]]
+id = "moss"
+name_pt = "Musgo"
+tier = 2
+family = "earth"
+sort_key = 120
+fill = "#3d8f5a"
+stroke = "#0a1014"
+glyph = "pipeline/elements/moss.svg"
+demand_chapter = 2
+inputs = ["water", "grass"]
+machine = "combiner_2"
+
+[[elements]]
+id = "mud"
+name_pt = "Lama"
+tier = 2
+family = "earth"
+sort_key = 130
+fill = "#8a6b3d"
+stroke = "#0a1014"
+glyph = "pipeline/elements/mud.svg"
+demand_chapter = 6
+inputs = ["water", "earth"]
+machine = "combiner_2"
+
+[[elements]]
+id = "mist"
+name_pt = "Névoa"
+tier = 2
+family = "cool"
+sort_key = 140
+fill = "#c9dde4"
+stroke = "#0a1014"
+glyph = "pipeline/elements/mist.svg"
+demand_chapter = 4
+inputs = ["water", "wind"]
+machine = "combiner_2"
+
+[[elements]]
+id = "brine"
+name_pt = "Salmoura"
+tier = 2
+family = "cool"
+sort_key = 150
+fill = "#4f9db0"
+stroke = "#0a1014"
+glyph = "pipeline/elements/brine.svg"
+demand_chapter = 7
+inputs = ["water", "ore"]
+machine = "combiner_2"
+
+[[elements]]
+id = "ash"
+name_pt = "Cinza"
+tier = 2
+family = "warm"
+sort_key = 160
+fill = "#9a9590"
+stroke = "#0a1014"
+glyph = "pipeline/elements/ash.svg"
+demand_chapter = 5
+inputs = ["fire", "grass"]
+machine = "combiner_2"
+
+[[elements]]
+id = "lava"
+name_pt = "Lava"
+tier = 2
+family = "warm"
+sort_key = 170
+fill = "#e85a32"
+stroke = "#0a1014"
+glyph = "pipeline/elements/lava.svg"
+demand_chapter = 6
+inputs = ["fire", "earth"]
+machine = "combiner_2"
+
+[[elements]]
+id = "ember"
+name_pt = "Brasa"
+tier = 2
+family = "warm"
+sort_key = 180
+fill = "#ff9a78"
+stroke = "#0a1014"
+glyph = "pipeline/elements/ember.svg"
+demand_chapter = 4
+inputs = ["fire", "wind"]
+machine = "combiner_2"
+
+[[elements]]
+id = "slag"
+name_pt = "Escória"
+tier = 2
+family = "warm"
+sort_key = 190
+fill = "#6e5648"
+stroke = "#0a1014"
+glyph = "pipeline/elements/slag.svg"
+demand_chapter = 7
+inputs = ["fire", "ore"]
+machine = "combiner_2"
+
+[[elements]]
+id = "seed"
+name_pt = "Semente"
+tier = 2
+family = "earth"
+sort_key = 200
+fill = "#8fbc5a"
+stroke = "#0a1014"
+glyph = "pipeline/elements/seed.svg"
+demand_chapter = 3
+inputs = ["grass", "earth"]
+machine = "combiner_2"
+
+[[elements]]
+id = "pollen"
+name_pt = "Pólen"
+tier = 2
+family = "earth"
+sort_key = 210
+fill = "#d4c45a"
+stroke = "#0a1014"
+glyph = "pipeline/elements/pollen.svg"
+demand_chapter = 8
+inputs = ["grass", "wind"]
+machine = "combiner_2"
+
+[[elements]]
+id = "dust"
+name_pt = "Poeira"
+tier = 2
+family = "earth"
+sort_key = 220
+fill = "#cbb89a"
+stroke = "#0a1014"
+glyph = "pipeline/elements/dust.svg"
+demand_chapter = 4
+inputs = ["earth", "wind"]
+machine = "combiner_2"
+
+# --- Tier 3: 2 inputs → 1 output -------------------------------------------
+
+[[elements]]
+id = "cloud"
+name_pt = "Nuvem"
+tier = 3
+family = "cool"
+sort_key = 310
+fill = "#d8e6ec"
+stroke = "#0a1014"
+glyph = "pipeline/elements/cloud.svg"
+demand_chapter = 4
+inputs = ["steam", "mist"]
+machine = "combiner_2"
+
+[[elements]]
+id = "sprout"
+name_pt = "Broto"
+tier = 3
+family = "earth"
+sort_key = 330
+fill = "#6fcf55"
+stroke = "#0a1014"
+glyph = "pipeline/elements/sprout.svg"
+demand_chapter = 3
+inputs = ["seed", "water"]
+machine = "combiner_2"
+
+[[elements]]
+id = "glass"
+name_pt = "Vidro"
+tier = 3
+family = "cool"
+sort_key = 340
+fill = "#8ec8d6"
+stroke = "#0a1014"
+glyph = "pipeline/elements/glass.svg"
+demand_chapter = 6
+inputs = ["lava", "dust"]
+machine = "combiner_2"
+
+[[elements]]
+id = "charcoal"
+name_pt = "Carvão"
+tier = 3
+family = "warm"
+sort_key = 350
+fill = "#3a3836"
+stroke = "#0a1014"
+glyph = "pipeline/elements/charcoal.svg"
+demand_chapter = 6
+inputs = ["ash", "earth"]
+machine = "combiner_2"
+
+[[elements]]
+id = "clay"
+name_pt = "Argila"
+tier = 3
+family = "earth"
+sort_key = 360
+fill = "#b08968"
+stroke = "#0a1014"
+glyph = "pipeline/elements/clay.svg"
+demand_chapter = 6
+inputs = ["mud", "moss"]
+machine = "combiner_2"
+
+[[elements]]
+id = "crystal"
+name_pt = "Cristal"
+tier = 3
+family = "cool"
+sort_key = 370
+fill = "#7a8fd4"
+stroke = "#0a1014"
+glyph = "pipeline/elements/crystal.svg"
+demand_chapter = 7
+inputs = ["brine", "ember"]
+machine = "combiner_2"
+
+[[elements]]
+id = "alloy"
+name_pt = "Liga"
+tier = 3
+family = "earth"
+sort_key = 380
+fill = "#9aa3ae"
+stroke = "#0a1014"
+glyph = "pipeline/elements/alloy.svg"
+demand_chapter = 7
+inputs = ["slag", "ore"]
+machine = "combiner_2"
+
+# --- Tier 4: 3 inputs → 1 output, or 1 output + 1 byproduct ----------------
+
+[[elements]]
+id = "storm"
+name_pt = "Tempestade"
+tier = 4
+family = "cool"
+sort_key = 410
+fill = "#4f6aad"
+stroke = "#0a1014"
+glyph = "pipeline/elements/storm.svg"
+demand_chapter = 5
+inputs = ["cloud", "ash", "ember"]
+outputs = ["storm", "lightning"]
+machine = "combiner_3"
+
+[[elements]]
+id = "lightning"
+name_pt = "Raio"
+tier = 4
+family = "warm"
+sort_key = 412
+fill = "#f0d878"
+stroke = "#0a1014"
+glyph = "pipeline/elements/lightning.svg"
+demand_chapter = 5
+coproduct_of = "storm"
+
+[[elements]]
+id = "foundry"
+name_pt = "Fundição"
+tier = 4
+family = "warm"
+sort_key = 420
+fill = "#a83828"
+stroke = "#0a1014"
+glyph = "pipeline/elements/foundry.svg"
+demand_chapter = 7
+inputs = ["alloy", "slag", "charcoal"]
+outputs = ["foundry", "scrap"]
+machine = "combiner_3"
+
+[[elements]]
+id = "scrap"
+name_pt = "Sucata"
+tier = 4
+family = "earth"
+sort_key = 422
+fill = "#7a6f66"
+stroke = "#0a1014"
+glyph = "pipeline/elements/scrap.svg"
+demand_chapter = 7
+coproduct_of = "foundry"
+
+[[elements]]
+id = "garden"
+name_pt = "Jardim"
+tier = 4
+family = "earth"
+sort_key = 430
+fill = "#4caf70"
+stroke = "#0a1014"
+glyph = "pipeline/elements/garden.svg"
+demand_chapter = 8
+inputs = ["sprout", "moss", "seed"]
+machine = "combiner_3"
+
+[[elements]]
+id = "battery"
+name_pt = "Bateria"
+tier = 4
+family = "cool"
+sort_key = 440
+fill = "#5f6cbc"
+stroke = "#0a1014"
+glyph = "pipeline/elements/battery.svg"
+demand_chapter = 7
+inputs = ["crystal", "ember", "brine"]
+machine = "combiner_3"
+
+[[elements]]
+id = "kiln"
+name_pt = "Fornalha"
+tier = 4
+family = "warm"
+sort_key = 450
+fill = "#c45a3c"
+stroke = "#0a1014"
+glyph = "pipeline/elements/kiln.svg"
+demand_chapter = 6
+inputs = ["clay", "charcoal", "fire"]
+outputs = ["kiln", "brick"]
+machine = "combiner_3"
+
+[[elements]]
+id = "brick"
+name_pt = "Tijolo"
+tier = 4
+family = "warm"
+sort_key = 452
+fill = "#d46a42"
+stroke = "#0a1014"
+glyph = "pipeline/elements/brick.svg"
+demand_chapter = 6
+coproduct_of = "kiln"
+
+[[elements]]
+id = "lens"
+name_pt = "Lente"
+tier = 4
+family = "cool"
+sort_key = 460
+fill = "#6eb9cf"
+stroke = "#0a1014"
+glyph = "pipeline/elements/lens.svg"
+demand_chapter = 7
+inputs = ["glass", "crystal", "dust"]
+machine = "combiner_3"
+
+# --- Tier 5: 3 inputs → 1 output -------------------------------------------
+
+[[elements]]
+id = "tempest"
+name_pt = "Temporal"
+tier = 5
+family = "cool"
+sort_key = 510
+fill = "#384a8a"
+stroke = "#0a1014"
+glyph = "pipeline/elements/tempest.svg"
+demand_chapter = 8
+inputs = ["storm", "lightning", "cloud"]
+machine = "combiner_3"
+
+[[elements]]
+id = "forge"
+name_pt = "Forja"
+tier = 5
+family = "warm"
+sort_key = 520
+fill = "#e04a22"
+stroke = "#0a1014"
+glyph = "pipeline/elements/forge.svg"
+demand_chapter = 8
+inputs = ["brick", "scrap", "lava"]
+machine = "combiner_3"

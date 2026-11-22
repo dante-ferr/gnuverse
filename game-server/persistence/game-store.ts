@@ -6,7 +6,7 @@ import { acquireDatabaseLock } from './database-lock.ts'
 const freshState = (): State => ({ users: {}, sessions: {}, rooms: {} })
 
 function normalizeState(saved: Partial<State> & { towers?: State['rooms'] } | undefined): State {
-  // Older saves used a `pipelines` document and keyed rooms as `towers`.
+  // Legacy key from pre-pipeline saves (rooms were stored as `towers`).
   // Sessions belong to the identity issuer; stored hashes confer no access.
   return {
     users: saved?.users ?? {},

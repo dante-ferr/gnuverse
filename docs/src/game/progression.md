@@ -1,0 +1,102 @@
+# Chapter progression and cores
+
+Locked 2026-11-20. Replaces the proposal’s **9-core federation** victory path for the element catalog. Numbers live in `pipeline.toml` / `elements.toml` — do not hardcode them in TypeScript.
+
+## Intent
+
+Prior core demands stay active for the whole match (`retain_prior_demands = true`). Chapters add new required elements; leveling up needs **every** active demand at once. Dropping an older supply does not end the match — it blocks chapter advance.
+
+The catalog has **36** elements. One **5×5** core has **12** input ports, so late-game concurrent types need more sinks. Normal matches therefore reserve **two** satellite cores in the outer ring for players to **discover** by expanding the map.
+
+## Cores (three fixed + optional outer)
+
+| Topic | Rule |
+| :--- | :--- |
+| Count | **1** central + **2** satellites (`satellite_core_count = 2`), plus **0..N optional** cores on owned outer chunks (see [Optional outer cores](#optional-outer-cores)) |
+| Timing | Central core at **match create**. Satellites are seed-reserved and **discovered** when their chunk first enters the preview set (buy to play there) |
+| Acceptance | Any open port on **any** discovered core accepts any **currently demanded** type. Quotas are **room-global** (`deliveryByShape`), not per-core |
+| Central | Centered in the starter chunk (same as today) |
+| Satellites | Seed-picked in a **Chebyshev** ring: distance ∈ [`satellite_core_ring_min`, `satellite_core_ring_max`] (default **3–4**) from the starter chunk. Rings at distance **1–2** are the intentional **2-chunk gap** (no satellite cores there) |
+| Ownership at create | Starter chunk only. Grass neighbor is preview (buy to play). Satellite chunks stay void until previewed/bought |
+| Generation | Owned chunks plus edge previews materialize at create. Satellite cores spawn when their reserved chunk enters preview |
+
+`[pipeline]` keys:
+
+| Key | Default | Role |
+| :--- | ---: | :--- |
+| `satellite_core_count` | 2 | Extra cores besides the central one |
+| `satellite_core_ring_min` | 3 | Inclusive Chebyshev min from starter |
+| `satellite_core_ring_max` | 4 | Inclusive Chebyshev max from starter |
+
+Sandbox rooms may keep a compact multi-core layout for prototype play; production layout follows this ring rule.
+
+## Optional outer cores
+
+Locked design (implementation may land with docs). **Satellite cores in ring 3–4 stay free:** they appear on preview like today and need no coin purchase to place belts there.
+
+| Topic | Rule |
+| :--- | :--- |
+| Eligible chunks | Generated chunks with Chebyshev distance **> 4** from the starter chunk (beyond the satellite ring) |
+| Roll | At generation, each eligible chunk rolls `optional_core_spawn_chance_percent` from `[pipeline]` to **reserve** an optional core site |
+| Visibility | Reserved sites stay void until the chunk is **owned** (pooled buy complete) |
+| Purchase | After ownership, players fund a **flat** `optional_core_cost` (default **400**) from the same pooled wallet pattern as chunk buy; the core **spawns only when the pool meets that price** |
+| Footprint | Same **5×5** core, **12** inputs, agnostic ports, **room-global** demand quotas as central and satellite cores |
+| Cap | No fixed cap beyond map extent and spawn rolls — not part of the retired 9-core victory plan |
+
+`[pipeline]` keys:
+
+| Key | Default | Role |
+| :--- | ---: | :--- |
+| `optional_core_spawn_chance_percent` | (TOML) | Per-chunk roll on eligible outer chunks |
+| `optional_core_cost` | 400 | Flat pooled price to materialize a reserved optional core |
+
+## Sources
+
+| Topic | Rule |
+| :--- | :--- |
+| Starter chunk | Always places `starter_source_ids` (**fire**, **water**) — spawn odds ignored |
+| Grass guarantee | At least one **grass** source in an **edge-adjacent** (N/E/S/W) neighbor of the starter. Match create generates that preview chunk with grass; it stays locked until bought (never a satellite-core chunk) |
+| Outer bases | Every tier-1 base with `source_spawn_chance_percent` > 0 may roll on non-starter generated chunks, including fire and water (see [Coins and map expansion](economy-expansion.md)) |
+
+## Chapters and unlock
+
+| Topic | Rule |
+| :--- | :--- |
+| Schedule | `demand_chapter` + `[[chapters]]` in `elements.toml` |
+| Active set | Elements with `demand_chapter ≤ current chapter`, and all prior demands if `retain_prior_demands` |
+| Advance | When every active demand’s progress ≥ `required` (delivery-only; no collaborator gate): bump **`escalationWave`** (room clear count for sidebar **Onda**), escalate **cleared** crafts per shape, then advance chapter while content remains |
+| Demand escalation | Every active shape has its own wave (`escalationWaveByShape`), bases and crafts alike. **New** chapter shapes start at base; after that shape is cleared once, **required = ceil(base × escalation_ratio^wave)** (`escalation_ratio = 2` → 20→40). Each clear uses a **fresh** per-shape counter (`waveDeliveryByShape`); sandbox still counts lifetime `deliveryByShape` |
+| After last chapter | Chapter stays on the final id; waves keep rising. Full catalog stays demanded |
+| Score | **Pontuação** = lifetime delivery **points** in `deliveries` (recursive material units × `score_effort_factor`; per-shape counts stay in `deliveryByShape` for demand progress). Sidebar shows **Onda** after the first clear |
+| Match end | **No victory** — intentional endless play (see below) |
+
+## Endless play (no victory)
+
+There is **no victory screen**, **no export-and-reset win flow**, and **no match-ending success state**. After the last `[[chapters]]` entry, the room **stays on that chapter**, **Onda** and per-shape escalation keep rising, and **Pontuação** continues to accumulate on every scored delivery. The retired proposal path (nine cores → victory summary) does not apply. There is also **no crash / game-over** from starvation or instability.
+
+## Ranking
+
+Two scores serve different surfaces — do not conflate them.
+
+| Surface | Metric | Source field | Sort |
+| :--- | :--- | :--- | :--- |
+| **Lobby** (`/jogo/`) | Room **Pontuação** | `deliveries` on the room list payload | Rooms are **ranked / sortable** by this delivery score |
+| **Participantes** (in-room sidebar) | Spend in this match | `spentByUserId` (per-account coins spent on structures and chunk contributions in **this room**) | **Internal ranking** of collaborators by spend — independent of Pontuação |
+
+Pontuação rewards logistics output to cores; in-room spend ranking highlights who funded the build.
+
+## Core gear presentation
+
+Gears on a core rotate only while that core is ingesting (or within a short hold after the last intake). Idle cores stay frozen at the last angle.
+
+| Key | Default | Role |
+| :--- | ---: | :--- |
+| `core_gear_outer_ms` / `core_gear_inner_ms` | 12000 / 7000 | Full-turn periods while active |
+| `core_gear_active_ms` | 3500 | Keep spinning this long after the last packet entered **that** core |
+
+## Related
+
+- Element book / chapter copy: [Element recipes](elements.md)
+- Chunk buy and gradual gen: [Coins and map expansion](economy-expansion.md)
+- Locked summary: [Decisions](../decisions.md) §10–§12
+- Sandbox slice (full catalog at once): [Element recipes — sandbox](elements.md#sandbox-slice-implemented)

@@ -7,8 +7,9 @@ const rooms: Room[] = Array.from({ length: 63 }, (_, index) => ({
   id: String(index),
   name: `Sala ${String(index).padStart(2, '0')}`,
   creatorId: index % 2 ? 'other' : 'owner',
-  cost: index % 3,
+  cost: 0,
   beltCount: index,
+  deliveries: index * 2,
   allowCreatorBan: false,
   eligibilityMode: 'automatic',
   minContributions: 1,
@@ -40,7 +41,7 @@ test('search finds matches on later pages when the API ignores query filters', a
   assert.deepEqual(result.rooms.map((room) => room.id), ['62'])
   assert.equal(result.total, 1)
   assert.equal(result.pageCount, 1)
-  assert.ok(api.paths.includes('/api/towers?page=2&limit=50'))
+  assert.ok(api.paths.includes('/api/rooms?page=2&limit=50'))
   const empty = await listRooms(api, { ...DEFAULT_ROOM_FILTERS, search: 'inexistente' }, 4)
   assert.deepEqual(empty.rooms, [])
   assert.equal(empty.total, 0)
@@ -50,34 +51,28 @@ test('search finds matches on later pages when the API ignores query filters', a
 test('legacy API results are filtered and sorted globally before pagination', async () => {
   const result = await listRooms(legacyApi(), {
     search: 'sala',
-    cost: 'paid',
     sort: 'belts-desc',
     mine: true,
   }, 2, 'owner')
   const expected = rooms
     .filter(
       (room) =>
-        room.creatorId === 'owner' && room.cost > 0 && room.name.toLocaleLowerCase('pt-BR').includes('sala'),
+        room.creatorId === 'owner' && room.name.toLocaleLowerCase('pt-BR').includes('sala'),
     )
     .sort((a, b) => b.beltCount - a.beltCount)
   assert.equal(result.total, expected.length)
   assert.equal(result.page, 2)
   assert.deepEqual(result.rooms, expected.slice(12, 24))
-  for (const sort of ['name', 'cost-asc', 'cost-desc', 'belts-desc'] as const) {
+  for (const sort of ['name', 'belts-desc', 'score-desc'] as const) {
     const ordered = await listRooms(legacyApi(), { ...DEFAULT_ROOM_FILTERS, sort }, 1)
     const compare =
       sort === 'name'
         ? (a: Room, b: Room) => a.name.localeCompare(b.name, 'pt-BR')
-        : sort === 'cost-asc'
-          ? (a: Room, b: Room) => a.cost - b.cost
-          : sort === 'cost-desc'
-            ? (a: Room, b: Room) => b.cost - a.cost
-            : (a: Room, b: Room) => b.beltCount - a.beltCount
+        : sort === 'score-desc'
+          ? (a: Room, b: Room) => (b.deliveries ?? 0) - (a.deliveries ?? 0)
+          : (a: Room, b: Room) => b.beltCount - a.beltCount
     assert.deepEqual(ordered.rooms, [...rooms].sort(compare).slice(0, 12))
   }
-  const free = await listRooms(legacyApi(), { ...DEFAULT_ROOM_FILTERS, cost: 'free' }, 1)
-  assert.equal(free.total, 21)
-  assert.ok(free.rooms.every((room) => room.cost === 0))
 })
 
 test('my rooms never returns another account’s rooms or anonymous results', async () => {

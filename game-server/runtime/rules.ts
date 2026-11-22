@@ -4,20 +4,21 @@ import type { Rules } from '../domain/types.ts'
 
 export function createRules(
   overrides: Partial<Omit<Rules, 'pipeline'>> & { pipeline?: Partial<PipelineRules> } = {},
-): Readonly<Rules> {
+): Rules {
   const loaded = loadGameConfig()
   const configured = loaded.rules
   const { pipeline: pipelineOverride, ...rest } = overrides
-  const rules: Readonly<Rules> = Object.freeze({
-    cap: configured.balanceCap,
+  const pipeline = { ...loaded.pipeline, ...pipelineOverride }
+  // Mutable so `watchGameConfig` can hot-reload TOML into the live rules object.
+  const rules: Rules = {
+    cap: pipeline.walletCap,
     initialBalance: configured.initialBalance,
-    intervalMs: configured.coinIntervalMs,
+    intervalMs: Math.max(1, Math.round(60_000 / pipeline.coinsPerMinute)),
     cooldownMs: configured.actionCooldownMs,
-    defaultCost: configured.defaultCost,
-    maxCost: configured.maxCost,
     minContributions: configured.minContributions,
     maxBelts: configured.maxBelts,
     maxRooms: configured.maxRooms,
+    maxRoomsPerCreator: configured.maxRoomsPerCreator,
     tokenLifetimeMs: configured.sessionDurationMs,
     banDurationMs: configured.banDurationMs,
     chatMessageMaxLength: configured.chatMessageMaxLength,
@@ -28,18 +29,18 @@ export function createRules(
       process.env.NODE_ENV !== 'production' &&
       process.env.GAME_INFINITE_COINS === 'true',
     bdflVeto: configured.bdflVeto,
-    pipeline: { ...loaded.pipeline, ...pipelineOverride },
+    pipeline,
     ...rest,
-  })
+  }
   for (const key of [
     'cap',
     'initialBalance',
     'intervalMs',
     'cooldownMs',
-    'maxCost',
     'minContributions',
     'maxBelts',
     'maxRooms',
+    'maxRoomsPerCreator',
     'tokenLifetimeMs',
     'banDurationMs',
     'chatMessageMaxLength',
@@ -53,6 +54,7 @@ export function createRules(
           'intervalMs',
           'tokenLifetimeMs',
           'maxRooms',
+          'maxRoomsPerCreator',
           'maxBelts',
           'banDurationMs',
           'chatMessageMaxLength',
@@ -63,8 +65,12 @@ export function createRules(
     )
       throw new Error(`Invalid rule: ${key}`)
   }
-  if (rules.initialBalance > rules.cap || rules.maxBelts > 500)
+  if (
+    rules.initialBalance > rules.pipeline.passiveCap ||
+    rules.pipeline.passiveCap > rules.pipeline.walletCap ||
+    rules.maxBelts > 500
+  )
     throw new Error('Invalid economy rules')
-  if (rules.bdflVeto) throw new Error('Veto do BDFL não é suportado.')
+  if (rules.bdflVeto) throw new Error('BDFL veto is not supported.')
   return rules
 }

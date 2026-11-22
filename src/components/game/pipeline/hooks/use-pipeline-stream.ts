@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameApi } from '../../api/game-api'
 import { isPipelineFrame, type PipelineFrame } from '../model/frame'
 import type { Connection } from '../../hooks/use-room-lobby'
-import type { ChatMessage, Member, Proposal } from '../../model/types'
+import type { ChatMessage, GameEvent, Member, Proposal } from '../../model/types'
 
 const emptyFrame = (): PipelineFrame => ({
   kind: 'pipeline',
@@ -21,6 +21,10 @@ const emptyFrame = (): PipelineFrame => ({
   packets: [],
   source: { id: 'source', x: 0, y: 0, direction: 'east', shape: 'circle' },
   core: { id: 'core', x: 0, y: 0 },
+  originChunk: { cx: 0, cy: 0 },
+  ownedChunks: [{ cx: 0, cy: 0 }],
+  previewChunks: [],
+  sources: [{ id: 'source', x: 0, y: 0, direction: 'east', shape: 'circle' }],
 })
 
 /** SSE frames, chat, and room detail for one pipeline room. */
@@ -32,6 +36,7 @@ export function usePipelineStream(api: GameApi, roomId: string) {
   const [chat, setChat] = useState<ChatMessage[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [proposals, setProposals] = useState<Proposal[]>([])
+  const [events, setEvents] = useState<GameEvent[]>([])
   const [connection, setConnection] = useState<Connection>('connecting')
   const selected = useRef(roomId)
   selected.current = roomId
@@ -44,7 +49,8 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       chat?: ChatMessage[]
       members?: Member[]
       proposals?: Proposal[]
-    }>(`/api/towers/${roomId}`)
+      events?: GameEvent[]
+    }>(`/api/rooms/${roomId}`)
     if (selected.current !== result.room.id || !isPipelineFrame(result.frame)) return
     setFrame((current) => (result.frame.tick >= current.tick ? result.frame : current))
     setRules(result.rules)
@@ -53,12 +59,14 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     setChat(Array.isArray(result.chat) ? result.chat : [])
     setMembers(Array.isArray(result.members) ? result.members : [])
     setProposals(Array.isArray(result.proposals) ? result.proposals : [])
+    setEvents(Array.isArray(result.events) ? result.events : [])
   }, [api, roomId])
   useEffect(() => {
     setFrame(emptyFrame())
     setChat([])
     setMembers([])
     setProposals([])
+    setEvents([])
     setConnection('connecting')
     if (!roomId) return
     let active = true
@@ -77,9 +85,25 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     const onFrame = (event: MessageEvent<string>) => {
       if (!active) return
       try {
-        const data = JSON.parse(event.data) as PipelineFrame
+        const data = JSON.parse(event.data) as PipelineFrame & {
+          omitBelts?: boolean
+          beltCount?: number
+        }
         if (!isPipelineFrame(data)) return
-        setFrame(data)
+        if (data.omitBelts) {
+          const { omitBelts: _omit, beltCount, ...rest } = data
+          let mismatch = false
+          setFrame((current) => {
+            if (beltCount !== undefined && current.belts.length !== beltCount) {
+              mismatch = true
+              return current
+            }
+            return { ...rest, belts: current.belts }
+          })
+          if (mismatch) void update()
+        } else {
+          setFrame(data)
+        }
         setConnection('live')
       } catch {
         setConnection('offline')
@@ -106,5 +130,5 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       stream.close()
     }
   }, [api, roomId, refresh])
-  return { frame, rules, name, creatorId, chat, members, proposals, connection, refresh }
+  return { frame, rules, name, creatorId, chat, members, proposals, events, connection, refresh }
 }

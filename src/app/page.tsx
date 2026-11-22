@@ -27,7 +27,14 @@ export default function Home() {
       <section className={styles.hero} aria-labelledby="home-title">
         <div className={styles.copy}>
           <p className={styles.kicker}>
-            <span className={styles.liveDot} />
+            <img
+              src="/gnuverse-logo.svg"
+              alt=""
+              width={28}
+              height={28}
+              className={styles.brandMark}
+              decoding="async"
+            />
             GNUVERSE <span className={styles.separator}>/</span> SOFTWARE LIVRE
           </p>
           <h1 id="home-title">

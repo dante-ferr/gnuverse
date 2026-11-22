@@ -1,14 +1,28 @@
+import type { ElementCatalogJson } from '../../../../../game-server/pipeline/elements/index.ts'
+
 export type Direction = 'north' | 'east' | 'south' | 'west'
+
+export type PacketShape = string
+
+/** Resource glyph outline presentation (`resource_glyph_outline_mode` in pipeline.toml). */
+export type ResourceGlyphOutlineMode = 'dual' | 'single' | 'blur'
 
 export type PipelineRules = {
   tickMs: number
   gridWidth: number
   gridHeight: number
-  tileCap: number
-  sourcePeriodTicks: number
   colorBackground: string
   colorGrid: string
+  gridVisibleMinZoom: number
+  cameraZoomMin: number
+  cameraZoomMax: number
+  cameraEnterViewCells: number
+  /** At/above: glyphs, chevrons, full machines. */
+  lodDetailMinZoom: number
+  /** At/above (below detail): flat machines + cores; below: cores only. */
+  lodStructureMinZoom: number
   colorBelt: string
+  colorBeltChevron: string
   colorPacket: string
   colorCore: string
   colorSource: string
@@ -25,24 +39,166 @@ export type PipelineRules = {
   colorInk: string
   decorStrokeWidth: number
   resourceGlyphSizePx: number
+  /**
+   * Machine overlays: above, screen-fixed at resourceGlyphSizePx; at/below, shrink
+   * with the world (continuous at this zoom). Lower = stay fixed longer while zooming out.
+   */
+  resourceGlyphWorldMinZoom: number
   resourceGlyphOrbitPx: number
   resourceGlyphOrbitMs: number
+  /** `dual` solid rings, `single` one solid ring, `blur` soft halo. */
+  resourceGlyphOutlineMode: ResourceGlyphOutlineMode
+  resourceGlyphOutlineOuter: string
+  resourceGlyphOutlineInner: string
+  /** Soft halo color when outline mode is `blur`. */
+  resourceGlyphOutlineBlur: string
+  resourceGlyphOutlineOuterWidthPx: number
+  resourceGlyphOutlineInnerWidthPx: number
+  resourceGlyphOutlineSpread: number
+  /** Combiner craft progress wheel stroke (screen px). */
+  craftProgressWheelWidthPx: number
+  /** Hide the craft progress wheel below this camera zoom. */
+  craftProgressWheelMinZoom: number
+  coreGearOuterMs: number
+  coreGearInnerMs: number
+  /** Keep gears spinning this long after last intake on that core (ms). */
+  coreGearActiveMs: number
   beltChevronStrokePx: number
   beltChevronFlowMs: number
+  beltSpeedFast: number
+  colorFastBelt: string
+  colorFastBeltChevron: string
+  beltFastChevronFlowMs: number
+  beltFastChevronArmPercent: number
+  beltFastSideInsetPercent: number
+  colorFastTunnel: string
   machineClearanceMin: number
   coreClearanceExtra: number
-  coreDemandCircle: number
-  unlockCollaborators: number
+  chunkSize: number
+  mapChunkExtent: number
+  chunkCostBase: number
+  chunkCostStep: number
+  passiveCap: number
+  walletCap: number
+  coinsPerMinute: number
+  beltCost: number
+  fastBeltCost: number
+  splitterCost: number
+  trashcanCost: number
+  combinerCost: number
+  tunnelCost: number
+  fastTunnelCost: number
+  /** Own delete / fast→normal downgrade refund percent (`refund_percent`). */
+  refundPercent: number
+  satelliteCoreCount: number
+  satelliteCoreRingMin: number
+  satelliteCoreRingMax: number
+  optionalCoreSpawnChancePercent: number
+  optionalCoreCost: number
   slotInputDepthPercent: number
   slotOutputDepthPercent: number
   slotBracketThickPercent: number
   slotFlowMarkDepthPercent: number
+  /** 1×1 splitter machine body. */
+  colorSplitter: string
+  /** 2×2 trashcan machine body. */
+  colorTrashcan: string
+  /** Underground tunnel portal body. */
+  colorTunnel: string
+  /** Max empty cells between tunnel entrance and exit. */
+  tunnelMaxGap: number
+  /** Underground occupancy bead radius (% of one cell). */
+  tunnelGhostRadiusPercent: number
+  /** Occupancy bead / portal pip opacity. */
+  tunnelGhostAlpha: number
+  /** Dashed underground thread weight (% of one cell; painter scales it). */
+  tunnelSeamWidthPercent: number
+  /** Dashed underground thread opacity. */
+  tunnelSeamAlpha: number
+  /** Reserved presentation period (ms); pass-through flights use tickMs. */
+  tunnelPulseMs: number
+  /** Element catalog from `elements.toml` (same payload as the game-server). */
+  elements: ElementCatalogJson
 }
 
 export type CoreDemandRecord = {
-  shape: 'circle'
+  shape: PacketShape
   received: number
   required: number
+}
+
+export type ChunkCoordRecord = { cx: number; cy: number }
+
+/** Catalog element id this source emits / represents. */
+export type SourceRole = string
+
+export type SourceRecord = {
+  id: string
+  x: number
+  y: number
+  direction: Direction
+  shape: PacketShape
+  role?: SourceRole
+  cooldown?: number
+}
+
+export type CoreRecord = {
+  id: string
+  x: number
+  y: number
+  lastIntakeTick?: number
+}
+
+export type CombinerRecord = {
+  id: string
+  machineId: 'combiner_2' | 'combiner_3'
+  recipeId: string | null
+  x: number
+  y: number
+  facing: Direction
+  buffer?: Record<string, number>
+  craftRemaining?: number | null
+  pendingOutputs?: string[] | null
+  nextSplitPort?: 0 | 1
+  authorId: string
+  authorNickname: string
+}
+
+export type TrashcanRecord = {
+  id: string
+  x: number
+  y: number
+  facing: Direction
+  authorId: string
+  authorNickname: string
+}
+
+export type SplitterRecord = {
+  id: string
+  x: number
+  y: number
+  facing: Direction
+  authorId: string
+  authorNickname: string
+  nextSplitPort?: 0 | 1 | 2
+  buffer?: PacketShape | null
+}
+
+export type TunnelPortalRecord = {
+  id: string
+  pairId: string
+  role: 'entrance' | 'exit'
+  x: number
+  y: number
+  direction: Direction
+  speed?: number
+  authorId: string
+  authorNickname: string
+  queue?: (PacketShape | null)[]
+  pendingIngress?: PacketShape | null
+  pendingEgress?: PacketShape | null
+  /** Shapes that crossed this tick without remaining in the lane. */
+  transit?: PacketShape[]
 }
 
 export type BeltRecord = {
@@ -50,26 +206,52 @@ export type BeltRecord = {
   x: number
   y: number
   direction: Direction
+  speed?: number
   authorId: string
   authorNickname: string
   placedAt: number
 }
 
+export type ChunkPledgeRecord = {
+  cx: number
+  cy: number
+  paid: number
+  backers?: { userId: string; amount: number }[]
+}
+
 export type PipelineFrame = {
   kind: 'pipeline'
   version: string
+  chapter?: number
+  escalationWave?: number
+  escalationWaveByShape?: Partial<Record<PacketShape, number>>
+  waveDeliveryByShape?: Partial<Record<PacketShape, number>>
   seed: string
   width: number
   height: number
   tick: number
   deliveries: number
-  deliveryByShape: Partial<Record<'circle', number>>
+  deliveryByShape: Partial<Record<PacketShape, number>>
   demands: CoreDemandRecord[]
   collaborators: { id: string; nickname: string }[]
   belts: BeltRecord[]
-  packets: { id: string; x: number; y: number; shape: 'circle' }[]
-  source: { id: string; x: number; y: number; direction: Direction; shape: 'circle' }
-  core: { id: string; x: number; y: number }
+  packets: { id: string; x: number; y: number; shape: PacketShape }[]
+  sandbox?: boolean
+  originChunk?: ChunkCoordRecord
+  ownedChunks?: ChunkCoordRecord[]
+  previewChunks?: ChunkCoordRecord[]
+  chunkPledges?: ChunkPledgeRecord[]
+  corePledges?: ChunkPledgeRecord[]
+  optionalCoreChunkKeys?: string[]
+  spentByUserId?: Record<string, number>
+  sources?: SourceRecord[]
+  source: { id: string; x: number; y: number; direction: Direction; shape: PacketShape }
+  core: CoreRecord
+  cores?: CoreRecord[]
+  combiners?: CombinerRecord[]
+  splitters?: SplitterRecord[]
+  trashcans?: TrashcanRecord[]
+  tunnels?: TunnelPortalRecord[]
 }
 
 export function isPipelineFrame(value: unknown): value is PipelineFrame {
@@ -80,4 +262,14 @@ export function pipelineRulesFrom(rules: Record<string, unknown> | null): Pipeli
   const pipeline = rules?.pipeline
   if (!pipeline || typeof pipeline !== 'object') return null
   return pipeline as PipelineRules
+}
+
+export function glyphUrlForShape(
+  rules: PipelineRules | null,
+  shape: PacketShape,
+): string | null {
+  if (shape === 'circle') return '/pipeline/resource-circle.svg'
+  const el = rules?.elements.elements.find((item) => item.id === shape)
+  if (!el?.glyph) return null
+  return el.glyph.startsWith('/') ? el.glyph : `/${el.glyph}`
 }

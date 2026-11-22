@@ -40,12 +40,11 @@
   color: var(--muted);
 }
 
-.liveDot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-soft);
+.brandMark {
+  display: block;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
 }
 
 .separator {

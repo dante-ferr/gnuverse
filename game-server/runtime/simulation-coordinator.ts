@@ -2,7 +2,7 @@ import type { ServerResponse } from 'node:http'
 import type { ChatMessage, Room } from '../domain/types.ts'
 import { fail } from '../domain/validation.ts'
 import type { PipelineRules } from '../pipeline/rules.ts'
-import { isPipelineFrame } from '../pipeline/world/frame.ts'
+import { isPipelineFrame, type PipelineFrame } from '../pipeline/world/frame.ts'
 import { Match } from '../pipeline/world/match.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import type { GovernanceService } from '../governance/governance-service.ts'
@@ -14,6 +14,11 @@ export class SimulationCoordinator {
   private governance?: GovernanceService
   private streams = new Map<string, Set<ServerResponse>>()
   private timer?: ReturnType<typeof setInterval>
+  /** Live match reused across ticks until an edit replaces `room.frame`. */
+  private live = new Map<string, { match: Match; source: PipelineFrame }>()
+  /** Belt geometry already sent on this room's SSE stream. Later ticks omit the belt array. */
+  private beltStamps = new Map<string, number>()
+  private lastPersistAt = 0
 
   constructor(store: GameStore, rules: PipelineRules) {
     this.store = store
@@ -53,6 +58,7 @@ export class SimulationCoordinator {
     const previousTick = this.rules.tickMs
     // Copy so in-place Object.assign on the shared rules.pipeline is visible only after this call.
     this.rules = { ...rules }
+    this.live.clear()
     if (rules.tickMs !== previousTick && this.timer && this.governance) {
       clearInterval(this.timer)
       this.timer = undefined
@@ -63,6 +69,8 @@ export class SimulationCoordinator {
   remove(roomId: string) {
     for (const response of this.streams.get(roomId) ?? []) response.end()
     this.streams.delete(roomId)
+    this.live.delete(roomId)
+    this.beltStamps.delete(roomId)
   }
 
   subscribe(room: Room, response: ServerResponse) {
@@ -74,6 +82,7 @@ export class SimulationCoordinator {
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     })
+    this.beltStamps.set(room.id, beltLayoutStamp(room.frame.belts))
     response.write(
       `event: frame\ndata: ${JSON.stringify(this.publicFrame(room))}\n\n`,
     )
@@ -89,10 +98,15 @@ export class SimulationCoordinator {
     let needsSave = false
     for (const room of Object.values(this.store.state.rooms)) {
       if (!isPipelineFrame(room.frame)) continue
-      const match = Match.fromFrame(room.frame, this.rules)
-      match.tick()
-      room.frame = match.toFrame()
+      let live = this.live.get(room.id)
+      if (!live || live.source !== room.frame) {
+        live = { match: Match.fromFrame(room.frame, this.rules), source: room.frame }
+        this.live.set(room.id, live)
+      }
+      live.match.tick()
+      room.frame = live.match.toFrame()
       room.beltCount = room.frame.belts.length
+      live.source = room.frame
       needsSave = true
     }
     return needsSave
@@ -108,14 +122,18 @@ export class SimulationCoordinator {
           governance.expireBans(room)
         for (const room of Object.values(this.store.state.rooms)) {
           if (!isPipelineFrame(room.frame)) continue
+          const payload = JSON.stringify(this.wireFrame(room.id, room.frame))
           for (const response of this.streams.get(room.id) ?? []) {
             if (response.writableLength > 256 * 1024) continue
-            response.write(
-              `event: frame\ndata: ${JSON.stringify(room.frame)}\n\n`,
-            )
+            response.write(`event: frame\ndata: ${payload}\n\n`)
           }
         }
-        if (needsSave) this.store.persist()
+        // Placements already persist in `atomic`. Tick snapshots can lag by a second.
+        const now = Date.now()
+        if (needsSave && now - this.lastPersistAt >= 1000) {
+          this.lastPersistAt = now
+          this.store.persist()
+        }
       } catch (error) {
         console.error('Game simulation failed:', error)
       }
@@ -123,9 +141,30 @@ export class SimulationCoordinator {
     this.timer.unref()
   }
 
+  private wireFrame(roomId: string, frame: PipelineFrame) {
+    const stamp = beltLayoutStamp(frame.belts)
+    if (this.beltStamps.get(roomId) !== stamp) {
+      this.beltStamps.set(roomId, stamp)
+      return frame
+    }
+    const { belts: _belts, ...rest } = frame
+    return { ...rest, omitBelts: true, beltCount: frame.belts.length }
+  }
+
   close() {
     clearInterval(this.timer)
     for (const clients of this.streams.values())
       for (const response of clients) response.end()
   }
+}
+
+function beltLayoutStamp(belts: PipelineFrame['belts']) {
+  let h = belts.length
+  for (const belt of belts) {
+    h = Math.imul(h, 33) ^ belt.x
+    h = Math.imul(h, 33) ^ belt.y
+    h = Math.imul(h, 33) ^ belt.direction.charCodeAt(0)
+    h = Math.imul(h, 33) ^ (belt.speed ?? 1)
+  }
+  return h >>> 0
 }

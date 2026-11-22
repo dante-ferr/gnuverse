@@ -60,7 +60,7 @@ export class GovernanceService {
     if (
       !room.members[targetId] ||
       room.members[targetId].banned ||
-      (targetId === room.creatorId && room.allowCreatorBan !== true)
+      targetId === room.creatorId
     )
       fail(400, 'Alvo de banimento inválido.')
     const proposal: Proposal = {

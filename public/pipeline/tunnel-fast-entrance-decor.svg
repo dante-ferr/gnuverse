@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <!-- Fast tunnel entrance: longer travel arrows into the portal (north). -->
+  <g fill="none" stroke="#000000" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 120 H384"/>
+    <path d="M160 88 H352"/>
+    <path d="M256 430 V170"/>
+    <path d="M148 300 L256 148 L364 300"/>
+    <path d="M176 360 L256 228 L336 360"/>
+    <path d="M204 410 L256 312 L308 410"/>
+  </g>
+</svg>

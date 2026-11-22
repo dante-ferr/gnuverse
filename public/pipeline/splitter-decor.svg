@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Orientation hint: canonical facing north (forward = up). Rotated at draw time. -->
+  <g fill="#000000">
+    <!-- Hub -->
+    <rect x="220" y="220" width="72" height="72" rx="8"/>
+    <!-- Forward (north) — tip out -->
+    <path d="M232 220 V140 H196 L256 64 L316 140 H280 V220 Z"/>
+    <!-- Left (west) — tip out -->
+    <path d="M220 232 H140 V196 L64 256 L140 316 V280 H220 Z"/>
+    <!-- Right (east) — tip out -->
+    <path d="M292 232 H372 V196 L448 256 L372 316 V280 H292 Z"/>
+    <!-- Input from behind (south) — tip into hub -->
+    <path d="M232 448 V360 H196 L256 292 L316 360 H280 V448 Z"/>
+  </g>
+</svg>
