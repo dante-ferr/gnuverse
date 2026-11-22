@@ -32,10 +32,10 @@ jobs:
       - name: Build static site
         env:
           CMS_CONTENT_MODE: live
-          # Public Render URL hardcoded for now (not a secret); replace with secrets/vars later.
+          # Public Render URLs hardcoded for now (not secrets); replace with secrets/vars later.
           CMS_URL: https://gnuverse.onrender.com
           NEXT_PUBLIC_CMS_URL: https://gnuverse.onrender.com
-          NEXT_PUBLIC_GAME_API_URL: ${{ vars.NEXT_PUBLIC_GAME_API_URL }}
+          NEXT_PUBLIC_GAME_API_URL: ${{ vars.NEXT_PUBLIC_GAME_API_URL || 'https://gnuverse-game.onrender.com' }}
         run: |
           if [ -n "$CMS_URL" ]; then
             npm run build
