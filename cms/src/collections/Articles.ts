@@ -37,8 +37,11 @@ function isSafeBodyHref(value: unknown): boolean {
 function assertSafeLexicalNode(node: unknown): void {
   if (!node || typeof node !== 'object') return
   const record = node as Record<string, unknown>
-  if (record.type === 'upload' || record.type === 'relationship') {
-    throw new APIError('Bloco de mídia ou relação não permitido no corpo do artigo.', 400)
+  if (record.type === 'relationship') {
+    throw new APIError('Bloco de relação não permitido no corpo do artigo.', 400)
+  }
+  if (record.type === 'upload' && record.relationTo !== 'media') {
+    throw new APIError('Apenas imagens da biblioteca são permitidas no corpo do artigo.', 400)
   }
   if (record.type === 'link' || record.type === 'autolink') {
     const fields = record.fields as Record<string, unknown> | undefined
@@ -149,6 +152,9 @@ export const Articles: CollectionConfig = {
         if (operation === 'create' && !data.owner && req.user) {
           data.owner = req.user.id
         }
+        if (operation === 'create' && (typeof data.author !== 'string' || !data.author.trim()) && req.user) {
+          data.author = req.user.name || req.user.username || req.user.email
+        }
         if (operation === 'update' && !isReviewer({ req }) && originalDoc?.owner) {
           data.owner = getOwnerId(originalDoc.owner)
         }
@@ -258,7 +264,7 @@ export const Articles: CollectionConfig = {
       },
       access: { read: canReadReviewNotes, create: isReviewerField, update: isReviewerField },
     },
-    { name: 'category', label: 'Categoria', type: 'select', required: true, defaultValue: 'reflexoes', options: [
+    { name: 'category', label: 'Categoria', type: 'select', required: false, defaultValue: 'reflexoes', admin: { hidden: true }, options: [
       { label: 'Reflexões', value: 'reflexoes' },
       { label: 'Educação', value: 'educacao' },
       { label: 'Acesso', value: 'acesso' },

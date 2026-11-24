@@ -16,8 +16,11 @@ function isSafeBodyHref(value) {
 
 function validateLexicalNodes(node) {
   if (!node || typeof node !== 'object') return
-  if (node.type === 'upload' || node.type === 'relationship') {
-    throw new Error('Bloco de mídia ou relação não permitido no corpo do artigo.')
+  if (node.type === 'relationship') {
+    throw new Error('Bloco de relação não permitido no corpo do artigo.')
+  }
+  if (node.type === 'upload' && node.relationTo !== 'media') {
+    throw new Error('Apenas imagens são permitidas no corpo do artigo.')
   }
   if (node.type === 'link' || node.type === 'autolink') {
     const rawUrl = node.fields?.url ?? node.url
@@ -32,9 +35,10 @@ function validateLexicalNodes(node) {
 
 export function validateArticle(doc) {
   if (doc._status !== 'published') throw new Error('A API retornou um artigo não publicado.')
-  for (const field of ['title', 'slug', 'summary', 'author', 'category']) {
+  for (const field of ['title', 'slug', 'summary', 'author']) {
     if (typeof doc[field] !== 'string' || !doc[field].trim()) throw new Error(`Artigo com ${field} inválido.`)
   }
+  const category = typeof doc.category === 'string' && doc.category.trim() ? doc.category : 'reflexoes'
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(doc.slug)) throw new Error('Slug inválido no CMS.')
   if (!doc.body?.root || !Array.isArray(doc.body.root.children)) throw new Error(`Texto inválido: ${doc.slug}`)
   validateLexicalNodes(doc.body.root)
@@ -71,7 +75,7 @@ export function validateArticle(doc) {
 
   return {
     title: doc.title, slug: doc.slug, summary: doc.summary, author: doc.author,
-    category: doc.category, body: doc.body, references,
+    category, body: doc.body, references,
     hashtags,
     publishedAt,
     cover: doc.cover && typeof doc.cover === 'object' ? doc.cover : undefined,

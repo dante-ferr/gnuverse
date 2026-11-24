@@ -10,6 +10,35 @@ loadLocalEnvironment()
 const mode = process.env.CMS_CONTENT_MODE || 'demo'
 if (!['demo', 'live'].includes(mode)) throw new Error('CMS_CONTENT_MODE precisa ser demo ou live.')
 
+async function syncMediaFile(rawUrl, cmsURL, mediaDirectory, currentMedia, label) {
+  const url = new URL(rawUrl, cmsURL)
+  // O adaptador S3 é servido pela rota do Payload. Não seguir URLs arbitrárias.
+  if (url.origin !== new URL(cmsURL).origin) throw new Error('A mídia deve ser servida pelo mesmo CMS_URL.')
+  const response = await fetch(url, { signal: AbortSignal.timeout(120000), redirect: 'error' })
+  if (!response.ok) throw new Error(`Não foi possível copiar a mídia de ${label}.`)
+  const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+  const extension = extensions[response.headers.get('content-type')?.split(';')[0]]
+  if (!extension) throw new Error('Formato de mídia não permitido.')
+  const buffer = Buffer.from(await response.arrayBuffer())
+  if (buffer.length > 5 * 1024 * 1024) throw new Error('Mídia maior que 5 MB.')
+  const filename = `${createHash('sha256').update(buffer).digest('hex')}.${extension}`
+  await writeFile(path.join(mediaDirectory, filename), buffer)
+  currentMedia.add(filename)
+  return `/cms-media/${filename}`
+}
+
+async function syncLexicalMedia(node, cmsURL, mediaDirectory, currentMedia, slug) {
+  if (!node || typeof node !== 'object') return
+  if (node.type === 'upload' && node.relationTo === 'media' && node.value && typeof node.value === 'object' && typeof node.value.url === 'string') {
+    node.value.url = await syncMediaFile(node.value.url, cmsURL, mediaDirectory, currentMedia, slug)
+  }
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      await syncLexicalMedia(child, cmsURL, mediaDirectory, currentMedia, slug)
+    }
+  }
+}
+
 let articles
 const mediaDirectory = path.join(root, 'public/cms-media')
 const currentMedia = new Set()
@@ -20,23 +49,15 @@ if (mode === 'demo') {
   const cmsURL = getContentCMSURL()
   articles = await fetchPublishedArticles(cmsURL)
   for (const article of articles) {
-    if (!article.cover) continue
-    const media = article.cover
-    if (!media.url || !media.alt || !media.credit) throw new Error(`Capa incompleta: ${article.slug}`)
-    const url = new URL(media.url, cmsURL)
-    // O adaptador S3 é servido pela rota do Payload. Não seguir URLs arbitrárias de capas.
-    if (url.origin !== new URL(cmsURL).origin) throw new Error('A capa deve ser servida pelo mesmo CMS_URL.')
-    const response = await fetch(url, { signal: AbortSignal.timeout(120000), redirect: 'error' })
-    if (!response.ok) throw new Error(`Não foi possível copiar a capa de ${article.slug}.`)
-    const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
-    const extension = extensions[response.headers.get('content-type')?.split(';')[0]]
-    if (!extension) throw new Error('Formato de capa não permitido.')
-    const buffer = Buffer.from(await response.arrayBuffer())
-    if (buffer.length > 5 * 1024 * 1024) throw new Error('Capa maior que 5 MB.')
-    const filename = `${createHash('sha256').update(buffer).digest('hex')}.${extension}`
-    await writeFile(path.join(mediaDirectory, filename), buffer)
-    currentMedia.add(filename)
-    article.cover = { url: `/cms-media/${filename}`, alt: media.alt, credit: media.credit }
+    if (article.cover) {
+      const media = article.cover
+      if (!media.url || !media.alt || !media.credit) throw new Error(`Capa incompleta: ${article.slug}`)
+      const localUrl = await syncMediaFile(media.url, cmsURL, mediaDirectory, currentMedia, article.slug)
+      article.cover = { url: localUrl, alt: media.alt, credit: media.credit }
+    }
+    if (article.body?.root) {
+      await syncLexicalMedia(article.body.root, cmsURL, mediaDirectory, currentMedia, article.slug)
+    }
   }
 }
 

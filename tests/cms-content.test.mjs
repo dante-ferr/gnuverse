@@ -37,7 +37,15 @@ test('rascunhos não podem entrar na exportação e slugs não podem escapar da 
       children: [{ type: 'upload', version: 1, relationTo: 'media', value: 1 }],
     },
   }
-  assert.throws(() => validateArticle({ ...published, body: uploadBody }), /não permitido/)
+  assert.doesNotThrow(() => validateArticle({ ...published, body: uploadBody }))
+
+  const relationshipBody = {
+    root: {
+      ...example.body.root,
+      children: [{ type: 'relationship', version: 1, relationTo: 'users', value: 1 }],
+    },
+  }
+  assert.throws(() => validateArticle({ ...published, body: relationshipBody }), /não permitido/)
 })
 
 test('lê todas as páginas com filtro de publicação, sem credenciais de usuário', async () => {

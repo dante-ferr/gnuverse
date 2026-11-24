@@ -79,8 +79,8 @@ export default buildConfig({
     await markLegacyAccountsVerified(payload)
   },
   editor: lexicalEditor({ features: ({ defaultFeatures }) => [
-    ...defaultFeatures.filter((feature) => !['link', 'upload', 'relationship'].includes(feature.key)),
-    // Apenas links externos e capa: nenhuma mídia do corpo dependerá do CMS no navegador.
+    ...defaultFeatures.filter((feature) => !['link', 'relationship'].includes(feature.key)),
+    // Apenas links externos e mídia do CMS: links internos são validados.
     LinkFeature({ enabledCollections: [] }),
   ] }),
   db: postgres
