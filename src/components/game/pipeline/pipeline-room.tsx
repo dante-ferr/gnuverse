@@ -304,6 +304,8 @@ export function PipelineRoom() {
             creatorId={live.creatorId}
             members={live.members}
             proposals={live.proposals}
+            checkpoints={live.checkpoints}
+            governance={live.governance}
             events={live.events}
             busy={feedback.busy}
             canAdvance={Boolean(lobby.roomId && isAdmin)}

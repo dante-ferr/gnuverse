@@ -14,6 +14,7 @@ grid_visible_min_zoom = 0.5 # Show cell grid at or above this zoom (zoomed in)
 camera_zoom_min = 0.08 # Zoomed out limit (see more map)
 camera_zoom_max = 3 # Zoomed in limit
 camera_enter_view_cells = 14 # Initial room visit: shorter viewport edge spans this many cells
+lobby_thumbnail_view_cells = 32 # Lobby thumbnails: shorter edge spans this many cells around the starting core
 # Scene LOD (client). At/above detail: glyphs, chevrons, full machines.
 # Between structure and detail: element-fill disks, no chevrons, flat machine fills + cores.
 # Below structure: disks, no chevrons, cores only (source/combiner glyphs still draw).
@@ -117,6 +118,10 @@ satellite_core_ring_min = 3
 satellite_core_ring_max = 4
 optional_core_spawn_chance_percent = 8 # Beyond ring 4, non-satellite chunks
 optional_core_cost = 400 # Pooled optional core buy (flat)
+
+# Checkpoints (factory restore points)
+checkpoint_spend_coins = 200 # Coins spent in the room since the last checkpoint that save a new one
+checkpoint_limit = 20 # Spend checkpoints kept per room (plus the room-creation one)
 
 # Starter sources and non-starter spawn odds live in elements.toml
 # (starter_source_ids + per-base source_spawn_chance_percent).

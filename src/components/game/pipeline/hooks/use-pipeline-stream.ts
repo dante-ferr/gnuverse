@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameApi } from '../../api/game-api'
 import { isPipelineFrame, type PipelineFrame } from '../model/frame'
 import type { Connection } from '../../hooks/use-room-lobby'
-import type { ChatMessage, GameEvent, Member, Proposal } from '../../model/types'
+import type {
+  ChatMessage,
+  Checkpoint,
+  GameEvent,
+  Member,
+  Proposal,
+  RoomGovernance,
+} from '../../model/types'
 
 const emptyFrame = (): PipelineFrame => ({
   kind: 'pipeline',
@@ -27,6 +34,12 @@ const emptyFrame = (): PipelineFrame => ({
   sources: [{ id: 'source', x: 0, y: 0, direction: 'east', shape: 'circle' }],
 })
 
+const defaultGovernance: RoomGovernance = {
+  restoreByMajority: false,
+  banByMajority: false,
+  checkpointSpend: 0,
+}
+
 /** SSE frames, chat, and room detail for one pipeline room. */
 export function usePipelineStream(api: GameApi, roomId: string) {
   const [frame, setFrame] = useState<PipelineFrame>(emptyFrame)
@@ -37,13 +50,16 @@ export function usePipelineStream(api: GameApi, roomId: string) {
   const [members, setMembers] = useState<Member[]>([])
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [events, setEvents] = useState<GameEvent[]>([])
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
+  const [governance, setGovernance] = useState<RoomGovernance>(defaultGovernance)
   const [connection, setConnection] = useState<Connection>('connecting')
   const selected = useRef(roomId)
   selected.current = roomId
   const refresh = useCallback(async () => {
     if (!roomId) return
     const result = await api.request<{
-      room: { id: string; name: string; creatorId: string }
+      room: { id: string; name: string; creatorId: string } & Partial<RoomGovernance>
+      snapshots?: Checkpoint[]
       frame: PipelineFrame
       rules: Record<string, unknown>
       chat?: ChatMessage[]
@@ -60,6 +76,12 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     setMembers(Array.isArray(result.members) ? result.members : [])
     setProposals(Array.isArray(result.proposals) ? result.proposals : [])
     setEvents(Array.isArray(result.events) ? result.events : [])
+    setCheckpoints(Array.isArray(result.snapshots) ? result.snapshots : [])
+    setGovernance({
+      restoreByMajority: result.room.restoreByMajority === true,
+      banByMajority: result.room.banByMajority === true,
+      checkpointSpend: Number(result.room.checkpointSpend ?? 0),
+    })
   }, [api, roomId])
   useEffect(() => {
     setFrame(emptyFrame())
@@ -67,6 +89,8 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     setMembers([])
     setProposals([])
     setEvents([])
+    setCheckpoints([])
+    setGovernance(defaultGovernance)
     setConnection('connecting')
     if (!roomId) return
     let active = true
@@ -130,5 +154,18 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       stream.close()
     }
   }, [api, roomId, refresh])
-  return { frame, rules, name, creatorId, chat, members, proposals, events, connection, refresh }
+  return {
+    frame,
+    rules,
+    name,
+    creatorId,
+    chat,
+    members,
+    proposals,
+    events,
+    checkpoints,
+    governance,
+    connection,
+    refresh,
+  }
 }

@@ -14,6 +14,8 @@ export type PipelineRules = {
   cameraZoomMax: number
   /** On first room visit, fit this many cells along the shorter viewport edge. */
   cameraEnterViewCells: number
+  /** Lobby room thumbnails: shorter edge spans this many cells around the starting core. */
+  lobbyThumbnailViewCells: number
   /** At/above this zoom: packet glyphs, belt chevrons, full machine art. */
   lodDetailMinZoom: number
   /** At/above this (and below detail): flat machine fills + cores; below: cores only. */
@@ -167,6 +169,10 @@ export type PipelineRules = {
   optionalCoreSpawnChancePercent: number
   /** Pooled buy price for an optional core (no progression). */
   optionalCoreCost: number
+  /** Coins spent in a room since the last checkpoint that trigger a new automatic checkpoint. */
+  checkpointSpendCoins: number
+  /** Spend checkpoints kept per room (the room-creation checkpoint is kept on top). */
+  checkpointLimit: number
   /** Input “[” bracket protrusion as percent of one cell (shallower = recess). */
   slotInputDepthPercent: number
   /** Output bracket protrusion as percent of one cell (deeper = nozzle). */

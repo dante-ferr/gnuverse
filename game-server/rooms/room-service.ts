@@ -6,6 +6,7 @@ import { machineListPrice, speedDowngradeRefund, structureRefund } from '../econ
 import { WalletService } from '../economy/wallet-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
 import { HistoryService } from './history-service.ts'
+import { CheckpointService } from './checkpoint-service.ts'
 import { isDirection } from '../pipeline/geometry/direction.ts'
 import { Match } from '../pipeline/world/match.ts'
 import type { MachinePlaceRequest } from '../pipeline/world/edit/machine-editor.ts'
@@ -31,6 +32,7 @@ export class RoomService {
   private wallet: WalletService
   private runtime: SimulationCoordinator
   private history: HistoryService
+  private checkpoints: CheckpointService
   constructor(
     store: GameStore,
     rules: Readonly<Rules>,
@@ -38,6 +40,7 @@ export class RoomService {
     wallet: WalletService,
     runtime: SimulationCoordinator,
     history: HistoryService,
+    checkpoints = new CheckpointService(rules, history),
   ) {
     this.store = store
     this.rules = rules
@@ -45,6 +48,7 @@ export class RoomService {
     this.wallet = wallet
     this.runtime = runtime
     this.history = history
+    this.checkpoints = checkpoints
   }
   member(room: Room, user: User): Member {
     return (room.members[user.id] ??= {
@@ -63,6 +67,9 @@ export class RoomService {
       name: room.name,
       creatorId: room.creatorId,
       allowCreatorBan: room.allowCreatorBan === true,
+      restoreByMajority: room.restoreByMajority === true,
+      banByMajority: room.banByMajority === true,
+      checkpointSpend: room.checkpointSpend ?? 0,
       cost: room.cost,
       eligibilityMode: room.eligibilityMode,
       minContributions: room.minContributions,
@@ -76,7 +83,7 @@ export class RoomService {
     return {
       room: this.publicRoom(room),
       frame: this.runtime.publicFrame(room),
-      snapshots: room.snapshots,
+      snapshots: this.checkpoints.summaries(room),
       events: room.events,
       members: Object.values(room.members),
       chat: room.chat ?? [],
@@ -118,6 +125,9 @@ export class RoomService {
       name: text(body.name ?? defaultName, 3, 60, 'Nome'),
       creatorId: user.id,
       allowCreatorBan: false,
+      restoreByMajority: body.restoreByMajority === true,
+      banByMajority: body.banByMajority === true,
+      checkpointSpend: 0,
       cost: 0,
       eligibilityMode: mode(
         body.eligibilityMode,
@@ -148,7 +158,7 @@ export class RoomService {
       eligibilityMode: room.eligibilityMode,
       minContributions: room.minContributions,
     })
-    this.history.snapshot(room, user.id, 'Sala criada')
+    this.checkpoints.save(room, user.id, 'created', 'Sala criada')
     return { room: this.publicRoom(room) }
   }
   settings(room: Room, user: User, body: Record<string, unknown>) {
@@ -165,6 +175,8 @@ export class RoomService {
       name: room.name,
       eligibilityMode: room.eligibilityMode,
       minContributions: room.minContributions,
+      restoreByMajority: room.restoreByMajority === true,
+      banByMajority: room.banByMajority === true,
     }
     const after = {
       name: body.name === undefined ? room.name : text(body.name, 3, 60, 'Nome'),
@@ -176,6 +188,8 @@ export class RoomService {
         body.minContributions === undefined
           ? room.minContributions
           : integer(body.minContributions, 1, 1000, 'Contribuições mínimas'),
+      restoreByMajority: flag(body.restoreByMajority, before.restoreByMajority, 'Restauração por maioria'),
+      banByMajority: flag(body.banByMajority, before.banByMajority, 'Suspensão por maioria'),
     }
     if (Object.entries(before).every(([key, value]) => after[key as keyof typeof after] === value))
       fail(400, 'Escolha ao menos uma alteração.')
@@ -235,6 +249,7 @@ export class RoomService {
     const wallet = this.settle(user, cost, refund)
     if (cost > 0) recordRoomSpend(match, user.id, cost)
     const committed = this.commitMachine(room, user, participant, match, String(machineId), cost, refund)
+    this.checkpoints.recordSpend(room, user.id, cost)
     return { ...committed, wallet, cost, refund }
   }
   place(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
@@ -267,6 +282,7 @@ export class RoomService {
       cost,
       refund,
     })
+    this.checkpoints.recordSpend(room, user.id, cost)
     return { ...committed, wallet, cost, refund }
   }
   removeBelt(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
@@ -367,6 +383,7 @@ export class RoomService {
     if (funded.completed) {
       this.history.event(room, 'chunk-buy', user.id, { cx, cy, cost: funded.cost })
     }
+    this.checkpoints.recordSpend(room, user.id, amount)
     this.runtime.afterAction(room)
     return {
       frame: room.frame,
@@ -408,6 +425,7 @@ export class RoomService {
     if (funded.completed) {
       this.history.event(room, 'core-buy', user.id, { cx, cy, cost: funded.cost })
     }
+    this.checkpoints.recordSpend(room, user.id, amount)
     this.runtime.afterAction(room)
     return {
       frame: room.frame,
@@ -569,4 +587,10 @@ export class RoomService {
     })
     return { ok: true }
   }
+}
+
+function flag(value: unknown, current: boolean, label: string) {
+  if (value === undefined) return current
+  if (typeof value !== 'boolean') fail(400, `${label} inválida.`)
+  return value
 }

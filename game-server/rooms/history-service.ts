@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { Room } from '../domain/types.ts'
+import type { Room, Snapshot } from '../domain/types.ts'
 export class HistoryService {
   private now: () => number
   private onChange: (roomId: string) => void
@@ -17,17 +17,24 @@ export class HistoryService {
     })
     this.onChange(room.id)
   }
-  snapshot(room: Room, actorId: string | null, reason: string) {
+  snapshot(
+    room: Room,
+    actorId: string | null,
+    reason: string,
+    kind: Snapshot['kind'] = 'created',
+  ) {
     room.snapshots.push({
       id: randomUUID(),
       createdAt: this.now(),
       frame: structuredClone(room.frame),
       actorId,
       reason,
+      kind,
     })
     this.event(room, 'snapshot', actorId, {
       snapshotId: room.snapshots.at(-1)!.id,
       reason,
+      kind,
     })
   }
 }

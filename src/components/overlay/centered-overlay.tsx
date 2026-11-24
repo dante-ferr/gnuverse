@@ -8,6 +8,8 @@ export type CenteredOverlayProps = {
   onClose: () => void
   children: ReactNode
   closeLabel?: string
+  /** Extra class on the dialog, e.g. to widen it. */
+  className?: string
 }
 
 /** Centered modal dialog shell for reuse across the site. */
@@ -16,6 +18,7 @@ export function CenteredOverlay({
   onClose,
   children,
   closeLabel = 'Fechar',
+  className,
 }: CenteredOverlayProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -35,7 +38,7 @@ export function CenteredOverlay({
   return (
     <dialog
       ref={dialogRef}
-      className={styles.overlay}
+      className={className ? `${styles.overlay} ${className}` : styles.overlay}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()

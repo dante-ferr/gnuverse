@@ -7,6 +7,8 @@ export function createRoomFromForm(api: GameApi, form: HTMLFormElement) {
     name: data.get('name'),
     eligibilityMode: data.get('eligibilityMode') ?? 'automatic',
     minContributions: Number(data.get('minContributions')),
+    restoreByMajority: data.get('restoreByMajority') === 'on',
+    banByMajority: data.get('banByMajority') === 'on',
     sandbox: data.get('sandbox') === 'true' ? true : undefined,
   })
 }

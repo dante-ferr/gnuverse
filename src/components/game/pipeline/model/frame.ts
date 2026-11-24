@@ -17,6 +17,7 @@ export type PipelineRules = {
   cameraZoomMin: number
   cameraZoomMax: number
   cameraEnterViewCells: number
+  lobbyThumbnailViewCells: number
   /** At/above: glyphs, chevrons, full machines. */
   lodDetailMinZoom: number
   /** At/above (below detail): flat machines + cores; below: cores only. */
@@ -95,6 +96,8 @@ export type PipelineRules = {
   satelliteCoreRingMax: number
   optionalCoreSpawnChancePercent: number
   optionalCoreCost: number
+  checkpointSpendCoins: number
+  checkpointLimit: number
   slotInputDepthPercent: number
   slotOutputDepthPercent: number
   slotBracketThickPercent: number

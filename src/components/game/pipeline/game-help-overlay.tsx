@@ -138,8 +138,52 @@ export function GameHelpOverlay({ sandbox, onClose, onOpenTutorial }: Props) {
           <h3>Sala</h3>
           <p>
             Use <strong>Participantes</strong> para ver quem está na sala e o histórico de cada
-            pessoa. Em <strong>Decisões</strong>, o BDFL trata propostas de suspensão. O chat fica
-            num painel recolhível à esquerda do tabuleiro.
+            pessoa, e para propor a suspensão de alguém (nunca do BDFL). O chat fica num painel
+            recolhível à esquerda do tabuleiro.
+          </p>
+        </section>
+
+        <section className={styles.section}>
+          <h3>Checkpoints</h3>
+          <p>
+            A sala guarda um checkpoint da fábrica sempre que os jogadores gastam, juntos, a
+            quantidade de moedas mostrada na barra de <strong>Decisões</strong>. Depois disso a
+            contagem recomeça. Ficam guardados o início da sala e os checkpoints mais recentes.
+          </p>
+          <p>
+            Abra a <strong>Linha do tempo</strong> e clique num ponto para ver uma prévia. Restaurar
+            volta a fábrica inteira para aquele ponto, incluindo os trechos do mapa, e não devolve
+            moedas gastas depois dele. Antes de restaurar, a sala guarda a fábrica atual, então dá
+            para desfazer com outra proposta.
+          </p>
+        </section>
+
+        <section className={styles.section}>
+          <h3>Decisões</h3>
+          <p>
+            Quem já contribuiu com a fábrica pode propor uma restauração ou suspensão e clicar em{' '}
+            <strong>Concordo</strong> nas propostas abertas. A barra de cada proposta mostra quantos
+            concordam.
+          </p>
+          <ul className={styles.list} aria-label="Quem decide">
+            <li>
+              <span className={styles.key}>BDFL</span>
+              <span>
+                O dono da sala vê as concordâncias e aceita ou rejeita, com um motivo. Propostas do
+                próprio BDFL valem na hora.
+              </span>
+            </li>
+            <li>
+              <span className={styles.key}>Maioria</span>
+              <span>
+                A proposta passa quando mais da metade dos contribuidores concorda. O BDFL conta como
+                um voto e ainda pode rejeitar uma proposta parada.
+              </span>
+            </li>
+          </ul>
+          <p>
+            O BDFL escolhe o modo de restauração e o de suspensão em <strong>Quem decide</strong>.
+            Há uma proposta aberta de cada tipo por vez.
           </p>
         </section>
       </div>

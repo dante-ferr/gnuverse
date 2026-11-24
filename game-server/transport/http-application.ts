@@ -235,7 +235,15 @@ export class HttpApplication {
       }
       if (req.method === 'GET' && path.length === 3) {
         store.atomic(() => governance.expireBans(room))
-        return json(res, 200, rooms.detail(room))
+        return json(res, 200, {
+          ...rooms.detail(room),
+          proposals: governance.publicProposals(room),
+        })
+      }
+      if (req.method === 'GET' && path[3] === 'snapshots' && path.length === 5) {
+        const snapshot = room.snapshots.find((item) => item.id === path[4])
+        if (!snapshot) fail(404, 'Checkpoint não encontrado.')
+        return json(res, 200, { frame: snapshot.frame })
       }
       if (req.method === 'GET' && path[3] === 'events' && path.length === 4) {
         runtime.subscribe(room, res)
@@ -293,6 +301,8 @@ export class HttpApplication {
         if (proposal.status !== 'pending') fail(409, 'Proposta encerrada.')
         if (path[5] === 'decide' && path.length === 6)
           return governance.decide(room, user, proposal, body)
+        if (path[5] === 'support' && path.length === 6)
+          return governance.support(room, user, participant, proposal)
         fail(404, 'Não encontrado.')
       })
       json(res, 200, result)
