@@ -1,7 +1,6 @@
 import { DatabaseSync, type StatementSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { Pool } from 'pg'
 import type { State } from '../domain/types.ts'
 import { acquireDatabaseLock } from './database-lock.ts'
 
@@ -96,6 +95,7 @@ export class GameStore {
   }
 
   static async openPostgres(connectionString: string): Promise<GameStore> {
+    const { Pool } = await import('pg')
     const pool = new Pool({
       connectionString,
       max: 3,
