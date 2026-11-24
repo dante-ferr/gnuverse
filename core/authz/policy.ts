@@ -12,10 +12,10 @@ export type OwnedResource = { ownerId: string }
 
 const grants: Record<Role, readonly Permission[]> = {
   admin: PERMISSIONS,
-  'blog-editor': ['cms:access', 'article:manage', 'media:manage'],
+  'blog-editor': ['cms:access', 'article:manage', 'media:manage', 'quiz:manage'],
   // Panel access so moderators can open /moderacao-chat without blog edit rights.
   'game-moderator': ['cms:access', 'room:update:any', 'room:delete:any', 'room:chat:moderate'],
-  'quiz-editor': ['quiz:manage'],
+  'quiz-editor': ['cms:access', 'quiz:manage'],
   member: ['room:update:own', 'room:delete:own'],
 }
 

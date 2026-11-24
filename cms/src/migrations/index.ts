@@ -4,6 +4,7 @@ import * as migration_20261105_000000_shared_identity from './20261105_000000_sh
 import * as migration_20261115_155653_editorial_workflow from './20261115_155653_editorial_workflow';
 import * as migration_20261116_162100_article_hashtags_published_at from './20261116_162100_article_hashtags_published_at';
 import * as migration_20261118_120000_username_login from './20261118_120000_username_login';
+import * as migration_20261124_120000_quizzes from './20261124_120000_quizzes';
 
 export const migrations = [
   {
@@ -35,5 +36,10 @@ export const migrations = [
     up: migration_20261118_120000_username_login.up,
     down: migration_20261118_120000_username_login.down,
     name: '20261118_120000_username_login',
+  },
+  {
+    up: migration_20261124_120000_quizzes.up,
+    down: migration_20261124_120000_quizzes.down,
+    name: '20261124_120000_quizzes',
   },
 ];
