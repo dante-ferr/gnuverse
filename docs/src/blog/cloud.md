@@ -48,7 +48,7 @@ From the repo root: `make cms-set-host-admin` / `npm run cms:set-host-admin`. Th
 - `CMS_CONTENT_MODE=live`, `CMS_URL`, `NEXT_PUBLIC_CMS_URL` (CMS HTTPS URL), `GNUVERSE_SITE_URL` only on the CMS — not required on Pages
 - Deploy hook → `SITE_DEPLOY_HOOK_URL` on Render
 - **Public signup and login without `game-server`:** `/cadastro/` and `/login/` authenticate directly against `NEXT_PUBLIC_CMS_URL` whenever `NEXT_PUBLIC_GAME_API_URL` is unset off-localhost, so accounts work with only the CMS hosted.
-- Validate: submit on `/blog/`, review/publish, edit, unpublish, delete, cover
+- Validate: submit on `/blog/`, review/publish, edit, unpublish, delete, cover. For quizzes, [deploy the CMS migration before the static site](quizzes.md#deployment-order) and verify `/quizzes/`.
 
 ## Accepted risks
 

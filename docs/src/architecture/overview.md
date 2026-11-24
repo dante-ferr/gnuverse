@@ -5,12 +5,12 @@ Three distinct processes (no shared memory; they talk over HTTP/JSON and SSE):
 | Program | Folder | Production | Role |
 | :--- | :--- | :--- | :--- |
 | Static site | root (`src/`), Next.js `output: "export"` | Cloudflare Pages | HTML/CSS/JS in `out/` |
-| CMS | `cms/`, Payload | Render Free (may sleep) | `/admin`, `/acessos`, `/moderacao-chat`, `/api/articles`, `/api/users`, `/api/media` |
+| CMS | `cms/`, Payload | Render Free (may sleep) | `/admin`, `/acessos`, `/moderacao-chat`, `/api/articles`, `/api/quizzes`, `/api/users`, `/api/media` |
 | Game server | `game-server/` | Always-on host + disk (pending) | Player auth via CMS, Open Pipeline grid tick, SSE |
 
 ## Main folders
 
-**`src/`** — Site App Router (`/`, `/blog/`, `/artigos/`, `/jogo/`), components, and static-read libs.
+**`src/`** — Site App Router (`/`, `/blog/`, `/artigos/`, `/quizzes/`, `/jogo/`), components, and static-read libs.
 
 **`cms/`** — Second app (own `package.json`). Collections, access, PostgreSQL migrations, deploy hook.
 

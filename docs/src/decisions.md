@@ -2,9 +2,9 @@
 
 Records what the team chose (2026-10-14; scope updated 2026-11-15–16). Where a phrase was ambiguous, the reading below applies.
 
-## 1. Two independent areas
+## 1. Independent experiences
 
-GNUverse has **Open Pipeline** and an **authorial blog**. Posts are not rooms; playing does not require publishing; publishing does not change the game.
+GNUverse has **Open Pipeline**, an **authorial blog**, and **learning quizzes**. Posts are not rooms; playing does not require publishing; publishing does not change the game.
 
 ## 2. Static site + dynamic backends
 
@@ -155,6 +155,14 @@ Locked 2026-11-20. Beyond the **two free satellite cores** (Chebyshev ring 3–4
 - Gameplay: same **5×5** footprint, **12** inputs, agnostic acceptance, room-global quotas as other cores.
 
 Detail: [Optional outer cores](game/progression.md#optional-outer-cores).
+
+## 15. Article-linked and independent quizzes
+
+Quizzes follow the blog's contributor/reviewer split and the static-site architecture. A quiz may reference one article or remain independent; an article may have several quizzes. Publication is independent: unpublished or deleted articles do not remove published quizzes. Reciprocal links appear only for articles in the published snapshot.
+
+Each question has 2–6 alternatives, one correct answer and an explanation. A quiz has 1–30 questions. Attempts are anonymous, local to the page and have no account history, score ranking or game rewards. The answer key is intentionally part of the static learning content. Authors edit their own unpublished quizzes; reviewers unpublish before an author edits published content. There is no parallel published/draft quiz version.
+
+Full editorial flow, limits, access and deployment order: [Quizzes](blog/quizzes.md).
 
 ## Still open
 
