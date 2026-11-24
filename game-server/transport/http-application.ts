@@ -7,7 +7,7 @@ import { WalletService } from '../economy/wallet-service.ts'
 import { RoomService } from '../rooms/room-service.ts'
 import { GovernanceService } from '../governance/governance-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
-import { json, readBody } from './http-helpers.ts'
+import { clientAddress, json, readBody } from './http-helpers.ts'
 import { can, canManageRoom } from '../../core/authz/policy.ts'
 import { isPipelineFrame } from '../pipeline/world/frame.ts'
 import {
@@ -114,20 +114,33 @@ export class HttpApplication {
         ['register', 'login'].includes(path[1]) &&
         path.length === 2
       ) {
-        auth.rateLimit(req.socket.remoteAddress ?? 'unknown')
-        const result = await auth.login(body, path[1] === 'register')
-        return json(res, path[1] === 'register' ? 201 : 200, result)
+        const ip = clientAddress(req)
+        const isRegister = path[1] === 'register'
+        const limitKey = `${path[1]}:${ip}`
+        if (isRegister) {
+          auth.rateLimit(limitKey)
+          const result = await auth.login(body, true)
+          return json(res, 201, result)
+        }
+        auth.checkRateLimit(limitKey)
+        try {
+          const result = await auth.login(body, false)
+          return json(res, 200, result)
+        } catch (error) {
+          auth.recordRateLimitAttempt(limitKey)
+          throw error
+        }
       }
       if (req.method === 'POST' && path[1] === 'forgot-password' && path.length === 2) {
-        auth.rateLimit(req.socket.remoteAddress ?? 'unknown')
+        auth.rateLimit(`forgot-password:${clientAddress(req)}`)
         return json(res, 200, await auth.forgotPassword(body))
       }
       if (req.method === 'POST' && path[1] === 'reset-password' && path.length === 2) {
-        auth.rateLimit(req.socket.remoteAddress ?? 'unknown')
+        auth.rateLimit(`reset-password:${clientAddress(req)}`)
         return json(res, 200, await auth.resetPassword(body))
       }
       if (req.method === 'POST' && path[1] === 'verify-email' && path.length === 3) {
-        auth.rateLimit(req.socket.remoteAddress ?? 'unknown')
+        auth.rateLimit(`verify-email:${clientAddress(req)}`)
         return json(res, 200, await auth.verifyEmail(path[2]))
       }
       if (req.method === 'GET' && path[1] === 'me' && path.length === 2) {

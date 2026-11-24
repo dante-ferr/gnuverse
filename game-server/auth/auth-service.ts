@@ -58,17 +58,28 @@ export class AuthService {
     delete user.password
     return user
   }
-  rateLimit(key: string) {
+  checkRateLimit(key: string) {
     const recent = (this.attempts.get(key) ?? []).filter(
       (time) => time > this.now() - 60000,
     )
     if (recent.length >= 15) fail(429, 'Muitas tentativas. Aguarde um minuto.')
+    if (recent.length > 0) this.attempts.set(key, recent)
+    else this.attempts.delete(key)
+  }
+  recordRateLimitAttempt(key: string) {
+    const recent = (this.attempts.get(key) ?? []).filter(
+      (time) => time > this.now() - 60000,
+    )
     if (this.attempts.size > 10000) {
       for (const [ip, times] of this.attempts)
-        if (times.at(-1)! <= this.now() - 60000) this.attempts.delete(ip)
+        if ((times.at(-1) ?? 0) <= this.now() - 60000) this.attempts.delete(ip)
     }
     recent.push(this.now())
     this.attempts.set(key, recent)
+  }
+  rateLimit(key: string) {
+    this.checkRateLimit(key)
+    this.recordRateLimitAttempt(key)
   }
   async login(body: Record<string, unknown>, register: boolean) {
     const password = body.password

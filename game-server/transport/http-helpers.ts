@@ -1,6 +1,18 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { fail } from '../domain/validation.ts'
 
+/** Extracts the client IP behind a reverse proxy (e.g. Render), falling back to the socket peer. */
+export const clientAddress = (req: IncomingMessage): string => {
+  const forwarded = req.headers['x-forwarded-for']
+  const forwardedRaw = Array.isArray(forwarded) ? forwarded[0] : forwarded
+  const firstForwarded = forwardedRaw?.split(',')[0]?.trim()
+  if (firstForwarded) return firstForwarded
+  const realIp = req.headers['x-real-ip']
+  const realIpRaw = (Array.isArray(realIp) ? realIp[0] : realIp)?.trim()
+  if (realIpRaw) return realIpRaw
+  return req.socket?.remoteAddress || 'unknown'
+}
+
 export const json = (res: ServerResponse, status: number, value: unknown) => {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
