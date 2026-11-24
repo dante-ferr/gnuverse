@@ -184,7 +184,7 @@ export interface Article {
    * Critérios, ajustes necessários ou observações da revisão editorial.
    */
   reviewNotes?: string | null;
-  category: 'reflexoes' | 'educacao' | 'acesso' | 'experiencias';
+  category?: ('reflexoes' | 'educacao' | 'acesso' | 'experiencias') | null;
   cover?: (number | null) | Media;
   publishedAt?: string | null;
   hashtags?:
