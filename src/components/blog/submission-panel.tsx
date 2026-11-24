@@ -984,6 +984,7 @@ export function SubmissionPanel({
               <div className="border-t border-[var(--line)] pt-8">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xl tracking-tight">Minhas submissões</h3>
+                  <Link href="/quizzes/criar/" className="text-sm text-[var(--accent)] underline underline-offset-4">Criar quiz independente</Link>
                   <button
                     type="button"
                     disabled={listBusy}
@@ -1068,6 +1069,7 @@ export function SubmissionPanel({
                           )}
 
                           <div className="mt-4 flex flex-wrap items-center gap-3">
+                            <Link href={`/quizzes/criar/?artigo=${doc.id}`} className="text-xs text-[var(--accent)] underline underline-offset-4">Criar quiz relacionado</Link>
                             {editable && (
                               <button
                                 type="button"
