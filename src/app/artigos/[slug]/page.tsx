@@ -1,8 +1,24 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { RichText } from '@payloadcms/richtext-lexical/react'
-import { categoryNames, getContent } from '@/lib/articles'
+import { RichText, type JSXConvertersFunction } from '@payloadcms/richtext-lexical/react'
+import { getContent } from '@/lib/articles'
 import { formatArticleDate } from '@/lib/blog-explorer'
+
+const articleConverters: JSXConvertersFunction = ({ defaultConverters }) => ({
+  ...defaultConverters,
+  upload: ({ node }) => {
+    const value = node.value as
+      | { url?: string; alt?: string; credit?: string }
+      | undefined
+    if (!value || typeof value !== 'object' || !value.url) return null
+    return (
+      <figure>
+        <img src={value.url} alt={value.alt || ''} />
+        {value.credit && <figcaption>{value.credit}</figcaption>}
+      </figure>
+    )
+  },
+})
 
 type Props = { params: Promise<{ slug: string }> }
 export async function generateStaticParams() {
@@ -38,10 +54,7 @@ export default async function ArticlePage({ params }: Props) {
         ← Voltar ao blog
       </Link>
       <article className="mt-16">
-        <p className="text-xs uppercase tracking-widest text-[var(--accent)]">
-          {categoryNames[article.category] ?? article.category}
-        </p>
-        <h1 className="mt-4 text-4xl leading-tight tracking-tight sm:text-6xl">
+        <h1 className="text-4xl leading-tight tracking-tight sm:text-6xl">
           {article.title}
         </h1>
         <p className="mt-6 text-xl leading-relaxed text-[var(--muted)]">
@@ -85,7 +98,11 @@ export default async function ArticlePage({ params }: Props) {
             </figcaption>
           </figure>
         )}
-        <RichText data={article.body} className="article-body mt-12" />
+        <RichText
+          data={article.body}
+          converters={articleConverters}
+          className="article-body mt-12"
+        />
         {article.references.length > 0 && (
           <aside
             className="mt-12 border-t border-[var(--line)] pt-6"

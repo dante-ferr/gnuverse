@@ -1,6 +1,7 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BlogExplorer } from '@/components/blog/blog-explorer'
-import { SubmissionPanel } from '@/components/blog/submission-panel'
+import { EditorialHeader } from '@/components/blog/editorial-header'
 import { BLOG_PAGE_SIZE } from '@/lib/article-meta'
 import { getContent } from '@/lib/articles'
 
@@ -31,7 +32,17 @@ export default async function BlogPaginatedPage({ params }: Props) {
 
   return (
     <main className="mx-auto min-h-svh max-w-6xl px-6 py-10 sm:px-12">
-      <SubmissionPanel mode={mode} />
+      <EditorialHeader
+        mode={mode}
+        action={
+          <Link
+            href="/blog/escrever/"
+            className="rounded-sm border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            Contribuir com um artigo
+          </Link>
+        }
+      />
       <BlogExplorer
         articles={articles}
         mode={mode}

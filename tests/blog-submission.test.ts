@@ -36,6 +36,40 @@ test('plainTextToLexical gera estrutura idêntica ao demo-article.json e faz rou
   assert.deepEqual(plainTextToLexical(text), demo.body)
 })
 
+test('plainTextToLexical converte formatação (títulos, negrito, itálico, código, links, listas, citações e imagens) e faz round-trip', () => {
+  const source = [
+    '## Subtítulo',
+    '',
+    'Texto com **negrito**, *itálico*, `código` e [link](https://gnu.org).',
+    '',
+    '> Uma citação importante',
+    '',
+    '- Primeiro item\n- Segundo item',
+    '',
+    '![Diagrama](cms-media:42|/api/media/file/diagrama.png)',
+  ].join('\n')
+
+  const lexical = plainTextToLexical(source)
+  const children = lexical.root.children as Array<Record<string, unknown>>
+  assert.equal(children.length, 5)
+  assert.equal(children[0]?.type, 'heading')
+  assert.equal(children[0]?.tag, 'h2')
+  assert.equal(children[2]?.type, 'quote')
+  assert.equal(children[3]?.type, 'list')
+  assert.equal(children[4]?.type, 'upload')
+  assert.equal(children[4]?.value, 42)
+
+  const roundTrip = lexicalToPlainText(lexical)
+  assert.match(roundTrip, /## Subtítulo/)
+  assert.match(roundTrip, /\*\*negrito\*\*/)
+  assert.match(roundTrip, /\*itálico\*/)
+  assert.match(roundTrip, /`código`/)
+  assert.match(roundTrip, /\[link\]\(https:\/\/gnu\.org\)/)
+  assert.match(roundTrip, /> Uma citação importante/)
+  assert.match(roundTrip, /- Primeiro item/)
+  assert.match(roundTrip, /!\[Imagem\]\(cms-media:42\)/)
+})
+
 test('validateSubmissionInput valida slug, resumo, corpo e referências HTTP/HTTPS', () => {
   const invalidSlug = validateSubmissionInput({
     title: 'Teste',

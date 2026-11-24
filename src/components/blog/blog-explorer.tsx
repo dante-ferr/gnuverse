@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { BLOG_PAGE_SIZE, categoryNames, type Article } from '@/lib/article-meta'
+import { BLOG_PAGE_SIZE, type Article } from '@/lib/article-meta'
 import {
   filterAndSortArticles,
   formatArticleDate,
@@ -212,19 +212,11 @@ export function BlogExplorer({
                 )}
 
                 <div className="flex flex-1 flex-col">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <span className="uppercase tracking-widest text-[var(--accent)]">
-                      {categoryNames[article.category] ?? article.category}
-                    </span>
-                    {formattedDate && (
-                      <time
-                        dateTime={article.publishedAt}
-                        className="text-[var(--muted)]"
-                      >
-                        {formattedDate}
-                      </time>
-                    )}
-                  </div>
+                  {formattedDate && (
+                    <div className="text-xs text-[var(--muted)]">
+                      <time dateTime={article.publishedAt}>{formattedDate}</time>
+                    </div>
+                  )}
 
                   <h2 className="mt-3 text-2xl tracking-tight">
                     <Link

@@ -16,13 +16,21 @@ export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   approved: 'Aprovado',
 }
 
+export type SubmissionMedia = {
+  id: string | number
+  url?: string
+  alt?: string
+  credit?: string
+}
+
 export type SubmissionArticle = {
   id: string | number
   title: string
   slug: string
   summary: string
   author: string
-  category: string
+  category?: string
+  cover?: string | number | SubmissionMedia | null
   hashtags?: Array<{ tag?: string } | string>
   body?: unknown
   references?: ArticleReference[]
@@ -85,15 +93,202 @@ export function slugifyTitle(title: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+function makeTextNode(text: string, format = 0) {
+  return {
+    type: 'text',
+    version: 1,
+    text,
+    format,
+    detail: 0,
+    mode: 'normal',
+    style: '',
+  }
+}
+
+function parseInlineNodes(text: string): Array<Record<string, unknown>> {
+  const nodes: Array<Record<string, unknown>> = []
+  const tokenPattern =
+    /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|`[^`\n]+`|\[[^\]\n]+\]\((?:https?:\/\/|mailto:|\/|#)[^\s)]+\))/g
+  let lastIndex = 0
+
+  for (const match of text.matchAll(tokenPattern)) {
+    const index = match.index ?? 0
+    if (index > lastIndex) {
+      nodes.push(makeTextNode(text.slice(lastIndex, index), 0))
+    }
+    const token = match[0]
+    if (token.startsWith('**') && token.endsWith('**')) {
+      nodes.push(makeTextNode(token.slice(2, -2), 1))
+    } else if (token.startsWith('*') && token.endsWith('*')) {
+      nodes.push(makeTextNode(token.slice(1, -1), 2))
+    } else if (token.startsWith('`') && token.endsWith('`')) {
+      nodes.push(makeTextNode(token.slice(1, -1), 16))
+    } else if (token.startsWith('[')) {
+      const linkMatch = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/.exec(token)
+      if (linkMatch) {
+        nodes.push({
+          type: 'link',
+          version: 3,
+          direction: 'ltr',
+          format: '',
+          indent: 0,
+          fields: {
+            linkType: 'custom',
+            newTab: linkMatch[2].startsWith('http'),
+            url: linkMatch[2],
+          },
+          children: [makeTextNode(linkMatch[1], 0)],
+        })
+      } else {
+        nodes.push(makeTextNode(token, 0))
+      }
+    }
+    lastIndex = index + token.length
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(makeTextNode(text.slice(lastIndex), 0))
+  }
+  return nodes.length > 0 ? nodes : [makeTextNode(text, 0)]
+}
+
+function makeParagraphNode(text: string) {
+  return {
+    type: 'paragraph',
+    version: 1,
+    format: '',
+    indent: 0,
+    direction: 'ltr',
+    children: parseInlineNodes(text),
+    textFormat: 0,
+    textStyle: '',
+  }
+}
+
+function parseMediaToken(line: string): Record<string, unknown> | null {
+  const match = /^!\[([^\]]*)\]\(cms-media:([^)\s]+)\)$/.exec(line.trim())
+  if (!match) return null
+  const [, , payload] = match
+  const [rawId] = payload.split('|')
+  const numericId = Number(rawId)
+  const value = Number.isInteger(numericId) && String(numericId) === rawId ? numericId : rawId
+  return {
+    type: 'upload',
+    version: 3,
+    format: '',
+    id: `media-${rawId}`,
+    fields: null,
+    relationTo: 'media',
+    value,
+  }
+}
+
 /**
- * Converte parágrafos separados por linhas em branco para o formato Lexical
- * esperado pelo campo richText do Payload CMS.
+ * Converte texto com formatação (Markdown simples + imagens anexadas) em
+ * estrutura Lexical esperada pelo Payload CMS.
  */
 export function plainTextToLexical(text: string): SerializedEditorState {
-  const paragraphs = text
+  const blocks = text
     .split(/\r?\n\s*\r?\n+/)
-    .map((block) => block.replace(/\s*\r?\n\s*/g, ' ').trim())
+    .map((block) => block.trim())
     .filter(Boolean)
+
+  const children: Array<Record<string, unknown>> = []
+
+  for (const block of blocks) {
+    const lines = block.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    if (lines.length === 1) {
+      const uploadNode = parseMediaToken(lines[0])
+      if (uploadNode) {
+        children.push(uploadNode)
+        continue
+      }
+      if (lines[0].startsWith('### ')) {
+        children.push({
+          type: 'heading',
+          version: 1,
+          tag: 'h3',
+          format: '',
+          indent: 0,
+          direction: 'ltr',
+          children: parseInlineNodes(lines[0].slice(4).trim()),
+        })
+        continue
+      }
+      if (lines[0].startsWith('## ')) {
+        children.push({
+          type: 'heading',
+          version: 1,
+          tag: 'h2',
+          format: '',
+          indent: 0,
+          direction: 'ltr',
+          children: parseInlineNodes(lines[0].slice(3).trim()),
+        })
+        continue
+      }
+    }
+
+    if (lines.every((line) => line.startsWith('> '))) {
+      children.push({
+        type: 'quote',
+        version: 1,
+        format: '',
+        indent: 0,
+        direction: 'ltr',
+        children: parseInlineNodes(lines.map((line) => line.slice(2).trim()).join(' ')),
+      })
+      continue
+    }
+
+    if (lines.every((line) => /^[-*]\s+/.test(line))) {
+      children.push({
+        type: 'list',
+        version: 1,
+        listType: 'bullet',
+        tag: 'ul',
+        start: 1,
+        format: '',
+        indent: 0,
+        direction: 'ltr',
+        children: lines.map((line, index) => ({
+          type: 'listitem',
+          version: 1,
+          value: index + 1,
+          format: '',
+          indent: 0,
+          direction: 'ltr',
+          children: parseInlineNodes(line.replace(/^[-*]\s+/, '').trim()),
+        })),
+      })
+      continue
+    }
+
+    if (lines.every((line) => /^\d+\.\s+/.test(line))) {
+      children.push({
+        type: 'list',
+        version: 1,
+        listType: 'number',
+        tag: 'ol',
+        start: 1,
+        format: '',
+        indent: 0,
+        direction: 'ltr',
+        children: lines.map((line, index) => ({
+          type: 'listitem',
+          version: 1,
+          value: index + 1,
+          format: '',
+          indent: 0,
+          direction: 'ltr',
+          children: parseInlineNodes(line.replace(/^\d+\.\s+/, '').trim()),
+        })),
+      })
+      continue
+    }
+
+    children.push(makeParagraphNode(lines.join(' ')))
+  }
 
   return {
     root: {
@@ -102,38 +297,72 @@ export function plainTextToLexical(text: string): SerializedEditorState {
       format: '',
       indent: 0,
       direction: 'ltr',
-      children: paragraphs.map((paragraph) => ({
-        type: 'paragraph',
-        version: 1,
-        format: '',
-        indent: 0,
-        direction: 'ltr',
-        children: [
-          {
-            type: 'text',
-            version: 1,
-            text: paragraph,
-            format: 0,
-            detail: 0,
-            mode: 'normal',
-            style: '',
-          },
-        ],
-        textFormat: 0,
-        textStyle: '',
-      })),
+      children,
     },
   } as unknown as SerializedEditorState
+}
+
+function extractInlineText(node: unknown): string {
+  if (!node || typeof node !== 'object') return ''
+  const record = node as Record<string, unknown>
+  if (record.type === 'linebreak') return '\n'
+  if (typeof record.text === 'string') {
+    const format = typeof record.format === 'number' ? record.format : 0
+    let text = record.text
+    if (format & 16) text = `\`${text}\``
+    if (format & 1) text = `**${text}**`
+    else if (format & 2) text = `*${text}*`
+    return text
+  }
+  if (record.type === 'link' || record.type === 'autolink') {
+    const fields = record.fields as Record<string, unknown> | undefined
+    const url = typeof fields?.url === 'string' ? fields.url : ''
+    const label = Array.isArray(record.children)
+      ? record.children.map(extractInlineText).join('')
+      : url
+    return url ? `[${label}](${url})` : label
+  }
+  if (!Array.isArray(record.children)) return ''
+  return record.children.map(extractInlineText).join('')
 }
 
 function extractNodeText(node: unknown): string {
   if (!node || typeof node !== 'object') return ''
   const record = node as Record<string, unknown>
-  if (record.type === 'linebreak') return '\n'
-  if (typeof record.text === 'string') return record.text
-  if (!Array.isArray(record.children)) return ''
-  const joiner = record.type === 'list' ? '\n' : ''
-  return record.children.map(extractNodeText).join(joiner)
+  if (record.type === 'upload' && record.relationTo === 'media') {
+    const value = record.value as Record<string, unknown> | string | number | undefined
+    if (value && typeof value === 'object') {
+      const id = String(value.id ?? '')
+      const alt = typeof value.alt === 'string' ? value.alt : 'Imagem'
+      const url = typeof value.url === 'string' ? value.url : ''
+      return id ? `![${alt}](cms-media:${id}${url ? `|${url}` : ''})` : ''
+    }
+    return value ? `![Imagem](cms-media:${value})` : ''
+  }
+  if (record.type === 'heading') {
+    const prefix = record.tag === 'h3' ? '### ' : '## '
+    const text = Array.isArray(record.children)
+      ? record.children.map(extractInlineText).join('').trim()
+      : ''
+    return text ? `${prefix}${text}` : ''
+  }
+  if (record.type === 'quote') {
+    const text = Array.isArray(record.children)
+      ? record.children.map(extractInlineText).join('').trim()
+      : ''
+    return text ? `> ${text}` : ''
+  }
+  if (record.type === 'list' && Array.isArray(record.children)) {
+    const ordered = record.listType === 'number' || record.tag === 'ol'
+    return record.children
+      .map((item, index) => {
+        const text = extractInlineText(item).trim()
+        return text ? `${ordered ? `${index + 1}.` : '-'} ${text}` : ''
+      })
+      .filter(Boolean)
+      .join('\n')
+  }
+  return extractInlineText(record)
 }
 
 export function lexicalToPlainText(body: unknown): string {
@@ -171,7 +400,7 @@ export type SubmissionFormValues = {
   slug: string
   summary: string
   author: string
-  category: string
+  category?: string
   hashtags: string[]
   bodyText: string
   references: ArticleReference[]
@@ -195,7 +424,8 @@ export function validateSubmissionInput(
   const slug = input.slug.trim()
   const summary = input.summary.trim()
   const author = input.author.trim()
-  const category = input.category.trim()
+  const rawCategory = (input.category ?? '').trim()
+  const category = rawCategory && Object.hasOwn(categoryNames, rawCategory) ? rawCategory : 'reflexoes'
 
   if (!title) return { ok: false, error: 'Informe o título do artigo.' }
   if (!slug || !SLUG_PATTERN.test(slug)) {
@@ -209,10 +439,7 @@ export function validateSubmissionInput(
   if (summary.length > 300) {
     return { ok: false, error: 'O resumo pode ter no máximo 300 caracteres.' }
   }
-  if (!author) return { ok: false, error: 'Informe o nome da autoria exibida.' }
-  if (!Object.hasOwn(categoryNames, category)) {
-    return { ok: false, error: 'Escolha uma categoria válida.' }
-  }
+  if (!author) return { ok: false, error: 'Não foi possível identificar a autoria da conta.' }
 
   const body = plainTextToLexical(input.bodyText)
   if (body.root.children.length === 0) {
@@ -284,12 +511,12 @@ export function extractCmsErrorMessage(payload: unknown, status: number): string
 export function formatRequestFailure(cause: unknown): string {
   if (cause instanceof Error) {
     if (cause.name === 'TimeoutError' || cause.name === 'AbortError') {
-      return 'O CMS demorou mais de 2 minutos para responder (no plano gratuito do Render ele pode estar despertando). Tente novamente em instantes.'
+      return 'A solicitação demorou mais que o esperado. Tente novamente em instantes.'
     }
     if (cause instanceof TypeError) {
-      return 'Não foi possível conectar ao CMS. Se o servidor no Render Free estiver despertando, aguarde alguns segundos e tente novamente.'
+      return 'Não foi possível concluir a conexão no momento. Aguarde alguns segundos e tente novamente.'
     }
     return cause.message
   }
-  return 'Erro inesperado ao comunicar com o CMS.'
+  return 'Erro inesperado ao enviar a solicitação.'
 }
