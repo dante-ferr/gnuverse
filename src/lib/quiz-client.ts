@@ -1,5 +1,8 @@
-import { resolveCmsBaseUrl } from './cms-client'
-import { extractCmsErrorMessage, formatRequestFailure } from './blog-submission'
+import { resolveCmsBaseUrl } from './cms-client.ts'
+import {
+  extractCmsErrorMessage,
+  formatRequestFailure,
+} from './blog-submission.ts'
 
 export async function quizRequest<T>(
   path: string,
@@ -12,6 +15,7 @@ export async function quizRequest<T>(
       'O servidor editorial ainda não foi configurado neste ambiente.',
     )
   let response: Response
+  let data: unknown
   try {
     response = await fetch(`${base}/api/${path}`, {
       ...init,
@@ -24,10 +28,19 @@ export async function quizRequest<T>(
         ? AbortSignal.any([init.signal, AbortSignal.timeout(120000)])
         : AbortSignal.timeout(120000),
     })
+    data = await response.json()
   } catch (error) {
+    if (
+      error instanceof Error &&
+      ['TimeoutError', 'AbortError'].includes(error.name)
+    )
+      throw new Error(
+        'O CMS não respondeu a tempo. Tente novamente em instantes.',
+      )
+    if (error instanceof SyntaxError)
+      throw new Error('O CMS retornou uma resposta inválida. Tente novamente.')
     throw new Error(formatRequestFailure(error))
   }
-  const data = await response.json().catch(() => null)
   if (response.status === 401)
     throw new Error('Sua sessão expirou. Entre novamente para continuar.')
   if (!response.ok)
@@ -56,6 +69,8 @@ export async function quizCollection<T>(
       token,
       { signal },
     )
+    if (!Array.isArray(result?.docs))
+      throw new Error('O CMS retornou uma lista inválida. Tente novamente.')
     docs.push(...result.docs)
     if (!result.hasNextPage) return docs
   }

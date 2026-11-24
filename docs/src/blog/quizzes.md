@@ -21,6 +21,12 @@ Unlike article versions, quizzes do not maintain a parallel draft over published
 - Anonymous API reads return only published quizzes, without ownership or review notes. The public snapshot also removes internal question/alternative IDs.
 - The optional article relation must reference an article accessible to the caller. Public links are emitted only when the article is present in the same published article snapshot. Unpublishing an article hides its link without removing its independent quiz; deleting an article clears the relation.
 
+## Loading the editor
+
+Signing in unlocks the form immediately. The contributor's quizzes and article picker load independently in the background; a slow article list does not hide the form or the quizzes that already arrived. Only article titles and publication status are fetched for the picker. Typing and saving a draft do not depend on those lists finishing, and a pending article link is preserved.
+
+List reads share a 15-second deadline, including response-body parsing. On failure, the form keeps its contents and offers a list retry. Saving still uses the existing 120-second CMS request timeout. If a local CMS stops responding after a configuration/schema hot reload, restart `make dev` without resetting its database.
+
 ## Names and automatic URLs
 
 Names are unique across all authors and editorial states. Comparison ignores capitalization and extra whitespace and normalizes equivalent Unicode text. The CMS enforces this for site forms, its own admin panel and REST requests; a private unique `titleKey` index also prevents concurrent duplicate saves. Authors cannot override the generated URL or the internal comparison key.

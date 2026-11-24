@@ -103,5 +103,5 @@ elements-serve:
 	npm run elements:serve
 
 test-quiz:
-	node --test --test-concurrency=1 tests/quiz.test.ts tests/quiz-content.test.mjs tests/quiz-deploy.test.ts tests/authorization.test.ts
+	node --test --test-concurrency=1 tests/quiz.test.ts tests/quiz-client.test.ts tests/quiz-content.test.mjs tests/quiz-deploy.test.ts tests/authorization.test.ts
 	npm --prefix cms run test:quizzes
