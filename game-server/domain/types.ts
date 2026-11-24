@@ -105,6 +105,7 @@ export type State = {
 export type ServerOptions = {
   identityProvider?: IdentityProvider
   dbPath?: string
+  store?: import('../persistence/game-store.ts').GameStore
   now?: () => number
   allowedOrigins?: string[]
   rules?: Partial<Omit<Rules, 'pipeline'>> & { pipeline?: Partial<PipelineRules> }

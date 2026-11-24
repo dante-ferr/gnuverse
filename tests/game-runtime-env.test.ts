@@ -3,9 +3,32 @@ import test from 'node:test'
 import {
   resolveCMSBaseURL,
   resolveGameAllowedOrigins,
+  resolveGameDatabaseURL,
   resolveGameHost,
   resolveGamePort,
 } from '../game-server/config/runtime-env.ts'
+
+test('resolveGameDatabaseURL prefers GAME_DATABASE_URL, then DATABASE_URL, unless sqlite is forced', () => {
+  assert.equal(
+    resolveGameDatabaseURL({
+      GAME_DATABASE_URL: 'postgres://game',
+      DATABASE_URL: 'postgres://shared',
+    }),
+    'postgres://game',
+  )
+  assert.equal(
+    resolveGameDatabaseURL({ DATABASE_URL: 'postgres://shared' }),
+    'postgres://shared',
+  )
+  assert.equal(
+    resolveGameDatabaseURL({
+      GAME_DB_ADAPTER: 'sqlite',
+      DATABASE_URL: 'postgres://shared',
+    }),
+    undefined,
+  )
+  assert.equal(resolveGameDatabaseURL({}), undefined)
+})
 
 test('resolveGamePort prefers GAME_PORT, then PORT, then 3002', () => {
   assert.equal(resolveGamePort({ GAME_PORT: '4000', PORT: '10000' }), 4000)

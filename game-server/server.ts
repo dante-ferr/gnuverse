@@ -23,11 +23,13 @@ import { watchGameConfig } from './config/watch-game-config.ts'
 export function createGameServer(options: ServerOptions = {}) {
   const rules = createRules(options.rules)
   const now = options.now ?? Date.now
-  const store = new GameStore(
-    options.dbPath ??
-      process.env.GAME_DB_PATH ??
-      resolve('.content/game.sqlite'),
-  )
+  const store =
+    options.store ??
+    new GameStore(
+      options.dbPath ??
+        process.env.GAME_DB_PATH ??
+        resolve('.content/game.sqlite'),
+    )
   const runtime = new SimulationCoordinator(store, rules.pipeline)
   store.onRollback = () => runtime.rollback()
   const history = new HistoryService(now, (roomId) =>
@@ -112,7 +114,7 @@ export function createGameServer(options: ServerOptions = {}) {
         server.close(() => resolveClose())
         server.closeIdleConnections()
       })
-      store.close()
+      await store.close()
     },
   }
 }

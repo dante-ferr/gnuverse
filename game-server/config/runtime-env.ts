@@ -8,6 +8,11 @@ function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
   return undefined
 }
 
+export function resolveGameDatabaseURL(env: EnvMap = process.env): string | undefined {
+  if (firstNonEmpty(env.GAME_DB_ADAPTER)?.toLowerCase() === 'sqlite') return undefined
+  return firstNonEmpty(env.GAME_DATABASE_URL, env.DATABASE_URL)
+}
+
 export function resolveGamePort(env: EnvMap = process.env): number {
   const raw = firstNonEmpty(env.GAME_PORT, env.PORT)
   return raw ? Number(raw) : 3002
