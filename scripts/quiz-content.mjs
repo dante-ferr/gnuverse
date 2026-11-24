@@ -4,6 +4,12 @@ import { validateQuiz } from '../core/quiz/quiz.ts'
 export function publicQuiz(doc, articles) {
   if (doc.status !== 'published')
     throw new Error('A API retornou um quiz não publicado.')
+  if (
+    typeof doc.slug !== 'string' ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(doc.slug) ||
+    doc.slug === 'criar'
+  )
+    throw new Error('Endereço de quiz inválido no CMS.')
   const error = validateQuiz(doc)
   if (error) throw new Error(`Quiz inválido: ${error}`)
   const related =

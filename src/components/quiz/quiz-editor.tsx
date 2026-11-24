@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGameSession } from '@/components/game/hooks/use-game-session'
-import { slugifyTitle } from '@/lib/blog-submission'
 import { quizCollection, quizRequest } from '@/lib/quiz-client'
 import {
   QUIZ_STATUS_LABELS,
@@ -32,7 +31,6 @@ const newQuestion = (): QuizQuestion => ({
 })
 const emptyQuiz = (): QuizInput => ({
   title: '',
-  slug: '',
   summary: '',
   questions: [newQuestion()],
 })
@@ -44,7 +42,6 @@ export function QuizEditor() {
   const [returnPath, setReturnPath] = useState('/quizzes/criar/')
   const articlePrefilled = useRef(false)
   const [editing, setEditing] = useState<Draft | null>(null)
-  const [slugTouched, setSlugTouched] = useState(false)
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [articles, setArticles] = useState<ArticleOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -123,7 +120,6 @@ export function QuizEditor() {
     setError('')
     setReady(false)
     setBusy(false)
-    setSlugTouched(false)
     void load(controller.signal)
     return () => controller.abort()
   }, [load])
@@ -271,7 +267,6 @@ export function QuizEditor() {
                           setEditing(null)
                           setQuiz(emptyQuiz())
                           setArticle('')
-                          setSlugTouched(false)
                           setNotice('')
                           setError('')
                         }}
@@ -288,43 +283,18 @@ export function QuizEditor() {
                       </p>
                     </aside>
                   )}
-                  <div className="grid gap-5 sm:grid-cols-2">
-                    <label className="text-sm">
-                      Título
-                      <input
-                        required
-                        maxLength={160}
-                        value={quiz.title}
-                        onChange={(e) =>
-                          setQuiz({
-                            ...quiz,
-                            title: e.target.value,
-                            ...(!slugTouched
-                              ? { slug: slugifyTitle(e.target.value) }
-                              : {}),
-                          })
-                        }
-                        className={inputClass}
-                      />
-                    </label>
-                    <label className="text-sm">
-                      Endereço do quiz
-                      <input
-                        required
-                        maxLength={160}
-                        pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                        value={quiz.slug}
-                        onChange={(e) => {
-                          setSlugTouched(true)
-                          setQuiz({ ...quiz, slug: e.target.value })
-                        }}
-                        className={inputClass}
-                      />
-                      <span className="mt-1 block text-xs text-[var(--muted)]">
-                        Ex.: liberdades-do-software
-                      </span>
-                    </label>
-                  </div>
+                  <label className="block text-sm">
+                    Título
+                    <input
+                      required
+                      maxLength={160}
+                      value={quiz.title}
+                      onChange={(e) =>
+                        setQuiz({ ...quiz, title: e.target.value })
+                      }
+                      className={inputClass}
+                    />
+                  </label>
                   <label className="block text-sm">
                     Resumo
                     <textarea
@@ -583,14 +553,12 @@ export function QuizEditor() {
                             setEditing(draft)
                             setQuiz({
                               title: draft.title,
-                              slug: draft.slug,
                               summary: draft.summary,
                               questions: structuredClone(draft.questions),
                             })
                             setArticle(
                               draft.article ? String(draft.article) : '',
                             )
-                            setSlugTouched(true)
                             setNotice('')
                             setError('')
                             formRef.current?.scrollIntoView({

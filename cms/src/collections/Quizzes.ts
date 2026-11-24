@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   APIError,
   type CollectionConfig,
@@ -5,7 +6,11 @@ import {
   type Where,
 } from 'payload'
 import { can } from '../../../core/authz/policy.ts'
-import { validateQuiz } from '../../../core/quiz/quiz.ts'
+import {
+  normalizeQuizTitle,
+  quizSlug,
+  validateQuiz,
+} from '../../../core/quiz/quiz.ts'
 import { canCreateArticle, cmsActor } from '../access'
 import { deployAfterChange, deployAfterDelete } from '../hooks/deploy-site'
 
@@ -61,6 +66,75 @@ export const Quizzes: CollectionConfig = {
     delete: ownUnpublished,
   },
   hooks: {
+    beforeValidate: [
+      async ({ data, originalDoc, req }) => {
+        if (!data) return data
+        const title = data.title ?? originalDoc?.title
+        if (typeof title !== 'string') return data
+        data.title = normalizeQuizTitle(title)
+        if (!quizSlug(data.title))
+          throw new APIError(
+            'Use pelo menos uma letra ou número no título.',
+            400,
+          )
+        data.titleKey = data.title.toLowerCase()
+        const existing = await req.payload.find({
+          collection: 'quizzes',
+          overrideAccess: true,
+          req,
+          depth: 0,
+          pagination: false,
+          select: { title: true, titleKey: true },
+          where: {
+            and: [
+              {
+                or: [
+                  { titleKey: { equals: data.titleKey } },
+                  { titleKey: { exists: false } },
+                ],
+              },
+              ...(originalDoc?.id
+                ? [{ id: { not_equals: originalDoc.id } }]
+                : []),
+            ],
+          },
+        })
+        // Existing documents keep their URLs and acquire a normalized key on their next save.
+        if (
+          existing.docs.some(
+            (doc) =>
+              normalizeQuizTitle(doc.title).toLowerCase() === data.titleKey,
+          )
+        )
+          throw new APIError(
+            'Já existe um quiz com esse nome. Escolha outro título.',
+            400,
+          )
+        if (originalDoc && data.title === originalDoc.title) {
+          data.slug = originalDoc.slug
+        } else {
+          data.slug = quizSlug(data.title)
+          const collision = await req.payload.find({
+            collection: 'quizzes',
+            overrideAccess: true,
+            req,
+            depth: 0,
+            limit: 1,
+            where: {
+              and: [
+                { slug: { equals: data.slug } },
+                ...(originalDoc?.id
+                  ? [{ id: { not_equals: originalDoc.id } }]
+                  : []),
+              ],
+            },
+          })
+          if (collision.totalDocs)
+            data.slug = `${data.slug.slice(0, 151).replace(/-+$/, '')}-${createHash('sha256').update(data.titleKey).digest('hex').slice(0, 8)}`
+        }
+        return data
+      },
+    ],
     beforeChange: [
       async ({ data, originalDoc, operation, req }) => {
         const reviewer = canReviewQuiz({ req })
@@ -86,6 +160,10 @@ export const Quizzes: CollectionConfig = {
             )
         }
         const merged = { ...originalDoc, ...data }
+        data.titleKey =
+          typeof merged.title === 'string'
+            ? normalizeQuizTitle(merged.title).toLowerCase()
+            : undefined
         const error = validateQuiz(merged)
         if (error) throw new APIError(error, 400)
         const previousArticle =
@@ -148,10 +226,14 @@ export const Quizzes: CollectionConfig = {
       required: true,
       unique: true,
       maxLength: 160,
-      admin: {
-        description:
-          'Letras minúsculas, números e hífens. Exemplo: liberdades-do-software',
-      },
+      admin: { hidden: true },
+    },
+    {
+      name: 'titleKey',
+      type: 'text',
+      unique: true,
+      admin: { hidden: true },
+      access: { read: () => false, create: () => false, update: () => false },
     },
     {
       name: 'summary',

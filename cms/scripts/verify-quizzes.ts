@@ -51,7 +51,6 @@ try {
   const [author, other, reviewer, quizEditor] = users
   const data = {
     title: 'Quiz livre',
-    slug: 'quiz-livre',
     summary: 'Aprenda sobre software livre.',
     questions: [
       {
@@ -81,13 +80,27 @@ try {
   }
   const created = await rest('quizzes', 'POST', {
     ...data,
-    slug: 'quiz-via-rest',
+    title: 'Quiz via REST',
+    slug: 'forged-url',
     owner: other.id,
     status: 'in_review',
   })
   assert.equal(created.status, 201)
   const restDoc = (await created.json()).doc
   assert.equal(restDoc.owner.id ?? restDoc.owner, author.id)
+  assert.equal(restDoc.slug, 'quiz-via-rest')
+  const renamed = await rest(`quizzes/${restDoc.id}`, 'PATCH', {
+    title: '  Nome  atualizado  ',
+    slug: 'forged',
+  })
+  assert.equal(renamed.status, 200)
+  assert.equal((await renamed.json()).doc.slug, 'nome-atualizado')
+  const duplicate = await rest('quizzes', 'POST', {
+    ...data,
+    title: 'NOME atualizado',
+    slug: 'another-forged',
+  })
+  assert.equal(duplicate.status, 400)
   assert.equal(
     (await rest(`quizzes?where[owner][equals]=${author.id}`)).status,
     200,
@@ -131,6 +144,60 @@ try {
     author.id,
   )
   assert.ok(!quiz.reviewNotes)
+  assert.equal(
+    (
+      await payload.findByID({
+        collection: 'quizzes',
+        id: quiz.id,
+        overrideAccess: true,
+      })
+    ).titleKey,
+    'quiz livre',
+  )
+  await payload.db.updateOne({
+    collection: 'quizzes',
+    id: quiz.id,
+    data: { titleKey: null },
+  })
+  await assert.rejects(
+    create(other, { title: ' QUIZ   LIVRE ', slug: 'different-address' }),
+    /Já existe um quiz/,
+  )
+  await payload.update({
+    collection: 'quizzes',
+    id: quiz.id,
+    user: author,
+    overrideAccess: false,
+    data: { summary: 'Resumo atualizado.' },
+  })
+  const another = await create(other, { title: 'Outro quiz' })
+  await assert.rejects(
+    payload.update({
+      collection: 'quizzes',
+      id: another.id,
+      user: other,
+      overrideAccess: false,
+      data: { title: 'QUIZ LIVRE' },
+    }),
+    /Já existe um quiz/,
+  )
+  await payload.delete({
+    collection: 'quizzes',
+    id: another.id,
+    user: other,
+    overrideAccess: false,
+  })
+  const accented = await create(author, { title: 'Educação' })
+  const unaccented = await create(author, { title: 'Educacao' })
+  assert.equal(accented.slug, 'educacao')
+  assert.match(unaccented.slug, /^educacao-[a-f0-9]{8}$/)
+  for (const item of [accented, unaccented])
+    await payload.delete({
+      collection: 'quizzes',
+      id: item.id,
+      user: author,
+      overrideAccess: false,
+    })
   assert.equal(
     (await payload.find({ collection: 'quizzes', overrideAccess: false }))
       .totalDocs,
@@ -246,7 +313,7 @@ try {
     },
   })
   const linked = await create(author, {
-    slug: 'quiz-com-artigo',
+    title: 'Quiz com artigo',
     article: article.id,
   })
   assert.equal(
@@ -254,12 +321,12 @@ try {
     article.id,
   )
   await assert.rejects(
-    create(other, { slug: 'artigo-alheio', article: article.id }),
+    create(other, { title: 'Artigo alheio', article: article.id }),
   )
   await assert.rejects(
-    create(author, { slug: 'artigo-ausente', article: 999999 }),
+    create(author, { title: 'Artigo ausente', article: 999999 }),
   )
-  await create(author, { slug: 'quiz-independente', article: null })
+  await create(author, { title: 'Quiz independente', article: null })
   await payload.delete({
     collection: 'quizzes',
     id: linked.id,
@@ -267,7 +334,7 @@ try {
     overrideAccess: false,
   })
   const privateLinked = await create(author, {
-    slug: 'private-linked',
+    title: 'Private linked',
     article: article.id,
   })
   // Shared roles are authoritative; quiz editors can review without article management.

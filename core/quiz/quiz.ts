@@ -7,11 +7,11 @@ export type QuizQuestion = {
 }
 export type QuizInput = {
   title: string
-  slug: string
   summary: string
   questions: QuizQuestion[]
 }
 export type PublishedQuiz = QuizInput & {
+  slug: string
   article?: { slug: string; title: string }
 }
 export const QUIZ_STATUS_LABELS = {
@@ -22,23 +22,36 @@ export const QUIZ_STATUS_LABELS = {
 } as const
 export type QuizStatus = keyof typeof QUIZ_STATUS_LABELS
 
+/** Name comparisons ignore casing and repeated surrounding/internal whitespace. */
+export function normalizeQuizTitle(title: string): string {
+  return title.normalize('NFC').trim().replace(/\s+/g, ' ')
+}
+
+/** Creates a URL segment from the name, keeping the contributor form free of routing fields. */
+export function quizSlug(title: string): string {
+  const slug = title
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return slug === 'criar' ? 'quiz-criar' : slug
+}
+
 /** Shared by the CMS, contributor form and static content synchronizer. */
 export function validateQuiz(input: unknown): string | null {
   if (!input || typeof input !== 'object') return 'Preencha o quiz.'
   const quiz = input as Record<string, unknown>
   for (const [key, label, max] of [
     ['title', 'O título', 160],
-    ['slug', 'O endereço', 160],
     ['summary', 'O resumo', 300],
   ] as const) {
     const value = quiz[key]
     if (typeof value !== 'string' || !value.trim() || value.length > max)
       return `${label} é obrigatório e deve ter até ${max} caracteres.`
   }
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(quiz.slug as string))
-    return 'Use apenas letras minúsculas, números e hífens no endereço.'
-  if (quiz.slug === 'criar')
-    return 'O endereço criar é reservado. Escolha outro endereço.'
+  if (!quizSlug(quiz.title as string))
+    return 'Use pelo menos uma letra ou número no título.'
   if (
     !Array.isArray(quiz.questions) ||
     quiz.questions.length < 1 ||

@@ -5,7 +5,7 @@ Quizzes are learning self-assessments. They may complement one article or stand 
 ## Contributor flow
 
 1. Open **Quizzes** in the site navigation, then **Criar ou editar quiz** (`/quizzes/criar/`). Sign in using the same account as the blog. Login and registration use dedicated pages and return to the quiz editor.
-2. Fill in the title, URL slug and summary. Select an optional article: the picker includes published articles and the contributor's own unpublished articles. On the blog submission panel, **Criar quiz relacionado** opens the editor with that article selected.
+2. Fill in a unique title and summary. The CMS generates the URL automatically; there is no address field to fill in. Select an optional article: the picker includes published articles and the contributor's own unpublished articles. On the blog submission panel, **Criar quiz relacionado** opens the editor with that article selected.
 3. Add 1–30 multiple-choice questions, each with 2–6 distinct alternatives, exactly one correct answer, and a required explanation. The site editor marks the correct alternative with a radio button. All questions must be complete when saving, including drafts.
 4. **Salvar rascunho** keeps the quiz private; **Enviar para revisão** changes its status to `in_review`. **Meus quizzes** lists the contributor's submissions, their status, and review feedback; **Editar quiz** resumes any unpublished quiz.
 5. A reviewer opens **Quizzes** in the Payload `/admin` panel, checks the content, optionally records feedback and sets `changes_requested`, or sets `published`. In the CMS, the correct-answer index is zero-based (0 means the first alternative).
@@ -21,6 +21,14 @@ Unlike article versions, quizzes do not maintain a parallel draft over published
 - Anonymous API reads return only published quizzes, without ownership or review notes. The public snapshot also removes internal question/alternative IDs.
 - The optional article relation must reference an article accessible to the caller. Public links are emitted only when the article is present in the same published article snapshot. Unpublishing an article hides its link without removing its independent quiz; deleting an article clears the relation.
 
+## Names and automatic URLs
+
+Names are unique across all authors and editorial states. Comparison ignores capitalization and extra whitespace and normalizes equivalent Unicode text. The CMS enforces this for site forms, its own admin panel and REST requests; a private unique `titleKey` index also prevents concurrent duplicate saves. Authors cannot override the generated URL or the internal comparison key.
+
+A new quiz receives an address derived from its title. Renaming regenerates that address; saving without renaming preserves it, including pre-existing manually configured URLs. Distinct names that produce the same URL base receive a short automatic suffix. The reserved site route `criar` generates `quiz-criar` instead. Titles must contain at least one letter or number usable in the URL.
+
+The schema migration adds only a nullable key and unique index; it does not rewrite existing content. Existing quizzes acquire the key on their next save. Duplicate checks also compare legacy names without a key, so they cannot be copied while waiting for that save. If historical duplicates exist, rename them through the CMS before saving them again.
+
 ## Reader experience
 
 `/quizzes/` lists published quizzes; `/quizzes/<slug>/` renders a self-contained quiz. Related quizzes also appear after their article. Visitors do not sign in to answer. Each question uses a labelled radio group, with completion progress. Submitting shows the score and all explanations; **Tentar novamente** clears the attempt.
@@ -34,6 +42,7 @@ Attempts live only in component memory and reset on reload. Correct answers ship
 | `core/quiz/quiz.ts` | Shared types, validation limits, editorial labels and complete-attempt scoring |
 | `cms/src/collections/Quizzes.ts` | Payload schema, ownership, validation, access and review workflow |
 | `cms/src/migrations/20261124_120000_quizzes.ts` | PostgreSQL tables, foreign keys, indexes and rollback |
+| `cms/src/migrations/20261124_130000_quiz_titles.ts` | Private unique name key and index; no content rewrite |
 | `scripts/quiz-content.mjs` | Paginated public sync, validation and allowlisted snapshot fields |
 | `scripts/sync-content.mjs` | Atomic combined article/quiz snapshot; CMS failure aborts live sync |
 | `src/components/quiz/` | Public cards, quiz player and contributor editor |

@@ -8,6 +8,7 @@ const doc = {
   slug: 'quiz',
   summary: 'Resumo',
   owner: 7,
+  titleKey: 'quiz',
   reviewNotes: 'Privado',
   questions: [
     {
@@ -26,6 +27,7 @@ test('static snapshots keep only public fields and link only articles in the pub
   )
   assert.equal(quiz.article, undefined)
   assert.equal(quiz.owner, undefined)
+  assert.equal(quiz.titleKey, undefined)
   assert.equal(quiz.reviewNotes, undefined)
   assert.equal(quiz.questions[0].id, undefined)
   assert.equal(quiz.questions[0].choices[0].id, undefined)
@@ -40,6 +42,10 @@ test('static snapshots keep only public fields and link only articles in the pub
     /não publicado/,
   )
   assert.throws(() => publicQuiz({ ...doc, questions: [] }, []), /inválido/)
+  assert.throws(
+    () => publicQuiz({ ...doc, slug: '../invalid' }, []),
+    /inválido/,
+  )
 })
 test('sync paginates and refuses outages, malformed responses and duplicate slugs', async () => {
   const pages = []

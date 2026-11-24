@@ -258,10 +258,8 @@ export interface Media {
 export interface Quiz {
   id: number;
   title: string;
-  /**
-   * Letras minúsculas, números e hífens. Exemplo: liberdades-do-software
-   */
   slug: string;
+  titleKey?: string | null;
   summary: string;
   /**
    * Deixe vazio para um quiz independente. O link público aparece quando o artigo também estiver publicado.
@@ -469,6 +467,7 @@ export interface MediaSelect<T extends boolean = true> {
 export interface QuizzesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
+  titleKey?: T;
   summary?: T;
   article?: T;
   owner?: T;
