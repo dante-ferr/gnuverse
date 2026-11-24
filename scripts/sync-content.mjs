@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/pro
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { fetchPublishedArticles } from './cms-content.mjs'
+import { fetchPublishedQuizzes } from './quiz-content.mjs'
 import { getContentCMSURL, loadLocalEnvironment } from '../cms/scripts/local-config.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -11,14 +12,17 @@ const mode = process.env.CMS_CONTENT_MODE || 'demo'
 if (!['demo', 'live'].includes(mode)) throw new Error('CMS_CONTENT_MODE precisa ser demo ou live.')
 
 let articles
+let quizzes
 const mediaDirectory = path.join(root, 'public/cms-media')
 const currentMedia = new Set()
 await mkdir(mediaDirectory, { recursive: true })
 if (mode === 'demo') {
   articles = [JSON.parse(await readFile(path.join(root, 'content/demo-article.json'), 'utf8'))]
+  quizzes = [JSON.parse(await readFile(path.join(root, 'content/demo-quiz.json'), 'utf8'))]
 } else {
   const cmsURL = getContentCMSURL()
   articles = await fetchPublishedArticles(cmsURL)
+  quizzes = await fetchPublishedQuizzes(cmsURL, articles)
   for (const article of articles) {
     if (!article.cover) continue
     const media = article.cover
@@ -49,7 +53,7 @@ for (const filename of await readdir(mediaDirectory)) {
 
 const directory = path.join(root, '.content')
 await mkdir(directory, { recursive: true })
-const snapshot = JSON.stringify({ mode, articles }, null, 2)
+const snapshot = JSON.stringify({ mode, articles, quizzes }, null, 2)
 const temporary = path.join(directory, 'articles.tmp.json')
 await writeFile(temporary, snapshot)
 await rename(temporary, path.join(directory, 'articles.json'))

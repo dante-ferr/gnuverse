@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import { categoryNames, getContent } from '@/lib/articles'
 import { formatArticleDate } from '@/lib/blog-explorer'
+import { QuizCards } from '@/components/quiz/quiz-cards'
 
 type Props = { params: Promise<{ slug: string }> }
 export async function generateStaticParams() {
@@ -24,7 +25,8 @@ export async function generateMetadata({ params }: Props) {
 }
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params
-  const { articles, mode } = await getContent()
+  const { articles, mode, quizzes } = await getContent()
+  const relatedQuizzes = quizzes.filter((quiz) => quiz.article?.slug === slug)
   const article = articles.find((entry) => entry.slug === slug)
   if (!article) notFound()
   const formattedDate = formatArticleDate(article.publishedAt)
@@ -109,6 +111,11 @@ export default async function ArticlePage({ params }: Props) {
           </aside>
         )}
       </article>
+      {relatedQuizzes.length > 0 && <section className="mt-12 border-t border-[var(--line)] pt-8" aria-label="Quizzes relacionados">
+        <h2 className="text-2xl">Continue explorando</h2>
+        <p className="mt-3 text-sm text-[var(--muted)]">O que esta leitura despertou? Experimente os quizzes relacionados.</p>
+        <QuizCards quizzes={relatedQuizzes} />
+      </section>}
     </main>
   )
 }

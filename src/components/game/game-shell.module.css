@@ -2158,3 +2158,40 @@
     box-shadow: -16px 0 40px rgb(0 0 0 / 35%);
   }
 }
+
+/* The site navigation has its own row on narrow screens; room controls keep their layout. */
+@media (max-width: 760px) {
+  .gameTopBarCentered {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px 16px;
+  }
+  .gameTopBarCentered .gameBrand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .gameTopBarCentered .account {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    padding-left: 0;
+    border-left: 0;
+  }
+  .gameTopBarCentered .accountLine {
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .gameTopBarCentered .topBarNav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
