@@ -14,6 +14,8 @@ export type PipelineRules = {
   cameraZoomMax: number
   /** On first room visit, fit this many cells along the shorter viewport edge. */
   cameraEnterViewCells: number
+  /** Lobby room thumbnails: shorter edge spans this many cells around the starting core. */
+  lobbyThumbnailViewCells: number
   /** At/above this zoom: packet glyphs, belt chevrons, full machine art. */
   lodDetailMinZoom: number
   /** At/above this (and below detail): flat machine fills + cores; below: cores only. */

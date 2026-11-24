@@ -13,6 +13,7 @@ const defaults = {
   camera_zoom_min: 0.08,
   camera_zoom_max: 3,
   camera_enter_view_cells: 14,
+  lobby_thumbnail_view_cells: 32,
   lod_detail_min_zoom: 0.55,
   lod_structure_min_zoom: 0.22,
   color_belt: '#667b83',
@@ -146,6 +147,7 @@ const integers = {
   slot_bracket_thick_percent: [5, 35],
   slot_flow_mark_depth_percent: [4, 20],
   camera_enter_view_cells: [4, 64],
+  lobby_thumbnail_view_cells: [8, 48],
 } as const
 
 const floats = {
@@ -178,6 +180,7 @@ const mappings = {
   camera_zoom_min: 'cameraZoomMin',
   camera_zoom_max: 'cameraZoomMax',
   camera_enter_view_cells: 'cameraEnterViewCells',
+  lobby_thumbnail_view_cells: 'lobbyThumbnailViewCells',
   lod_detail_min_zoom: 'lodDetailMinZoom',
   lod_structure_min_zoom: 'lodStructureMinZoom',
   color_belt: 'colorBelt',

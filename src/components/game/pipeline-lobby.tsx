@@ -8,6 +8,7 @@ import { useActionFeedback } from './hooks/use-action-feedback'
 import { DEFAULT_ROOM_FILTERS, type RoomFilters, useRoomLobby } from './hooks/use-room-lobby'
 import { useGameSession } from './hooks/use-game-session'
 import { RoomCover } from './construction/room-cover'
+import { pipelineRulesFrom } from './pipeline/model/frame'
 import styles from './game-shell.module.css'
 
 function formatPontuacao(value: number): string {
@@ -148,7 +149,7 @@ export function PipelineLobby() {
             <div className={styles.roomGrid}>
               {lobby.rooms.map((room) => (
                 <a className={styles.roomCard} key={room.id} href={`/jogo/sala/?id=${encodeURIComponent(room.id)}`}>
-                  <RoomCover room={room} />
+                  <RoomCover room={room} api={session.api} rules={pipelineRulesFrom(lobby.rules)} />
                   <span className={styles.roomCardInfo}>
                     <span className={styles.roomCardTop}>
                       <span>

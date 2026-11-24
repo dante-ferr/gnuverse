@@ -17,6 +17,7 @@ export function testPipelineRules(overrides: Partial<PipelineRules> = {}): Pipel
     cameraZoomMin: 0.08,
     cameraZoomMax: 3,
     cameraEnterViewCells: 14,
+    lobbyThumbnailViewCells: 32,
     lodDetailMinZoom: 0.55,
     lodStructureMinZoom: 0.22,
     colorBelt: '#667b83',
