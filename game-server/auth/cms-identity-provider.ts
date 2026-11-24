@@ -33,7 +33,7 @@ export class CMSIdentityProvider implements IdentityProvider {
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(token ? 15000 : 90000),
       })
     } catch {
       fail(503, 'O serviço de contas está indisponível. Tente novamente em instantes.')

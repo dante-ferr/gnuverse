@@ -57,7 +57,7 @@ export class GameApi {
           ...(this.token && !credentials ? { Authorization: `Bearer ${this.token}` } : {}),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(credentials ? 90000 : 15000),
       })
     } catch (cause) {
       if (cause instanceof Error && cause.name === 'TimeoutError') {

@@ -75,7 +75,7 @@ export function createGameServer(options: ServerOptions = {}) {
   const server = createServer((request, response) => {
     void application.handle(request, response)
   })
-  server.requestTimeout = 15000
+  server.requestTimeout = 120000
   server.headersTimeout = 10000
   runtime.start(governance)
   let stopWatching: (() => void) | undefined

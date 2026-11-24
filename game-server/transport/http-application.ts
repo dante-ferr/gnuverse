@@ -127,7 +127,10 @@ export class HttpApplication {
           const result = await auth.login(body, false)
           return json(res, 200, result)
         } catch (error) {
-          auth.recordRateLimitAttempt(limitKey)
+          const status = (error as { status?: number } | null)?.status
+          if (status === 401 || status === 403) {
+            auth.recordRateLimitAttempt(limitKey)
+          }
           throw error
         }
       }
