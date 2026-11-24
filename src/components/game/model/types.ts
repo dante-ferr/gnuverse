@@ -13,6 +13,12 @@ export type Room = {
   name: string
   creatorId: string
   allowCreatorBan: boolean
+  /** Contributor majority restores checkpoints without the owner. */
+  restoreByMajority?: boolean
+  /** Contributor majority suspends members (never the owner). */
+  banByMajority?: boolean
+  /** Coins spent since the last checkpoint. */
+  checkpointSpend?: number
   cost: number
   eligibilityMode: 'automatic' | 'manual'
   minContributions: number
@@ -30,14 +36,37 @@ export type Member = User & {
 export type Proposal = {
   id: string
   actorId: string
-  type: 'ban'
+  type: 'ban' | 'restore'
+  /** Ban: member id. Restore: checkpoint id. */
   targetId: string
   reason: string
   status: string
   createdAt: number
   decisionReason?: string
   decidedBy?: string | null
+  decidedByMajority?: boolean
   executionStatus?: string
+  supporters?: string[]
+  /** True when contributor majority (not the owner) accepts this proposal. */
+  byMajority?: boolean
+  tally?: { supporters: number; voters: number; needed: number }
+}
+export type Checkpoint = {
+  id: string
+  createdAt: number
+  actorId: string | null
+  reason: string
+  kind: 'created' | 'spend' | 'pre-restore'
+  tick: number
+  deliveries: number
+  version: string
+  belts: number
+  chunks: number
+}
+export type RoomGovernance = {
+  restoreByMajority: boolean
+  banByMajority: boolean
+  checkpointSpend: number
 }
 export type ChatMessage = {
   id: string

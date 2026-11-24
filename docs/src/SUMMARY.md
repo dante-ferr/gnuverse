@@ -19,6 +19,7 @@
   - [Rules and design](game/rules.md)
   - [Chapter progression and cores](game/progression.md)
   - [Coins and map expansion](game/economy-expansion.md)
+  - [Checkpoints and room decisions](game/checkpoints.md)
   - [Element recipes](game/elements.md)
   - [Code map](game/map.md)
   - [Local testing](game/local.md)

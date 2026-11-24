@@ -93,6 +93,8 @@ export function testPipelineRules(overrides: Partial<PipelineRules> = {}): Pipel
     satelliteCoreRingMax: 4,
     optionalCoreSpawnChancePercent: 8,
     optionalCoreCost: 400,
+    checkpointSpendCoins: 200,
+    checkpointLimit: 20,
     slotInputDepthPercent: 22,
     slotOutputDepthPercent: 34,
     slotBracketThickPercent: 18,

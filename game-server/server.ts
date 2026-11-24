@@ -10,6 +10,7 @@ import { CMSIdentityProvider } from './auth/cms-identity-provider.ts'
 import { HistoryService } from './rooms/history-service.ts'
 import { RoomService } from './rooms/room-service.ts'
 import { GovernanceService } from './governance/governance-service.ts'
+import { CheckpointService } from './rooms/checkpoint-service.ts'
 import { SimulationCoordinator } from './runtime/simulation-coordinator.ts'
 import { HttpApplication } from './transport/http-application.ts'
 import {
@@ -39,12 +40,17 @@ export function createGameServer(options: ServerOptions = {}) {
     room.beltCount ??= 0
     room.actionCount ??= 0
     room.chat ??= []
+    room.restoreByMajority ??= false
+    room.banByMajority ??= false
+    room.checkpointSpend ??= 0
+    for (const snapshot of room.snapshots ?? []) snapshot.kind ??= 'created'
     delete (room as { restoreMode?: unknown }).restoreMode
     delete (room as { wind?: unknown }).wind
     delete (room as { placementCount?: unknown }).placementCount
   }
   store.persist()
   const wallet = new WalletService(rules, now)
+  const checkpoints = new CheckpointService(rules, history)
   const auth = new AuthService(
     store,
     rules,
@@ -59,8 +65,9 @@ export function createGameServer(options: ServerOptions = {}) {
     wallet,
     runtime,
     history,
+    checkpoints,
   )
-  const governance = new GovernanceService(rules, now, runtime, history)
+  const governance = new GovernanceService(rules, now, runtime, history, checkpoints)
   const origins = options.allowedOrigins ?? resolveGameAllowedOrigins()
   const application = new HttpApplication({
     store,

@@ -119,5 +119,9 @@ satellite_core_ring_max = 4
 optional_core_spawn_chance_percent = 8 # Beyond ring 4, non-satellite chunks
 optional_core_cost = 400 # Pooled optional core buy (flat)
 
+# Checkpoints (factory restore points)
+checkpoint_spend_coins = 200 # Coins spent in the room since the last checkpoint that save a new one
+checkpoint_limit = 20 # Spend checkpoints kept per room (plus the room-creation one)
+
 # Starter sources and non-starter spawn odds live in elements.toml
 # (starter_source_ids + per-base source_spawn_chance_percent).

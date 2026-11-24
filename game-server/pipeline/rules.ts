@@ -169,6 +169,10 @@ export type PipelineRules = {
   optionalCoreSpawnChancePercent: number
   /** Pooled buy price for an optional core (no progression). */
   optionalCoreCost: number
+  /** Coins spent in a room since the last checkpoint that trigger a new automatic checkpoint. */
+  checkpointSpendCoins: number
+  /** Spend checkpoints kept per room (the room-creation checkpoint is kept on top). */
+  checkpointLimit: number
   /** Input “[” bracket protrusion as percent of one cell (shallower = recess). */
   slotInputDepthPercent: number
   /** Output bracket protrusion as percent of one cell (deeper = nozzle). */

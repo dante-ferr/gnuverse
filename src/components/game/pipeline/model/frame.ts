@@ -96,6 +96,8 @@ export type PipelineRules = {
   satelliteCoreRingMax: number
   optionalCoreSpawnChancePercent: number
   optionalCoreCost: number
+  checkpointSpendCoins: number
+  checkpointLimit: number
   slotInputDepthPercent: number
   slotOutputDepthPercent: number
   slotBracketThickPercent: number

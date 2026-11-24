@@ -58,21 +58,34 @@ export type RoomEvent = {
   detail: unknown
   createdAt: number
 }
+/**
+ * Restore point of a room's factory. `created` is the room-creation snapshot,
+ * `spend` is saved each time `checkpointSpendCoins` is spent in the room, and
+ * `pre-restore` keeps the factory as it was just before a restore.
+ */
+export type SnapshotKind = 'created' | 'spend' | 'pre-restore'
 export type Snapshot = {
   id: string
   createdAt: number
   frame: PipelineFrame
   actorId: string | null
   reason: string
+  kind?: SnapshotKind
 }
+export type ProposalType = 'ban' | 'restore'
 export type Proposal = {
   id: string
-  type: 'ban'
+  type: ProposalType
+  /** Ban: member to suspend. Restore: checkpoint (snapshot) id. */
   targetId: string
   reason: string
   actorId: string
   status: 'pending' | 'accepted' | 'rejected'
   createdAt: number
+  /** Contributors who agreed (the proposer agrees on creation). */
+  supporters?: string[]
+  /** How the proposal closed: room owner decision or contributor majority. */
+  decidedByMajority?: boolean
   decisionReason?: string
   decidedAt?: number
   decidedBy?: string | null
@@ -84,6 +97,12 @@ export type Room = {
   name: string
   creatorId: string
   allowCreatorBan: boolean
+  /** Contributor majority restores checkpoints without the owner. Off by default. */
+  restoreByMajority?: boolean
+  /** Contributor majority suspends members (never the owner). Off by default. */
+  banByMajority?: boolean
+  /** Coins spent since the last checkpoint. */
+  checkpointSpend?: number
   cost: number
   eligibilityMode: 'automatic' | 'manual'
   minContributions: number

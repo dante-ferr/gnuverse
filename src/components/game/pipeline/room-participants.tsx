@@ -158,7 +158,7 @@ export function RoomParticipants({
           </button>
         </div>
       ) : (
-        <p className={styles.quiet}>Entre para propor uma suspensão.</p>
+        <p className={styles.controlsHint}>Entre para propor uma suspensão.</p>
       )}
       {historyMember ? (
         <PlayerHistoryOverlay

@@ -1,0 +1,174 @@
+dialog.overlay {
+  width: min(1100px, calc(100vw - 32px));
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 640px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .timeline {
+    max-height: 200px;
+  }
+}
+
+.timeline {
+  margin: 0;
+  padding: 0 0 0 14px;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  max-height: min(560px, calc(100dvh - 200px));
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+}
+
+.item {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item::before {
+  content: '';
+  position: absolute;
+  left: -19px;
+  top: 14px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.item:hover {
+  background: var(--accent-soft);
+}
+
+.item[aria-current='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.item[aria-current='true']::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.itemTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.item time {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 10px;
+}
+
+.detail {
+  display: grid;
+  gap: 12px;
+}
+
+.preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.65;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--scene);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.stats div {
+  display: grid;
+  gap: 2px;
+}
+
+.stats dt {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.propose {
+  display: grid;
+  gap: 8px;
+}
+
+.propose label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.propose input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.primary {
+  justify-self: start;
+  padding: 10px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}

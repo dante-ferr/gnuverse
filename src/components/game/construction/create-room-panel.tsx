@@ -82,7 +82,14 @@ export function CreateRoomPanel({
               min={1}
             />
           </label>
-          <p>Suspensões de participantes são sempre decididas pelo BDFL.</p>
+          <label className={styles.checkOption}>
+            <input type="checkbox" name="restoreByMajority" />
+            Maioria dos contribuidores decide restaurar checkpoints
+          </label>
+          <label className={styles.checkOption}>
+            <input type="checkbox" name="banByMajority" />
+            Maioria dos contribuidores decide suspensões (nunca do BDFL)
+          </label>
           {error && <p role="alert">{error}</p>}
           <button className={styles.primary} disabled={busy || loading}>
             Criar sala
