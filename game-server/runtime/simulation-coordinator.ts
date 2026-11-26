@@ -6,6 +6,7 @@ import { isPipelineFrame, type PipelineFrame } from '../pipeline/world/frame.ts'
 import { Match } from '../pipeline/world/match.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import type { GovernanceService } from '../governance/governance-service.ts'
+import { RoomPresence, type PresenceCell } from './room-presence.ts'
 
 /** Steps every pipeline match and fans the frame out over SSE. */
 export class SimulationCoordinator {
@@ -19,6 +20,7 @@ export class SimulationCoordinator {
   /** Belt geometry already sent on this room's SSE stream. Later ticks omit the belt array. */
   private beltStamps = new Map<string, number>()
   private lastPersistAt = 0
+  private presence = new RoomPresence()
 
   constructor(store: GameStore, rules: PipelineRules) {
     this.store = store
@@ -49,6 +51,22 @@ export class SimulationCoordinator {
       if (response.writableLength < 1024 * 1024) response.write(payload)
   }
 
+  publishPresence(roomId: string) {
+    const payload = `event: presence\ndata: ${JSON.stringify({ players: this.presence.snapshot(roomId) })}\n\n`
+    for (const response of this.streams.get(roomId) ?? [])
+      if (response.writableLength < 1024 * 1024) response.write(payload)
+  }
+
+  /** Heartbeat from a signed-in player who has the room open. */
+  touchPresence(roomId: string, user: { id: string; nickname: string }) {
+    if (this.presence.touch(roomId, user)) this.publishPresence(roomId)
+  }
+
+  noteEdit(roomId: string, user: { id: string; nickname: string }, cell: PresenceCell) {
+    this.presence.noteEdit(roomId, user, cell)
+    this.publishPresence(roomId)
+  }
+
   publishAllChanges(): void {
     for (const roomId of Object.keys(this.store.state.rooms))
       this.publishChange(roomId)
@@ -69,6 +87,7 @@ export class SimulationCoordinator {
   remove(roomId: string) {
     for (const response of this.streams.get(roomId) ?? []) response.end()
     this.streams.delete(roomId)
+    this.presence.clear(roomId)
     this.live.delete(roomId)
     this.beltStamps.delete(roomId)
   }
@@ -90,6 +109,9 @@ export class SimulationCoordinator {
       `event: chat\ndata: ${JSON.stringify({ chat: room.chat ?? [] })}\n\n`,
     )
     if (!this.streams.has(room.id)) this.streams.set(room.id, new Set())
+    response.write(
+      `event: presence\ndata: ${JSON.stringify({ players: this.presence.snapshot(room.id) })}\n\n`,
+    )
     this.streams.get(room.id)!.add(response)
     response.on('close', () => this.streams.get(room.id)?.delete(response))
   }
@@ -118,12 +140,16 @@ export class SimulationCoordinator {
     this.timer = setInterval(() => {
       try {
         const needsSave = this.step()
+        for (const roomId of this.presence.sweep()) this.publishPresence(roomId)
         for (const room of Object.values(this.store.state.rooms))
           governance.expireBans(room)
         for (const room of Object.values(this.store.state.rooms)) {
           if (!isPipelineFrame(room.frame)) continue
+          const viewers = this.streams.get(room.id)
+          // Nobody is watching: skip serializing. `subscribe` re-sends the full frame.
+          if (!viewers?.size) continue
           const payload = JSON.stringify(this.wireFrame(room.id, room.frame))
-          for (const response of this.streams.get(room.id) ?? []) {
+          for (const response of viewers) {
             if (response.writableLength > 256 * 1024) continue
             response.write(`event: frame\ndata: ${payload}\n\n`)
           }
@@ -142,12 +168,14 @@ export class SimulationCoordinator {
   }
 
   private wireFrame(roomId: string, frame: PipelineFrame) {
+    // Merge/pull round-robin cursors are server-only and can dwarf the rest of a tick frame.
+    const { mergeLast: _merge, pullLast: _pull, ...visible } = frame
     const stamp = beltLayoutStamp(frame.belts)
     if (this.beltStamps.get(roomId) !== stamp) {
       this.beltStamps.set(roomId, stamp)
-      return frame
+      return visible
     }
-    const { belts: _belts, ...rest } = frame
+    const { belts: _belts, ...rest } = visible
     return { ...rest, omitBelts: true, beltCount: frame.belts.length }
   }
 

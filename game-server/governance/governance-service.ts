@@ -53,6 +53,14 @@ export class GovernanceService {
     proposal.executionStatus = 'executed'
     proposal.executedAt = this.now()
   }
+  /** True when `expireBans` would change something, so reads can skip the write transaction. */
+  hasExpiredBans(room: Room) {
+    const now = this.now()
+    return Object.values(room.members).some(
+      (participant) =>
+        participant.banned && participant.bannedUntil !== undefined && participant.bannedUntil <= now,
+    )
+  }
   expireBans(room: Room) {
     for (const participant of Object.values(room.members))
       if (

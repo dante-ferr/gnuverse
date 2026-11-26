@@ -73,7 +73,22 @@ export function PipelineRoom() {
   }
   useEffect(() => {
     if (!session.user || !lobby.roomId) return
-    void session.api.request(`/api/rooms/${lobby.roomId}/join`, {}).catch(() => {})
+    const roomId = lobby.roomId
+    const api = session.api
+    let active = true
+    const beat = () => api.request(`/api/rooms/${roomId}/presence`, {}).catch(() => {})
+    // Heartbeats tell the server this player still has the room open (labels vanish after they leave).
+    void api
+      .request(`/api/rooms/${roomId}/join`, {})
+      .catch(() => {})
+      .then(() => {
+        if (active) void beat()
+      })
+    const timer = setInterval(() => void beat(), 15_000)
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
   }, [session.user, session.api, lobby.roomId])
   useProgressionNotice(live.frame.seed ? live.frame : null, feedback.setNotice)
   useEffect(() => {
@@ -93,19 +108,22 @@ export function PipelineRoom() {
       feedback.setError(structure.signInMessage)
       return
     }
-    void feedback.run(async () => {
+    // Queue, never drop: a stroke made while the previous one is in flight still lands.
+    void feedback.queue(async () => {
       await structure.commit(
         {
           roomId: lobby.roomId,
           request: async (path, body, method) => {
             const result = await session.api.request(path, body, method)
             applyWallet(result)
+            if (result && typeof result === 'object' && 'frame' in result)
+              live.applyFrame((result as { frame: unknown }).frame)
             return result
           },
         },
         request.payload,
       )
-      await live.refresh()
+      // The edit response already carries the frame; the server's `change` event refetches the rest.
     })
   }
   const removeRefresh = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -149,9 +167,14 @@ export function PipelineRoom() {
       router.push(loginHref)
       return
     }
-    void feedback.run(async () => {
-      await session.api.request(`/api/rooms/${lobby.roomId}/chat`, { text })
-    })
+    // Chat never waits for, or is dropped by, an in-flight edit.
+    void session.api
+      .request(`/api/rooms/${lobby.roomId}/chat`, { text })
+      .catch((cause) =>
+        feedback.setError(
+          cause instanceof Error ? cause.message : 'O servidor não respondeu. Confira a conexão.',
+        ),
+      )
   }
   const remove = (cells: { x: number; y: number }[], options: { revert: () => void }) => {
     if (cells.length === 0) return
@@ -255,7 +278,6 @@ export function PipelineRoom() {
             user={session.user}
             loginHref={loginHref}
             maxLength={chatMaxLength}
-            busy={feedback.busy}
             onSend={sendChat}
           />
           <div className={styles.sceneViewport}>
@@ -266,6 +288,7 @@ export function PipelineRoom() {
               editMode={editMode}
               structureId={structureId}
               userId={session.user?.id ?? null}
+              presence={live.presence}
               chunkCost={
                 rules
                   ? rules.chunkCostBase +

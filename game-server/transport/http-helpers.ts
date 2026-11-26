@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { gzipSync } from 'node:zlib'
 import { fail } from '../domain/validation.ts'
 
 /** Extracts the client IP behind a reverse proxy (e.g. Render), falling back to the socket peer. */
@@ -13,13 +14,30 @@ export const clientAddress = (req: IncomingMessage): string => {
   return req.socket?.remoteAddress || 'unknown'
 }
 
+/** Bodies smaller than this are not worth compressing. */
+const GZIP_MIN_BYTES = 2048
+
 export const json = (res: ServerResponse, status: number, value: unknown) => {
-  res.writeHead(status, {
+  const body = JSON.stringify(value)
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
-  })
-  res.end(JSON.stringify(value))
+  }
+  // Room detail carries every belt and the event log; it compresses roughly tenfold.
+  const accepts = String(res.req?.headers['accept-encoding'] ?? '')
+  if (body.length >= GZIP_MIN_BYTES && /\bgzip\b/.test(accepts)) {
+    const vary = res.getHeader('Vary')
+    res.writeHead(status, {
+      ...headers,
+      'Content-Encoding': 'gzip',
+      Vary: vary ? `${vary}, Accept-Encoding` : 'Accept-Encoding',
+    })
+    res.end(gzipSync(body, { level: 4 }))
+    return
+  }
+  res.writeHead(status, headers)
+  res.end(body)
 }
 export const readBody = async (
   req: IncomingMessage,

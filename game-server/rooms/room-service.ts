@@ -249,6 +249,7 @@ export class RoomService {
     const wallet = this.settle(user, cost, refund)
     if (cost > 0) recordRoomSpend(match, user.id, cost)
     const committed = this.commitMachine(room, user, participant, match, String(machineId), cost, refund)
+    this.runtime.noteEdit?.(room.id, user, machineEditCell(spec))
     this.checkpoints.recordSpend(room, user.id, cost)
     return { ...committed, wallet, cost, refund }
   }
@@ -282,6 +283,7 @@ export class RoomService {
       cost,
       refund,
     })
+    this.runtime.noteEdit?.(room.id, user, cells[cells.length - 1])
     this.checkpoints.recordSpend(room, user.id, cost)
     return { ...committed, wallet, cost, refund }
   }
@@ -295,6 +297,10 @@ export class RoomService {
       { id: user.id, nickname: user.nickname },
     )
     if (result.error) fail(409, result.error)
+    this.runtime.noteEdit?.(room.id, user, {
+      x: integer(body.x, 0, match.width - 1, 'X'),
+      y: integer(body.y, 0, match.height - 1, 'Y'),
+    })
     const refund =
       match.sandbox || result.authorId !== user.id
         ? 0
@@ -593,4 +599,9 @@ function flag(value: unknown, current: boolean, label: string) {
   if (value === undefined) return current
   if (typeof value !== 'boolean') fail(400, `${label} inválida.`)
   return value
+}
+
+/** Cell a presence label points at after a machine edit (tunnels point at the exit). */
+function machineEditCell(spec: MachinePlaceRequest) {
+  return 'exitX' in spec ? { x: spec.exitX, y: spec.exitY } : { x: spec.x, y: spec.y }
 }

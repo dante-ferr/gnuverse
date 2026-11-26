@@ -5,6 +5,9 @@ import { fail, text } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import { WalletService } from '../economy/wallet-service.ts'
 
+/** How long a verified bearer token skips the identity provider round-trip. */
+const VERIFIED_TOKEN_TTL_MS = 30_000
+
 export const publicUser = (user: User) => ({ id: user.id, nickname: user.nickname, roles: user.roles ?? ['member'] })
 
 /** Stores game profiles only. The identity provider validates all credentials and sessions. */
@@ -15,6 +18,12 @@ export class AuthService {
   private wallet: WalletService
   private identityProvider: IdentityProvider
   private attempts = new Map<string, number[]>()
+  /**
+   * Recently verified bearer tokens. Every game request used to round-trip to the
+   * identity provider and rewrite the whole store; within this window a known
+   * token resolves locally. Role or revocation changes apply after the window.
+   */
+  private verified = new Map<string, { userId: string; expiresAt: number }>()
   constructor(store: GameStore, rules: Readonly<Rules>, now: () => number, wallet: WalletService, identityProvider: IdentityProvider) {
     this.store = store; this.rules = rules; this.now = now; this.wallet = wallet; this.identityProvider = identityProvider
   }
@@ -27,15 +36,34 @@ export class AuthService {
     this.identityProvider.warmup?.()
   }
   async authenticate(authorization: string | undefined): Promise<User> {
-    const account = await this.identityProvider.authenticate(this.token(authorization))
-    return this.store.atomic(() => this.profile(account))
+    const token = this.token(authorization)
+    const cached = this.verified.get(token)
+    if (cached && cached.expiresAt > this.now()) {
+      const user = this.store.state.users[cached.userId]
+      if (user) return user
+    }
+    const account = await this.identityProvider.authenticate(token)
+    const user = this.store.atomic(() => this.profile(account))
+    this.rememberToken(token, user.id)
+    return user
+  }
+  private rememberToken(token: string, userId: string) {
+    const now = this.now()
+    if (this.verified.size >= 10000)
+      for (const [key, entry] of this.verified)
+        if (entry.expiresAt <= now) this.verified.delete(key)
+    if (this.verified.size >= 10000) this.verified.clear()
+    this.verified.set(token, { userId, expiresAt: now + VERIFIED_TOKEN_TTL_MS })
   }
   async me(authorization: string | undefined) {
-    const account = await this.identityProvider.authenticate(this.token(authorization))
-    return this.store.atomic(() => {
+    const token = this.token(authorization)
+    const account = await this.identityProvider.authenticate(token)
+    const result = this.store.atomic(() => {
       const user = this.profile(account)
       return { user: publicUser(user), wallet: this.wallet.read(user) }
     })
+    this.rememberToken(token, result.user.id)
+    return result
   }
   private profile(account: IdentityAccount, password?: string): User {
     const matches = (user: User) => user.identity?.provider === account.identity.provider && user.identity.id === account.identity.id
@@ -146,6 +174,8 @@ export class AuthService {
     }
   }
   async logout(authorization: string | undefined) {
-    await this.identityProvider.logout(this.token(authorization))
+    const token = this.token(authorization)
+    this.verified.delete(token)
+    await this.identityProvider.logout(token)
   }
 }

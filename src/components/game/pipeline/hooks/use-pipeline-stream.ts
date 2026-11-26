@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameApi } from '../../api/game-api'
-import { isPipelineFrame, type PipelineFrame } from '../model/frame'
+import { isPipelineFrame, type PipelineFrame, type PresencePlayer } from '../model/frame'
 import type { Connection } from '../../hooks/use-room-lobby'
 import type {
   ChatMessage,
@@ -52,9 +52,17 @@ export function usePipelineStream(api: GameApi, roomId: string) {
   const [events, setEvents] = useState<GameEvent[]>([])
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
   const [governance, setGovernance] = useState<RoomGovernance>(defaultGovernance)
+  const [presence, setPresence] = useState<PresencePlayer[]>([])
   const [connection, setConnection] = useState<Connection>('connecting')
   const selected = useRef(roomId)
   selected.current = roomId
+  const beltCountRef = useRef(0)
+  beltCountRef.current = frame.belts.length
+  /** Show a frame an edit response returned without waiting for the next room refetch. */
+  const applyFrame = useCallback((next: unknown) => {
+    if (!isPipelineFrame(next)) return
+    setFrame((current) => (next.tick >= current.tick ? next : current))
+  }, [])
   const refresh = useCallback(async () => {
     if (!roomId) return
     const result = await api.request<{
@@ -68,7 +76,7 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       events?: GameEvent[]
     }>(`/api/rooms/${roomId}`)
     if (selected.current !== result.room.id || !isPipelineFrame(result.frame)) return
-    setFrame((current) => (result.frame.tick >= current.tick ? result.frame : current))
+    applyFrame(result.frame)
     setRules(result.rules)
     setName(result.room.name)
     setCreatorId(result.room.creatorId)
@@ -82,7 +90,7 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       banByMajority: result.room.banByMajority === true,
       checkpointSpend: Number(result.room.checkpointSpend ?? 0),
     })
-  }, [api, roomId])
+  }, [api, roomId, applyFrame])
   useEffect(() => {
     setFrame(emptyFrame())
     setChat([])
@@ -91,14 +99,32 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     setEvents([])
     setCheckpoints([])
     setGovernance(defaultGovernance)
+    setPresence([])
     setConnection('connecting')
     if (!roomId) return
     let active = true
-    const update = () =>
-      refresh().catch(() => {
-        if (active) setConnection('offline')
-      })
-    void update()
+    // One room-detail fetch at a time; a burst of `change` events collapses into one trailing refetch.
+    let fetching = false
+    let again = false
+    const update = () => {
+      if (fetching) {
+        again = true
+        return
+      }
+      fetching = true
+      refresh()
+        .catch(() => {
+          if (active) setConnection('offline')
+        })
+        .finally(() => {
+          fetching = false
+          if (again && active) {
+            again = false
+            update()
+          }
+        })
+    }
+    update()
     const stream = api.stream(roomId)
     stream.onopen = () => {
       if (active) setConnection('live')
@@ -116,16 +142,14 @@ export function usePipelineStream(api: GameApi, roomId: string) {
         if (!isPipelineFrame(data)) return
         if (data.omitBelts) {
           const { omitBelts: _omit, beltCount, ...rest } = data
-          let mismatch = false
-          setFrame((current) => {
-            if (beltCount !== undefined && current.belts.length !== beltCount) {
-              mismatch = true
-              return current
-            }
-            return { ...rest, belts: current.belts }
-          })
-          if (mismatch) void update()
+          // Updaters run lazily, so check the belt count against a ref, not inside setFrame.
+          if (beltCount !== undefined && beltCountRef.current !== beltCount) {
+            update()
+            return
+          }
+          setFrame((current) => ({ ...rest, belts: current.belts }))
         } else {
+          beltCountRef.current = data.belts.length
           setFrame(data)
         }
         setConnection('live')
@@ -144,12 +168,23 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       }
     }
     stream.addEventListener('chat', onChat)
+    const onPresence = (event: MessageEvent<string>) => {
+      if (!active) return
+      try {
+        const data = JSON.parse(event.data) as { players?: PresencePlayer[] }
+        if (Array.isArray(data.players)) setPresence(data.players)
+      } catch {
+        /* ignore malformed presence payloads */
+      }
+    }
+    stream.addEventListener('presence', onPresence)
     stream.addEventListener('change', () => {
-      if (active) void update()
+      if (active) update()
     })
     return () => {
       active = false
       stream.removeEventListener('chat', onChat)
+      stream.removeEventListener('presence', onPresence)
       stream.removeEventListener('frame', onFrame)
       stream.close()
     }
@@ -166,6 +201,8 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     checkpoints,
     governance,
     connection,
+    presence,
     refresh,
+    applyFrame,
   }
 }

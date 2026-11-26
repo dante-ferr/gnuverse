@@ -231,7 +231,8 @@ export class HttpApplication {
         )
       }
       if (req.method === 'GET' && path.length === 3) {
-        store.atomic(() => governance.expireBans(room))
+        // Every viewer refetches on each edit; only open a write transaction when a ban lapsed.
+        if (governance.hasExpiredBans(room)) store.atomic(() => governance.expireBans(room))
         return json(res, 200, {
           ...rooms.detail(room),
           proposals: governance.publicProposals(room),
@@ -248,6 +249,13 @@ export class HttpApplication {
       }
       if (req.method !== 'POST') fail(404, 'Não encontrado.')
       const user = await auth.authenticate(req.headers.authorization)
+      if (path[3] === 'presence' && path.length === 4) {
+        // Heartbeats are in-memory only, so they skip the persisting transaction.
+        const member = room.members[user.id]
+        if (!member || member.banned) fail(403, 'Você não participa desta sala.')
+        runtime.touchPresence(room.id, { id: user.id, nickname: user.nickname })
+        return json(res, 200, { ok: true })
+      }
       const result = store.atomic(() => {
         const room = store.state.rooms[path[2]]
         if (!room) fail(404, 'Sala não encontrada.')

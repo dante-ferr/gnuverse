@@ -222,6 +222,13 @@ export type ChunkPledgeRecord = {
   backers?: { userId: string; amount: number }[]
 }
 
+/** Player currently in the room, with the last cell they edited (if any). */
+export type PresencePlayer = {
+  id: string
+  nickname: string
+  cell: { x: number; y: number } | null
+}
+
 export type PipelineFrame = {
   kind: 'pipeline'
   version: string

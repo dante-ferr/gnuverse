@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import type { BeltRecord, PipelineFrame, PipelineRules } from '../model/frame.ts'
+import type { BeltRecord, PipelineFrame, PipelineRules, PresencePlayer } from '../model/frame.ts'
 import { CombinerMachine } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
 import { TrashcanMachine } from '../../../../../game-server/pipeline/machines/trashcan-machine.ts'
 import { setPlacementFrame, setPlacementRules } from '../placement-rules.ts'
@@ -55,6 +55,8 @@ type Props = {
   structureId: string
   /** Signed-in player id; used to redirect owned belts. */
   userId?: string | null
+  /** Players currently in the room; their last edited cell gets a name label. */
+  presence?: PresencePlayer[]
   chunkCost: number | null
   /** Player coin balance; `null` when signed out. */
   coinBalance: number | null
@@ -93,6 +95,7 @@ export function PipelineScene({
   editMode,
   structureId,
   userId = null,
+  presence = [],
   chunkCost,
   coinBalance,
   buyBusy,
@@ -121,6 +124,7 @@ export function PipelineScene({
   const packetPainter = useRef(new PacketPainter())
   const tunnelOccupancyPainter = useRef(new TunnelOccupancyPainter())
   const readoutPainter = useRef(new ReadoutPainter())
+  const presenceRef = useRef<PresencePlayer[]>([])
   const packetMotion = useRef(createPacketMotionState())
   const groundLayer = useRef<SceneLayer | null>(null)
   const machineLayer = useRef<SceneLayer | null>(null)
@@ -142,6 +146,7 @@ export function PipelineScene({
   editModeRef.current = editMode
   structureIdRef.current = structureId
   userIdRef.current = userId
+  presenceRef.current = presence
   onToggleEditModeRef.current = onToggleEditMode
   onSelectStructureRef.current = onSelectStructure
 
@@ -374,6 +379,13 @@ export function PipelineScene({
       const hover =
         pinnedBlame.current ??
         hoverLabel(current, camera, lastPointer.current, pendingRemovals.current)
+      readoutPainter.current.drawPresence(
+        ctx,
+        presenceRef.current.filter((player) => player.id !== userIdRef.current),
+        palette,
+        camera.zoom,
+        current,
+      )
       readoutPainter.current.draw(ctx, current, palette, hover)
     })
     syncBuyAnchors(current, palette, camera, view)

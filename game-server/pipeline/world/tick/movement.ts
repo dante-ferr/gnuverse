@@ -10,6 +10,13 @@ import { tunnelAbsorb, tunnelCanAbsorb } from './routing.ts'
 
 type Move = { packet: Packet; from: string; to: string }
 
+type ApproachTarget =
+  | { kind: 'core'; machine: Match['cores'][number] }
+  | { kind: 'combiner'; machine: Match['combiners'][number] }
+  | { kind: 'splitter'; machine: Match['splitters'][number] }
+  | { kind: 'trashcan'; machine: Match['trashcans'][number] }
+  | { kind: 'tunnel'; machine: Match['tunnels'][number] }
+
 export type PullFlowChoice = 'pull' | 'flow'
 
 /** Moves every belt packet at once. Packets do not swap places. */
@@ -106,47 +113,49 @@ export class Movement {
    * the input cannot take the packet this tick.
    */
   private pullFromApproach(cell: { x: number; y: number }, shape: PacketShape): string | null {
-    for (const core of this.match.cores) {
-      for (const slot of core.inputSlots()) {
-        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
-        if (!sameCell(approach, cell)) continue
-        if (!this.match.acceptsDelivery(shape)) return null
-        return `deliver:${core.id}`
+    const target = this.approachIndex().get(cellKey(cell))
+    if (!target) return null
+    switch (target.kind) {
+      case 'core':
+        return this.match.acceptsDelivery(shape) ? `deliver:${target.machine.id}` : null
+      case 'combiner':
+        return combinerAcceptsShape(target.machine, this.match.rules, shape)
+          ? `absorb:combiner:${target.machine.id}`
+          : null
+      case 'splitter':
+        return target.machine.buffer === null ? `absorb:splitter:${target.machine.id}` : null
+      case 'trashcan':
+        return `absorb:trashcan:${target.machine.id}`
+      case 'tunnel':
+        return tunnelCanAbsorb(this.match, target.machine.pairId, shape)
+          ? `absorb:tunnel:${target.machine.pairId}`
+          : null
+    }
+  }
+
+  private approaches?: Map<string, ApproachTarget>
+
+  /**
+   * Approach cell → first input that owns it, in core, combiner, splitter,
+   * trashcan, tunnel order. Machines do not move during a movement pass.
+   */
+  private approachIndex() {
+    if (this.approaches) return this.approaches
+    const index = new Map<string, ApproachTarget>()
+    const add = (target: ApproachTarget) => {
+      for (const slot of target.machine.inputSlots()) {
+        const key = cellKey(ahead(slot.cell.x, slot.cell.y, opposite(slot.travel)))
+        if (!index.has(key)) index.set(key, target)
       }
     }
-    for (const combiner of this.match.combiners) {
-      for (const slot of combiner.inputSlots()) {
-        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
-        if (!sameCell(approach, cell)) continue
-        if (!combinerAcceptsShape(combiner, this.match.rules, shape)) return null
-        return `absorb:combiner:${combiner.id}`
-      }
-    }
-    for (const splitter of this.match.splitters) {
-      for (const slot of splitter.inputSlots()) {
-        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
-        if (!sameCell(approach, cell)) continue
-        if (splitter.buffer !== null) return null
-        return `absorb:splitter:${splitter.id}`
-      }
-    }
-    for (const trashcan of this.match.trashcans) {
-      for (const slot of trashcan.inputSlots()) {
-        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
-        if (!sameCell(approach, cell)) continue
-        return `absorb:trashcan:${trashcan.id}`
-      }
-    }
-    for (const portal of this.match.tunnels) {
-      if (portal.role !== 'entrance') continue
-      for (const slot of portal.inputSlots()) {
-        const approach = ahead(slot.cell.x, slot.cell.y, opposite(slot.travel))
-        if (!sameCell(approach, cell)) continue
-        if (!tunnelCanAbsorb(this.match, portal.pairId, shape)) return null
-        return `absorb:tunnel:${portal.pairId}`
-      }
-    }
-    return null
+    for (const machine of this.match.cores) add({ kind: 'core', machine })
+    for (const machine of this.match.combiners) add({ kind: 'combiner', machine })
+    for (const machine of this.match.splitters) add({ kind: 'splitter', machine })
+    for (const machine of this.match.trashcans) add({ kind: 'trashcan', machine })
+    for (const machine of this.match.tunnels)
+      if (machine.role === 'entrance') add({ kind: 'tunnel', machine })
+    this.approaches = index
+    return index
   }
 
   /** Round-robin between input pull and belt-forward flow for one approach cell. */
@@ -240,45 +249,55 @@ export class Movement {
     return kept
   }
 
+  /**
+   * One arbitration pass, then backward propagation: a move that cannot leave
+   * its cell blocks the single merge winner that targets that cell, and so on
+   * up the chain. Same result and order as re-running the pass to a fixed
+   * point, but linear in the number of moves instead of cubic on long jams.
+   */
   private allowed(moves: Move[], occupied: Map<string, Packet>) {
-    let active = this.capDeliveries(moves.filter((move) => move.to !== 'blocked'))
-    let changed = true
-    while (changed) {
-      changed = false
-      const leaving = new Set(active.map((move) => move.from))
-      const byDest = new Map<string, Move[]>()
-      const next: Move[] = []
-      for (const move of active) {
-        if (move.to.startsWith('deliver:') || move.to.startsWith('absorb:')) {
-          next.push(move)
-          continue
-        }
-        const occupant = occupied.get(move.to)
-        if (occupant && !leaving.has(move.to)) {
-          changed = true
-          continue
-        }
-        const reverse = active.find((other) => other.from === move.to && other.to === move.from)
-        if (reverse) {
-          changed = true
-          continue
-        }
-        const group = byDest.get(move.to)
-        if (group) group.push(move)
-        else byDest.set(move.to, [move])
+    const active = this.capDeliveries(moves.filter((move) => move.to !== 'blocked'))
+    // One packet per cell, so `from` is unique among moves.
+    const byFrom = new Map<string, Move>()
+    for (const move of active) byFrom.set(move.from, move)
+    const byDest = new Map<string, Move[]>()
+    const next: Move[] = []
+    const stuck: string[] = []
+    for (const move of active) {
+      if (move.to.startsWith('deliver:') || move.to.startsWith('absorb:')) {
+        next.push(move)
+        continue
       }
-      for (const [dest, group] of byDest) {
-        const winner = this.pickMergeWinner(dest, group)
-        if (!winner) {
-          changed = true
-          continue
-        }
-        if (group.length > 1) changed = true
-        next.push(winner)
+      if (occupied.has(move.to) && !byFrom.has(move.to)) {
+        stuck.push(move.from)
+        continue
       }
-      active = next
+      if (byFrom.get(move.to)?.to === move.from) {
+        stuck.push(move.from)
+        continue
+      }
+      const group = byDest.get(move.to)
+      if (group) group.push(move)
+      else byDest.set(move.to, [move])
     }
-    return active
+    const winnerByDest = new Map<string, Move>()
+    for (const [dest, group] of byDest) {
+      const winner = this.pickMergeWinner(dest, group)
+      for (const move of group) if (move !== winner) stuck.push(move.from)
+      if (!winner) continue
+      winnerByDest.set(dest, winner)
+      next.push(winner)
+    }
+    // A stuck move keeps its packet in place, so whoever won that cell is blocked too.
+    const removed = new Set<Move>()
+    while (stuck.length > 0) {
+      const cell = stuck.pop()!
+      const winner = winnerByDest.get(cell)
+      if (!winner || removed.has(winner)) continue
+      removed.add(winner)
+      stuck.push(winner.from)
+    }
+    return removed.size === 0 ? next : next.filter((move) => !removed.has(move))
   }
 
   /**
