@@ -6,6 +6,7 @@ import { isPipelineFrame, type PipelineFrame } from '../pipeline/world/frame.ts'
 import { Match } from '../pipeline/world/match.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import type { GovernanceService } from '../governance/governance-service.ts'
+import { packPackets } from '../../core/wire/packets.ts'
 import { RoomPresence, type PresenceCell } from './room-presence.ts'
 
 /** Steps every pipeline match and fans the frame out over SSE. */
@@ -169,7 +170,9 @@ export class SimulationCoordinator {
 
   private wireFrame(roomId: string, frame: PipelineFrame) {
     // Merge/pull round-robin cursors are server-only and can dwarf the rest of a tick frame.
-    const { mergeLast: _merge, pullLast: _pull, ...visible } = frame
+    const { mergeLast: _merge, pullLast: _pull, packets, ...shared } = frame
+    const packed = packPackets(packets)
+    const visible = packed ? { ...shared, packets: [], packedPackets: packed } : { ...shared, packets }
     const stamp = beltLayoutStamp(frame.belts)
     if (this.beltStamps.get(roomId) !== stamp) {
       this.beltStamps.set(roomId, stamp)

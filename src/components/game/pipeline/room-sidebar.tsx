@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { GameApi } from '../api/game-api'
-import type { Checkpoint, GameEvent, Member, Proposal, RoomGovernance, User } from '../model/types'
+import type { Checkpoint, Member, Proposal, RoomGovernance, User } from '../model/types'
 import type { EditMode } from './scene/pipeline-scene'
 import type { PipelineFrame, PipelineRules } from './model/frame'
 import { CoreRequirementsSidebar } from './core-requirements-sidebar'
@@ -31,7 +31,6 @@ type Props = {
   proposals: Proposal[]
   checkpoints: Checkpoint[]
   governance: RoomGovernance
-  events: GameEvent[]
   busy?: boolean
   canAdvance?: boolean
   onAdvance?: () => void
@@ -63,7 +62,6 @@ export function RoomSidebar({
   proposals,
   checkpoints,
   governance,
-  events,
   busy,
   canAdvance,
   onAdvance,
@@ -137,7 +135,6 @@ export function RoomSidebar({
             user={user}
             creatorId={creatorId}
             members={members}
-            events={events}
             collaborators={frame?.collaborators ?? []}
             spentByUserId={frame?.spentByUserId}
             busy={busy}

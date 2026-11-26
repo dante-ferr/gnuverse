@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { GameApi } from '../api/game-api'
 import type { GameEvent, Member, User } from '../model/types'
 import type { PipelineFrame } from './model/frame'
@@ -14,7 +14,6 @@ type Props = {
   user: User | null
   creatorId: string
   members: Member[]
-  events: GameEvent[]
   collaborators: PipelineFrame['collaborators']
   spentByUserId?: Record<string, number>
   busy?: boolean
@@ -34,7 +33,6 @@ export function RoomParticipants({
   user,
   creatorId,
   members,
-  events,
   collaborators,
   spentByUserId,
   busy,
@@ -44,6 +42,28 @@ export function RoomParticipants({
   const [targetId, setTargetId] = useState('')
   const [reason, setReason] = useState('')
   const [historyMember, setHistoryMember] = useState<Member | null>(null)
+  const [historyEvents, setHistoryEvents] = useState<GameEvent[]>([])
+  const historyMemberId = historyMember?.id
+  // The room payload no longer carries the event log; load one player's slice on open.
+  useEffect(() => {
+    setHistoryEvents([])
+    if (!historyMemberId) return
+    let active = true
+    api
+      .request<{ events?: GameEvent[] }>(
+        `/api/rooms/${encodeURIComponent(roomId)}/members/${encodeURIComponent(historyMemberId)}/history`,
+      )
+      .then((result) => {
+        if (active) setHistoryEvents(Array.isArray(result.events) ? result.events : [])
+      })
+      .catch((cause) => {
+        if (active)
+          onError(cause instanceof Error ? cause.message : 'Não foi possível carregar o histórico.')
+      })
+    return () => {
+      active = false
+    }
+  }, [api, roomId, historyMemberId, onError])
   const collaboratorIds = new Set(collaborators.map((person) => person.id))
   const peopleById = new Map<string, Member>()
   for (const member of members) peopleById.set(member.id, member)
@@ -163,7 +183,7 @@ export function RoomParticipants({
       {historyMember ? (
         <PlayerHistoryOverlay
           nickname={historyMember.nickname}
-          events={playerAchievements(events, historyMember.id)}
+          events={playerAchievements(historyEvents, historyMember.id)}
           onClose={() => setHistoryMember(null)}
         />
       ) : null}

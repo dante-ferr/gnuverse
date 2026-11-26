@@ -35,9 +35,14 @@ export class AuthService {
   warmup() {
     this.identityProvider.warmup?.()
   }
-  async authenticate(authorization: string | undefined): Promise<User> {
+  /**
+   * `reuse` lets hot gameplay requests (placements, heartbeats, chat) accept a token
+   * verified within the last few seconds. Everything else asks the identity provider,
+   * so role grants and revocations apply immediately to privileged actions.
+   */
+  async authenticate(authorization: string | undefined, options: { reuse?: boolean } = {}): Promise<User> {
     const token = this.token(authorization)
-    const cached = this.verified.get(token)
+    const cached = options.reuse ? this.verified.get(token) : undefined
     if (cached && cached.expiresAt > this.now()) {
       const user = this.store.state.users[cached.userId]
       if (user) return user

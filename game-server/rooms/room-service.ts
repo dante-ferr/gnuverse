@@ -25,6 +25,9 @@ import {
 } from '../pipeline/world/chunks/core-purchase.ts'
 import { recordRoomSpend } from '../economy/room-spend.ts'
 
+/** Most recent events returned per player history request. */
+const MEMBER_HISTORY_LIMIT = 500
+
 export class RoomService {
   private store: GameStore
   private rules: Readonly<Rules>
@@ -84,12 +87,25 @@ export class RoomService {
       room: this.publicRoom(room),
       frame: this.runtime.publicFrame(room),
       snapshots: this.checkpoints.summaries(room),
-      events: room.events,
       members: Object.values(room.members),
       chat: room.chat ?? [],
       proposals: room.proposals,
       rules: this.rules,
     }
+  }
+  /**
+   * One player's history: the room event log filtered by actor, newest first.
+   * Served on demand so room refetches do not carry the ever-growing log.
+   */
+  memberHistory(room: Room, actorId: string) {
+    const events = []
+    for (let index = room.events.length - 1; index >= 0; index--) {
+      const event = room.events[index]!
+      if (event.actorId !== actorId) continue
+      events.push(event)
+      if (events.length >= MEMBER_HISTORY_LIMIT) break
+    }
+    return { events, truncated: events.length >= MEMBER_HISTORY_LIMIT }
   }
   statusPayload(room: Room, user: User) {
     const frame = this.runtime.publicFrame(room)

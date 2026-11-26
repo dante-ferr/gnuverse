@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameApi } from '../../api/game-api'
+import { unpackPackets, type PackedPackets } from '../../../../../core/wire/packets'
 import { isPipelineFrame, type PipelineFrame, type PresencePlayer } from '../model/frame'
 import type { Connection } from '../../hooks/use-room-lobby'
 import type {
   ChatMessage,
   Checkpoint,
-  GameEvent,
   Member,
   Proposal,
   RoomGovernance,
@@ -49,7 +49,6 @@ export function usePipelineStream(api: GameApi, roomId: string) {
   const [chat, setChat] = useState<ChatMessage[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [proposals, setProposals] = useState<Proposal[]>([])
-  const [events, setEvents] = useState<GameEvent[]>([])
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
   const [governance, setGovernance] = useState<RoomGovernance>(defaultGovernance)
   const [presence, setPresence] = useState<PresencePlayer[]>([])
@@ -73,7 +72,6 @@ export function usePipelineStream(api: GameApi, roomId: string) {
       chat?: ChatMessage[]
       members?: Member[]
       proposals?: Proposal[]
-      events?: GameEvent[]
     }>(`/api/rooms/${roomId}`)
     if (selected.current !== result.room.id || !isPipelineFrame(result.frame)) return
     applyFrame(result.frame)
@@ -83,7 +81,6 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     setChat(Array.isArray(result.chat) ? result.chat : [])
     setMembers(Array.isArray(result.members) ? result.members : [])
     setProposals(Array.isArray(result.proposals) ? result.proposals : [])
-    setEvents(Array.isArray(result.events) ? result.events : [])
     setCheckpoints(Array.isArray(result.snapshots) ? result.snapshots : [])
     setGovernance({
       restoreByMajority: result.room.restoreByMajority === true,
@@ -96,7 +93,6 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     setChat([])
     setMembers([])
     setProposals([])
-    setEvents([])
     setCheckpoints([])
     setGovernance(defaultGovernance)
     setPresence([])
@@ -135,11 +131,14 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     const onFrame = (event: MessageEvent<string>) => {
       if (!active) return
       try {
-        const data = JSON.parse(event.data) as PipelineFrame & {
+        const wire = JSON.parse(event.data) as PipelineFrame & {
           omitBelts?: boolean
           beltCount?: number
+          packedPackets?: PackedPackets
         }
-        if (!isPipelineFrame(data)) return
+        if (!isPipelineFrame(wire)) return
+        const { packedPackets, ...data } = wire
+        if (packedPackets) data.packets = unpackPackets(packedPackets) as PipelineFrame['packets']
         if (data.omitBelts) {
           const { omitBelts: _omit, beltCount, ...rest } = data
           // Updaters run lazily, so check the belt count against a ref, not inside setFrame.
@@ -197,7 +196,6 @@ export function usePipelineStream(api: GameApi, roomId: string) {
     chat,
     members,
     proposals,
-    events,
     checkpoints,
     governance,
     connection,

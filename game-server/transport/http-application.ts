@@ -15,6 +15,17 @@ import {
   verifyCMSChatModerator,
 } from '../auth/cms-panel.ts'
 
+function decodePathSegment(segment: string) {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    fail(400, 'Endereço inválido.')
+  }
+}
+
+/** Frequent in-room actions that may reuse a recently verified token (see AuthService). */
+const HOT_ROOM_ACTIONS = new Set(['place', 'place-machine', 'remove', 'presence', 'chat', 'join'])
+
 type Dependencies = {
   store: GameStore
   rules: Readonly<Rules>
@@ -243,12 +254,16 @@ export class HttpApplication {
         if (!snapshot) fail(404, 'Checkpoint não encontrado.')
         return json(res, 200, { frame: snapshot.frame })
       }
+      if (req.method === 'GET' && path[3] === 'members' && path[5] === 'history' && path.length === 6)
+        return json(res, 200, rooms.memberHistory(room, decodePathSegment(path[4])))
       if (req.method === 'GET' && path[3] === 'events' && path.length === 4) {
         runtime.subscribe(room, res)
         return
       }
       if (req.method !== 'POST') fail(404, 'Não encontrado.')
-      const user = await auth.authenticate(req.headers.authorization)
+      const user = await auth.authenticate(req.headers.authorization, {
+        reuse: path.length === 4 && HOT_ROOM_ACTIONS.has(path[3]),
+      })
       if (path[3] === 'presence' && path.length === 4) {
         // Heartbeats are in-memory only, so they skip the persisting transaction.
         const member = room.members[user.id]
