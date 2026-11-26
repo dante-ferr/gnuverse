@@ -7,6 +7,7 @@ import type { PipelineFrame } from '../model/frame'
 export function useProgressionNotice(
   frame: PipelineFrame | null,
   setNotice: (message: string) => void,
+  lastChapter = 0,
 ) {
   const ready = useRef(false)
   const chapter = useRef(0)
@@ -29,7 +30,9 @@ export function useProgressionNotice(
       return
     }
     const chapterUp = nextChapter > chapter.current
-    const waveUp = nextWave > wave.current
+    // Onda is only surfaced once the player reaches the last chapter.
+    const waveVisible = lastChapter > 0 && nextChapter >= lastChapter
+    const waveUp = waveVisible && nextWave > wave.current
     chapter.current = nextChapter
     wave.current = nextWave
     if (!chapterUp && !waveUp) return
@@ -39,5 +42,5 @@ export function useProgressionNotice(
     }
     if (chapterUp) setNotice(`Capítulo ${nextChapter}`)
     else setNotice(`Onda ${nextWave}`)
-  }, [frame?.seed, frame?.sandbox, frame?.chapter, frame?.escalationWave, setNotice])
+  }, [frame?.seed, frame?.sandbox, frame?.chapter, frame?.escalationWave, lastChapter, setNotice])
 }

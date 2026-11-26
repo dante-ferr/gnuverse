@@ -90,7 +90,7 @@ export function PipelineRoom() {
       clearInterval(timer)
     }
   }, [session.user, session.api, lobby.roomId])
-  useProgressionNotice(live.frame.seed ? live.frame : null, feedback.setNotice)
+  useProgressionNotice(live.frame.seed ? live.frame : null, feedback.setNotice, rules?.elements.chapters.length ?? 0)
   useEffect(() => {
     if (!feedback.notice) return
     const timer = setTimeout(() => feedback.setNotice(''), 2500)
