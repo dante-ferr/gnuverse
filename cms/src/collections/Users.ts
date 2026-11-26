@@ -114,8 +114,8 @@ export const Users: CollectionConfig = {
       access: { create: adminField, update: adminField },
     },
     {
-      name: 'aboutPhoto',
-      label: 'Foto de perfil (Sobre)',
+      name: 'avatar',
+      label: 'Foto de perfil',
       type: 'upload',
       relationTo: 'media',
       required: false,

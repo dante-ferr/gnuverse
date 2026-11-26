@@ -43,7 +43,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           destination.pathname === '/artigos' ||
           destination.pathname.startsWith('/artigos/') ||
           destination.pathname === '/quizzes' ||
-          destination.pathname.startsWith('/quizzes/'))
+          destination.pathname.startsWith('/quizzes/') ||
+          destination.pathname === '/perfil' ||
+          destination.pathname.startsWith('/perfil/') ||
+          destination.pathname === '/sobre' ||
+          destination.pathname.startsWith('/sobre/'))
       ) {
         setReturnTo(destination.pathname + destination.search + destination.hash)
       }
@@ -58,6 +62,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         returnTo.startsWith('/blog') ||
         returnTo.startsWith('/artigos') ||
         returnTo.startsWith('/quizzes') ||
+        returnTo.startsWith('/perfil') ||
         !resolveGameApiUrl()
       if (useCmsDirect) {
         const cmsUrl = resolveCmsBaseUrl()

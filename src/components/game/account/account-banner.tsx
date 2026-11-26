@@ -1,18 +1,29 @@
 'use client'
+import Link from 'next/link'
 import { CoinIcon } from '../coin-icon'
 import { type User, type Wallet } from '../model/types'
 import styles from '../game-shell.module.css'
 
 type Props = {
   user: User | null
+  avatarUrl?: string | null
   wallet: Wallet | null
   secondsToCoin: number
   busy: boolean
   onLogout: () => void
   onOpenAuth: () => void
 }
+
+function getInitials(label: string): string {
+  const parts = label.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'GN'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+}
+
 export function AccountBanner({
   user,
+  avatarUrl,
   wallet,
   secondsToCoin,
   busy,
@@ -24,7 +35,20 @@ export function AccountBanner({
       {user ? (
         <>
           <p className={styles.accountLine}>
-            <strong>{user.nickname}</strong>
+            <Link
+              href="/perfil/"
+              title="Gerenciar foto de perfil"
+              className={styles.accountProfileLink}
+            >
+              <span className={styles.accountAvatar} aria-hidden="true">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className={styles.accountAvatarImg} />
+                ) : (
+                  getInitials(user.nickname)
+                )}
+              </span>
+              <strong>{user.nickname}</strong>
+            </Link>
             <span
               title={
                 wallet
@@ -64,7 +88,9 @@ export function AccountBanner({
           </button>
         </>
       ) : (
-        <button className={styles.primary} onClick={onOpenAuth}>Entrar</button>
+        <button className={styles.primary} onClick={onOpenAuth}>
+          Entrar
+        </button>
       )}
     </div>
   )

@@ -26,15 +26,14 @@ export function SiteHeader() {
     return null
   }
 
-  const isHome = pathname === '/'
-
   return (
     <GameTopBar
       user={session.user}
+      avatarUrl={session.avatarUrl}
       wallet={session.wallet}
       secondsToCoin={session.secondsToCoin}
       busy={busy}
-      showAccount={!isHome}
+      showAccount
       centeredNav
       onLogout={() => {
         setBusy(true)
