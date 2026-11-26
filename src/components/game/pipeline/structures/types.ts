@@ -28,6 +28,8 @@ export type StructurePreviewMachine = {
   tunnelRole?: 'entrance' | 'exit'
   /** When false, placement preview is shown as invalid. */
   placementValid?: boolean
+  /** Draw fully opaque (an existing machine shown re-oriented), not as a ghost. */
+  opaque?: boolean
 }
 
 export type StructureHoverGhost = {

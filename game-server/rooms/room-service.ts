@@ -256,12 +256,23 @@ export class RoomService {
     } else {
       fail(400, 'Máquina inválida.')
     }
+    if (body.rotate === true) {
+      const at =
+        'exitX' in spec ? { x: spec.entranceX, y: spec.entranceY } : { x: spec.x, y: spec.y }
+      const error = match.rotateMachine(spec, at, body.facing, { id: user.id, nickname: user.nickname })
+      if (error) fail(409, error)
+      const committed = this.commitMachine(room, user, participant, match, String(machineId))
+      this.runtime.noteEdit?.(room.id, user, at)
+      return { ...committed, wallet: this.settle(user, 0, 0), cost: 0, refund: 0 }
+    }
     const placed = match.placeMachineBilling(spec, { id: user.id, nickname: user.nickname })
     if (placed.error) fail(409, placed.error)
     const listPrice = machineListPrice(match.rules, String(machineId))
     const cost = match.sandbox || !placed.billable ? 0 : listPrice
-    const refund =
-      match.sandbox || !placed.refund ? 0 : speedDowngradeRefund(match.rules, 'tunnel')
+    const refund = match.sandbox
+      ? 0
+      : (placed.refund ? speedDowngradeRefund(match.rules, 'tunnel') : 0) +
+        (placed.overwrittenRefund ?? 0)
     const wallet = this.settle(user, cost, refund)
     if (cost > 0) recordRoomSpend(match, user.id, cost)
     const committed = this.commitMachine(room, user, participant, match, String(machineId), cost, refund)

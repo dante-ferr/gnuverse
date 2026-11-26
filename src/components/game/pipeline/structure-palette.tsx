@@ -119,7 +119,7 @@ export function StructurePalette({
         </button>
       </div>
       <p className={styles.editModeHints}>
-        <span>Botão direito apaga · botão do meio ou Shift arrasta o mapa</span>
+        <span>Botão direito ou segurar E apaga · botão do meio ou Shift arrasta o mapa</span>
       </p>
     </section>
   )

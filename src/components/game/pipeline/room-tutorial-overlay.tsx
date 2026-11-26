@@ -58,7 +58,8 @@ const STEPS: Step[] = [
       <p>
         Na aba <strong>Jogo</strong>, escolha <strong>Esteira</strong> ou{' '}
         <strong>Esteira rápida</strong>. Arraste na grade com o botão esquerdo para colocar; com o{' '}
-        <strong>botão direito</strong>, arraste para apagar. Entre na conta para colocar de verdade.
+        <strong>botão direito</strong> (ou segurando <strong>E</strong> com o botão esquerdo), arraste
+        para apagar. Entre na conta para colocar de verdade.
       </p>
     ),
     illustration: (rules) => <PlaceIllustration className={styles.illustration} rules={rules} />,

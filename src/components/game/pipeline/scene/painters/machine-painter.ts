@@ -94,7 +94,7 @@ export class MachinePainter {
   /** Translucent machine ghost for hover / placement preview. */
   drawMachineGhost(ctx: CanvasRenderingContext2D, spec: StructurePreviewMachine, rules: PipelineRules) {
     const bracketStyle = slotBracketStyleFromRules(rules)
-    const alpha = spec.placementValid === false ? 0.22 : 0.45
+    const alpha = spec.opaque ? 1 : spec.placementValid === false ? 0.22 : 0.45
     ctx.save()
     ctx.globalAlpha = alpha
     if (spec.machineId === 'combiner_2' || spec.machineId === 'combiner_3') {

@@ -42,7 +42,8 @@ export function GameHelpOverlay({ sandbox, onClose, onOpenTutorial }: Props) {
             Escolha uma estrutura na paleta e arraste na grade com o botão esquerdo para colocar.
             Com a esteira selecionada, clique numa esteira sua e arraste para reorientá-la e continuar
             a linha no caminho do arraste. Para apagar, segure o <strong>botão direito</strong> e
-            arraste sobre as células que quer remover.
+            arraste sobre as células que quer remover. Segurar <strong>E</strong> também ativa o modo
+            de apagar: enquanto a tecla estiver pressionada, o botão esquerdo apaga.
           </p>
           <ul className={styles.list} aria-label="Atalhos de edição">
             <li>
@@ -52,6 +53,10 @@ export function GameHelpOverlay({ sandbox, onClose, onOpenTutorial }: Props) {
             <li>
               <span className={styles.key}>Botão direito</span>
               <span>Apaga as estruturas sob o arraste.</span>
+            </li>
+            <li>
+              <span className={styles.key}>Segurar E</span>
+              <span>Modo apagar: o botão esquerdo apaga as estruturas sob o arraste.</span>
             </li>
             <li>
               <span className={styles.key}>R · Girar</span>

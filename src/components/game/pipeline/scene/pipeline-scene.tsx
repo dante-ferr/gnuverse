@@ -18,6 +18,8 @@ import { machinesFromFrame } from '../placement-building-slots.ts'
 import { occupancyFromFrame, setBeltCrossQuery, resetBeltCrossQuery } from './belt-cross.ts'
 import { BeltEraseStroke } from './belt-erase-stroke.ts'
 import { createBeltRedirectSession } from './belt-redirect.ts'
+import { createMachineRotateSession, machineRotationFromClick } from './machine-rotate.ts'
+import { getCombinerPlaceOptions } from '../combiner-place-options.ts'
 import {
   createTunnelUpgradeSession,
   tunnelSpeedChangeFromClick,
@@ -222,16 +224,47 @@ export function PipelineScene({
     const timeMs = performance.now()
     syncPacketMotion(packetMotion.current, current, palette, timeMs, cellSize)
     const bounds = camera.visibleCellBounds(view.width, view.height, cellSize, 3)
-    const visible = frameWithoutPendingRemovals(current, pendingRemovals.current)
+    const rotation =
+      !placement.current && !eraseStroke.current && userIdRef.current
+        ? hoverRotation(structureIdRef.current, current, camera, lastPointer.current)
+        : null
+    const hidden = pendingRemovals.current
+    const visible = frameWithoutPendingRemovals(
+      current,
+      rotation
+        ? {
+            ...hidden,
+            combinerIds: new Set([...hidden.combinerIds, ...(rotation.hide.kind === 'combiner' ? [rotation.hide.id] : [])]),
+            splitterIds: new Set([...hidden.splitterIds, ...(rotation.hide.kind === 'splitter' ? [rotation.hide.id] : [])]),
+            trashcanIds: new Set([...hidden.trashcanIds, ...(rotation.hide.kind === 'trashcan' ? [rotation.hide.id] : [])]),
+            tunnelPairIds: new Set([...hidden.tunnelPairIds, ...(rotation.hide.kind === 'tunnel' ? [rotation.hide.id] : [])]),
+          }
+        : hidden,
+    )
     const strokePreview = placement.current?.previewBelts() ?? []
     const hoverGhost =
-      !placement.current && !eraseStroke.current
+      !placement.current && !eraseStroke.current && !rotation
         ? hoverStructureGhost(structureIdRef.current, current, camera, lastPointer.current)
         : null
     const preview = [...strokePreview, ...(hoverGhost?.belts ?? [])]
-    const belts = cullBelts(visible.belts, bounds)
+    const allBelts = cullBelts(visible.belts, bounds)
     const previewVisible = cullBelts(preview, bounds)
     const previewKeys = new Set(previewVisible.map((belt) => cellKey(belt)))
+    // A hover over a belt that would not change is drawn as a translucent ghost.
+    const noOpKeys = new Set(
+      (hoverGhost?.belts ?? [])
+        .filter((ghost) =>
+          allBelts.some(
+            (belt) =>
+              belt.x === ghost.x &&
+              belt.y === ghost.y &&
+              belt.direction === ghost.direction &&
+              (belt.speed ?? 1) === (ghost.speed ?? 1),
+          ),
+        )
+        .map((ghost) => cellKey(ghost)),
+    )
+    const belts = noOpKeys.size > 0 ? allBelts.filter((belt) => !noOpKeys.has(cellKey(belt))) : allBelts
     const underPreview = belts.filter((belt) => !previewKeys.has(cellKey(belt)))
     const lod = sceneLod(camera.zoom, palette)
     const lodKey = sceneLodKey(lod)
@@ -281,8 +314,18 @@ export function PipelineScene({
     withCamera(ctx, camera, ratio, () => {
       if (lod.beltChevrons) beltPainter.current.drawChevrons(ctx, underPreview, palette, timeMs)
       if (previewVisible.length > 0) {
-        if (lod.beltChevrons) beltPainter.current.draw(ctx, previewVisible, palette, timeMs)
-        else beltPainter.current.drawTracks(ctx, previewVisible, palette)
+        const solid = previewVisible.filter((belt) => !noOpKeys.has(cellKey(belt)))
+        const ghosts = previewVisible.filter((belt) => noOpKeys.has(cellKey(belt)))
+        const drawPreview = (list: typeof previewVisible) => {
+          if (list.length === 0) return
+          if (lod.beltChevrons) beltPainter.current.draw(ctx, list, palette, timeMs)
+          else beltPainter.current.drawTracks(ctx, list, palette)
+        }
+        drawPreview(solid)
+        ctx.save()
+        ctx.globalAlpha = 0.45
+        drawPreview(ghosts)
+        ctx.restore()
       }
       const eraseBox = eraseStroke.current?.bounds()
       if (eraseBox) {
@@ -359,6 +402,7 @@ export function PipelineScene({
       }
       const machineGhosts: StructurePreviewMachine[] = [
         ...(hoverGhost?.machines ?? []),
+        ...(rotation?.ghosts ?? []),
         ...(placement.current?.previewMachines?.() ?? []),
       ]
       const singleGhost =
@@ -547,6 +591,7 @@ export function PipelineScene({
   const pan = useRef<{ x: number; y: number } | null>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const heldKeys = useRef(new Set<string>())
+  const deleteModeHeld = useRef(false)
 
   const syncErasePreview = () => {
     requestPaint()
@@ -686,6 +731,11 @@ export function PipelineScene({
       return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
     }
 
+    const setEraserCursor = (on: boolean) => {
+      const canvas = canvasRef.current
+      if (canvas) canvas.style.cursor = on ? "url('/pipeline/cursor-eraser.svg') 6 26, not-allowed" : ''
+    }
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (typingTarget(event.target)) return
       const plain =
@@ -701,6 +751,11 @@ export function PipelineScene({
         }
       }
       const key = event.key.toLowerCase()
+      if (key === 'e' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        deleteModeHeld.current = true
+        setEraserCursor(true)
+        return
+      }
       if (key === 'r' && plain) {
         event.preventDefault()
         const structure = getStructure(structureIdRef.current)
@@ -714,10 +769,16 @@ export function PipelineScene({
     }
 
     const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === 'e') {
+        deleteModeHeld.current = false
+        setEraserCursor(false)
+      }
       heldKeys.current.delete(event.key.toLowerCase())
     }
 
     const onBlur = () => {
+      deleteModeHeld.current = false
+      setEraserCursor(false)
       heldKeys.current.clear()
     }
 
@@ -866,6 +927,19 @@ export function PipelineScene({
         return
       }
     }
+    if (current && ownerId) {
+      const rotation = machineRotationFromClick(
+        current,
+        cell,
+        structureIdRef.current,
+        getCombinerPlaceOptions().facing,
+      )
+      if (rotation) {
+        placement.current = createMachineRotateSession(rotation.payload)
+        eraseStroke.current = null
+        return
+      }
+    }
     const session = structure.createSession()
     session.push(cell)
     placement.current = session
@@ -886,7 +960,7 @@ export function PipelineScene({
             beginPan(event)
             return
           }
-          if (event.button === 2) {
+          if (event.button === 2 || (event.button === 0 && deleteModeHeld.current)) {
             event.preventDefault()
             const target = localCell(event)
             if (target) beginErase(event, target)
@@ -1191,6 +1265,18 @@ function cullBelts(belts: BeltRecord[], bounds: CellBounds) {
     (belt) =>
       belt.x >= bounds.minX && belt.x <= bounds.maxX && belt.y >= bounds.minY && belt.y <= bounds.maxY,
   )
+}
+
+function hoverRotation(
+  structureId: string,
+  frame: PipelineFrame,
+  camera: GridCamera,
+  pointer: { x: number; y: number } | null,
+) {
+  if (!pointer) return null
+  const cell = camera.cellAt(pointer.x, pointer.y, cellSize)
+  if (cell.x < 0 || cell.y < 0 || cell.x >= frame.width || cell.y >= frame.height) return null
+  return machineRotationFromClick(frame, cell, structureId, getCombinerPlaceOptions().facing)
 }
 
 function hoverStructureGhost(

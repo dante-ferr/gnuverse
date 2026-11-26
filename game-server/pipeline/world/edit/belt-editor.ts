@@ -54,7 +54,7 @@ export class BeltEditor {
           if (existing.authorId === author.id) refundCells += 1
         } else billableCells += 1
       }
-      this.write(cell, author, speed)
+      this.write(cell, author, speed, existing)
     }
     this.match.noteCollaborator(author)
     return { error: null, billableCells, refundCells }
@@ -109,19 +109,21 @@ export class BeltEditor {
     return keptExisting + pendingKeys.size
   }
 
-  private write(cell: Stroke, author: Author, speed: number) {
+  private write(cell: Stroke, author: Author, speed: number, existing?: BeltMachine) {
     const key = cellKey(cell)
     this.match.belts = this.match.belts.filter((belt) => cellKey(belt.origin) !== key)
     this.match.packets = this.match.packets.filter((packet) => cellKey(packet.cell) !== key)
     const placedAt = this.match.nextBeltSeq++
+    // A same-speed redraw is free, so it must not transfer ownership (and its refund).
+    const owner = existing && existing.speed === speed ? { id: existing.authorId, nickname: existing.authorNickname } : author
     this.match.belts.push(
       new BeltMachine(
         `b${placedAt}`,
         { x: cell.x, y: cell.y },
         cell.direction,
         {
-          id: author.id,
-          nickname: author.nickname,
+          id: owner.id,
+          nickname: owner.nickname,
           placedAt,
         },
         speed,

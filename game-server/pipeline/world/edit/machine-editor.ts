@@ -1,5 +1,5 @@
 import { cellKey, type Cell } from '../../geometry/cell.ts'
-import { isDirection, type Direction } from '../../geometry/direction.ts'
+import { isDirection, opposite, type Direction } from '../../geometry/direction.ts'
 import { CombinerMachine, type CombinerMachineId } from '../../machines/combiner-machine.ts'
 import { SplitterMachine } from '../../machines/splitter-machine.ts'
 import { TrashcanMachine } from '../../machines/trashcan-machine.ts'
@@ -15,6 +15,7 @@ import {
   type BuildingFootprint,
   type PortSlot,
 } from './building-slots.ts'
+import { beltListPrice, structureRefund } from '../../../economy/prices.ts'
 import type { Match } from '../match.ts'
 
 type Author = { id: string; nickname: string }
@@ -68,11 +69,15 @@ export type MachinePlaceResult = {
   billable: boolean
   /** True when an owned fast tunnel is downgraded to normal (`refund_percent` of fast − normal). */
   refund: boolean
+  /** Refund for the placer's own belts that this placement overwrote. */
+  overwrittenRefund?: number
 }
 
 /** Places and removes player machines (combiner, splitter, tunnel). */
 export class MachineEditor {
   private match: Match
+  private placerId = ''
+  private overwrittenRefund = 0
 
   constructor(match: Match) {
     this.match = match
@@ -83,6 +88,13 @@ export class MachineEditor {
   }
 
   placeBilling(spec: MachinePlaceRequest, author: Author): MachinePlaceResult {
+    this.placerId = author.id
+    this.overwrittenRefund = 0
+    const result = this.placeBillingInner(spec, author)
+    return result.error ? result : { ...result, overwrittenRefund: this.overwrittenRefund }
+  }
+
+  private placeBillingInner(spec: MachinePlaceRequest, author: Author): MachinePlaceResult {
     if (spec.machineId === 'tunnel' || spec.machineId === 'fast_tunnel') {
       return this.placeTunnel(spec, author)
     }
@@ -96,6 +108,90 @@ export class MachineEditor {
     }
     const error = this.placeCombiner(spec as CombinerPlaceRequest, author)
     return { error, billable: error == null, refund: false }
+  }
+
+  /**
+   * Re-orients the machine of kind `spec.machineId` covering (`x`, `y`) in place.
+   * Free: no charge or refund, and the original author is kept. Tunnels only
+   * reverse (entrance and exit swap). Other machines turn around their center.
+   */
+  rotate(spec: MachinePlaceRequest, cell: Cell, facing: Direction, author: Author): string | null {
+    const same = 'Já está nessa direção.'
+    const keep = (owner: { authorId: string; authorNickname: string }): Author => ({
+      id: owner.authorId,
+      nickname: owner.authorNickname,
+    })
+    if (spec.machineId === 'splitter') {
+      const index = this.match.splitters.findIndex((m) => m.covers(cell))
+      if (index < 0) return 'Não há divisor nessa célula.'
+      const old = this.match.splitters[index]!
+      if (old.facing === facing) return same
+      this.match.splitters.splice(index, 1)
+      const error = this.placeSplitter({ machineId: 'splitter', x: old.origin.x, y: old.origin.y, facing }, keep(old))
+      if (error) this.match.splitters.splice(index, 0, old)
+      return error
+    }
+    if (spec.machineId === 'trashcan') {
+      const index = this.match.trashcans.findIndex((m) => m.covers(cell))
+      if (index < 0) return 'Não há lixeira nessa célula.'
+      const old = this.match.trashcans[index]!
+      if (old.facing === facing) return same
+      this.match.trashcans.splice(index, 1)
+      const error = this.placeTrashcan({ machineId: 'trashcan', x: old.origin.x, y: old.origin.y, facing }, keep(old))
+      if (error) this.match.trashcans.splice(index, 0, old)
+      return error
+    }
+    if (spec.machineId === 'combiner_2' || spec.machineId === 'combiner_3') {
+      const index = this.match.combiners.findIndex(
+        (m) => m.covers(cell) && m.machineId === spec.machineId,
+      )
+      if (index < 0) return 'Não há combinador nessa célula.'
+      const old = this.match.combiners[index]!
+      if (old.facing === facing) return same
+      const next = CombinerMachine.sizeFor(old.machineId, facing)
+      const origin = {
+        x: old.origin.x + Math.floor((old.width - 1) / 2) - Math.floor((next.width - 1) / 2),
+        y: old.origin.y + Math.floor((old.height - 1) / 2) - Math.floor((next.height - 1) / 2),
+      }
+      this.match.combiners.splice(index, 1)
+      const error = this.placeCombiner({ machineId: old.machineId, ...origin, facing }, keep(old))
+      if (error) {
+        this.match.combiners.splice(index, 0, old)
+        return error
+      }
+      const created = this.match.combiners[this.match.combiners.length - 1]!
+      created.buffer = old.buffer
+      created.activeRecipeId = old.activeRecipeId
+      created.craftRemaining = old.craftRemaining
+      created.pendingOutputs = old.pendingOutputs
+      created.nextSplitPort = old.nextSplitPort
+      return null
+    }
+    if (spec.machineId === 'tunnel' || spec.machineId === 'fast_tunnel') {
+      const hit = this.match.tunnels.find((portal) => portal.covers(cell))
+      if (!hit) return 'Não há túnel nessa célula.'
+      if (facing !== opposite(hit.direction)) return same
+      const pair = this.match.tunnels.filter((portal) => portal.pairId === hit.pairId)
+      const entrance = pair.find((portal) => portal.role === 'entrance')
+      const exit = pair.find((portal) => portal.role === 'exit')
+      if (!entrance || !exit) return 'Túnel inválido.'
+      this.match.tunnels = this.match.tunnels.filter((portal) => portal.pairId !== hit.pairId)
+      const fast = entrance.speed === this.match.rules.beltSpeedFast
+      const result = this.placeTunnel(
+        {
+          machineId: fast ? 'fast_tunnel' : 'tunnel',
+          entranceX: exit.origin.x,
+          entranceY: exit.origin.y,
+          exitX: entrance.origin.x,
+          exitY: entrance.origin.y,
+          facing,
+        },
+        keep(entrance),
+      )
+      if (result.error) this.match.tunnels.push(...pair)
+      return result.error
+    }
+    return 'Máquina inválida.'
   }
 
   /** Removes a player machine under `cell`. Returns which kind, or null. */
@@ -324,19 +420,25 @@ export class MachineEditor {
     }
     let priorSpeed = 0
     let priorAuthorId: string | null = null
+    let priorAuthorNickname = ''
     let priorQueue: (PacketShape | null)[] | null = null
     if (replace.pairId) {
       const existing = this.match.tunnels.filter((portal) => portal.pairId === replace.pairId)
       const existingEntrance = existing.find((portal) => portal.role === 'entrance')
       priorSpeed = existingEntrance?.speed ?? existing[0]?.speed ?? 1
       priorAuthorId = existingEntrance?.authorId ?? existing[0]?.authorId ?? null
+      priorAuthorNickname = existingEntrance?.authorNickname ?? existing[0]?.authorNickname ?? ''
       priorQueue = existingEntrance ? [...existingEntrance.queue] : null
       this.match.tunnels = this.match.tunnels.filter((portal) => portal.pairId !== replace.pairId)
     }
     // Gap belts stay on the surface. Only the portal cells are replaced.
     this.clearBeltsAt(portals)
     const pairId = replace.pairId ?? `t${this.match.nextTunnelSeq++}`
-    const authorRecord = { id: author.id, nickname: author.nickname }
+    // Same-speed replace (e.g. reverse) keeps the builder, so no one can claim a tunnel for free.
+    const authorRecord =
+      replace.pairId && priorAuthorId !== null && priorSpeed === speed
+        ? { id: priorAuthorId, nickname: priorAuthorNickname }
+        : { id: author.id, nickname: author.nickname }
     const entrancePortal = new TunnelPortalMachine(
       `${pairId}:in`,
       entrance,
@@ -462,14 +564,24 @@ export class MachineEditor {
     )
   }
 
+  /** Overwritten belts of the placer are refunded like a delete. */
+  private noteOverwritten(belts: readonly { authorId: string; speed: number }[]) {
+    for (const belt of belts) {
+      if (belt.authorId !== this.placerId) continue
+      this.overwrittenRefund += structureRefund(this.match.rules, beltListPrice(this.match.rules, belt.speed))
+    }
+  }
+
   private clearBeltAt(cell: Cell) {
     const key = cellKey(cell)
+    this.noteOverwritten(this.match.belts.filter((item) => cellKey(item.origin) === key))
     this.match.belts = this.match.belts.filter((item) => cellKey(item.origin) !== key)
     this.match.packets = this.match.packets.filter((packet) => cellKey(packet.cell) !== key)
   }
 
   private clearBeltsAt(cells: readonly Cell[]) {
     const keys = new Set(cells.map(cellKey))
+    this.noteOverwritten(this.match.belts.filter((belt) => keys.has(cellKey(belt.origin))))
     this.match.belts = this.match.belts.filter((belt) => !keys.has(cellKey(belt.origin)))
     this.match.packets = this.match.packets.filter((packet) => !keys.has(cellKey(packet.cell)))
   }

@@ -107,7 +107,15 @@ export function PipelineRoom() {
       return
     }
     // Queue, never drop: a stroke made while the previous one is in flight still lands.
+    const rotation = request.payload as { rotate?: boolean } | null
     void feedback.queue(async () => {
+      if (rotation?.rotate === true) {
+        const result = await session.api.request(`/api/rooms/${lobby.roomId}/place-machine`, request.payload)
+        applyWallet(result)
+        if (result && typeof result === 'object' && 'frame' in result)
+          live.applyFrame((result as { frame: unknown }).frame)
+        return
+      }
       await structure.commit(
         {
           roomId: lobby.roomId,

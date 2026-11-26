@@ -304,6 +304,10 @@ export class Match {
     return this.placeMachineBilling(spec, author).error
   }
 
+  rotateMachine(spec: MachinePlaceRequest, cell: Cell, facing: Direction, author: CollaboratorRecord) {
+    return new MachineEditor(this).rotate(spec, cell, facing, author)
+  }
+
   placeMachineBilling(spec: MachinePlaceRequest, author: CollaboratorRecord) {
     return new MachineEditor(this).placeBilling(spec, author)
   }
