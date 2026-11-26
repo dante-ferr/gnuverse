@@ -303,6 +303,37 @@ export class RoomService {
     this.checkpoints.recordSpend(room, user.id, cost)
     return { ...committed, wallet, cost, refund }
   }
+  /** Removes many cells in one request so other players receive a single change event. */
+  removeCells(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
+    if (!Array.isArray(body.cells)) return this.removeBelt(room, user, participant, body)
+    const cells = body.cells as Record<string, unknown>[]
+    if (cells.length === 0 || cells.length > 4096) fail(400, 'Seleção inválida.')
+    this.publishDeferred = { room, dirty: false }
+    let last: ReturnType<RoomService['removeBelt']> | null = null
+    let firstError: unknown = null
+    let refund = 0
+    try {
+      for (const cell of cells) {
+        try {
+          last = this.removeBelt(room, user, participant, cell ?? {})
+          refund += last.refund
+        } catch (error) {
+          firstError ??= error
+        }
+      }
+    } finally {
+      const dirty = this.publishDeferred?.dirty
+      this.publishDeferred = null
+      if (dirty) this.runtime.afterAction(room)
+    }
+    if (!last) throw firstError
+    return { ...last, frame: room.frame, refund }
+  }
+  private publishDeferred: { room: Room; dirty: boolean } | null = null
+  private notify(room: Room) {
+    if (this.publishDeferred?.room === room) this.publishDeferred.dirty = true
+    else this.runtime.afterAction(room)
+  }
   removeBelt(room: Room, user: User, participant: Member, body: Record<string, unknown>) {
     const match = this.editable(room)
     const result = match.remove(
@@ -350,7 +381,7 @@ export class RoomService {
         trashcans: match.trashcans.length,
         tunnels: match.tunnels.length,
       })
-      this.runtime.afterAction(room)
+      this.notify(room)
       return { frame: room.frame, wallet, refund }
     }
     const committed = this.commit(room, user, participant, match, 'remove', structure, { refund })
@@ -587,7 +618,7 @@ export class RoomService {
       belts: room.beltCount,
       ...detail,
     })
-    this.runtime.afterAction(room)
+    this.notify(room)
     return { frame: room.frame }
   }
   eligibility(

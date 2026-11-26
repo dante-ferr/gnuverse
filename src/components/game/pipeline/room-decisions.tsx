@@ -1,5 +1,6 @@
 'use client'
 
+import { CoinIcon } from '../coin-icon'
 import { useState } from 'react'
 import type { GameApi } from '../api/game-api'
 import { formatGameDate, statusLabels } from '../model/presentation'
@@ -231,6 +232,7 @@ export function RoomDecisions({
             </div>
             <span>
               {formatNumber(spent)}/{formatNumber(threshold)}
+              <CoinIcon />
             </span>
           </div>
         ) : null}

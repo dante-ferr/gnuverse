@@ -5,31 +5,32 @@ import {
   hotkeyForStructureIndex,
   listPlaceableStructures,
 } from './structures'
+import { CoinIcon } from '../coin-icon'
 import styles from '../game-shell.module.css'
 
 function structurePriceLabel(
   id: string,
   rules: PipelineRules | null,
   sandbox: boolean,
-): string | null {
+): { amount: number | null; text: string } | null {
   if (!rules) return null
-  if (sandbox) return 'grátis'
+  if (sandbox) return { amount: null, text: 'grátis' }
   switch (id) {
     case 'belt':
-      return `${rules.beltCost} / célula`
+      return { amount: rules.beltCost, text: ' / célula' }
     case 'fast_belt':
-      return `${rules.fastBeltCost} / célula`
+      return { amount: rules.fastBeltCost, text: ' / célula' }
     case 'splitter':
-      return String(rules.splitterCost)
+      return { amount: rules.splitterCost, text: '' }
     case 'trashcan':
-      return String(rules.trashcanCost)
+      return { amount: rules.trashcanCost, text: '' }
     case 'combiner_2':
     case 'combiner_3':
-      return String(rules.combinerCost)
+      return { amount: rules.combinerCost, text: '' }
     case 'tunnel':
-      return `${rules.tunnelCost} / par`
+      return { amount: rules.tunnelCost, text: ' / par' }
     case 'fast_tunnel':
-      return `${rules.fastTunnelCost} / par`
+      return { amount: rules.fastTunnelCost, text: ' / par' }
     default:
       return null
   }
@@ -94,7 +95,17 @@ export function StructurePalette({
                 aria-hidden
               />
               <span className={styles.structureLabel}>{structure.label}</span>
-              {price ? <span className={styles.structureCost}>{price}</span> : null}
+              {price ? (
+                <span className={styles.structureCost}>
+                  {price.amount != null ? (
+                    <>
+                      {price.amount}
+                      <CoinIcon />
+                    </>
+                  ) : null}
+                  {price.text}
+                </span>
+              ) : null}
             </button>
           )
         })}

@@ -41,7 +41,7 @@ export function CoreRequirementsSidebar({ frame, rules }: Props) {
           <dt>Capítulo</dt>
           <dd>{frame.chapter ?? frame.version.replace(/^0\./, '')}</dd>
         </div>
-        {wave > 0 ? (
+        {onLastChapter && wave > 0 ? (
           <div>
             <dt>Onda</dt>
             <dd>{formatCount(wave)}</dd>

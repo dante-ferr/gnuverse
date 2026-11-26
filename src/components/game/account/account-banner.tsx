@@ -1,4 +1,5 @@
 'use client'
+import { CoinIcon } from '../coin-icon'
 import { type User, type Wallet } from '../model/types'
 import styles from '../game-shell.module.css'
 
@@ -33,7 +34,14 @@ export function AccountBanner({
                   : undefined
               }
             >
-              {wallet ? `${wallet.balance}/${wallet.cap}` : '…'}
+              {wallet ? (
+                <>
+                  {wallet.balance}/{wallet.cap}
+                  <CoinIcon />
+                </>
+              ) : (
+                '…'
+              )}
             </span>
             {wallet && (
               <small title="Tempo até a próxima moeda">

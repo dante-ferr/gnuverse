@@ -418,3 +418,30 @@ test('gap-0 tunnel pass-through is one sink to the exit belt, not enter plus exi
   assert.equal(sink.endPy, (2 + 0.5) * cell)
   assert.deepEqual(motion.from.get('p2'), { x: 7, y: 2 })
 })
+test('packetDisplayCenter stays in place when a chunk buy shifts the frame origin', () => {
+  const motion = createPacketMotionState()
+  const shift = rules.chunkSize
+  const f0 = frame(0, [{ id: 'p1', x: 2, y: 2, shape: 'circle' }])
+  f0.originChunk = { cx: 0, cy: 0 }
+  syncPacketMotion(motion, f0, rules, 1000, cell)
+  const f1 = frame(1, [{ id: 'p1', x: 3, y: 2, shape: 'circle' }])
+  f1.originChunk = { cx: 0, cy: 0 }
+  syncPacketMotion(motion, f1, rules, 1000, cell)
+
+  // Chunk bought to the west: origin moves one chunk left, every x grows by chunkSize.
+  const shifted = frame(1, [{ id: 'p1', x: 3 + shift, y: 2, shape: 'circle' }])
+  shifted.originChunk = { cx: -1, cy: 0 }
+  shifted.belts = shifted.belts.map((belt) => ({ ...belt, x: belt.x + shift }))
+  syncPacketMotion(motion, shifted, rules, 1125, cell)
+
+  const mid = packetDisplayCenter({ id: 'p1', x: 3 + shift, y: 2 }, shifted, rules, motion, 1125, cell)
+  assert.equal(mid.px, (3 + shift) * cell)
+  assert.equal(mid.py, 2.5 * cell)
+
+  const f2 = frame(2, [{ id: 'p1', x: 4 + shift, y: 2, shape: 'circle' }])
+  f2.originChunk = { cx: -1, cy: 0 }
+  f2.belts = shifted.belts
+  syncPacketMotion(motion, f2, rules, 1250, cell)
+  const start = packetDisplayCenter({ id: 'p1', x: 4 + shift, y: 2 }, f2, rules, motion, 1250, cell)
+  assert.ok(Math.abs(start.px - (3.5 + shift) * cell) < cell, `jumped to ${start.px}`)
+})

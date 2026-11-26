@@ -90,7 +90,7 @@ export function PipelineRoom() {
       clearInterval(timer)
     }
   }, [session.user, session.api, lobby.roomId])
-  useProgressionNotice(live.frame.seed ? live.frame : null, feedback.setNotice)
+  useProgressionNotice(live.frame.seed ? live.frame : null, feedback.setNotice, rules?.elements.chapters.length ?? 0)
   useEffect(() => {
     if (!feedback.notice) return
     const timer = setTimeout(() => feedback.setNotice(''), 2500)
@@ -183,30 +183,23 @@ export function PipelineRoom() {
       options.revert()
       return
     }
-    let failed = false
-    for (const cell of cells) {
-      void session.api
-        .request(`/api/rooms/${lobby.roomId}/remove`, cell)
-        .then((result) => applyWallet(result))
-        .catch((cause) => {
-          if (!failed) {
-            failed = true
-            options.revert()
-          }
-          feedback.setError(
-            cause instanceof Error
-              ? cause.message
-              : 'O servidor não respondeu. Confira a conexão.',
-          )
-        })
-        .finally(() => {
-          if (removeRefresh.current) clearTimeout(removeRefresh.current)
-          removeRefresh.current = setTimeout(() => {
-            removeRefresh.current = null
-            void live.refresh()
-          }, 60)
-        })
-    }
+    // One request per erase area: the server publishes a single change event.
+    void session.api
+      .request(`/api/rooms/${lobby.roomId}/remove`, { cells })
+      .then((result) => applyWallet(result))
+      .catch((cause) => {
+        options.revert()
+        feedback.setError(
+          cause instanceof Error ? cause.message : 'O servidor não respondeu. Confira a conexão.',
+        )
+      })
+      .finally(() => {
+        if (removeRefresh.current) clearTimeout(removeRefresh.current)
+        removeRefresh.current = setTimeout(() => {
+          removeRefresh.current = null
+          void live.refresh()
+        }, 60)
+      })
   }
   return (
     <main className={styles.gameShell}>

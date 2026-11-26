@@ -1,5 +1,6 @@
 'use client'
 
+import { CoinIcon } from '../../coin-icon'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { BeltRecord, PipelineFrame, PipelineRules, PresencePlayer } from '../model/frame.ts'
 import { CombinerMachine } from '../../../../../game-server/pipeline/machines/combiner-machine.ts'
@@ -1037,7 +1038,8 @@ export function PipelineScene({
                 <span>
                   {isCore ? <strong>Núcleo</strong> : null}
                   {isCore ? ' · ' : null}
-                  {paid}/{targetCost} moedas
+                  {paid}/{targetCost}
+                  <CoinIcon />
                 </span>
                 <div className={styles.chunkPledgeRow}>
                   <input

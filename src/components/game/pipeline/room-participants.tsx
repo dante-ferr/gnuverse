@@ -1,5 +1,6 @@
 'use client'
 
+import { CoinIcon } from '../coin-icon'
 import { useEffect, useState } from 'react'
 import type { GameApi } from '../api/game-api'
 import type { GameEvent, Member, User } from '../model/types'
@@ -137,7 +138,8 @@ export function RoomParticipants({
                 <span className={styles.memberRowText}>
                   <strong>{member.nickname}</strong>
                   <small>
-                    {new Intl.NumberFormat('pt-BR').format(spend[member.id] ?? 0)} moedas investidas
+                    {new Intl.NumberFormat('pt-BR').format(spend[member.id] ?? 0)}
+                    <CoinIcon /> investidas
                     {' · '}
                     {member.contributions} contribuições
                     {collaboratorIds.has(member.id) ? ' · colaborador' : ''}
