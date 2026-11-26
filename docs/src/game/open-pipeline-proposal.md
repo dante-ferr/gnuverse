@@ -70,7 +70,7 @@ Generate the full map layout at match start using **concentric outward rings** (
 ---
 
 # 7. Mobile-First UX
-- **Gestures:** Drag across cells to chain unidirectional conveyors; tap to place/rotate Splitters, Mergers, or Tunnels; double-tap or right-click a player tile to delete/refactor it.
+- **Gestures:** Drag across cells to chain unidirectional conveyors; tap to place/rotate Splitters, Mergers, or Tunnels; double-tap or right-click (drag to sweep) a player tile to delete/refactor it.
 - **Camera & Navigation:** Support two-finger pan and pinch-to-zoom (plus mouse wheel/drag on desktop) as the grid grows, with subtle directional edge indicators alerting players when an off-screen Core or Source needs attention.
 
 ---

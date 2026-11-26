@@ -1230,9 +1230,6 @@
 .pipelineCanvasCreate {
   cursor: crosshair;
 }
-.pipelineCanvasDelete {
-  cursor: cell;
-}
 .pipelinePlay {
   flex: 1;
   min-height: 0;

@@ -18,7 +18,7 @@ import { RoomChatSidebar } from './room-chat-sidebar'
 import { RoomSidebar } from './room-sidebar'
 import { RoomTutorialOverlay } from './room-tutorial-overlay'
 import { hasSeenRoomTutorial, markRoomTutorialSeen } from './tutorial-memory'
-import { PipelineScene, type EditMode } from './scene/pipeline-scene'
+import { PipelineScene } from './scene/pipeline-scene'
 import {
   defaultStructureId,
   getStructure,
@@ -40,13 +40,11 @@ export function PipelineRoom() {
   const feedback = useActionFeedback()
   const router = useRouter()
   const [loginHref, setLoginHref] = useState('/login/')
-  const [editMode, setEditMode] = useState<EditMode>('create')
   const [structureId, setStructureId] = useState(defaultStructureId)
   const [placeEpoch, setPlaceEpoch] = useState(0)
   const selectStructure = (id: string) => {
     clearTunnelPlacement()
     setStructureId(id)
-    setEditMode('create')
   }
   const chatMaxLength =
     typeof live.rules?.chatMessageMaxLength === 'number' && live.rules.chatMessageMaxLength > 0
@@ -278,7 +276,6 @@ export function PipelineRoom() {
               roomId={lobby.roomId}
               frame={live.frame.seed ? live.frame : null}
               rules={rules}
-              editMode={editMode}
               structureId={structureId}
               userId={session.user?.id ?? null}
               presence={live.presence}
@@ -296,9 +293,6 @@ export function PipelineRoom() {
               onPlace={place}
               onRemove={remove}
               placeEpoch={placeEpoch}
-              onToggleEditMode={() =>
-                setEditMode((current) => (current === 'create' ? 'delete' : 'create'))
-              }
               onSelectStructure={selectStructure}
             />
           </div>
@@ -307,8 +301,6 @@ export function PipelineRoom() {
             rules={rules}
             structureId={structureId}
             onSelectStructure={selectStructure}
-            editMode={editMode}
-            onEditModeChange={setEditMode}
             onRotate={() => {
               clearTunnelPlacement()
               getStructure(structureId)?.rotate?.()

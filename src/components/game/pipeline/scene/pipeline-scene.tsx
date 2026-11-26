@@ -37,8 +37,6 @@ import { TunnelOccupancyPainter } from './painters/tunnel-occupancy-painter.ts'
 import { createPacketMotionState, syncPacketMotion } from './packet-motion.ts'
 import styles from '../../game-shell.module.css'
 
-export type EditMode = 'create' | 'delete'
-
 type ChunkBuyAnchor = {
   kind: 'chunk' | 'core'
   key: string
@@ -52,7 +50,6 @@ type Props = {
   roomId: string
   frame: PipelineFrame | null
   rules: PipelineRules | null
-  editMode: EditMode
   structureId: string
   /** Signed-in player id; used to redirect owned belts. */
   userId?: string | null
@@ -67,14 +64,17 @@ type Props = {
   onPlace: (request: StructurePlaceRequest) => void
   /** `revert` undoes the optimistic hide if auth or the API rejects the removal. */
   onRemove: (cells: { x: number; y: number }[], options: { revert: () => void }) => void
-  onToggleEditMode: () => void
   /** Number hotkeys (1–9, 0) select a placeable structure. */
   onSelectStructure: (id: string) => void
   /** Bumped when sidebar Girar (or similar) changes place options. */
   placeEpoch?: number
 }
 
-const KEY_PAN_SPEED = 10
+/** Keyboard pan speed in screen pixels per second (frame-rate independent). */
+const KEY_PAN_SPEED = 600
+/** Zoom per wheel pixel: factor = exp(-delta * k), so notches and trackpads feel alike. */
+const WHEEL_ZOOM_RATE = 0.0015
+const WHEEL_DELTA_CLAMP = 120
 const PAN_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'])
 const MAX_DEVICE_PIXEL_RATIO = 2
 const CAMERA_SAVE_DEBOUNCE_MS = 320
@@ -93,7 +93,6 @@ export function PipelineScene({
   roomId,
   frame,
   rules,
-  editMode,
   structureId,
   userId = null,
   presence = [],
@@ -104,7 +103,6 @@ export function PipelineScene({
   onContributeCore,
   onPlace,
   onRemove,
-  onToggleEditMode,
   onSelectStructure,
   placeEpoch = 0,
 }: Props) {
@@ -112,10 +110,8 @@ export function PipelineScene({
   const cameraRef = useRef(new GridCamera(24, 24))
   const frameRef = useRef(frame)
   const rulesRef = useRef(rules)
-  const editModeRef = useRef(editMode)
   const structureIdRef = useRef(structureId)
   const userIdRef = useRef(userId)
-  const onToggleEditModeRef = useRef(onToggleEditMode)
   const onSelectStructureRef = useRef(onSelectStructure)
   const originChunkRef = useRef<{ cx: number; cy: number } | null>(null)
   const images = useRef(loadMachineDecor(() => {}))
@@ -144,11 +140,9 @@ export function PipelineScene({
   rulesRef.current = rules
   setPlacementRules(rules)
   setPlacementFrame(frame)
-  editModeRef.current = editMode
   structureIdRef.current = structureId
   userIdRef.current = userId
   presenceRef.current = presence
-  onToggleEditModeRef.current = onToggleEditMode
   onSelectStructureRef.current = onSelectStructure
 
   const flushCameraSave = (roomIdOverride?: string) => {
@@ -231,7 +225,7 @@ export function PipelineScene({
     const visible = frameWithoutPendingRemovals(current, pendingRemovals.current)
     const strokePreview = placement.current?.previewBelts() ?? []
     const hoverGhost =
-      editModeRef.current === 'create' && !placement.current && !eraseStroke.current
+      !placement.current && !eraseStroke.current
         ? hoverStructureGhost(structureIdRef.current, current, camera, lastPointer.current)
         : null
     const preview = [...strokePreview, ...(hoverGhost?.belts ?? [])]
@@ -354,13 +348,11 @@ export function PipelineScene({
         packetMotion.current,
       )
       const structureHints =
-        editModeRef.current === 'create'
-          ? (getStructure(structureIdRef.current)?.placementHints?.() ?? [])
-          : []
+        getStructure(structureIdRef.current)?.placementHints?.() ?? []
       const hintCells = [
         ...structureHints,
         ...(hoverGhost?.hintCells ?? []),
-        ...(editModeRef.current === 'create' ? (placement.current?.previewHintCells?.() ?? []) : []),
+        ...(placement.current?.previewHintCells?.() ?? []),
       ]
       if (hintCells.length > 0) {
         gridPainter.current.drawHintCells(ctx, hintCells, current, palette.colorHighlight)
@@ -371,7 +363,7 @@ export function PipelineScene({
       ]
       const singleGhost =
         hoverGhost?.machine ??
-        (editModeRef.current === 'create' ? placement.current?.previewMachine?.() : null)
+        placement.current?.previewMachine?.()
       if (singleGhost) machineGhosts.push(singleGhost)
       for (const ghost of machineGhosts) {
         machinePainter.current.drawMachineGhost(ctx, ghost, palette)
@@ -709,11 +701,6 @@ export function PipelineScene({
         }
       }
       const key = event.key.toLowerCase()
-      if (key === 'e' && plain) {
-        event.preventDefault()
-        onToggleEditModeRef.current()
-        return
-      }
       if (key === 'r' && plain) {
         event.preventDefault()
         const structure = getStructure(structureIdRef.current)
@@ -735,17 +722,22 @@ export function PipelineScene({
     }
 
     let frameId = 0
-    const tick = () => {
+    let lastTick = performance.now()
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, Math.max(0, (now - lastTick) / 1000))
+      lastTick = now
       const keys = heldKeys.current
       if (keys.size > 0) {
         let dx = 0
         let dy = 0
-        if (keys.has('a') || keys.has('arrowleft')) dx += KEY_PAN_SPEED
-        if (keys.has('d') || keys.has('arrowright')) dx -= KEY_PAN_SPEED
-        if (keys.has('w') || keys.has('arrowup')) dy += KEY_PAN_SPEED
-        if (keys.has('s') || keys.has('arrowdown')) dy -= KEY_PAN_SPEED
+        if (keys.has('a') || keys.has('arrowleft')) dx += 1
+        if (keys.has('d') || keys.has('arrowright')) dx -= 1
+        if (keys.has('w') || keys.has('arrowup')) dy += 1
+        if (keys.has('s') || keys.has('arrowdown')) dy -= 1
         if (dx !== 0 || dy !== 0) {
-          cameraRef.current.pan(dx, dy)
+          const length = Math.hypot(dx, dy)
+          const step = KEY_PAN_SPEED * dt
+          cameraRef.current.pan((dx / length) * step, (dy / length) * step)
           scheduleCameraSave()
         }
       }
@@ -884,26 +876,24 @@ export function PipelineScene({
     <div className={styles.sceneStack}>
       <canvas
         ref={canvasRef}
-        className={`${styles.pipelineCanvas} ${
-          editMode === 'delete' ? styles.pipelineCanvasDelete : styles.pipelineCanvasCreate
-        }`}
+        className={`${styles.pipelineCanvas} ${styles.pipelineCanvasCreate}`}
         onContextMenu={(event) => {
           event.preventDefault()
         }}
         onPointerDown={(event) => {
           pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
-          if (event.button === 1 || event.button === 2 || event.shiftKey || pointers.current.size > 1) {
-            if (event.button === 2) event.preventDefault()
+          if (event.button === 1 || event.shiftKey || pointers.current.size > 1) {
             beginPan(event)
+            return
+          }
+          if (event.button === 2) {
+            event.preventDefault()
+            const target = localCell(event)
+            if (target) beginErase(event, target)
             return
           }
           if (event.button !== 0) return
           const cell = localCell(event)
-          if (editModeRef.current === 'delete') {
-            if (!cell) return
-            beginErase(event, cell)
-            return
-          }
           beginPlace(event, cell)
         }}
         onPointerMove={(event) => {
@@ -982,7 +972,12 @@ export function PipelineScene({
         onWheel={(event) => {
           event.preventDefault()
           const view = viewSize.current
-          const factor = event.deltaY < 0 ? 1.08 : 0.92
+          const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1
+          const delta = Math.max(
+            -WHEEL_DELTA_CLAMP,
+            Math.min(WHEEL_DELTA_CLAMP, event.deltaY * unit),
+          )
+          const factor = Math.exp(-delta * WHEEL_ZOOM_RATE)
           cameraRef.current.zoomAt(event.clientX - view.left, event.clientY - view.top, factor, cellSize)
           scheduleCameraSave()
           requestPaint()

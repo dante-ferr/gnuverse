@@ -39,19 +39,19 @@ export function GameHelpOverlay({ sandbox, onClose, onOpenTutorial }: Props) {
         <section className={styles.section}>
           <h3>Edição</h3>
           <p>
-            Escolha uma estrutura na paleta. Em <strong>Criar</strong>, arraste na grade para colocar.
+            Escolha uma estrutura na paleta e arraste na grade com o botão esquerdo para colocar.
             Com a esteira selecionada, clique numa esteira sua e arraste para reorientá-la e continuar
-            a linha no caminho do arraste. Em <strong>Apagar</strong>, arraste sobre as células que
-            quer remover.
+            a linha no caminho do arraste. Para apagar, segure o <strong>botão direito</strong> e
+            arraste sobre as células que quer remover.
           </p>
           <ul className={styles.list} aria-label="Atalhos de edição">
             <li>
               <span className={styles.key}>1–9 · 0</span>
-              <span>Seleciona a estrutura na ordem da paleta (e volta ao modo criar).</span>
+              <span>Seleciona a estrutura na ordem da paleta.</span>
             </li>
             <li>
-              <span className={styles.key}>E</span>
-              <span>Alterna entre criar e apagar.</span>
+              <span className={styles.key}>Botão direito</span>
+              <span>Apaga as estruturas sob o arraste.</span>
             </li>
             <li>
               <span className={styles.key}>R · Girar</span>
@@ -68,7 +68,7 @@ export function GameHelpOverlay({ sandbox, onClose, onOpenTutorial }: Props) {
               <span>Move a visão.</span>
             </li>
             <li>
-              <span className={styles.key}>Botão direito · meio</span>
+              <span className={styles.key}>Botão do meio</span>
               <span>Arrasta a visão (também com Shift+arrastar ou dois dedos).</span>
             </li>
             <li>

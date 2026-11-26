@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import type { GameApi } from '../api/game-api'
 import type { Checkpoint, Member, Proposal, RoomGovernance, User } from '../model/types'
-import type { EditMode } from './scene/pipeline-scene'
 import type { PipelineFrame, PipelineRules } from './model/frame'
 import { CoreRequirementsSidebar } from './core-requirements-sidebar'
 import { RoomDecisions } from './room-decisions'
@@ -20,8 +19,6 @@ type Props = {
   rules: PipelineRules | null
   structureId: string
   onSelectStructure: (id: string) => void
-  editMode: EditMode
-  onEditModeChange: (mode: EditMode) => void
   onRotate?: () => void
   api: GameApi
   roomId: string
@@ -51,8 +48,6 @@ export function RoomSidebar({
   rules,
   structureId,
   onSelectStructure,
-  editMode,
-  onEditModeChange,
   onRotate,
   api,
   roomId,
@@ -120,8 +115,6 @@ export function RoomSidebar({
               rules={rules}
               selectedStructureId={structureId}
               onSelectStructure={onSelectStructure}
-              editMode={editMode}
-              onEditModeChange={onEditModeChange}
               onRotate={onRotate}
             />
             <CombinerPlaceControls structureId={structureId} />
