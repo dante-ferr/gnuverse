@@ -30,10 +30,9 @@ test('belt redraws of the same speed are free and a speed change is billed', () 
     speedDowngradeRefund(rules, 'belt'),
     structureRefund(rules, rules.fastBeltCost - rules.beltCost),
   )
-  const denied = match.remove(cell, other)
-  assert.match(denied.error ?? '', /outra pessoa/)
-  const removed = match.remove(cell, author)
+  const removed = match.remove(cell, other)
   assert.equal(removed.error, null)
+  assert.equal(removed.authorId, author.id)
   assert.equal(removed.listPrice, rules.beltCost)
   assert.equal(structureRefund(rules, removed.listPrice), 0)
 })

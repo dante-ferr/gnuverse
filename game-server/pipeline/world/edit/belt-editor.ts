@@ -58,10 +58,10 @@ export class BeltEditor {
     return { error: null, billableCells, refundCells }
   }
 
-  remove(cell: { x: number; y: number }, author: Author) {
+  /** Any player may remove any belt; the refund rule in the room service pays only the author. */
+  remove(cell: { x: number; y: number }, _author: Author) {
     const belt = this.match.beltAt(cell)
     if (!belt) return 'Não há esteira nessa célula.'
-    if (belt.authorId !== author.id) return 'Essa esteira é de outra pessoa.'
     this.match.belts = this.match.belts.filter((item) => item !== belt)
     this.match.packets = this.match.packets.filter(
       (packet) => cellKey(packet.cell) !== cellKey(cell),
