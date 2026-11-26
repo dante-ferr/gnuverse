@@ -2158,3 +2158,12 @@
     box-shadow: -16px 0 40px rgb(0 0 0 / 35%);
   }
 }
+
+.coinIcon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-left: 0.25em;
+  vertical-align: -0.125em;
+  flex: none;
+}
