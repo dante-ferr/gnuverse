@@ -48,7 +48,6 @@ export function PipelineLobby() {
     <main className={styles.game}>
       <header className={styles.dashboardPageHeading}>
         <div>
-          <p className={styles.eyebrow}>GNUverse · Comunidade</p>
           <h1>Open Pipeline</h1>
           <p>Escolha uma sala para ligar esteiras com a comunidade.</p>
         </div>

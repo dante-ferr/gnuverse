@@ -46,8 +46,10 @@ const mediaDirectory = path.join(root, 'public/cms-media')
 const currentMedia = new Set()
 await mkdir(mediaDirectory, { recursive: true })
 if (mode === 'demo') {
-  articles = [JSON.parse(await readFile(path.join(root, 'content/demo-article.json'), 'utf8'))]
-  quizzes = [JSON.parse(await readFile(path.join(root, 'content/demo-quiz.json'), 'utf8'))]
+  const demoArticles = JSON.parse(await readFile(path.join(root, 'content/demo-article.json'), 'utf8'))
+  const demoQuizzes = JSON.parse(await readFile(path.join(root, 'content/demo-quiz.json'), 'utf8'))
+  articles = Array.isArray(demoArticles) ? demoArticles : [demoArticles]
+  quizzes = Array.isArray(demoQuizzes) ? demoQuizzes : [demoQuizzes]
 } else {
   const cmsURL = getContentCMSURL()
   articles = await fetchPublishedArticles(cmsURL)

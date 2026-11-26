@@ -19,9 +19,9 @@
     var(--font-plex-mono), ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
   --body-font:
     var(--font-plex-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-  --scene: #0e171d;
-  --scene-line: #1f3038;
-  --ground: #152229;
+  --scene: var(--background);   
+  --scene-line: var(--line);
+  --ground: var(--surface);
   --ground-edge: #6a7b83;
   --block-face: #667b83;
 }

@@ -220,6 +220,7 @@ async function main() {
       }
     }
 
+    const admin = usersByEmail.get('admin@gnuverse.local')!
     const autora = usersByEmail.get('autora@gnuverse.local')!
     const autor2 = usersByEmail.get('autor2@gnuverse.local')!
 
@@ -617,6 +618,8 @@ async function main() {
       },
     ]
 
+    const articleIdBySlug = new Map<string, number>()
+
     for (const item of publishedArticles) {
       const existing = await payload.find({
         collection: 'articles',
@@ -644,7 +647,7 @@ async function main() {
       }
 
       if (existing.docs[0]) {
-        await payload.update({
+        const updated = await payload.update({
           collection: 'articles',
           id: existing.docs[0].id,
           overrideAccess: true,
@@ -652,14 +655,16 @@ async function main() {
           context: { skipSiteDeploy: true },
           data: articleData,
         })
+        articleIdBySlug.set(item.slug, updated.id)
       } else {
-        await payload.create({
+        const created = await payload.create({
           collection: 'articles',
           overrideAccess: true,
           draft: false,
           context: { skipSiteDeploy: true },
           data: articleData,
         })
+        articleIdBySlug.set(item.slug, created.id)
       }
     }
 
@@ -791,6 +796,153 @@ async function main() {
       }
     }
 
+    const publishedQuizzes = [
+      {
+        title: 'As 4 Liberdades do Software Livre',
+        slug: 'as-4-liberdades-do-software-livre',
+        summary:
+          'Revise o que define um programa como software livre e por que o acesso ao código-fonte é indispensável para a autonomia digital.',
+        article: articleIdBySlug.get('autonomia-digital-e-software-livre'),
+        owner: autora.id,
+        status: 'published' as const,
+        questions: [
+          {
+            prompt:
+              'Qual condição prática é indispensável para exercer as liberdades de estudar e adaptar um programa?',
+            choices: [
+              { text: 'Ter acesso ao código-fonte do programa.' },
+              { text: 'Receber apenas o instalador executável gratuito.' },
+              { text: 'Assinar um contrato de uso não comercial.' },
+            ],
+            correctAnswer: 0,
+            explanation:
+              'Sem acesso ao código-fonte não é possível inspecionar como o programa opera nem modificá-lo para atender necessidades locais.',
+          },
+          {
+            prompt: 'Software livre precisa necessariamente ser distribuído a custo zero?',
+            choices: [
+              { text: 'Sim, qualquer cobrança elimina o caráter livre do programa.' },
+              { text: 'Não. O critério é garantir as quatro liberdades, não o preço.' },
+              { text: 'Apenas quando o programa é usado em universidades.' },
+            ],
+            correctAnswer: 1,
+            explanation:
+              'Preço e liberdade são conceitos independentes: é perfeitamente legítimo cobrar por cópias, suporte ou customização de software livre.',
+          },
+          {
+            prompt: 'O que garante a liberdade número 2 do Projeto GNU?',
+            choices: [
+              {
+                text: 'O direito de redistribuir cópias do programa para ajudar outras pessoas.',
+              },
+              { text: 'A obrigação de manter as alterações em segredo.' },
+              { text: 'A exclusividade de uso em sistemas GNU/Linux.' },
+            ],
+            correctAnswer: 0,
+            explanation:
+              'A liberdade 2 permite compartilhar cópias do software com colegas, escolas e comunidades sem infringir direitos autorais.',
+          },
+        ],
+      },
+      {
+        title: 'Licenças Copyleft e GPL',
+        slug: 'licencas-copyleft-e-gpl',
+        summary:
+          'Entenda como o copyleft protege obras derivadas e qual é a diferença entre licenças permissivas e a GNU GPL.',
+        article: undefined,
+        owner: autor2.id,
+        status: 'published' as const,
+        questions: [
+          {
+            prompt: 'Qual é o objetivo central do mecanismo de copyleft presente na GNU GPL?',
+            choices: [
+              { text: 'Impedir que qualquer empresa utilize o programa internamente.' },
+              {
+                text: 'Garantir que versões modificadas e redistribuídas preservem as mesmas liberdades.',
+              },
+              { text: 'Substituir o direito autoral colocando o código em domínio público.' },
+            ],
+            correctAnswer: 1,
+            explanation:
+              'O copyleft usa o próprio direito autoral para assegurar que quem redistribui obras derivadas mantenha o código aberto sob a mesma licença livre.',
+          },
+          {
+            prompt: 'Em que a GPLv3 (2007) avançou em relação à GPLv2?',
+            choices: [
+              { text: 'Proibiu o uso de software livre em servidores web.' },
+              {
+                text: 'Passou a impedir travas de hardware (tivoização) e reforçou a proteção contra patentes.',
+              },
+              {
+                text: 'Removeu a exigência de disponibilizar o código-fonte ao distribuir binários.',
+              },
+            ],
+            correctAnswer: 1,
+            explanation:
+              'A GPLv3 exige que dispositivos de consumo distribuídos com software GPL permitam que o usuário instale versões modificadas do programa.',
+          },
+          {
+            prompt:
+              'Qual é a principal diferença entre uma licença permissiva (como MIT) e uma licença copyleft forte (como GPLv3)?',
+            choices: [
+              {
+                text: 'Licenças permissivas permitem incorporar o código em softwares proprietários fechados; a GPLv3 exige manter a obra derivada livre.',
+              },
+              { text: 'Licenças permissivas não permitem uso comercial.' },
+              { text: 'A GPLv3 não permite modificar o código-fonte.' },
+            ],
+            correctAnswer: 0,
+            explanation:
+              'Ambas são licenças livres, mas o copyleft forte impede que melhorias distribuídas sejam fechadas em versões proprietárias.',
+          },
+        ],
+      },
+    ]
+
+    for (const quizItem of publishedQuizzes) {
+      const existing = await payload.find({
+        collection: 'quizzes',
+        overrideAccess: true,
+        limit: 1,
+        where: { slug: { equals: quizItem.slug } },
+      })
+
+      const quizData = {
+        title: quizItem.title,
+        slug: quizItem.slug,
+        summary: quizItem.summary,
+        ...(quizItem.article ? { article: quizItem.article } : {}),
+        status: quizItem.status,
+        questions: quizItem.questions,
+      }
+
+      const adminUser = {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: 'admin' as const,
+      }
+
+      if (existing.docs[0]) {
+        await payload.update({
+          collection: 'quizzes',
+          id: existing.docs[0].id,
+          overrideAccess: true,
+          user: adminUser,
+          context: { skipSiteDeploy: true },
+          data: quizData,
+        })
+      } else {
+        await payload.create({
+          collection: 'quizzes',
+          overrideAccess: true,
+          user: adminUser,
+          context: { skipSiteDeploy: true },
+          data: quizData,
+        })
+      }
+    }
+
     console.log(
       [
         'Seed de demonstração do blog concluído com sucesso:',
@@ -798,6 +950,7 @@ async function main() {
         `  • ${SEED_MEDIA_SPECS.length} imagens locais geradas (8 capas 16:9 individuais + 4 diagramas para o corpo dos artigos)`,
         '  • 8 artigos publicados (com capas próprias, subtítulos, imagens anexadas no corpo, hashtags e datas variadas)',
         '  • 3 artigos em fluxo editorial de autora@gnuverse.local (draft, in_review, changes_requested)',
+        `  • ${publishedQuizzes.length} quizzes publicados sobre Software Livre`,
       ].join('\n'),
     )
   } finally {

@@ -6,47 +6,55 @@ export const metadata = {
   title: 'Quizzes — GNUverse',
   description: 'Aprenda sobre software livre com quizzes da comunidade.',
 }
+
 export default async function QuizzesPage() {
   const { quizzes, mode } = await getContent()
   return (
     <main className="[overflow-wrap:anywhere] mx-auto min-h-svh max-w-6xl px-6 py-10 sm:px-12">
-      <Link
-        href="/"
-        className="text-sm text-[var(--accent)] underline underline-offset-4"
-      >
-        ← GNUverse
-      </Link>
-      <header className="mt-16 border-b border-[var(--line)] pb-8">
-        <p className="text-xs uppercase tracking-widest text-[var(--accent)]">
-          Conhecimento em movimento
-        </p>
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
-          <h1 className="text-4xl tracking-tight sm:text-5xl">
-            Uma pergunta abre caminhos.
-          </h1>
+      <header className="border-b border-[var(--line)] pt-2 pb-8">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div className="max-w-[60ch]">
+            <h1 className="text-4xl font-semibold leading-[1.1] tracking-tight text-[var(--ink)] sm:text-5xl">
+              Uma pergunta abre caminhos.
+            </h1>
+            <p className="mt-3 text-base leading-relaxed text-[var(--muted)]">
+              Explore ideias, teste o que aprendeu e descubra novas
+              perspectivas. Responda livremente, sem precisar de uma conta.
+            </p>
+          </div>
           <Link
             href="/quizzes/criar/"
-            className="rounded-sm bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--on-accent)] hover:bg-[var(--accent-hover)]"
+            className="inline-flex shrink-0 items-center rounded-md border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--muted)] hover:bg-[var(--surface-raised)]"
           >
             Criar ou editar quiz
           </Link>
         </div>
-        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[var(--muted)]">
-          Explore ideias, teste o que aprendeu e descubra novas perspectivas.
-          Responda livremente, sem precisar de uma conta.
-        </p>
         {mode === 'demo' && (
-          <p className="mt-5 text-sm text-[var(--muted)]">
-            Demonstração local: este quiz é um exemplo e ainda não veio do CMS.
+          <p className="mt-6 rounded-md border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
+            Modo demonstração: estes quizzes são exemplos locais e ainda não
+            vieram do CMS.
           </p>
         )}
       </header>
+
       {quizzes.length ? (
         <QuizCards quizzes={quizzes} />
       ) : (
-        <p className="mt-10 text-[var(--muted)]">
-          Ainda não há quizzes publicados. Que tal preparar o primeiro?
-        </p>
+        <div className="mt-10 rounded-md border border-dashed border-[var(--line)] bg-[var(--surface)] px-6 py-12 text-center sm:px-10">
+          <p className="text-base font-medium text-[var(--ink)]">
+            Ainda não há quizzes publicados.
+          </p>
+          <p className="mx-auto mt-2 max-w-[48ch] text-sm leading-relaxed text-[var(--muted)]">
+            Que tal preparar o primeiro quiz para compartilhar com a turma e
+            aprofundar os temas do blog?
+          </p>
+          <Link
+            href="/quizzes/criar/"
+            className="mt-6 inline-flex items-center rounded-md border border-[var(--line)] bg-[var(--surface-raised)] px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--muted)]"
+          >
+            Criar primeiro quiz
+          </Link>
+        </div>
       )}
     </main>
   )

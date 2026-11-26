@@ -9,17 +9,37 @@ export function QuizPlayer({ quiz }: { quiz: PublishedQuiz }) {
   const resultRef = useRef<HTMLElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const answered = answers.filter((answer) => Number.isInteger(answer)).length
+  const progressPercent = quiz.questions.length
+    ? Math.round((answered / quiz.questions.length) * 100)
+    : 0
+
   return (
-    <div className="mt-10">
-      <p className="text-sm text-[var(--muted)]" aria-live="polite">
-        {answered} de {quiz.questions.length} perguntas respondidas
-      </p>
-      <progress
-        value={answered}
-        max={quiz.questions.length}
+    <div className="mt-8">
+      <div className="flex items-center justify-between gap-4 text-xs text-[var(--muted)]">
+        <p aria-live="polite" className="tabular-nums">
+          {answered} de {quiz.questions.length}{' '}
+          {quiz.questions.length === 1
+            ? 'pergunta respondida'
+            : 'perguntas respondidas'}
+        </p>
+        <span className="font-mono tabular-nums text-[var(--muted)]">
+          {progressPercent}%
+        </span>
+      </div>
+      <div
+        role="progressbar"
         aria-label="Progresso do quiz"
-        className="mt-3 h-1.5 w-full accent-[var(--accent)]"
-      />
+        aria-valuenow={answered}
+        aria-valuemin={0}
+        aria-valuemax={quiz.questions.length}
+        className="mt-2.5 h-1.5 w-full overflow-hidden rounded-md bg-[var(--surface-raised)]"
+      >
+        <div
+          className="h-full rounded-md bg-[var(--accent)] transition-[width] duration-200"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+
       <form
         ref={formRef}
         onSubmit={(event) => {
@@ -39,54 +59,70 @@ export function QuizPlayer({ quiz }: { quiz: PublishedQuiz }) {
           <fieldset
             key={index}
             disabled={score !== null}
-            className="rounded-sm border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7"
+            className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7"
           >
-            <legend className="max-w-full px-2 text-lg font-medium">
-              <span className="mr-2 text-[var(--accent)]">
+            <legend className="max-w-full px-1 text-base font-semibold leading-snug text-[var(--ink)] sm:text-lg">
+              <span className="mr-2 font-mono text-sm font-medium tabular-nums text-[var(--accent)]">
                 {String(index + 1).padStart(2, '0')}.
               </span>
               {question.prompt}
             </legend>
-            <div className="space-y-3">
-              {question.choices.map((choice, choiceIndex) => (
-                <label
-                  key={choiceIndex}
-                  className={`flex cursor-pointer items-start gap-3 rounded-sm border p-4 transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[var(--accent)] ${answers[index] === choiceIndex ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--line)] hover:border-[var(--muted)]'}`}
-                >
-                  <input
-                    type="radio"
-                    required
-                    name={`question-${index}`}
-                    checked={answers[index] === choiceIndex}
-                    onChange={() =>
-                      setAnswers((current) => {
-                        const next = [...current]
-                        next[index] = choiceIndex
-                        return next
-                      })
-                    }
-                    className="mt-1 shrink-0 accent-[var(--accent)]"
-                  />
-                  <span className="text-sm leading-relaxed">{choice.text}</span>
-                </label>
-              ))}
+
+            <div className="mt-4 space-y-2.5">
+              {question.choices.map((choice, choiceIndex) => {
+                const isSelected = answers[index] === choiceIndex
+                const isCorrect =
+                  score !== null && choiceIndex === question.correctAnswer
+                const isWrongSelected =
+                  score !== null && isSelected && choiceIndex !== question.correctAnswer
+
+                const choiceStyle = isCorrect
+                  ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]'
+                  : isWrongSelected
+                    ? 'border-[var(--secondary)] bg-[var(--secondary-soft)] text-[var(--ink)]'
+                    : score !== null
+                      ? 'border-[var(--line)] bg-[var(--background)] text-[var(--muted)] opacity-75'
+                      : isSelected
+                        ? 'border-[var(--accent)] bg-[var(--surface-raised)] text-[var(--ink)]'
+                        : 'border-[var(--line)] bg-[var(--background)] text-[var(--ink)] hover:border-[var(--muted)] hover:bg-[var(--surface-raised)]'
+
+                return (
+                  <label
+                    key={choiceIndex}
+                    className={`flex cursor-pointer items-start gap-3 rounded-md border p-4 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[var(--accent)] ${choiceStyle}`}
+                  >
+                    <input
+                      type="radio"
+                      required
+                      name={`question-${index}`}
+                      checked={isSelected}
+                      onChange={() =>
+                        setAnswers((current) => {
+                          const next = [...current]
+                          next[index] = choiceIndex
+                          return next
+                        })
+                      }
+                      className="mt-1 shrink-0 accent-[var(--accent)]"
+                    />
+                    <span className="text-sm leading-relaxed">{choice.text}</span>
+                  </label>
+                )
+              })}
             </div>
+
             {score !== null && (
-              <div className="mt-5 border-t border-[var(--line)] pt-4">
+              <div className="mt-5 rounded-md border border-[var(--line)] bg-[var(--background)] p-4">
                 <p
                   className={
                     answers[index] === question.correctAnswer
-                      ? 'font-medium text-[var(--accent)]'
-                      : 'font-medium text-[var(--secondary)]'
+                      ? 'text-sm font-semibold text-[var(--accent)]'
+                      : 'text-sm font-semibold text-[var(--secondary)]'
                   }
                 >
                   {answers[index] === question.correctAnswer
                     ? 'Você acertou!'
                     : 'Vamos aprender com esta?'}
-                </p>
-                <p className="mt-2 text-sm">
-                  Resposta correta:{' '}
-                  {question.choices[question.correctAnswer].text}
                 </p>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(--muted)]">
                   {question.explanation}
@@ -95,30 +131,36 @@ export function QuizPlayer({ quiz }: { quiz: PublishedQuiz }) {
             )}
           </fieldset>
         ))}
+
         {score === null && (
           <button
             type="submit"
-            className="cursor-pointer rounded-sm bg-[var(--accent)] px-6 py-3 font-medium text-[var(--on-accent)] hover:bg-[var(--accent-hover)]"
+            className="cursor-pointer rounded-md border border-[var(--accent)] bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-[var(--on-accent)] transition hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]"
           >
             Conferir respostas
           </button>
         )}
       </form>
+
       {score !== null && (
         <section
           ref={resultRef}
           tabIndex={-1}
           aria-label="Resultado do quiz"
-          className="mt-8 scroll-mt-24 rounded-sm border border-[var(--accent)] bg-[var(--accent-soft)] p-6"
+          className="mt-8 scroll-mt-24 rounded-md border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-7"
         >
-          <p className="text-xs uppercase tracking-widest text-[var(--accent)]">
-            Seu percurso
+          <p className="inline-flex items-center gap-2 text-xs font-medium text-[var(--secondary)]">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full bg-[var(--secondary)]"
+            />
+            Resultado
           </p>
-          <h2 className="mt-3 text-3xl">
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--ink)] tabular-nums">
             {score} de {quiz.questions.length}{' '}
             {score === 1 ? 'acerto' : 'acertos'}
           </h2>
-          <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
+          <p className="mt-2.5 max-w-[58ch] text-sm leading-relaxed text-[var(--muted)]">
             {score === quiz.questions.length
               ? 'Muito bem! Continue explorando e compartilhando o que aprendeu.'
               : 'Cada pergunta é uma oportunidade. Confira as explicações e experimente de novo.'}
@@ -135,7 +177,7 @@ export function QuizPlayer({ quiz }: { quiz: PublishedQuiz }) {
                   ?.focus()
               })
             }}
-            className="mt-5 cursor-pointer rounded-sm border border-[var(--accent)] px-4 py-2 text-sm text-[var(--accent)] hover:bg-[var(--surface)]"
+            className="mt-5 cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface-raised)] px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--muted)]"
           >
             Tentar novamente
           </button>
