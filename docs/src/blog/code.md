@@ -31,6 +31,8 @@ How the blog is wired today. For the C/Node → Next/Payload mental model, see a
 | `cms/scripts/bootstrap-local-db.ts` | Creates local SQLite DB + `HOST_ADMIN_*` + demo seed when missing (`make setup`) |
 | `cms/scripts/reset-local-db.mjs` | Deletes local SQLite DB (+ WAL/SHM) and media; `make cms-reset` then seeds |
 
+Quiz authoring, public sync and the self-assessment player are described in [Quizzes](quizzes.md).
+
 ## Invariants
 
 1. Anonymous reads only `_status: published`; `reviewNotes` do not leak on the public API.

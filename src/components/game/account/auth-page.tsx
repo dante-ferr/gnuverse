@@ -24,9 +24,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     const next = search.get('next')
     if (search.get('notice') === 'login-required') {
       setNotice(
-        next?.startsWith('/blog')
-          ? 'Entre na sua conta para contribuir com um artigo. Depois do login, você voltará ao blog.'
-          : 'Entre na sua conta para criar ou entrar em uma sala. Depois do login, você voltará ao jogo.',
+        next?.startsWith('/quizzes')
+          ? 'Entre na sua conta para criar quizzes. Depois do login, você voltará aos quizzes.'
+          : next?.startsWith('/blog')
+            ? 'Entre na sua conta para contribuir com um artigo. Depois do login, você voltará ao blog.'
+            : 'Entre na sua conta para criar ou entrar em uma sala. Depois do login, você voltará ao jogo.',
       )
     }
     if (!next) return
@@ -39,7 +41,9 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           destination.pathname === '/blog' ||
           destination.pathname.startsWith('/blog/') ||
           destination.pathname === '/artigos' ||
-          destination.pathname.startsWith('/artigos/'))
+          destination.pathname.startsWith('/artigos/') ||
+          destination.pathname === '/quizzes' ||
+          destination.pathname.startsWith('/quizzes/'))
       ) {
         setReturnTo(destination.pathname + destination.search + destination.hash)
       }
@@ -53,6 +57,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       const useCmsDirect =
         returnTo.startsWith('/blog') ||
         returnTo.startsWith('/artigos') ||
+        returnTo.startsWith('/quizzes') ||
         !resolveGameApiUrl()
       if (useCmsDirect) {
         const cmsUrl = resolveCmsBaseUrl()

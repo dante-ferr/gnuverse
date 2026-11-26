@@ -1,12 +1,13 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev cms site sync build preview check test typecheck hooks mailpit cms-reset cms-seed cms-fresh cms-set-host-admin test-blog test-blog-ci docs-serve elements-serve
+.PHONY: help setup dev cms site sync build preview check test typecheck hooks mailpit cms-reset cms-seed cms-fresh cms-set-host-admin test-blog test-blog-ci test-quiz docs-serve elements-serve
 
 help:
 	@printf '%s\n' 'GNUverse — commands' '' \
 		'  make setup       Install deps, prepare env files, bootstrap+seed CMS DB if missing' \
 		'  make dev         Start CMS + game + site; Ctrl+C stops all three' \
 		'  make test-blog   Seed demo data, run E2E tests, open the browser' \
+		'  make test-quiz   Quiz validation, public sync, editorial access and isolated CMS tests' \
 		'  make cms         Start only the CMS on CMS_PORT' \
 		'  make mailpit     Start local Mailpit (SMTP 1025, UI 8025; auto-picks free UI port)' \
 		'  make cms-reset   Wipe the local CMS SQLite DB/media, then apply the demo seed' \
@@ -100,3 +101,7 @@ docs-serve:
 
 elements-serve:
 	npm run elements:serve
+
+test-quiz:
+	node --test --test-concurrency=1 tests/quiz.test.ts tests/quiz-client.test.ts tests/quiz-content.test.mjs tests/quiz-deploy.test.ts tests/authorization.test.ts
+	npm --prefix cms run test:quizzes

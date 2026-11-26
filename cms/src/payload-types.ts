@@ -70,6 +70,7 @@ export interface Config {
     users: User;
     articles: Article;
     media: Media;
+    quizzes: Quiz;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -80,6 +81,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     articles: ArticlesSelect<false> | ArticlesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    quizzes: QuizzesSelect<false> | QuizzesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -251,6 +253,39 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "quizzes".
+ */
+export interface Quiz {
+  id: number;
+  title: string;
+  slug: string;
+  titleKey?: string | null;
+  summary: string;
+  /**
+   * Deixe vazio para um quiz independente. O link público aparece quando o artigo também estiver publicado.
+   */
+  article?: (number | null) | Article;
+  owner?: (number | null) | User;
+  status: 'draft' | 'in_review' | 'changes_requested' | 'published';
+  reviewNotes?: string | null;
+  questions: {
+    prompt: string;
+    choices: {
+      text: string;
+      id?: string | null;
+    }[];
+    /**
+     * Começa em zero: 0 = primeira alternativa, 1 = segunda, e assim por diante.
+     */
+    correctAnswer: number;
+    explanation: string;
+    id?: string | null;
+  }[];
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -284,6 +319,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'quizzes';
+        value: number | Quiz;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -420,6 +459,36 @@ export interface MediaSelect<T extends boolean = true> {
               filename?: T;
             };
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "quizzes_select".
+ */
+export interface QuizzesSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  titleKey?: T;
+  summary?: T;
+  article?: T;
+  owner?: T;
+  status?: T;
+  reviewNotes?: T;
+  questions?:
+    | T
+    | {
+        prompt?: T;
+        choices?:
+          | T
+          | {
+              text?: T;
+              id?: T;
+            };
+        correctAnswer?: T;
+        explanation?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -11,6 +11,7 @@
 - [How the blog works](blog/index.md)
   - [Editorial method](blog/method.md)
   - [Code and invariants](blog/code.md)
+  - [Quizzes](blog/quizzes.md)
   - [Local testing](blog/local.md)
   - [Cloud](blog/cloud.md)
 

@@ -9,6 +9,7 @@ import { pt } from '@payloadcms/translations/languages/pt'
 import sharp from 'sharp'
 import { Users } from './collections/Users'
 import { Articles } from './collections/Articles'
+import { Quizzes } from './collections/Quizzes'
 import { Media } from './collections/Media'
 import { accessManagementEndpoints } from './access-management/endpoints'
 import { chatModerationEndpoints } from './chat-moderation/endpoints'
@@ -73,7 +74,7 @@ export default buildConfig({
   },
   endpoints: [...accessManagementEndpoints, ...chatModerationEndpoints, ...identityEndpoints],
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },
-  collections: [Users, Articles, Media],
+  collections: [Users, Articles, Media, Quizzes],
   onInit: async (payload) => {
     await ensureHostAdmin(payload)
     await markLegacyAccountsVerified(payload)

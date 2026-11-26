@@ -2,12 +2,13 @@ import 'server-only'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { cache } from 'react'
+import type { PublishedQuiz } from '../../core/quiz/quiz'
 import { categoryNames, type Article } from './article-meta'
 
 export { categoryNames, type Article }
 
 export const getContent = cache(
-  async (): Promise<{ mode: 'demo' | 'live'; articles: Article[] }> => {
+  async (): Promise<{ mode: 'demo' | 'live'; articles: Article[]; quizzes: PublishedQuiz[] }> => {
     try {
       return JSON.parse(
         await readFile(path.join(process.cwd(), '.content/articles.json'), 'utf8'),

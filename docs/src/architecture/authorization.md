@@ -4,11 +4,13 @@
 
 | Role | Permissions |
 | :--- | :--- |
-| `admin` | All: users, CMS, articles, media, rooms, future quizzes |
-| `blog-editor` | CMS panel, articles, media |
+| `admin` | All: users, CMS, articles, media, rooms, quizzes |
+| `blog-editor` | CMS panel, articles, media, quizzes |
 | `game-moderator` | CMS panel access; edit or delete any room; moderate room chat |
-| `quiz-editor` | Manage quizzes (permission reserved; no UI yet) |
+| `quiz-editor` | CMS panel and quiz management, without article editing |
 | `member` | Edit rules and delete own rooms |
+
+Article contributors can submit their own quizzes for review; publication follows the [quiz workflow](../blog/quizzes.md).
 
 Roles are cumulative. Payload admin access requires `cms:access`. Game accounts always receive `member` plus any assigned roles.
 

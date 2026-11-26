@@ -1,0 +1,30 @@
+{
+  "title": "Você conhece as liberdades do software?",
+  "slug": "liberdades-do-software",
+  "summary": "Explore o que torna um software livre e como isso amplia o acesso ao conhecimento.",
+  "questions": [
+    {
+      "prompt": "O que significa poder estudar um software livre?",
+      "choices": [
+        {
+          "text": "Ter acesso ao código-fonte para entender como ele funciona."
+        },
+        { "text": "Usar somente a versão de demonstração." },
+        { "text": "Pedir autorização para cada execução." }
+      ],
+      "correctAnswer": 0,
+      "explanation": "A liberdade de estudar e adaptar o programa pressupõe acesso ao código-fonte."
+    },
+    {
+      "prompt": "Software livre precisa ser gratuito?",
+      "choices": [
+        { "text": "Sim, cobrar sempre retira as liberdades." },
+        {
+          "text": "Não. As liberdades de uso, estudo, modificação e compartilhamento são o critério."
+        }
+      ],
+      "correctAnswer": 1,
+      "explanation": "Preço e liberdade são coisas distintas: é possível distribuir software livre comercialmente."
+    }
+  ]
+}

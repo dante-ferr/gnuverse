@@ -16,6 +16,7 @@ UI copy is Portuguese; code and documentation are English (`AGENTS.md`).
 
 - **Collaborative Open Pipeline rooms** (`/jogo/`): shared grid logistics with belts, cores, and room chat; create or join at `/jogo/sala/?id=`. Backend in `game-server/`; production hosting still open.
 - **Authorial blog** (`/blog/`, `/artigos/`): team and visitor posts with approval. `author` / `reviewer` / `admin` flow and submission panel are in code; 14 posts and cloud setup are still pending.
+- **Learning quizzes** (`/quizzes/`): contributors create independent quizzes or link them to articles; reviewers publish through the CMS. Visitors answer without signing in. See [Quizzes](docs/src/blog/quizzes.md), or run `make test-quiz` for the focused checks.
 
 Single account in Payload; roles in `core/authz/` and **People and access** on the CMS. Detail: book → Authorization.
 

@@ -17,13 +17,14 @@ async function triggerDeploy(req: Parameters<CollectionAfterChangeHook>[0]['req'
 }
 
 export const deployAfterChange: CollectionAfterChangeHook = async ({ doc, previousDoc, req }) => {
-  if (doc._status === 'published' || previousDoc?._status === 'published') {
+  if (doc._status === 'published' || previousDoc?._status === 'published' ||
+      doc.status === 'published' || previousDoc?.status === 'published') {
     await triggerDeploy(req)
   }
   return doc
 }
 
 export const deployAfterDelete: CollectionAfterDeleteHook = async ({ doc, req }) => {
-  if (doc._status === 'published') await triggerDeploy(req)
+  if (doc._status === 'published' || doc.status === 'published') await triggerDeploy(req)
   return doc
 }

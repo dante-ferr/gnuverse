@@ -15,9 +15,10 @@ test('policies isolate domains, check ownership and reject unknown grants', () =
     assert.equal(can(actor(['admin']), permission, { ownerId: 'owner' }), true)
   }
   assert.equal(can(actor(['blog-editor']), 'article:manage'), true)
+  assert.equal(can(actor(['blog-editor']), 'quiz:manage'), true)
   assert.equal(can(actor(['blog-editor']), 'room:delete:any'), false)
   assert.equal(can(actor(['quiz-editor']), 'quiz:manage'), true)
-  assert.equal(can(actor(['quiz-editor']), 'cms:access'), false)
+  assert.equal(can(actor(['quiz-editor']), 'cms:access'), true)
   assert.equal(can(actor(['game-moderator']), 'article:manage'), false)
   assert.equal(can(actor(['game-moderator']), 'cms:access'), true)
   assert.equal(can(actor(['game-moderator']), 'room:chat:moderate'), true)

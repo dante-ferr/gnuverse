@@ -11,6 +11,7 @@ const pages = [
   { href: '/', label: 'Início' },
   { href: '/jogo/', label: 'Jogo' },
   { href: '/blog/', label: 'Blog' },
+  { href: '/quizzes/', label: 'Quizzes' },
 ]
 
 export function SiteHeader() {
@@ -47,7 +48,7 @@ export function SiteHeader() {
               ? pathname === '/'
               : page.href === '/blog/'
                 ? pathname?.startsWith('/blog') || pathname?.startsWith('/artigos')
-                : pathname?.startsWith('/jogo')
+                : pathname?.startsWith(page.href)
           return (
             <Link
               key={page.href}
