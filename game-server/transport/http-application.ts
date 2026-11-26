@@ -219,6 +219,14 @@ export class HttpApplication {
           ),
         )
       }
+      if (req.method === 'GET' && path[2] === 'events' && path.length === 3) {
+        const roomIds = (requestUrl.searchParams.get('ids') ?? '')
+          .split(',')
+          .filter((id) => Object.hasOwn(store.state.rooms, id))
+          .slice(0, 50)
+        runtime.subscribeLobby(roomIds, res)
+        return
+      }
       const room = store.state.rooms[path[2]]
       if (!room) fail(404, 'Sala não encontrada.')
       if (req.method === 'DELETE' && path.length === 3) {

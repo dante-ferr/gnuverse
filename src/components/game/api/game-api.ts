@@ -81,4 +81,11 @@ export class GameApi {
       `${baseUrl}/api/rooms/${encodeURIComponent(roomId)}/events`,
     )
   }
+
+  /** One SSE stream for a lobby page: `change` events carry `{ roomId }`. */
+  lobbyStream(roomIds: string[]) {
+    const baseUrl = resolveGameApiUrl() || GAME_API_URL
+    const ids = roomIds.map(encodeURIComponent).join(',')
+    return new EventSource(`${baseUrl}/api/rooms/events?ids=${ids}`)
+  }
 }

@@ -7,69 +7,61 @@ import { FramePreview } from '../preview/frame-preview'
 import type { Room } from '../model/types'
 import styles from '../game-shell.module.css'
 
-type StreamedFrame = PipelineFrame & { omitBelts?: boolean; beltCount?: number }
-
-/** Thumbnails refresh at most this often so a page of live cards stays cheap. */
+/** Thumbnails refetch at most this often so a page of live cards stays cheap. */
 const REFRESH_MS = 3000
 
-/** Live frame for one room while its card is on screen (SSE, committed in slow batches). */
-function useLiveFrame(api: GameApi, roomId: string, enabled: boolean) {
-  const [frame, setFrame] = useState<PipelineFrame | null>(null)
+/**
+ * Change counters for the rooms on a lobby page, fed by one shared SSE stream.
+ * Browsers cap HTTP/1.1 connections per host (6 in Chromium), so a stream per
+ * card would starve room loads and room creation once a page shows 6+ rooms.
+ */
+export function useLobbyChanges(api: GameApi, roomIds: string[]) {
+  const [versions, setVersions] = useState<Record<string, number>>({})
+  const key = roomIds.join(',')
   useEffect(() => {
-    if (!enabled) return
-    let active = true
-    let latest: PipelineFrame | null = null
-    let dirty = false
-    const load = () =>
-      api.request<{ frame: PipelineFrame }>(`/api/rooms/${encodeURIComponent(roomId)}`)
-        .then((result) => {
-          if (!active || !isPipelineFrame(result.frame)) return
-          if (latest && latest.tick > result.frame.tick) return
-          latest = result.frame
-          dirty = true
-        })
-        .catch(() => { /* keep the last known frame */ })
-    void load()
-    const stream = api.stream(roomId)
-    const onFrame = (event: MessageEvent<string>) => {
-      if (!active) return
+    if (!key) return
+    const stream = api.lobbyStream(key.split(','))
+    const onChange = (event: MessageEvent<string>) => {
       try {
-        const data = JSON.parse(event.data) as StreamedFrame
-        if (!isPipelineFrame(data)) return
-        if (!data.omitBelts) {
-          latest = data
-          dirty = true
-          return
-        }
-        const { omitBelts: _omit, beltCount, ...rest } = data
-        if (!latest || (beltCount !== undefined && latest.belts.length !== beltCount)) {
-          void load()
-          return
-        }
-        latest = { ...rest, belts: latest.belts }
-        dirty = true
-      } catch { /* ignore malformed frames */ }
+        const { roomId } = JSON.parse(event.data) as { roomId?: string }
+        if (roomId) setVersions((current) => ({ ...current, [roomId]: (current[roomId] ?? 0) + 1 }))
+      } catch { /* ignore malformed events */ }
     }
-    const onChange = () => { if (active) void load() }
-    stream.addEventListener('frame', onFrame)
     stream.addEventListener('change', onChange)
-    const timer = setInterval(() => {
-      if (!dirty || !latest) return
-      dirty = false
-      setFrame(latest)
-    }, REFRESH_MS)
-    const first = setTimeout(() => {
-      if (dirty && latest) { dirty = false; setFrame(latest) }
-    }, 400)
     return () => {
-      active = false
-      clearInterval(timer)
-      clearTimeout(first)
-      stream.removeEventListener('frame', onFrame)
       stream.removeEventListener('change', onChange)
       stream.close()
     }
-  }, [api, roomId, enabled])
+  }, [api, key])
+  return versions
+}
+
+/** Room frame while its card is on screen, refetched (throttled) when the layout changes. */
+function useRoomFrame(api: GameApi, roomId: string, enabled: boolean, version: number) {
+  const [frame, setFrame] = useState<PipelineFrame | null>(null)
+  const lastLoadAt = useRef(0)
+  useEffect(() => {
+    if (!enabled) return
+    let active = true
+    const load = () => {
+      lastLoadAt.current = Date.now()
+      api.request<{ frame: PipelineFrame }>(`/api/rooms/${encodeURIComponent(roomId)}`)
+        .then((result) => {
+          if (active && isPipelineFrame(result.frame)) setFrame(result.frame)
+        })
+        .catch(() => { /* keep the last known frame */ })
+    }
+    const wait = lastLoadAt.current + REFRESH_MS - Date.now()
+    if (wait <= 0) {
+      load()
+      return () => { active = false }
+    }
+    const timer = setTimeout(load, wait)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [api, roomId, enabled, version])
   return frame
 }
 
@@ -94,8 +86,14 @@ function useVisible() {
 }
 
 /** Live thumbnail of the area around the room's starting core. */
-export function RoomCover({ room, api, rules }: { room: Room; api: GameApi; rules: PipelineRules | null }) {
+export function RoomCover({ room, api, rules, version = 0 }: {
+  room: Room
+  api: GameApi
+  rules: PipelineRules | null
+  /** Bumped by `useLobbyChanges` when the room's layout changes. */
+  version?: number
+}) {
   const { ref, visible } = useVisible()
-  const frame = useLiveFrame(api, room.id, visible)
+  const frame = useRoomFrame(api, room.id, visible, version)
   return <FramePreview frame={frame} rules={rules} className={styles.roomCover} svgRef={ref} />
 }

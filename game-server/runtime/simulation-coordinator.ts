@@ -15,6 +15,9 @@ export class SimulationCoordinator {
   private rules: PipelineRules
   private governance?: GovernanceService
   private streams = new Map<string, Set<ServerResponse>>()
+  /** Lobby connections, each watching several rooms over one SSE stream. */
+  private lobbyStreams = new Map<ServerResponse, Set<string>>()
+  private lastLobbyHeartbeatAt = 0
   private timer?: ReturnType<typeof setInterval>
   /** Live match reused across ticks until an edit replaces `room.frame`. */
   private live = new Map<string, { match: Match; source: PipelineFrame }>()
@@ -44,6 +47,10 @@ export class SimulationCoordinator {
     for (const response of this.streams.get(roomId) ?? [])
       if (response.writableLength < 1024 * 1024)
         response.write('event: change\ndata: {}\n\n')
+    const lobbyPayload = `event: change\ndata: ${JSON.stringify({ roomId })}\n\n`
+    for (const [response, roomIds] of this.lobbyStreams)
+      if (roomIds.has(roomId) && response.writableLength < 1024 * 1024)
+        response.write(lobbyPayload)
   }
 
   publishChat(roomId: string, chat: ChatMessage[]) {
@@ -117,6 +124,24 @@ export class SimulationCoordinator {
     response.on('close', () => this.streams.get(room.id)?.delete(response))
   }
 
+  /**
+   * One stream for a whole lobby page. Browsers cap HTTP/1.1 connections per host
+   * (6 in Chromium), so one SSE stream per room card starves every other request.
+   * Only `change` events are sent: thumbnails redraw layout, not packets.
+   */
+  subscribeLobby(roomIds: string[], response: ServerResponse) {
+    if (this.lobbyStreams.size >= 500) fail(503, 'Muitos espectadores.')
+    response.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    })
+    response.write(': ok\n\n')
+    this.lobbyStreams.set(response, new Set(roomIds))
+    response.on('close', () => this.lobbyStreams.delete(response))
+  }
+
   private step() {
     let needsSave = false
     for (const room of Object.values(this.store.state.rooms)) {
@@ -157,6 +182,11 @@ export class SimulationCoordinator {
         }
         // Placements already persist in `atomic`. Tick snapshots can lag by a second.
         const now = Date.now()
+        // Idle lobby streams get a comment so proxies do not close them.
+        if (now - this.lastLobbyHeartbeatAt >= 15000) {
+          this.lastLobbyHeartbeatAt = now
+          for (const response of this.lobbyStreams.keys()) response.write(': ping\n\n')
+        }
         if (needsSave && now - this.lastPersistAt >= 1000) {
           this.lastPersistAt = now
           this.store.persist()
@@ -186,6 +216,7 @@ export class SimulationCoordinator {
     clearInterval(this.timer)
     for (const clients of this.streams.values())
       for (const response of clients) response.end()
+    for (const response of this.lobbyStreams.keys()) response.end()
   }
 }
 

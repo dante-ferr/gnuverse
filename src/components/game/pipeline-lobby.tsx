@@ -8,7 +8,7 @@ import { warmAuthBackends } from './api/warmup'
 import { useActionFeedback } from './hooks/use-action-feedback'
 import { DEFAULT_ROOM_FILTERS, type RoomFilters, useRoomLobby } from './hooks/use-room-lobby'
 import { useGameSession } from './hooks/use-game-session'
-import { RoomCover } from './construction/room-cover'
+import { RoomCover, useLobbyChanges } from './construction/room-cover'
 import { pipelineRulesFrom } from './pipeline/model/frame'
 import styles from './game-shell.module.css'
 
@@ -21,6 +21,7 @@ export function PipelineLobby() {
   const router = useRouter()
   const lobby = useRoomLobby(session.api, session.user?.id)
   const feedback = useActionFeedback()
+  const coverVersions = useLobbyChanges(session.api, lobby.rooms.map((room) => room.id))
   const [showCreate, setShowCreate] = useState(false)
   const [search, setSearch] = useState('')
   const { filters, setFilters } = lobby
@@ -154,7 +155,8 @@ export function PipelineLobby() {
             <div className={styles.roomGrid}>
               {lobby.rooms.map((room) => (
                 <a className={styles.roomCard} key={room.id} href={`/jogo/sala/?id=${encodeURIComponent(room.id)}`}>
-                  <RoomCover room={room} api={session.api} rules={pipelineRulesFrom(lobby.rules)} />
+                  <RoomCover room={room} api={session.api} rules={pipelineRulesFrom(lobby.rules)}
+                    version={coverVersions[room.id]} />
                   <span className={styles.roomCardInfo}>
                     <span className={styles.roomCardTop}>
                       <span>
