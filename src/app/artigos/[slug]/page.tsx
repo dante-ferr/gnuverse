@@ -4,6 +4,7 @@ import { RichText, type JSXConvertersFunction } from '@payloadcms/richtext-lexic
 import { getContent } from '@/lib/articles'
 import { formatArticleDate } from '@/lib/blog-explorer'
 import { QuizCards } from '@/components/quiz/quiz-cards'
+import { ArticleReadReward } from '@/components/blog/article-read-reward'
 
 const articleConverters: JSXConvertersFunction = ({ defaultConverters }) => ({
   ...defaultConverters,
@@ -105,6 +106,7 @@ export default async function ArticlePage({ params }: Props) {
           converters={articleConverters}
           className="article-body mt-12"
         />
+        {mode !== 'demo' && <ArticleReadReward slug={article.slug} />}
         {article.references.length > 0 && (
           <aside
             className="mt-12 border-t border-[var(--line)] pt-6"

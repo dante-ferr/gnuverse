@@ -32,6 +32,10 @@ export type User = {
   salt?: string
   password?: string
   balance: number
+  /** Reward coins (blog and quizzes): separate from passive income and not capped by it. */
+  rewardBalance?: number
+  /** Reward claims already paid, keyed by `article:<slug>`, `quiz:<slug>:<question>` or `quiz:<slug>:perfect`. */
+  rewardClaims?: Record<string, number>
   coinAt: number
   lastAction: number | null
 }
@@ -125,6 +129,7 @@ export type ServerOptions = {
   identityProvider?: IdentityProvider
   dbPath?: string
   store?: import('../persistence/game-store.ts').GameStore
+  contentCatalog?: import('../economy/content-catalog.ts').ContentCatalog
   now?: () => number
   allowedOrigins?: string[]
   rules?: Partial<Omit<Rules, 'pipeline'>> & { pipeline?: Partial<PipelineRules> }

@@ -76,3 +76,20 @@ test('spend deducts member coins and leaves admin balance untouched', () => {
   assert.equal(adminView.balance, Number.MAX_SAFE_INTEGER)
   assert.equal(admin.balance, 0)
 })
+test('reward coins are uncapped by passive income and spent after passive coins', () => {
+  const rules = createRules({ initialBalance: 0, pipeline: { passiveCap: 10, walletCap: 1_000, coinsPerMinute: 60 } })
+  const wallet = new WalletService(rules, () => 0)
+  const member = user(['member'], 10)
+  member.coinAt = 0
+  const rewarded = wallet.reward(member, 300)
+  assert.equal(rewarded.balance, 10)
+  assert.equal(rewarded.rewardBalance, 300)
+  assert.equal(rewarded.spendable, 310)
+  // Passive coins go first so passive income can resume.
+  const spent = wallet.spend(member, 15)
+  assert.equal(spent.balance, 0)
+  assert.equal(spent.rewardBalance, 295)
+  assert.throws(() => wallet.spend(member, 296), /insuficientes/)
+  // The absolute wallet cap still bounds balance + rewards.
+  assert.equal(wallet.reward(member, 5_000).spendable, 1_000)
+})

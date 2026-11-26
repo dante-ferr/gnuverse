@@ -119,6 +119,13 @@ satellite_core_ring_max = 4
 optional_core_spawn_chance_percent = 8 # Beyond ring 4, non-satellite chunks
 optional_core_cost = 400 # Pooled optional core buy (flat)
 
+# Learning rewards. Paid into the separate reward wallet: no cap beyond wallet_cap, never
+# slows passive income, and spent only after the passive balance runs out.
+reward_article_read_coins = 75 # Once per account per article
+reward_article_min_read_seconds = 45 # Minimum time between opening an article and claiming
+reward_quiz_correct_coins = 30 # Once per account per question answered correctly
+reward_quiz_perfect_bonus_coins = 60 # Once per account per quiz with every answer correct
+
 # Checkpoints (factory restore points)
 checkpoint_spend_coins = 200 # Coins spent in the room since the last checkpoint that save a new one
 checkpoint_limit = 20 # Spend checkpoints kept per room (plus the room-creation one)

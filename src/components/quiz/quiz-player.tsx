@@ -2,10 +2,16 @@
 
 import { useRef, useState } from 'react'
 import { scoreQuiz, type PublishedQuiz } from '../../../core/quiz/quiz'
+import Link from 'next/link'
+import { useGameSession } from '@/components/game/hooks/use-game-session'
+import { resolveGameApiUrl } from '@/components/game/api/game-api'
+import { rewardsApi, type QuizClaimResult } from '@/lib/rewards-client'
 
 export function QuizPlayer({ quiz }: { quiz: PublishedQuiz }) {
   const [answers, setAnswers] = useState<number[]>([])
   const [score, setScore] = useState<number | null>(null)
+  const { api, token, setWallet } = useGameSession()
+  const [reward, setReward] = useState<QuizClaimResult | { error: string } | null>(null)
   const resultRef = useRef<HTMLElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const answered = answers.filter((answer) => Number.isInteger(answer)).length
@@ -25,6 +31,15 @@ export function QuizPlayer({ quiz }: { quiz: PublishedQuiz }) {
         onSubmit={(event) => {
           event.preventDefault()
           setScore(scoreQuiz(quiz.questions, answers))
+          setReward(null)
+          if (token && resolveGameApiUrl())
+            rewardsApi
+              .claimQuiz(api, quiz.slug, answers)
+              .then((result) => {
+                setWallet(result.wallet)
+                setReward(result)
+              })
+              .catch((error: Error) => setReward({ error: error.message }))
           requestAnimationFrame(() => {
             resultRef.current?.focus()
             resultRef.current?.scrollIntoView({
@@ -123,11 +138,35 @@ export function QuizPlayer({ quiz }: { quiz: PublishedQuiz }) {
               ? 'Muito bem! Continue explorando e compartilhando o que aprendeu.'
               : 'Cada pergunta é uma oportunidade. Confira as explicações e experimente de novo.'}
           </p>
+          <p className="mt-3 text-sm leading-relaxed" aria-live="polite">
+            {!token ? (
+              <>
+                <Link href="/login/" className="text-[var(--accent)] underline underline-offset-4">
+                  Entre
+                </Link>{' '}
+                para ganhar moedas do jogo por respostas corretas.
+              </>
+            ) : reward && 'error' in reward ? (
+              reward.error
+            ) : reward ? (
+              reward.awarded > 0 ? (
+                <span className="text-[var(--accent)]">
+                  +{reward.awarded} moedas de recompensa
+                  {reward.bonus > 0 ? ` (incluindo ${reward.bonus} pelo quiz perfeito)` : ''}!
+                </span>
+              ) : (
+                <span className="text-[var(--muted)]">
+                  Sem novas moedas: você já recebeu as recompensas das perguntas que acertou.
+                </span>
+              )
+            ) : null}
+          </p>
           <button
             type="button"
             onClick={() => {
               setAnswers([])
               setScore(null)
+              setReward(null)
               requestAnimationFrame(() => {
                 formRef.current?.scrollIntoView({ behavior: 'smooth' })
                 formRef.current

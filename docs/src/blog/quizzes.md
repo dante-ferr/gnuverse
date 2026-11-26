@@ -1,6 +1,6 @@
 # Quizzes
 
-Quizzes are learning self-assessments. They may complement one article or stand alone; an article can have several quizzes. They do not create rooms, award coins, record player achievements, or store attempts.
+Quizzes are learning self-assessments. They may complement one article or stand alone; an article can have several quizzes. They do not create rooms, record player achievements, or store attempts. Signed-in readers earn game coins for correct answers (see [Learning rewards](../game/economy-expansion.md#learning-rewards)).
 
 ## Contributor flow
 
@@ -39,7 +39,7 @@ The schema migration adds only a nullable key and unique index; it does not rewr
 
 `/quizzes/` lists published quizzes; `/quizzes/<slug>/` renders a self-contained quiz. Related quizzes also appear after their article. Visitors do not sign in to answer. Each question uses a labelled radio group, with completion progress. Submitting shows the score and all explanations; **Tentar novamente** clears the attempt.
 
-Attempts live only in component memory and reset on reload. Correct answers ship in the static bundle intentionally: these are practice materials, not secure exams, grades or reward-bearing assessments. Publication and removal have the same CDN/deploy delay as articles.
+Attempts live only in component memory and reset on reload. Correct answers ship in the static bundle intentionally: these are practice materials, not secure exams or grades. Because of that, rewards are small, paid once per question and graded by the game server against the published CMS quiz, not by the browser. Publication and removal have the same CDN/deploy delay as articles.
 
 ## Code map
 

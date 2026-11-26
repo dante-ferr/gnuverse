@@ -14,7 +14,7 @@ Version advance (`0.1 → 0.2` and later) uses **delivery milestones only**. Map
 | :--- | :--- |
 | Pool | **Per-player** account wallet (`WalletService`) |
 | Earn (now) | **Passive regen** of `coins_per_minute`, including while the player is away, until `passive_cap` |
-| Above the passive cap | Refunds may sit here. Passive income stays off until the balance is under `passive_cap`. Nothing else grants coins yet |
+| Above the passive cap | Refunds may sit here. Passive income stays off until the balance is under `passive_cap`. Reward coins (below) sit in a separate wallet |
 | Absolute max | `wallet_cap` (pseudo-infinite storage ceiling) |
 | Starting balance | Root `initial_balance`, at most `passive_cap` |
 | Earn (later) | Criteria-based bonuses on top of passive regen (not specified yet) |
@@ -112,3 +112,17 @@ Generation rolls **per tier-1 base** (including `starter_source_ids`) using `sou
 - Locked summary: [Decisions §11](../decisions.md#11-coins-and-chunk-expansion)
 - Elements / chapters: [Element recipes](elements.md)
 - Code map: [Game code map](map.md)
+
+## Learning rewards
+
+Signed-in players earn **reward coins** for reading blog articles and answering quiz questions correctly. Amounts live in `pipeline.toml` (`reward_*` keys):
+
+| Reward | Default | Rule |
+| :--- | :--- | :--- |
+| Read an article | 75 | Once per account per article. The reader must reach the end after `reward_article_min_read_seconds` (45 s) since opening it; the server enforces the timer |
+| Correct quiz answer | 30 | Once per account per question (keyed by prompt). A wrong answer can be retried later |
+| Perfect quiz | 60 | Once per account per quiz, on top of the per-question coins |
+
+Reward coins live in a separate wallet field (`rewardBalance`): they are not limited by `passive_cap`, never pause passive income, and are bounded only by `wallet_cap` (together with the passive balance). Spending takes passive coins first so income resumes sooner, then reward coins. The wallet payload exposes `balance` (passive), `rewardBalance` and `spendable` (their sum). The HUD shows reward coins as `+N` next to the passive balance.
+
+Endpoints (`POST`, authenticated): `/api/rewards/article/open`, `/api/rewards/article/claim`, `/api/rewards/quiz/claim` (`{ slug, answers }`). The server checks the slug against published CMS content and grades quizzes itself. Claims are stored per user in `rewardClaims`, so each reward is paid once. Reads and quizzes are unavailable (503) while the CMS is down and in demo mode.

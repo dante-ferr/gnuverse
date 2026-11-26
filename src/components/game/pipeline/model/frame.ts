@@ -82,6 +82,10 @@ export type PipelineRules = {
   passiveCap: number
   walletCap: number
   coinsPerMinute: number
+  rewardArticleReadCoins: number
+  rewardArticleMinReadSeconds: number
+  rewardQuizCorrectCoins: number
+  rewardQuizPerfectBonusCoins: number
   beltCost: number
   fastBeltCost: number
   splitterCost: number

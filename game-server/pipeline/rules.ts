@@ -140,6 +140,14 @@ export type PipelineRules = {
   walletCap: number
   /** Passive coins granted per minute, including while the player is away. */
   coinsPerMinute: number
+  /** Reward coins for finishing an article (once per account per article). */
+  rewardArticleReadCoins: number
+  /** Minimum seconds between opening an article and claiming its reward. */
+  rewardArticleMinReadSeconds: number
+  /** Reward coins per quiz question first answered correctly. */
+  rewardQuizCorrectCoins: number
+  /** Extra reward coins the first time a quiz is answered perfectly. */
+  rewardQuizPerfectBonusCoins: number
   /** Coin cost of one normal belt cell. */
   beltCost: number
   /** Coin cost of one fast belt cell. */

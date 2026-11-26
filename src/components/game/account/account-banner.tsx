@@ -43,6 +43,12 @@ export function AccountBanner({
                 '…'
               )}
             </span>
+            {wallet && Boolean(wallet.rewardBalance) && (
+              <span title="Moedas de recompensa por leituras e quizzes. Sem limite, gastas depois das moedas de rendimento.">
+                +{wallet.rewardBalance}
+                <CoinIcon />
+              </span>
+            )}
             {wallet && (
               <small title="Tempo até a próxima moeda">
                 {wallet.balance > wallet.cap

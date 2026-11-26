@@ -1,6 +1,11 @@
 export type User = { id: string; nickname: string; roles?: readonly import('../../../../core/authz/policy').Role[] }
 export type Wallet = {
+  /** Passive-income coins; fills toward `cap`. */
   balance: number
+  /** Reward coins from reading and quizzes (no cap; spent after `balance`). */
+  rewardBalance?: number
+  /** Everything spendable: `balance + rewardBalance`. */
+  spendable?: number
   /** Passive-income cap shown in the HUD. */
   cap: number
   /** Absolute balance maximum. */

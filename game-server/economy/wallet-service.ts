@@ -2,7 +2,12 @@ import type { Rules, User } from '../domain/types.ts'
 import { fail } from '../domain/validation.ts'
 
 export type WalletView = {
+  /** Passive-income coins (the HUD fills this toward `cap`). */
   balance: number
+  /** Reward coins from reading and quizzes. Earned without limit; spent after `balance`. */
+  rewardBalance: number
+  /** Everything the player can spend now: `balance + rewardBalance`. */
+  spendable: number
   /** Passive-income cap. The HUD fills toward this number. */
   cap: number
   /** Absolute balance maximum. */
@@ -37,6 +42,8 @@ export class WalletService {
     if (this.unlimited(user)) {
       return {
         balance: Number.MAX_SAFE_INTEGER,
+        rewardBalance: 0,
+        spendable: Number.MAX_SAFE_INTEGER,
         cap: Number.MAX_SAFE_INTEGER,
         absoluteCap: Number.MAX_SAFE_INTEGER,
         nextCoinAt: null,
@@ -46,6 +53,7 @@ export class WalletService {
     const passiveCap = this.passiveCap()
     const absoluteCap = this.absoluteCap()
     if (user.balance > absoluteCap) user.balance = absoluteCap
+    user.rewardBalance = Math.min(user.rewardBalance ?? 0, absoluteCap - user.balance)
     if (user.balance >= passiveCap) {
       user.coinAt = this.now()
     } else {
@@ -62,6 +70,8 @@ export class WalletService {
     }
     return {
       balance: user.balance,
+      rewardBalance: user.rewardBalance,
+      spendable: user.balance + user.rewardBalance,
       cap: passiveCap,
       absoluteCap,
       nextCoinAt:
@@ -75,8 +85,11 @@ export class WalletService {
     if (amount === 0) return this.read(user)
     if (this.unlimited(user)) return this.read(user)
     const view = this.read(user)
-    if (view.balance < amount) fail(402, 'Moedas insuficientes.')
-    user.balance -= amount
+    if (view.spendable < amount) fail(402, 'Moedas insuficientes.')
+    // Passive coins go first: they regenerate, so draining them frees room for income.
+    const fromPassive = Math.min(user.balance, amount)
+    user.balance -= fromPassive
+    user.rewardBalance = (user.rewardBalance ?? 0) - (amount - fromPassive)
     return this.read(user)
   }
   /**
@@ -89,8 +102,20 @@ export class WalletService {
     if (amount === 0 || this.unlimited(user)) return this.read(user)
     this.read(user)
     const absoluteCap = this.absoluteCap()
-    const room = absoluteCap - user.balance
-    user.balance += Math.min(room, amount)
+    const room = absoluteCap - user.balance - (user.rewardBalance ?? 0)
+    user.balance += Math.max(0, Math.min(room, amount))
+    return this.read(user)
+  }
+  /**
+   * Add reward coins (reading, quizzes). They never count toward the passive cap,
+   * so earning them is unbounded except for the absolute wallet cap.
+   */
+  reward(user: User, amount: number) {
+    if (!Number.isInteger(amount) || amount < 0) fail(400, 'Valor inválido.')
+    if (amount === 0 || this.unlimited(user)) return this.read(user)
+    this.read(user)
+    const room = this.absoluteCap() - user.balance - (user.rewardBalance ?? 0)
+    user.rewardBalance = (user.rewardBalance ?? 0) + Math.max(0, Math.min(room, amount))
     return this.read(user)
   }
 }

@@ -5,6 +5,8 @@ import type { ServerOptions } from './domain/types.ts'
 import { createRules } from './runtime/rules.ts'
 import { GameStore } from './persistence/game-store.ts'
 import { WalletService } from './economy/wallet-service.ts'
+import { RewardService } from './economy/reward-service.ts'
+import { CMSContentCatalog } from './economy/content-catalog.ts'
 import { AuthService } from './auth/auth-service.ts'
 import { CMSIdentityProvider } from './auth/cms-identity-provider.ts'
 import { HistoryService } from './rooms/history-service.ts'
@@ -50,6 +52,7 @@ export function createGameServer(options: ServerOptions = {}) {
   }
   store.persist()
   const wallet = new WalletService(rules, now)
+  const rewards = new RewardService(rules, now, wallet, options.contentCatalog ?? new CMSContentCatalog())
   const checkpoints = new CheckpointService(rules, history)
   const auth = new AuthService(
     store,
@@ -74,6 +77,7 @@ export function createGameServer(options: ServerOptions = {}) {
     rules,
     auth,
     wallet,
+    rewards,
     rooms,
     governance,
     runtime,

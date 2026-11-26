@@ -4,6 +4,7 @@ import { HttpError, fail } from '../domain/validation.ts'
 import { GameStore } from '../persistence/game-store.ts'
 import { AuthService, publicUser } from '../auth/auth-service.ts'
 import { WalletService } from '../economy/wallet-service.ts'
+import { RewardService } from '../economy/reward-service.ts'
 import { RoomService } from '../rooms/room-service.ts'
 import { GovernanceService } from '../governance/governance-service.ts'
 import { SimulationCoordinator } from '../runtime/simulation-coordinator.ts'
@@ -31,6 +32,7 @@ type Dependencies = {
   rules: Readonly<Rules>
   auth: AuthService
   wallet: WalletService
+  rewards: RewardService
   rooms: RoomService
   governance: GovernanceService
   runtime: SimulationCoordinator
@@ -45,7 +47,7 @@ export class HttpApplication {
   }
 
   async handle(req: IncomingMessage, res: ServerResponse) {
-    const { store, rules, auth, wallet, rooms, governance, runtime, origins } =
+    const { store, rules, auth, rewards, rooms, governance, runtime, origins } =
       this.services
     try {
       const origin = req.headers.origin
@@ -167,6 +169,19 @@ export class HttpApplication {
       if (req.method === 'POST' && path[1] === 'logout' && path.length === 2) {
         await auth.logout(req.headers.authorization)
         return json(res, 200, { ok: true })
+      }
+      if (req.method === 'POST' && path[1] === 'rewards' && path.length === 4) {
+        const user = await auth.authenticate(req.headers.authorization)
+        auth.rateLimit(`rewards:${user.id}`)
+        if (path[2] === 'article' && path[3] === 'open')
+          return json(res, 200, await rewards.openArticle(user, body.slug))
+        if (path[2] === 'article' && path[3] === 'claim')
+          return json(res, 200, store.atomic(() => rewards.claimArticle(user, body.slug)))
+        if (path[2] === 'quiz' && path[3] === 'claim') {
+          const quiz = await rewards.gradeQuiz(user, body.slug, body.answers)
+          return json(res, 200, store.atomic(() => rewards.payQuiz(user, quiz)))
+        }
+        fail(404, 'Não encontrado.')
       }
       if (path[1] !== 'rooms') fail(404, 'Não encontrado.')
       if (req.method === 'GET' && path.length === 2) {

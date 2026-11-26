@@ -113,7 +113,7 @@ export class RoomService {
       id: room.id,
       deliveries: frame.deliveries,
       tick: frame.tick,
-      coins: this.wallet.read(user).balance,
+      coins: this.wallet.read(user).spendable,
     }
   }
   create(user: User, body: Record<string, unknown>) {
