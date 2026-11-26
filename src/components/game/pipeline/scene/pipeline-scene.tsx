@@ -843,8 +843,7 @@ export function PipelineScene({
     if (
       (structureIdRef.current === 'belt' || structureIdRef.current === 'fast_belt') &&
       belt &&
-      ownerId &&
-      belt.authorId === ownerId
+      ownerId
     ) {
       const placeSpeed =
         structureIdRef.current === 'fast_belt'

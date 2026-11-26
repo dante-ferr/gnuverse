@@ -14,7 +14,7 @@ export type TunnelSpeedChangeSpec = {
   facing: Direction
 }
 
-/** Owned tunnel pair under `cell` when the selected tool would change its speed. */
+/** Tunnel pair under `cell` when the selected tool would change its speed. */
 export function tunnelSpeedChangeFromClick(
   frame: PipelineFrame,
   cell: { x: number; y: number },
@@ -23,7 +23,7 @@ export function tunnelSpeedChangeFromClick(
   target: 'tunnel' | 'fast_tunnel',
 ): TunnelSpeedChangeSpec | null {
   const portal = (frame.tunnels ?? []).find((item) => item.x === cell.x && item.y === cell.y)
-  if (!portal || portal.authorId !== ownerId) return null
+  if (!portal || !ownerId) return null
   const fastSpeed = rules?.beltSpeedFast ?? 0
   if (fastSpeed <= 1) return null
   const portalFast = (portal.speed ?? 1) === fastSpeed

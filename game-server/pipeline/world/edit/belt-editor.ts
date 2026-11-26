@@ -22,7 +22,7 @@ export class BeltEditor {
   /**
    * Places the stroke.
    * - `billableCells`: empty cells or upgrades (charge the new unit price).
-   * - `refundCells`: owned fast → normal downgrades (`refund_percent` of fast − normal).
+   * - `refundCells`: fast → normal downgrades of the author's own belts (`refund_percent` of fast − normal).
    * Same-speed redraws, including a direction change, are free.
    */
   placeBilling(cells: Stroke[], author: Author, speed = 1) {
@@ -49,8 +49,10 @@ export class BeltEditor {
       const existing = this.match.beltAt(cell)
       if (!existing) billableCells += 1
       else if (existing.speed !== speed) {
-        if (speed === 1 && existing.speed === fast) refundCells += 1
-        else billableCells += 1
+        if (speed === 1 && existing.speed === fast) {
+          // Only the original author is refunded, so downgrading another player's belt earns nothing.
+          if (existing.authorId === author.id) refundCells += 1
+        } else billableCells += 1
       }
       this.write(cell, author, speed)
     }
@@ -80,8 +82,6 @@ export class BeltEditor {
   private validate(cell: Stroke, author: Author, pending: Stroke[]) {
     if (!this.match.inBounds(cell)) return 'Fora do mapa.'
     if (!this.match.isOwnedCell(cell)) return 'Área ainda não liberada.'
-    const belt = this.match.beltAt(cell)
-    if (belt && belt.authorId !== author.id) return 'Essa esteira é de outra pessoa.'
     if (this.mergeInputCount(cell, pending) >= MERGE_INPUT_MAX)
       return 'No máximo 3 esteiras podem apontar para a mesma célula.'
     return null

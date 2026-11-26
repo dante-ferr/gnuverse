@@ -167,7 +167,7 @@ function includeOwnedStrokeBelts(
     const key = cellKey(cell)
     if (byKey.has(key) || covered.has(key) || portalUses(planned.tunnels, cell)) continue
     const existing = records.find((item) => item.x === cell.x && item.y === cell.y)
-    if (!existing || existing.authorId !== ownerId) continue
+    if (!existing) continue
     byKey.set(key, cell)
     added = true
   }
@@ -320,7 +320,7 @@ function canClearBelt(cell: GridPoint, ownerId: string | undefined) {
   if (!ownerId) return false
   const records = readBeltCrossQuery().belts?.() ?? []
   const found = records.find((item) => item.x === cell.x && item.y === cell.y)
-  return Boolean(found && found.authorId === ownerId)
+  return Boolean(found)
 }
 
 function tunnelSpanKeys(cells: readonly StrokeCell[], tunnels: readonly PlannedTunnel[]) {

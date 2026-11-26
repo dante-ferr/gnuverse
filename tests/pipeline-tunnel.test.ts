@@ -283,7 +283,7 @@ test('placeMachine keeps a foreign belt in the tunnel gap', () => {
   assert.equal(match.belts[0]!.authorId, other.id)
 })
 
-test('placeMachine rejects a tunnel when a portal cell is another player belt', () => {
+test('placeMachine replaces another player belt on a portal cell', () => {
   const match = Match.create('tunnel-foreign-portal', rules)
   const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
   const exit = { x: entrance.x + 3, y: entrance.y }
@@ -300,8 +300,8 @@ test('placeMachine rejects a tunnel when a portal cell is another player belt', 
     },
     author,
   )
-  assert.equal(error, 'Essa esteira é de outra pessoa.')
-  assert.equal(match.tunnels.length, 0)
+  assert.equal(error, null)
+  assert.equal(match.tunnels.length, 2)
 })
 
 test('tunnel placement clears packets on removed span belts', () => {
@@ -439,13 +439,13 @@ test('placeMachine upgrades an owned tunnel pair to fast and redraws are free', 
   assert.equal(redraw.billable, false)
 })
 
-test('placeMachine rejects upgrading another player tunnel', () => {
+test('placeMachine lets another player upgrade a tunnel, with no refund on downgrade', () => {
   const match = Match.create('tunnel-upgrade-foreign', rules)
   const entrance = { x: match.core.origin.x - 8, y: match.core.origin.y + 2 }
   const { error, exit } = placeTunnelPair(match, entrance, 2)
   assert.equal(error, null)
   const other = { id: 'u2', nickname: 'Bob' }
-  const denied = match.placeMachineBilling(
+  const upgraded = match.placeMachineBilling(
     {
       machineId: 'fast_tunnel',
       entranceX: entrance.x,
@@ -456,8 +456,22 @@ test('placeMachine rejects upgrading another player tunnel', () => {
     },
     other,
   )
-  assert.equal(denied.error, 'Esse túnel é de outra pessoa.')
-  assert.ok(match.tunnels.every((item) => item.speed === 1))
+  assert.equal(upgraded.error, null)
+  assert.equal(upgraded.billable, true)
+  assert.ok(match.tunnels.every((item) => item.speed === rules.beltSpeedFast))
+  const downgraded = match.placeMachineBilling(
+    {
+      machineId: 'tunnel',
+      entranceX: entrance.x,
+      entranceY: entrance.y,
+      exitX: exit.x,
+      exitY: exit.y,
+      facing: 'east',
+    },
+    author,
+  )
+  assert.equal(downgraded.error, null)
+  assert.equal(downgraded.refund, false)
 })
 
 test('a one-cell gap between a splitter output and a tunnel does not transfer', () => {

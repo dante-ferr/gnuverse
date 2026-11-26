@@ -230,8 +230,6 @@ export class MachineEditor {
 
   private placeSplitter(spec: SplitterPlaceRequest, author: Author) {
     const cell = { x: spec.x, y: spec.y }
-    const foreign = this.foreignBeltAt(cell, author)
-    if (foreign) return foreign
     const facing = this.match.beltAt(cell)?.direction ?? spec.facing
     if (!isDirection(facing)) return 'Direção inválida.'
     if (!this.footprintInOwned(spec.x, spec.y, 1, 1)) return 'Fora da área liberada.'
@@ -298,8 +296,6 @@ export class MachineEditor {
       }
     }
     const portals = [entrance, exit]
-    const beltError = this.assertReplaceableBelts(portals, author)
-    if (beltError) return { error: beltError, billable: false, refund: false }
     const probeIn = new TunnelPortalMachine(
       'probe:in',
       entrance,
@@ -327,11 +323,13 @@ export class MachineEditor {
       return { error: 'Entradas ou saídas sobrepõem outra estrutura.', billable: false, refund: false }
     }
     let priorSpeed = 0
+    let priorAuthorId: string | null = null
     let priorQueue: (PacketShape | null)[] | null = null
     if (replace.pairId) {
       const existing = this.match.tunnels.filter((portal) => portal.pairId === replace.pairId)
       const existingEntrance = existing.find((portal) => portal.role === 'entrance')
       priorSpeed = existingEntrance?.speed ?? existing[0]?.speed ?? 1
+      priorAuthorId = existingEntrance?.authorId ?? existing[0]?.authorId ?? null
       priorQueue = existingEntrance ? [...existingEntrance.queue] : null
       this.match.tunnels = this.match.tunnels.filter((portal) => portal.pairId !== replace.pairId)
     }
@@ -370,7 +368,8 @@ export class MachineEditor {
     if (priorSpeed === speed) return { error: null, billable: false, refund: false }
     const fast = this.match.rules.beltSpeedFast
     if (speed === 1 && priorSpeed === fast) {
-      return { error: null, billable: false, refund: true }
+      // Only the original author is refunded, so downgrading another player's tunnel earns nothing.
+      return { error: null, billable: false, refund: priorAuthorId === author.id }
     }
     return { error: null, billable: true, refund: false }
   }
@@ -392,9 +391,6 @@ export class MachineEditor {
     }
     if (atEntrance.pairId !== atExit.pairId) {
       return { pairId: null, error: 'Espaço ocupado por outra estrutura.' }
-    }
-    if (atEntrance.authorId !== author.id) {
-      return { pairId: null, error: 'Esse túnel é de outra pessoa.' }
     }
     const roles = new Set([atEntrance.role, atExit.role])
     if (!roles.has('entrance') || !roles.has('exit')) {
@@ -464,21 +460,6 @@ export class MachineEditor {
         belt.origin.y >= y &&
         belt.origin.y < y + height,
     )
-  }
-
-  private foreignBeltAt(cell: Cell, author: Author): string | null {
-    const belt = this.match.beltAt(cell)
-    if (!belt) return null
-    if (belt.authorId !== author.id) return 'Essa esteira é de outra pessoa.'
-    return null
-  }
-
-  private assertReplaceableBelts(cells: readonly Cell[], author: Author): string | null {
-    for (const cell of cells) {
-      const error = this.foreignBeltAt(cell, author)
-      if (error) return error
-    }
-    return null
   }
 
   private clearBeltAt(cell: Cell) {

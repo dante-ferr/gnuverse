@@ -55,7 +55,7 @@ function frameWithTunnel(speed = 1): PipelineFrame {
   }
 }
 
-test('tunnelSpeedChangeFromClick upgrades and downgrades an owned pair', () => {
+test('tunnelSpeedChangeFromClick upgrades and downgrades a pair', () => {
   const normal = frameWithTunnel(1)
   assert.deepEqual(
     tunnelSpeedChangeFromClick(normal, { x: 14, y: 12 }, 'me', fastRules, 'fast_tunnel'),
@@ -84,8 +84,13 @@ test('tunnelSpeedChangeFromClick upgrades and downgrades an owned pair', () => {
     tunnelSpeedChangeFromClick(fast, { x: 10, y: 12 }, 'me', fastRules, 'fast_tunnel'),
     null,
   )
+  // Any signed-in player may change another player's tunnel.
   assert.equal(
-    tunnelSpeedChangeFromClick(normal, { x: 10, y: 12 }, 'other', fastRules, 'fast_tunnel'),
+    tunnelSpeedChangeFromClick(normal, { x: 10, y: 12 }, 'other', fastRules, 'fast_tunnel')?.machineId,
+    'fast_tunnel',
+  )
+  assert.equal(
+    tunnelSpeedChangeFromClick(normal, { x: 10, y: 12 }, '', fastRules, 'fast_tunnel'),
     null,
   )
 })

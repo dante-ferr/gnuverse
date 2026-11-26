@@ -447,7 +447,7 @@ test('placeMachine replaces own belt and inherits facing', () => {
   assert.equal(match.splitters[0]!.facing, 'south')
 })
 
-test('placeMachine rejects splitter on another player belt', () => {
+test('placeMachine replaces another player belt with a splitter', () => {
   const match = Match.create('splitter-foreign-belt', rules)
   const cell = { x: match.core.origin.x - 6, y: match.core.origin.y + 2 }
   const other = { id: 'u2', nickname: 'Bob' }
@@ -456,8 +456,9 @@ test('placeMachine rejects splitter on another player belt', () => {
     { machineId: 'splitter', x: cell.x, y: cell.y, facing: 'east' },
     author,
   )
-  assert.equal(error, 'Essa esteira é de outra pessoa.')
-  assert.equal(match.splitters.length, 0)
+  assert.equal(error, null)
+  assert.equal(match.splitters.length, 1)
+  assert.equal(match.belts.length, 0)
 })
 
 test('splitter placement removes packet on replaced belt', () => {
