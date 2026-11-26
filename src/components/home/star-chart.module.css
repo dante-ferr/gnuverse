@@ -7,9 +7,27 @@
   min-height: clamp(600px, calc(100svh - 56px), 900px);
   display: flex;
   overflow: hidden;
+  /* Atmospheric cosmic depth behind the constellation, keeping the left copy legible. */
+  background:
+    radial-gradient(
+      ellipse 56% 68% at 76% 48%,
+      color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+      color-mix(in srgb, #1a5b6e 7%, transparent) 42%,
+      transparent 74%
+    ),
+    radial-gradient(
+      ellipse 42% 44% at 10% 10%,
+      color-mix(in srgb, var(--accent) 4%, transparent) 0%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 38% 36% at 92% 90%,
+      color-mix(in srgb, var(--accent) 5%, transparent) 0%,
+      transparent 70%
+    );
 }
 
-/* Layers: sky SVG (0) < hero content (2) < star buttons (3) < tooltip (4). */
+/* Layers: sky SVG (0) < shooting stars (1) < hero content (2) < star buttons (3) < tooltip (4). */
 .sky {
   position: absolute;
   inset: 0;
@@ -21,19 +39,73 @@
   pointer-events: none;
 }
 
-.field circle {
-  fill: var(--muted);
-  opacity: 0.32;
+.arcs circle {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1px;
+}
+
+.starWhite {
+  fill: var(--ink);
+}
+
+.starCyan {
+  fill: var(--accent-hover);
+}
+
+.fieldDim {
+  opacity: 0.62;
 }
 
 .twinkle {
-  animation: twinkle 6s ease-in-out infinite;
+  animation-name: twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* Shooting stars overlay. */
+.shootingLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shootingStar {
+  position: absolute;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 72%, transparent) 58%,
+    #ffffff 100%
+  );
+  transform-origin: left center;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-name: shoot;
+  animation-timing-function: cubic-bezier(0.16, 0.72, 0.36, 1);
+  animation-fill-mode: forwards;
+}
+
+.shootingStar::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffffff;
+  transform: translate(50%, -50%);
 }
 
 .links line {
   stroke: var(--muted);
   stroke-width: 0.75px;
-  opacity: 0.42;
+  opacity: 0.44;
   transition: stroke 160ms ease, opacity 160ms ease;
 }
 
@@ -244,10 +316,27 @@
 @keyframes twinkle {
   0%,
   100% {
-    opacity: 0.32;
+    opacity: 0.2;
   }
   50% {
-    opacity: 0.06;
+    opacity: 0.85;
+  }
+}
+
+@keyframes shoot {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translate3d(0, 0, 0) scaleX(0.35);
+  }
+  18% {
+    opacity: 0.95;
+  }
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translate3d(var(--travel), 0, 0) scaleX(1);
   }
 }
 
@@ -264,7 +353,7 @@
 /* Medium widths: the headline spans most of the hero, so quiet the chart. */
 @media (max-width: 1100px) {
   .sky {
-    opacity: 0.6;
+    opacity: 0.72;
   }
 
   .label {
@@ -297,7 +386,7 @@
   }
 
   .sky {
-    opacity: 0.55;
+    opacity: 0.65;
   }
 }
 
@@ -315,6 +404,12 @@
 @media (prefers-reduced-motion: reduce) {
   .twinkle,
   .ring {
+    animation: none;
+  }
+
+  .shootingLayer,
+  .shootingStar {
+    display: none;
     animation: none;
   }
 

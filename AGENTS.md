@@ -84,3 +84,13 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 - **Consistent geometry:** Standardize border-radius across all UI controls (buttons, inputs, selects, cards) to a single scale: `4px` (`rounded`) or `6px` (`rounded-md`). Do not mix sharp `0px` buttons on one page with rounded buttons on another.
 - **Visual content rule:** Never add purely decorative HUD/sci-fi graphics (corner brackets, fake coordinates like `N 01 / 07`, or abstract node-and-line diagrams). Every visual block must display real application data, functional navigation, or domain-relevant editorial content.
 - **Alignment & density:** Use an explicit grid with consistent horizontal padding and vertical rhythm. Prefer structured lists with 1px horizontal dividers over grids of identical floating cards when presenting 2–4 items.
+
+### Space Atmospheric Background (Home Page)
+- **Contrast & Visibility**: The starfield must be clearly visible against the dark charcoal background. Use bright, tiny star particles (1px to 2.5px) with opacity ranging from `0.2` to `0.85` scattered across the viewport, rather than extremely faint dots. Apply active, asynchronous twinkling animations to at least 30% of them.
+- **Shooting Stars (Estrelas Cadentes)**:
+  - Implement a few sparse, fast-moving "shooting star" effect lines. 
+  - They must travel quickly along a diagonal path (e.g. from top-left to bottom-right) leaving a sharp, faded linear streak of light (colored with a mix of `--accent` and white) that lasts less than 1.5s, appearing at random intervals (e.g. every 8 to 20 seconds) in unpredictable screen locations.
+  - Limit the active count to never have more than 1 or 2 visible at the exact same time, ensuring they remain an occasional event rather than constant clutter.
+- **Atmospheric Nebulae & Gradients**: Use a subtle, large radial-gradient backglow (max `12%` opacity, transitioning from `--accent`/blue-cyan to transparent) centered behind the constellation on the right, plus smaller fades on the edges to eliminate any flat, washed-out matte appearance. Keep the area directly behind the main hero text on the left less dense for maximum readability.
+- **Orbits & Circles**: Increase the visible weight and opacity (around `0.25`) of the fine, concentric orbit-like lines to solidify the celestial map artwork.
+- **Accessibility**: Ensure all movement (twinkling and shooting stars) is strictly wrapped in `prefers-reduced-motion: reduce` checks to pause animations for users who need them disabled.

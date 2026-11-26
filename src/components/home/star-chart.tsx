@@ -1,15 +1,14 @@
 'use client'
 
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import styles from './star-chart.module.css'
 
 /**
  * Home hero with an interactive celestial chart of free-software milestones.
- * Visuals (field stars, constellation lines, dots, rings, labels) live in a
- * purely decorative SVG; keyboard and pointer interaction is handled by native
- * HTML buttons overlaid on each star's percentage coordinates so Tab focus,
- * :focus-visible, and hover work reliably across browsers without being
- * blocked by the hero layout grid.
+ * Visuals (deep starfield, concentric celestial arcs, constellation lines,
+ * dots, rings, labels) live in a decorative SVG; occasional shooting stars
+ * animate in an isolated overlay; keyboard and pointer interaction uses native
+ * HTML buttons overlaid on each star's percentage coordinates.
  */
 
 type Star = {
@@ -131,15 +130,76 @@ const links: [string, string][] = [
   ['blender', 'python'],
 ]
 
-/** Unlabeled background stars, kept on the edges and away from the headline. */
-const field: [number, number][] = [
-  [4, 8], [11, 5], [24, 4], [38, 6], [52, 5], [59, 10], [93, 7], [97, 28],
-  [61, 30], [88, 33], [57, 64], [72, 74], [98, 52], [44, 92], [30, 95],
-  [17, 91], [6, 84], [2, 62], [3, 32], [82, 48], [71, 40], [56, 94],
+/** Unlabeled background stars (140), generated deterministically via a Halton
+ * sequence so distribution looks organic without SSR hydration mismatches. */
+type FieldStar = {
+  x: number
+  y: number
+  /** SVG radius in px (0.5 => 1px, 0.75 => 1.5px, 1 => 2px diameter). */
+  r: number
+  /** Base opacity in 0.25..0.78 for static stars. */
+  opacity: number
+  /** Tint a subset of stars with light cyan to echo the GNUverse logo. */
+  cyan: boolean
+  /** Left-side stars behind the hero headline stay slightly subtler. */
+  dim: boolean
+  twinkleDuration?: number
+  twinkleDelay?: number
+}
+
+function halton(index: number, base: number): number {
+  let result = 0
+  let f = 1 / base
+  let i = index
+  while (i > 0) {
+    result += f * (i % base)
+    i = Math.floor(i / base)
+    f /= base
+  }
+  return result
+}
+
+const TWINKLE_DURATIONS = [3.1, 4.3, 5.7, 6.9, 8.3]
+
+const field: FieldStar[] = Array.from({ length: 140 }, (_, idx) => {
+  const n = idx + 1
+  const x = Number((1.5 + halton(n, 2) * 97).toFixed(2))
+  const y = Number((2 + halton(n, 3) * 96).toFixed(2))
+  const r = n % 6 === 0 ? 1 : n % 3 === 0 ? 0.75 : 0.5
+  const opacity = Number((0.25 + halton(n, 5) * 0.55).toFixed(2))
+  const cyan = n % 4 === 0
+  const dim = x < 46 && y > 18 && y < 82
+  const twinkles = n % 10 === 1 || n % 10 === 4 || n % 10 === 7 || n % 10 === 9
+  if (!twinkles) {
+    return { x, y, r, opacity, cyan, dim }
+  }
+  const twinkleDuration = TWINKLE_DURATIONS[idx % TWINKLE_DURATIONS.length]
+  const twinkleDelay = Number((-((n * 1.43) % twinkleDuration)).toFixed(2))
+  return { x, y, r, opacity, cyan, dim, twinkleDuration, twinkleDelay }
+})
+
+/** Concentric celestial chart arcs centered on the constellation region. */
+const arcs = [
+  { r: '15%', dash: '230 130', offset: '35', opacity: 0.28 },
+  { r: '27%', dash: '255 105', offset: '165', opacity: 0.25 },
+  { r: '40%', dash: '215 145', offset: '290', opacity: 0.22 },
 ]
 
-/** Indices of field stars that twinkle (disabled under reduced motion). */
-const twinkle = new Set([1, 4, 6, 9, 11, 14, 17, 20])
+type ShootingStar = {
+  id: number
+  left: number
+  top: number
+  angle: number
+  length: number
+  travel: number
+  duration: number
+}
+
+const MAX_SHOOTING_STARS = 2
+const FIRST_SHOOT_MIN_MS = 1800
+const FIRST_SHOOT_MAX_MS = 3500
+const SHOOT_INTERVAL_MIN_MS = 4000
+const SHOOT_INTERVAL_MAX_MS = 10000
 
 /** Nodes right of this x (%) open the tooltip towards the left. */
 const ALIGN_END_FROM_X = 66
@@ -150,8 +210,63 @@ const byId = new Map(stars.map((star) => [star.id, star]))
 const pct = (value: number) => `${value}%`
 const TOOLTIP_ID = 'star-chart-tooltip'
 
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min)
+}
+
 export function StarChart({ children }: { children: ReactNode }) {
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [shootingStars, setShootingStars] = useState<ShootingStar[]>([])
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    let timer: number | undefined
+    let nextId = 1
+
+    const scheduleNext = (minMs: number, maxMs: number) => {
+      if (mediaQuery.matches) return
+      const delay = randomBetween(minMs, maxMs)
+      timer = window.setTimeout(() => {
+        if (mediaQuery.matches) return
+        const star: ShootingStar = {
+          id: nextId++,
+          left: Math.round(randomBetween(12, 78)),
+          top: Math.round(randomBetween(4, 48)),
+          angle: Math.round(randomBetween(26, 38)),
+          length: Math.round(randomBetween(95, 165)),
+          travel: Math.round(randomBetween(240, 380)),
+          duration: Number(randomBetween(0.85, 1.35).toFixed(2)),
+        }
+        setShootingStars((prev) =>
+          prev.length >= MAX_SHOOTING_STARS ? [...prev.slice(1), star] : [...prev, star],
+        )
+        scheduleNext(SHOOT_INTERVAL_MIN_MS, SHOOT_INTERVAL_MAX_MS)
+      }, delay)
+    }
+
+    const handleMotionChange = () => {
+      if (timer !== undefined) {
+        window.clearTimeout(timer)
+        timer = undefined
+      }
+      if (mediaQuery.matches) {
+        setShootingStars([])
+      } else {
+        scheduleNext(FIRST_SHOOT_MIN_MS, FIRST_SHOOT_MAX_MS)
+      }
+    }
+
+    if (!mediaQuery.matches) {
+      scheduleNext(FIRST_SHOOT_MIN_MS, FIRST_SHOOT_MAX_MS)
+    }
+    mediaQuery.addEventListener('change', handleMotionChange)
+
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer)
+      mediaQuery.removeEventListener('change', handleMotionChange)
+    }
+  }, [])
+
   const active = activeId ? (byId.get(activeId) ?? null) : null
   const connected = new Set(
     links.filter(([a, b]) => a === activeId || b === activeId).flat(),
@@ -171,17 +286,71 @@ export function StarChart({ children }: { children: ReactNode }) {
       aria-labelledby="home-title"
     >
       <svg className={styles.sky} width="100%" height="100%" aria-hidden="true" focusable="false">
-        <g className={styles.field}>
-          {field.map(([x, y], index) => (
+        <g className={styles.arcs}>
+          {arcs.map((arc) => (
             <circle
-              key={`${x}-${y}`}
-              cx={pct(x)}
-              cy={pct(y)}
-              r={1}
-              className={twinkle.has(index) ? styles.twinkle : undefined}
-              style={twinkle.has(index) ? { animationDelay: `${index * -0.9}s` } : undefined}
+              key={arc.r}
+              cx="76%"
+              cy="50%"
+              r={arc.r}
+              pathLength={360}
+              strokeDasharray={arc.dash}
+              strokeDashoffset={arc.offset}
+              style={{ opacity: arc.opacity }}
             />
           ))}
+        </g>
+        <g className={styles.field}>
+          {field
+            .filter((star) => !star.dim)
+            .map((star, index) => (
+              <circle
+                key={`r-${index}`}
+                cx={pct(star.x)}
+                cy={pct(star.y)}
+                r={star.r}
+                className={[
+                  star.cyan ? styles.starCyan : styles.starWhite,
+                  star.twinkleDuration ? styles.twinkle : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                style={
+                  star.twinkleDuration
+                    ? {
+                        animationDuration: `${star.twinkleDuration}s`,
+                        animationDelay: `${star.twinkleDelay}s`,
+                      }
+                    : { opacity: star.opacity }
+                }
+              />
+            ))}
+        </g>
+        <g className={`${styles.field} ${styles.fieldDim}`}>
+          {field
+            .filter((star) => star.dim)
+            .map((star, index) => (
+              <circle
+                key={`l-${index}`}
+                cx={pct(star.x)}
+                cy={pct(star.y)}
+                r={star.r}
+                className={[
+                  star.cyan ? styles.starCyan : styles.starWhite,
+                  star.twinkleDuration ? styles.twinkle : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                style={
+                  star.twinkleDuration
+                    ? {
+                        animationDuration: `${star.twinkleDuration}s`,
+                        animationDelay: `${star.twinkleDelay}s`,
+                      }
+                    : { opacity: star.opacity }
+                }
+              />
+            ))}
         </g>
         <g className={styles.links}>
           {links.map(([from, to]) => {
@@ -238,6 +407,30 @@ export function StarChart({ children }: { children: ReactNode }) {
           })}
         </g>
       </svg>
+
+      {shootingStars.length > 0 && (
+        <div className={styles.shootingLayer} aria-hidden="true">
+          {shootingStars.map((star) => (
+            <span
+              key={star.id}
+              className={styles.shootingStar}
+              style={
+                {
+                  left: pct(star.left),
+                  top: pct(star.top),
+                  width: `${star.length}px`,
+                  '--angle': `${star.angle}deg`,
+                  '--travel': `${star.travel}px`,
+                  animationDuration: `${star.duration}s`,
+                } as CSSProperties
+              }
+              onAnimationEnd={() =>
+                setShootingStars((prev) => prev.filter((item) => item.id !== star.id))
+              }
+            />
+          ))}
+        </div>
+      )}
 
       <div className={styles.inner}>
         <div className={styles.copy}>{children}</div>
