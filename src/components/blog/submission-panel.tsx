@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { EditorialHeader } from '@/components/blog/editorial-header'
+import { CenteredOverlay } from '@/components/overlay/centered-overlay'
 import { GAME_API_URL } from '@/components/game/api/game-api'
 import { useGameSession } from '@/components/game/hooks/use-game-session'
 import type { ArticleReference } from '@/lib/article-meta'
@@ -204,8 +205,23 @@ export function SubmissionPanel({
   const [coverCredit, setCoverCredit] = useState('')
   const [coverRemoved, setCoverRemoved] = useState(false)
 
-  // Upload de imagem no corpo
+  // Upload de imagem no corpo e inserção de link (modais nativos do design system)
   const [inlineImageBusy, setInlineImageBusy] = useState(false)
+  const [pendingInlineImage, setPendingInlineImage] = useState<{
+    file: File
+    previewUrl: string
+    alt: string
+    credit: string
+    cursor: number
+    error: string
+  } | null>(null)
+  const [linkDialog, setLinkDialog] = useState<{
+    label: string
+    url: string
+    start: number
+    end: number
+    error: string
+  } | null>(null)
 
   const [submitBusy, setSubmitBusy] = useState(false)
   const [submitSlowHint, setSubmitSlowHint] = useState(false)
@@ -327,6 +343,12 @@ export function SubmissionPanel({
     setCoverPreviewUrl(objectUrl)
     return () => URL.revokeObjectURL(objectUrl)
   }, [coverFile])
+
+  useEffect(() => {
+    const previewUrl = pendingInlineImage?.previewUrl
+    if (!previewUrl) return
+    return () => URL.revokeObjectURL(previewUrl)
+  }, [pendingInlineImage?.previewUrl])
 
   useEffect(() => {
     if (!token || !cmsUrl) {
@@ -571,39 +593,119 @@ export function SubmissionPanel({
   }
 
   function handleInsertLink() {
-    const url = window.prompt('Informe o link (https://...):', 'https://')
-    if (!url || !/^https?:\/\//i.test(url.trim())) return
-    applyFormatting('[', `](${url.trim()})`, 'texto do link')
+    const textarea = bodyTextareaRef.current
+    const start = textarea?.selectionStart ?? bodyText.length
+    const end = textarea?.selectionEnd ?? bodyText.length
+    const selected = bodyText.slice(start, end)
+    setLinkDialog({
+      label: selected,
+      url: 'https://',
+      start,
+      end,
+      error: '',
+    })
   }
 
-  async function handleInlineImageUpload(event: ChangeEvent<HTMLInputElement>) {
+  function handleConfirmLink() {
+    if (!linkDialog) return
+    const trimmedUrl = linkDialog.url.trim()
+    if (!/^https?:\/\/\S+$/i.test(trimmedUrl)) {
+      setLinkDialog({
+        ...linkDialog,
+        error: 'Informe um endereço válido começando com http:// ou https://.',
+      })
+      return
+    }
+    const label = linkDialog.label.trim() || 'texto do link'
+    const markdown = `[${label}](${trimmedUrl})`
+    const nextText =
+      bodyText.slice(0, linkDialog.start) + markdown + bodyText.slice(linkDialog.end)
+    const nextCursor = linkDialog.start + markdown.length
+    setBodyText(nextText)
+    setLinkDialog(null)
+    requestAnimationFrame(() => {
+      const textarea = bodyTextareaRef.current
+      if (!textarea) return
+      textarea.focus()
+      textarea.setSelectionRange(nextCursor, nextCursor)
+    })
+  }
+
+  function handleInlineImageSelect(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file || !session || !cmsUrl) return
 
-    const altPrompt = window.prompt(
-      'Descrição da imagem (acessibilidade):',
-      file.name.replace(/\.[^.]+$/, ''),
-    )
-    const alt = (altPrompt ?? '').trim() || file.name.replace(/\.[^.]+$/, '') || 'Imagem do artigo'
-    const credit = resolveAuthorName(session.user) || 'Autor'
+    const suggestedAlt = file.name
+      .replace(/\.[^.]+$/, '')
+      .replace(/[-_]+/g, ' ')
+      .trim()
+    setPendingInlineImage({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      alt: suggestedAlt,
+      credit: resolveAuthorName(session.user) || 'Autor',
+      cursor: bodyTextareaRef.current?.selectionStart ?? bodyText.length,
+      error: '',
+    })
+  }
+
+  function handleCancelInlineImage() {
+    if (inlineImageBusy) return
+    setPendingInlineImage(null)
+  }
+
+  async function handleConfirmInlineImageUpload() {
+    if (!pendingInlineImage || !session || !cmsUrl) return
+    const alt = pendingInlineImage.alt.trim()
+    const credit = pendingInlineImage.credit.trim()
+    if (!alt) {
+      setPendingInlineImage({
+        ...pendingInlineImage,
+        error: 'Informe uma descrição de acessibilidade para a imagem.',
+      })
+      return
+    }
+    if (!credit) {
+      setPendingInlineImage({
+        ...pendingInlineImage,
+        error: 'Informe o crédito ou licença da imagem.',
+      })
+      return
+    }
 
     setInlineImageBusy(true)
+    setPendingInlineImage({ ...pendingInlineImage, error: '' })
     setSubmitError('')
     try {
-      const media = await uploadMediaFile(cmsUrl, session.token, file, alt, credit)
+      const media = await uploadMediaFile(
+        cmsUrl,
+        session.token,
+        pendingInlineImage.file,
+        alt,
+        credit,
+      )
       const mediaUrl = resolveMediaUrl(cmsUrl, media.url)
       const tokenMarkdown = `![${alt}](cms-media:${media.id}${mediaUrl ? `|${mediaUrl}` : ''})`
-      const textarea = bodyTextareaRef.current
-      const start = textarea?.selectionStart ?? bodyText.length
+      const start = Math.min(pendingInlineImage.cursor, bodyText.length)
       const prefix = start > 0 && !bodyText.slice(0, start).endsWith('\n\n') ? '\n\n' : ''
       const suffix = '\n\n'
       const next =
         bodyText.slice(0, start) + prefix + tokenMarkdown + suffix + bodyText.slice(start)
+      const nextCursor = start + prefix.length + tokenMarkdown.length + suffix.length
       setBodyText(next)
+      setPendingInlineImage(null)
       setSubmitSuccess('Imagem anexada ao texto do artigo.')
+      requestAnimationFrame(() => {
+        const textarea = bodyTextareaRef.current
+        if (!textarea) return
+        textarea.focus()
+        textarea.setSelectionRange(nextCursor, nextCursor)
+      })
     } catch (cause) {
-      setSubmitError(formatRequestFailure(cause))
+      setPendingInlineImage((current) =>
+        current ? { ...current, error: formatRequestFailure(cause) } : null,
+      )
     } finally {
       setInlineImageBusy(false)
     }
@@ -981,14 +1083,29 @@ export function SubmissionPanel({
                   <p className="mt-1 text-xs text-[var(--muted)]">
                     Formatos aceitos: JPEG, PNG ou WebP (até 5 MB).
                   </p>
-                  <input
-                    ref={coverFileInputRef}
-                    id="submission-cover"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleCoverFileChange}
-                    className="mt-2 block w-full text-xs text-[var(--muted)] file:mr-3 file:cursor-pointer file:rounded-sm file:border file:border-[var(--line)] file:bg-[var(--surface)] file:px-3 file:py-1.5 file:text-xs file:text-[var(--ink)] hover:file:border-[var(--accent)]"
-                  />
+                  <div className="mt-2.5 flex flex-wrap items-center gap-3">
+                    <label
+                      htmlFor="submission-cover"
+                      className="cursor-pointer rounded-sm border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                    >
+                      {coverFile || coverMedia ? 'Trocar imagem' : 'Escolher imagem'}
+                    </label>
+                    <span className="text-xs text-[var(--muted)]">
+                      {coverFile
+                        ? coverFile.name
+                        : coverMedia
+                          ? 'Capa atual mantida'
+                          : 'Nenhuma imagem selecionada'}
+                    </span>
+                    <input
+                      ref={coverFileInputRef}
+                      id="submission-cover"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleCoverFileChange}
+                      className="sr-only"
+                    />
+                  </div>
                   {coverPreviewUrl && (
                     <div className="mt-3 space-y-3">
                       <img
@@ -1151,7 +1268,7 @@ export function SubmissionPanel({
                       ref={inlineFileInputRef}
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
-                      onChange={(e) => void handleInlineImageUpload(e)}
+                      onChange={handleInlineImageSelect}
                       className="hidden"
                     />
                   </div>
@@ -1264,6 +1381,164 @@ export function SubmissionPanel({
                   </button>
                 </div>
               </form>
+
+              {linkDialog && (
+                <CenteredOverlay
+                  title="Inserir link"
+                  onClose={() => setLinkDialog(null)}
+                >
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      handleConfirmLink()
+                    }}
+                    className="space-y-4"
+                  >
+                    <label className="block text-sm text-[var(--ink)]">
+                      Texto exibido
+                      <input
+                        type="text"
+                        value={linkDialog.label}
+                        onChange={(e) =>
+                          setLinkDialog({ ...linkDialog, label: e.target.value })
+                        }
+                        placeholder="Ex.: Software Livre e Educação"
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="block text-sm text-[var(--ink)]">
+                      Endereço (HTTP ou HTTPS)
+                      <input
+                        type="url"
+                        required
+                        autoFocus
+                        value={linkDialog.url}
+                        onChange={(e) =>
+                          setLinkDialog({
+                            ...linkDialog,
+                            url: e.target.value,
+                            error: '',
+                          })
+                        }
+                        placeholder="https://www.gnu.org/philosophy/free-sw.html"
+                        className={inputClass}
+                      />
+                    </label>
+                    {linkDialog.error && (
+                      <p
+                        role="alert"
+                        className="rounded-sm border border-[var(--secondary)] bg-[var(--secondary-soft)] p-3 text-xs text-[var(--ink)]"
+                      >
+                        {linkDialog.error}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap justify-end gap-2.5 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setLinkDialog(null)}
+                        className="cursor-pointer rounded-sm border border-[var(--line)] bg-[var(--background)] px-4 py-2 text-xs text-[var(--muted)] transition hover:border-[var(--ink)] hover:text-[var(--ink)]"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        className="cursor-pointer rounded-sm border border-[var(--accent)] bg-[var(--accent)] px-4 py-2 text-xs font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)]"
+                      >
+                        Inserir link
+                      </button>
+                    </div>
+                  </form>
+                </CenteredOverlay>
+              )}
+
+              {pendingInlineImage && (
+                <CenteredOverlay
+                  title="Anexar imagem ao artigo"
+                  onClose={handleCancelInlineImage}
+                >
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      void handleConfirmInlineImageUpload()
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="rounded-sm border border-[var(--line)] bg-[var(--background)] p-3">
+                      <img
+                        src={pendingInlineImage.previewUrl}
+                        alt={pendingInlineImage.alt || 'Pré-visualização da imagem'}
+                        className="max-h-56 w-auto rounded-sm border border-[var(--line)] object-contain"
+                      />
+                      <p className="mt-2 text-xs text-[var(--muted)]">
+                        {pendingInlineImage.file.name} (
+                        {Math.max(1, Math.round(pendingInlineImage.file.size / 1024))} KB)
+                      </p>
+                    </div>
+                    <label className="block text-sm text-[var(--ink)]">
+                      Descrição da imagem (acessibilidade)
+                      <input
+                        type="text"
+                        required
+                        autoFocus
+                        disabled={inlineImageBusy}
+                        value={pendingInlineImage.alt}
+                        onChange={(e) =>
+                          setPendingInlineImage({
+                            ...pendingInlineImage,
+                            alt: e.target.value,
+                            error: '',
+                          })
+                        }
+                        placeholder="Ex.: Diagrama da arquitetura do projeto"
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="block text-sm text-[var(--ink)]">
+                      Crédito / licença
+                      <input
+                        type="text"
+                        required
+                        disabled={inlineImageBusy}
+                        value={pendingInlineImage.credit}
+                        onChange={(e) =>
+                          setPendingInlineImage({
+                            ...pendingInlineImage,
+                            credit: e.target.value,
+                            error: '',
+                          })
+                        }
+                        placeholder="Ex.: Ilustração própria · CC BY-SA 4.0"
+                        className={inputClass}
+                      />
+                    </label>
+                    {pendingInlineImage.error && (
+                      <p
+                        role="alert"
+                        className="rounded-sm border border-[var(--secondary)] bg-[var(--secondary-soft)] p-3 text-xs text-[var(--ink)]"
+                      >
+                        {pendingInlineImage.error}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap justify-end gap-2.5 pt-2">
+                      <button
+                        type="button"
+                        disabled={inlineImageBusy}
+                        onClick={handleCancelInlineImage}
+                        className="cursor-pointer rounded-sm border border-[var(--line)] bg-[var(--background)] px-4 py-2 text-xs text-[var(--muted)] transition hover:border-[var(--ink)] hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={inlineImageBusy}
+                        className="cursor-pointer rounded-sm border border-[var(--accent)] bg-[var(--accent)] px-4 py-2 text-xs font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {inlineImageBusy ? 'Enviando imagem…' : 'Inserir imagem'}
+                      </button>
+                    </div>
+                  </form>
+                </CenteredOverlay>
+              )}
 
               <div className="border-t border-[var(--line)] pt-8">
                 <div className="flex flex-wrap items-center justify-between gap-3">
