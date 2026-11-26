@@ -445,3 +445,92 @@ test('packetDisplayCenter stays in place when a chunk buy shifts the frame origi
   const start = packetDisplayCenter({ id: 'p1', x: 4 + shift, y: 2 }, f2, rules, motion, 1250, cell)
   assert.ok(Math.abs(start.px - (3.5 + shift) * cell) < cell, `jumped to ${start.px}`)
 })
+
+const beltRun = (cells: [number, number, 'east' | 'west' | 'north' | 'south'][]) =>
+  cells.map(([x, y, direction], index) => ({
+    id: `b${index}`,
+    x,
+    y,
+    direction,
+    authorId: 'a',
+    authorNickname: 'n',
+    placedAt: index,
+  }))
+
+/** True when (px,py) lies on one of `cells` (center lines only). */
+function onBeltCells(point: { px: number; py: number }, cells: { x: number; y: number }[]) {
+  return cells.some((belt) => {
+    const cx = (belt.x + 0.5) * cell
+    const cy = (belt.y + 0.5) * cell
+    const inX = Math.abs(point.px - cx) <= cell / 2 + 1e-6
+    const inY = Math.abs(point.py - cy) <= cell / 2 + 1e-6
+    return inX && inY && (Math.abs(point.px - cx) < 1e-6 || Math.abs(point.py - cy) < 1e-6)
+  })
+}
+
+test('packetDisplayCenter stays on the belt after several skipped ticks around corners', () => {
+  const motion = createPacketMotionState()
+  // Snake: east ×3, south ×3, east ×3 — slow belts, one cell per tick.
+  const belts = beltRun([
+    [0, 0, 'east'], [1, 0, 'east'], [2, 0, 'east'], [3, 0, 'south'],
+    [3, 1, 'south'], [3, 2, 'south'], [3, 3, 'east'], [4, 3, 'east'], [5, 3, 'east'], [6, 3, 'east'],
+  ])
+  const f0 = frame(0, [{ id: 'p1', x: 0, y: 0, shape: 'circle' }])
+  f0.belts = belts
+  syncPacketMotion(motion, f0, rules, 1000, cell)
+
+  // Lag: the client only sees tick 8, eight cells along the snake.
+  const f8 = frame(8, [{ id: 'p1', x: 5, y: 3, shape: 'circle' }])
+  f8.belts = belts
+  syncPacketMotion(motion, f8, rules, 1000, cell)
+
+  for (let t = 0; t <= rules.tickMs; t += rules.tickMs / 20) {
+    const point = packetDisplayCenter({ id: 'p1', x: 5, y: 3 }, f8, rules, motion, 1000 + t, cell)
+    assert.ok(onBeltCells(point, belts), `off belt at t=${t}: ${point.px},${point.py}`)
+  }
+  // Catch-up finishes within one tick instead of trailing the server.
+  const end = packetDisplayCenter({ id: 'p1', x: 5, y: 3 }, f8, rules, motion, 1000 + rules.tickMs, cell)
+  assert.equal(end.px, 5.5 * cell)
+  assert.equal(end.py, 3.5 * cell)
+})
+
+test('packetDisplayCenter snaps instead of crossing empty ground when no belt walk exists', () => {
+  const motion = createPacketMotionState()
+  const belts = beltRun([[0, 0, 'east'], [6, 6, 'east']])
+  const f0 = frame(0, [{ id: 'p1', x: 0, y: 0, shape: 'circle' }])
+  f0.belts = belts
+  syncPacketMotion(motion, f0, rules, 1000, cell)
+  const f1 = frame(1, [{ id: 'p1', x: 6, y: 6, shape: 'circle' }])
+  f1.belts = belts
+  syncPacketMotion(motion, f1, rules, 1000, cell)
+
+  const mid = packetDisplayCenter({ id: 'p1', x: 6, y: 6 }, f1, rules, motion, 1000 + rules.tickMs / 2, cell)
+  assert.equal(mid.px, 6.5 * cell)
+  assert.equal(mid.py, 6.5 * cell)
+})
+
+test('syncPacketMotion sink follows the belt corner into the core after skipped ticks', () => {
+  const motion = createPacketMotionState()
+  const core = { id: 'core', x: 10, y: 10 }
+  // West face input (10,12); approach (11,12). Packet comes south then turns west.
+  const belts = beltRun([[12, 10, 'south'], [12, 11, 'south'], [12, 12, 'west'], [11, 12, 'west']])
+  const onBelt = frame(4, [{ id: 'p1', x: 12, y: 10, shape: 'circle' }])
+  onBelt.core = core
+  onBelt.belts = belts
+  syncPacketMotion(motion, onBelt, rules, 1000, cell)
+
+  // First paint settles the spawn hop; the next frame the client sees is 4 ticks later.
+  const delivered = frame(8, [])
+  delivered.core = core
+  delivered.belts = belts
+  const at = 1000 + rules.tickMs
+  syncPacketMotion(motion, delivered, rules, at, cell)
+
+  assert.equal(motion.sinks.length, 1)
+  const sink = motion.sinks[0]!
+  const track = [...belts, { x: 10, y: 12 }]
+  for (let t = 0; t <= rules.tickMs; t += rules.tickMs / 20) {
+    const point = packetSinkCenter(sink, rules, at + t)
+    assert.ok(onBeltCells(point, track), `sink off belt at t=${t}: ${point.px},${point.py}`)
+  }
+})

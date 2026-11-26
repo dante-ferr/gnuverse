@@ -26,6 +26,11 @@ export type PacketSink = {
   hidesPacketId?: string
   /** Draw above machines (tunnel span) instead of under the portal plate. */
   overPortals?: boolean
+  /**
+   * World-pixel polyline from start to end that follows the belt walk, so the
+   * flight into an input turns corners instead of cutting across empty cells.
+   */
+  points?: { px: number; py: number }[]
 }
 
 export type PacketMotionState = {
@@ -53,6 +58,11 @@ export type PacketMotionState = {
    * which shifts every cell coordinate; stored cells must shift with it.
    */
   originChunk: { cx: number; cy: number } | null
+  /**
+   * Server ticks covered by the latest hop. Lagging clients (or batched React
+   * renders) skip frames, so one hop may span several ticks of belt travel.
+   */
+  tickGap: number
 }
 
 export function createPacketMotionState(): PacketMotionState {
@@ -67,6 +77,7 @@ export function createPacketMotionState(): PacketMotionState {
     course: new Map(),
     layoutStamp: -1,
     originChunk: null,
+    tickGap: 1,
   }
 }
 
@@ -92,6 +103,8 @@ export function syncPacketMotion(
   state.sinks = state.sinks.filter((sink) => nowMs - sink.startedAtMs < tickMs)
 
   const tickAdvanced = frame.tick !== state.lastTick
+  const tickGap =
+    state.lastTick >= 0 && frame.tick > state.lastTick ? Math.max(1, frame.tick - state.lastTick) : 1
   const continuations = new Map<string, { px: number; py: number }[]>()
   if (tickAdvanced && state.lastTick >= 0 && nowMs > state.syncedAtMs) {
     for (const packet of frame.packets) {
@@ -105,6 +118,7 @@ export function syncPacketMotion(
         rules,
         nowMs,
         cellSize,
+        tickGap,
       )
       if (course) continuations.set(packet.id, course)
     }
@@ -121,23 +135,26 @@ export function syncPacketMotion(
   if (!tickAdvanced) return
 
   const nextIds = new Set(frame.packets.map((packet) => packet.id))
-  const maxHop = Math.max(rules.beltSpeedFast, 1)
+  const maxHop = Math.max(rules.beltSpeedFast, 1) * tickGap
   const transitLeft = tunnelTransitPool(frame)
   const claimedNewborns = new Set<string>()
 
   for (const [id, prev] of state.at) {
     if (nextIds.has(id)) continue
-    const dest = findInputAlongBelt(frame, prev, state.beltByCell, maxHop)
-    if (!dest) continue
+    const walk = findInputAlongBelt(frame, prev, state.beltByCell, maxHop)
+    if (!walk) continue
+    const dest = walk.input
 
-    const ghostFrame: PipelineFrame = {
-      ...frame,
-      packets: [{ id, x: prev.x, y: prev.y, shape: prev.shape }],
-    }
-    const start = packetDisplayCenter({ id, x: prev.x, y: prev.y }, ghostFrame, rules, state, nowMs, cellSize)
+    const remainder = unfinishedHop({ id, x: prev.x, y: prev.y }, frame, rules, state, nowMs, cellSize)
+    const start = remainder[0]!
     const through = tunnelThroughSink(frame, dest, prev.shape, transitLeft, claimedNewborns)
     const end = through?.end ?? dest
     const endPx = cellCenter(end.x, end.y, cellSize)
+    const points = dedupePoints([
+      ...remainder,
+      ...walk.cells.map((cell) => cellCenter(cell.x, cell.y, cellSize)),
+      endPx,
+    ])
     state.sinks.push({
       id,
       shape: prev.shape,
@@ -146,6 +163,7 @@ export function syncPacketMotion(
       endPx: endPx.px,
       endPy: endPx.py,
       startedAtMs: nowMs,
+      ...(points.length > 2 ? { points } : {}),
       ...(through
         ? { hidesPacketId: through.hidesPacketId, overPortals: true as const }
         : {}),
@@ -198,6 +216,7 @@ export function syncPacketMotion(
   )
   state.lastTick = frame.tick
   state.syncedAtMs = nowMs
+  state.tickGap = tickGap
 }
 
 /**
@@ -232,6 +251,10 @@ function rebaseOnOriginShift(
     sink.startPy += dpy
     sink.endPx += dpx
     sink.endPy += dpy
+    for (const point of sink.points ?? []) {
+      point.px += dpx
+      point.py += dpy
+    }
   }
   for (const points of state.course.values()) {
     for (const point of points) {
@@ -537,17 +560,19 @@ function findInputAlongBelt(
   start: { x: number; y: number },
   belts: Map<string, BeltRecord> | undefined,
   maxSteps: number,
-) {
+): { input: { x: number; y: number }; cells: { x: number; y: number }[] } | null {
   let cell = start
+  const cells = [start]
   for (let step = 0; step <= maxSteps; step++) {
     const pulled = inputFromApproach(frame, cell)
-    if (pulled) return pulled
+    if (pulled) return { input: pulled, cells }
     const belt = beltAt(frame, cell.x, cell.y, belts)
     if (!belt) return null
     const next = ahead(cell.x, cell.y, belt.direction)
-    if (isMachineInputCell(frame, next)) return next
+    if (isMachineInputCell(frame, next)) return { input: next, cells }
     if (step === maxSteps) return null
     cell = next
+    cells.push(next)
   }
   return null
 }
@@ -672,21 +697,61 @@ function hopPolyline(
   const to = { x: packet.x, y: packet.y }
   const from = state.from.get(packet.id) ?? to
   const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
-  const maxSteps = Math.max(rules.beltSpeedFast, 1) + 2
+  const maxSteps = hopSearchSteps(rules, state.tickGap)
   if (!state.paths.has(packet.id)) {
     state.paths.set(packet.id, findBeltPath(frame, from, to, maxSteps, state.beltByCell) ?? [])
   }
   const path = state.paths.get(packet.id)
   const speed = hopBeltSpeed(frame, path && path.length > 0 ? path : undefined, to, state.beltByCell)
-  const pxPerMs = (cellSize * speed) / tickMs
+  const beltPxPerMs = (cellSize * speed) / tickMs
   const custom = state.course.get(packet.id)
-  if (custom && custom.length >= 2) return { poly: custom, pxPerMs }
+  if (custom && custom.length >= 2) {
+    return { poly: custom, pxPerMs: Math.max(beltPxPerMs, polylineLength(custom) / tickMs) }
+  }
 
-  const cells =
-    path && path.length >= 2 ? path : sameCell(from, to) ? [to] : [from, to]
+  const cells = path && path.length >= 2 ? path : fallbackCells(from, to)
   const poly = cells.map((cell) => cellCenter(cell.x, cell.y, cellSize))
   if (poly.length === 1) poly.push(poly[0]!)
-  return { poly, pxPerMs }
+  // Never take longer than one tick: after skipped frames the icon must catch
+  // up instead of trailing (and later cutting corners toward) the server cell.
+  return { poly, pxPerMs: Math.max(beltPxPerMs, polylineLength(poly) / tickMs) }
+}
+
+/** Belt-walk search depth for a hop spanning `tickGap` server ticks. */
+function hopSearchSteps(rules: PipelineRules, tickGap: number) {
+  return Math.max(rules.beltSpeedFast, 1) * Math.max(1, tickGap) + 2
+}
+
+/**
+ * Cells to draw when no belt walk connects `from` → `to` (belt edited or the
+ * jump is too long). Only a single orthogonal step is drawn as a slide; any
+ * other jump snaps to the server cell so the icon never crosses empty ground.
+ */
+function fallbackCells(from: { x: number; y: number }, to: { x: number; y: number }) {
+  if (Math.abs(from.x - to.x) + Math.abs(from.y - to.y) === 1) return [from, to]
+  return [to]
+}
+
+function polylineLength(points: WorldPoint[]) {
+  let total = 0
+  for (let i = 0; i < points.length - 1; i++) {
+    total += Math.hypot(points[i + 1]!.px - points[i]!.px, points[i + 1]!.py - points[i]!.py)
+  }
+  return total
+}
+
+/** Untraveled part of the hop on screen now, starting at the icon's position. */
+function unfinishedHop(
+  packet: { id: string; x: number; y: number },
+  frame: PipelineFrame,
+  rules: PipelineRules,
+  state: PacketMotionState,
+  nowMs: number,
+  cellSize: number,
+) {
+  const { poly, pxPerMs } = hopPolyline(packet, frame, rules, state, cellSize)
+  const elapsed = Math.max(0, nowMs - state.syncedAtMs)
+  return suffixAfter(poly, pxPerMs * elapsed)
 }
 
 /**
@@ -702,22 +767,21 @@ function continuationCourse(
   rules: PipelineRules,
   nowMs: number,
   cellSize: number,
+  tickGap: number,
 ) {
   const ghost = { id: packet.id, x: prev.x, y: prev.y, shape: packet.shape }
-  const { poly, pxPerMs } = hopPolyline(ghost, frame, rules, state, cellSize)
-  const elapsed = Math.max(0, nowMs - state.syncedAtMs)
-  const suffix = suffixAfter(poly, pxPerMs * elapsed)
+  const suffix = unfinishedHop(ghost, frame, rules, state, nowMs, cellSize)
   if (suffix.length < 2) return null
-  const end = poly[poly.length - 1]
+  const end = suffix[suffix.length - 1]
   const start = suffix[0]
   if (end && start && Math.hypot(start.px - end.px, start.py - end.py) < 0.5) return null
 
-  const maxSteps = Math.max(rules.beltSpeedFast, 1) + 2
   const next = { x: packet.x, y: packet.y }
-  const path =
-    findBeltPath(frame, prev, next, maxSteps, state.beltByCell) ??
-    (sameCell(prev, next) ? [prev] : [prev, next])
-  const centers = path.map((cell) => cellCenter(cell.x, cell.y, cellSize))
+  const path = findBeltPath(frame, prev, next, hopSearchSteps(rules, tickGap), state.beltByCell)
+  // No belt walk to the new cell: drop the unfinished hop and let it snap.
+  if (!path && !sameCell(prev, next) && fallbackCells(prev, next).length < 2) return null
+  const pathCells = path ?? (sameCell(prev, next) ? [prev] : [prev, next])
+  const centers = pathCells.map((cell) => cellCenter(cell.x, cell.y, cellSize))
   const joined = end
     ? centers.filter((point, index) => index > 0 || Math.hypot(point.px - end.px, point.py - end.py) >= 0.5)
     : centers
@@ -769,6 +833,9 @@ export function packetDisplayCenter(
 export function packetSinkCenter(sink: PacketSink, rules: PipelineRules, nowMs: number) {
   const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
   const t = Math.min(1, Math.max(0, (nowMs - sink.startedAtMs) / tickMs))
+  if (sink.points && sink.points.length >= 2) {
+    return pointAlong(sink.points, polylineLength(sink.points) * t)
+  }
   return {
     px: lerp(sink.startPx, sink.endPx, t),
     py: lerp(sink.startPy, sink.endPy, t),
