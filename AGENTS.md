@@ -94,3 +94,10 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 - **Atmospheric Nebulae & Gradients**: Use a subtle, large radial-gradient backglow (max `12%` opacity, transitioning from `--accent`/blue-cyan to transparent) centered behind the constellation on the right, plus smaller fades on the edges to eliminate any flat, washed-out matte appearance. Keep the area directly behind the main hero text on the left less dense for maximum readability.
 - **Orbits & Circles**: Increase the visible weight and opacity (around `0.25`) of the fine, concentric orbit-like lines to solidify the celestial map artwork.
 - **Accessibility**: Ensure all movement (twinkling and shooting stars) is strictly wrapped in `prefers-reduced-motion: reduce` checks to pause animations for users who need them disabled.
+
+### Interior & Content Pages (`/blog/`, `/artigos/`, `/quizzes/`, `/jogo/`)
+- **Ambient starfield on content pages:** Keep a lightweight, low-density twinkling starfield behind interior pages (most noticeable in the side margins) to unify the GNUverse identity. Reserve constellations, orbit arcs, and shooting stars strictly for the Home page.
+- **No redundant back links:** Do not add a top-level `← GNUverse` link on main section pages when `SiteHeader` is already visible. (Back links are fine inside detail pages, e.g., an individual article returning to `/blog/`.)
+- **Flat filter/search toolbars:** Do not wrap search inputs, selects, and view toggles inside an extra outer bordered container ("box-inside-a-box"). Place controls directly on the canvas aligned to the page grid, separated from content by spacing or a single 1px horizontal divider (`--line`).
+- **Editorial cards:** Use full-bleed `16:9` cover thumbnails flush with the top edge of the card (`overflow: hidden`, `object-cover`, no inner padding around the image). Keep card padding (`16px`–`20px`) strictly for the text body (metadata in `--muted`, title in `IBM Plex Sans`, short excerpt).
+- **Respect global tokens:** Do not override `--background`, `--surface`, or `h1`/`h2`/`h3` font-family in page-level CSS modules with legacy slate colors or monospace headings.

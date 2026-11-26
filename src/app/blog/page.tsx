@@ -14,7 +14,7 @@ export default async function BlogPage() {
         action={
           <Link
             href="/blog/escrever/"
-            className="rounded-sm border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            className="inline-flex items-center rounded-md border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--muted)] hover:bg-[var(--surface-raised)]"
           >
             Contribuir com um artigo
           </Link>

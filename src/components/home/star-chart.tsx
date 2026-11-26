@@ -130,19 +130,16 @@ const links: [string, string][] = [
   ['blender', 'python'],
 ]
 
-/** Unlabeled background stars (140), generated deterministically via a Halton
- * sequence so distribution looks organic without SSR hydration mismatches. */
+/** Unlabeled background stars (140), matching AmbientStarfield's visual style
+ * (pure white #ffffff and light cyan #b8f2ec HTML dots from 1.5px to 3px with
+ * subtle glow on larger ones and 0.25 -> 1 twinkle). */
 type FieldStar = {
   x: number
   y: number
-  /** SVG radius in px (0.5 => 1px, 0.75 => 1.5px, 1 => 2px diameter). */
-  r: number
-  /** Base opacity in 0.25..0.78 for static stars. */
+  size: number
   opacity: number
-  /** Tint a subset of stars with light cyan to echo the GNUverse logo. */
   cyan: boolean
-  /** Left-side stars behind the hero headline stay slightly subtler. */
-  dim: boolean
+  glow: boolean
   twinkleDuration?: number
   twinkleDelay?: number
 }
@@ -159,23 +156,23 @@ function halton(index: number, base: number): number {
   return result
 }
 
-const TWINKLE_DURATIONS = [3.1, 4.3, 5.7, 6.9, 8.3]
+const TWINKLE_DURATIONS = [2.6, 3.5, 4.4, 5.6, 6.8]
 
 const field: FieldStar[] = Array.from({ length: 140 }, (_, idx) => {
   const n = idx + 1
-  const x = Number((1.5 + halton(n, 2) * 97).toFixed(2))
-  const y = Number((2 + halton(n, 3) * 96).toFixed(2))
-  const r = n % 6 === 0 ? 1 : n % 3 === 0 ? 0.75 : 0.5
-  const opacity = Number((0.25 + halton(n, 5) * 0.55).toFixed(2))
-  const cyan = n % 4 === 0
-  const dim = x < 46 && y > 18 && y < 82
-  const twinkles = n % 10 === 1 || n % 10 === 4 || n % 10 === 7 || n % 10 === 9
+  const x = Number((1 + halton(n, 2) * 98).toFixed(2))
+  const y = Number((1.5 + halton(n, 3) * 97).toFixed(2))
+  const size = n % 13 === 0 ? 3 : n % 7 === 0 ? 2.5 : n % 2 === 0 ? 2 : 1.5
+  const glow = size >= 2.5
+  const opacity = Number((0.45 + halton(n, 5) * 0.5).toFixed(2))
+  const cyan = n % 3 === 0
+  const twinkles = n % 10 === 1 || n % 10 === 3 || n % 10 === 6 || n % 10 === 9
   if (!twinkles) {
-    return { x, y, r, opacity, cyan, dim }
+    return { x, y, size, opacity, cyan, glow }
   }
   const twinkleDuration = TWINKLE_DURATIONS[idx % TWINKLE_DURATIONS.length]
-  const twinkleDelay = Number((-((n * 1.43) % twinkleDuration)).toFixed(2))
-  return { x, y, r, opacity, cyan, dim, twinkleDuration, twinkleDelay }
+  const twinkleDelay = Number((-((n * 1.29) % twinkleDuration)).toFixed(2))
+  return { x, y, size, opacity, cyan, glow, twinkleDuration, twinkleDelay }
 })
 
 /** Concentric celestial chart arcs centered on the constellation region. */
@@ -285,6 +282,34 @@ export function StarChart({ children }: { children: ReactNode }) {
       className={`${styles.hero}${active ? ` ${styles.hasActive}` : ''}`}
       aria-labelledby="home-title"
     >
+      <div className={styles.starfield} aria-hidden="true">
+        {field.map((star, index) => (
+          <span
+            key={index}
+            className={[
+              styles.fieldStar,
+              star.cyan ? styles.starCyan : styles.starWhite,
+              star.glow ? styles.starGlow : '',
+              star.twinkleDuration ? styles.twinkle : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={{
+              left: pct(star.x),
+              top: pct(star.y),
+              width: `${star.size}px`,
+              height: `${star.size}px`,
+              ...(star.twinkleDuration
+                ? {
+                    animationDuration: `${star.twinkleDuration}s`,
+                    animationDelay: `${star.twinkleDelay}s`,
+                  }
+                : { opacity: star.opacity }),
+            }}
+          />
+        ))}
+      </div>
+
       <svg className={styles.sky} width="100%" height="100%" aria-hidden="true" focusable="false">
         <g className={styles.arcs}>
           {arcs.map((arc) => (
@@ -299,58 +324,6 @@ export function StarChart({ children }: { children: ReactNode }) {
               style={{ opacity: arc.opacity }}
             />
           ))}
-        </g>
-        <g className={styles.field}>
-          {field
-            .filter((star) => !star.dim)
-            .map((star, index) => (
-              <circle
-                key={`r-${index}`}
-                cx={pct(star.x)}
-                cy={pct(star.y)}
-                r={star.r}
-                className={[
-                  star.cyan ? styles.starCyan : styles.starWhite,
-                  star.twinkleDuration ? styles.twinkle : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                style={
-                  star.twinkleDuration
-                    ? {
-                        animationDuration: `${star.twinkleDuration}s`,
-                        animationDelay: `${star.twinkleDelay}s`,
-                      }
-                    : { opacity: star.opacity }
-                }
-              />
-            ))}
-        </g>
-        <g className={`${styles.field} ${styles.fieldDim}`}>
-          {field
-            .filter((star) => star.dim)
-            .map((star, index) => (
-              <circle
-                key={`l-${index}`}
-                cx={pct(star.x)}
-                cy={pct(star.y)}
-                r={star.r}
-                className={[
-                  star.cyan ? styles.starCyan : styles.starWhite,
-                  star.twinkleDuration ? styles.twinkle : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                style={
-                  star.twinkleDuration
-                    ? {
-                        animationDuration: `${star.twinkleDuration}s`,
-                        animationDelay: `${star.twinkleDelay}s`,
-                      }
-                    : { opacity: star.opacity }
-                }
-              />
-            ))}
         </g>
         <g className={styles.links}>
           {links.map(([from, to]) => {

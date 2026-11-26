@@ -55,11 +55,11 @@ export default async function ArticlePage({ params }: Props) {
       >
         ← Voltar ao blog
       </Link>
-      <article className="mt-16">
-        <h1 className="text-4xl leading-tight tracking-tight sm:text-6xl">
+      <article className="mt-12">
+        <h1 className="text-4xl font-semibold leading-[1.1] tracking-tight text-[var(--ink)] sm:text-5xl">
           {article.title}
         </h1>
-        <p className="mt-6 text-xl leading-relaxed text-[var(--muted)]">
+        <p className="mt-5 text-lg leading-relaxed text-[var(--muted)]">
           {article.summary}
         </p>
         <p className="mt-5 text-sm text-[var(--muted)]">
@@ -67,7 +67,9 @@ export default async function ArticlePage({ params }: Props) {
           {formattedDate ? (
             <>
               {' · '}
-              <time dateTime={article.publishedAt}>{formattedDate}</time>
+              <time dateTime={article.publishedAt} className="tabular-nums">
+                {formattedDate}
+              </time>
             </>
           ) : null}
           {mode === 'demo' ? ' · Demonstração local' : ''}
@@ -80,9 +82,10 @@ export default async function ArticlePage({ params }: Props) {
             {hashtags.map((tag) => (
               <li
                 key={tag}
-                className="rounded-sm border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-xs text-[var(--accent)]"
+                className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-xs text-[var(--muted)]"
               >
-                #{tag}
+                <span className="text-[var(--secondary)]">#</span>
+                {tag}
               </li>
             ))}
           </ul>
@@ -93,7 +96,7 @@ export default async function ArticlePage({ params }: Props) {
             <img
               src={article.cover.url}
               alt={article.cover.alt}
-              className="w-full rounded-sm"
+              className="aspect-video w-full rounded-md border border-[var(--line)] object-cover"
             />
             <figcaption className="mt-2 text-sm text-[var(--muted)]">
               {article.cover.credit}

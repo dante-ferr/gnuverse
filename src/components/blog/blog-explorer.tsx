@@ -58,6 +58,69 @@ function ListIcon() {
   )
 }
 
+function ThumbnailFallback() {
+  return (
+    <div
+      aria-hidden="true"
+      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[var(--surface-raised)]"
+    >
+      <svg
+        className="absolute inset-0 h-full w-full opacity-45"
+        viewBox="0 0 320 180"
+        preserveAspectRatio="none"
+        fill="none"
+        stroke="var(--line)"
+        strokeWidth="1"
+      >
+        <path d="M0 45H320M0 90H320M0 135H320M64 0V180M128 0V180M192 0V180M256 0V180" />
+      </svg>
+      <img
+        src="/gnuverse-logo.svg"
+        alt=""
+        width={42}
+        height={42}
+        decoding="async"
+        className="relative z-10 h-11 w-11 opacity-20"
+      />
+    </div>
+  )
+}
+
+function ArticleMetadata({ article }: { article: Article }) {
+  const formattedDate = formatArticleDate(article.publishedAt)
+  const hashtags = article.hashtags ?? []
+
+  return (
+    <div className="mt-auto pt-4">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--muted)]">
+        <span>{article.author}</span>
+        {formattedDate && (
+          <>
+            <span aria-hidden="true">·</span>
+            <time dateTime={article.publishedAt} className="tabular-nums">
+              {formattedDate}
+            </time>
+          </>
+        )}
+      </div>
+
+      {hashtags.length > 0 && (
+        <ul aria-label="Hashtags" className="mt-3 flex flex-wrap gap-1.5">
+          {hashtags.map((tag) => (
+            <li
+              key={tag}
+              className="rounded-md border border-[var(--line)] bg-[var(--background)] px-2 py-0.5 text-[11px] text-[var(--muted)]"
+            >
+              <span className="text-[var(--secondary)]">#</span>
+              {tag}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export function BlogExplorer({
   articles,
   mode,
@@ -91,6 +154,17 @@ export function BlogExplorer({
     [filteredArticles, requestedPage],
   )
 
+  const showFeatured =
+    viewMode === 'grid' &&
+    !query.trim() &&
+    pagination.currentPage === 1 &&
+    pagination.items.length > 0
+
+  const featuredArticle = showFeatured ? pagination.items[0] : null
+  const remainingArticles = showFeatured
+    ? pagination.items.slice(1)
+    : pagination.items
+
   function clearAllFilters() {
     setQuery('')
     setSortOrder('recent')
@@ -98,12 +172,12 @@ export function BlogExplorer({
   }
 
   const controlClass =
-    'rounded-sm border border-[var(--line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none'
+    'h-10 rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] transition hover:border-[var(--muted)] focus:border-[var(--accent)] focus:outline-none'
 
   return (
     <section aria-label="Explorar artigos" className="mt-10">
-      <div className="flex flex-wrap items-center gap-2.5 rounded-sm border border-[var(--line)] bg-[var(--surface)] p-3">
-        <div className="min-w-0 flex-1 basis-56">
+      <div className="flex flex-wrap items-center gap-3 border-b border-[var(--line)] pb-6">
+        <div className="min-w-0 flex-1 basis-60">
           <label htmlFor="blog-search" className="sr-only">
             Buscar artigos
           </label>
@@ -143,17 +217,17 @@ export function BlogExplorer({
         <div
           role="group"
           aria-label="Modo de visualização"
-          className="flex shrink-0 items-center gap-1"
+          className="flex shrink-0 items-center gap-1.5"
         >
           <button
             type="button"
             aria-label="Visualização em grade"
             aria-pressed={viewMode === 'grid'}
             onClick={() => setViewMode('grid')}
-            className={`cursor-pointer rounded-sm border p-2 transition ${
+            className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border transition ${
               viewMode === 'grid'
-                ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--on-accent)]'
-                : 'border-[var(--line)] bg-[var(--background)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]'
+                ? 'border-[var(--muted)] bg-[var(--surface-raised)] text-[var(--accent)]'
+                : 'border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--muted)] hover:text-[var(--ink)]'
             }`}
           >
             <GridIcon />
@@ -163,10 +237,10 @@ export function BlogExplorer({
             aria-label="Visualização em lista"
             aria-pressed={viewMode === 'list'}
             onClick={() => setViewMode('list')}
-            className={`cursor-pointer rounded-sm border p-2 transition ${
+            className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border transition ${
               viewMode === 'list'
-                ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--on-accent)]'
-                : 'border-[var(--line)] bg-[var(--background)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]'
+                ? 'border-[var(--muted)] bg-[var(--surface-raised)] text-[var(--accent)]'
+                : 'border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--muted)] hover:text-[var(--ink)]'
             }`}
           >
             <ListIcon />
@@ -175,101 +249,116 @@ export function BlogExplorer({
       </div>
 
       {pagination.items.length > 0 ? (
-        <div
-          className={
-            viewMode === 'grid'
-              ? 'mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'
-              : 'mt-8 flex flex-col gap-4'
-          }
-        >
-          {pagination.items.map((article) => {
-            const formattedDate = formatArticleDate(article.publishedAt)
-            const hashtags = article.hashtags ?? []
+        <div className="mt-8">
+          {featuredArticle && (
+            <article className="article-card group relative grid grid-cols-1 overflow-hidden rounded-md border border-[var(--line)] bg-[var(--surface)] transition-colors hover:border-[var(--muted)] focus-within:border-[var(--accent)] lg:grid-cols-[11fr_9fr]">
+              <div className="relative aspect-video w-full overflow-hidden border-b border-[var(--line)] bg-[var(--surface-raised)] lg:h-full lg:border-r lg:border-b-0">
+                {featuredArticle.cover ? (
+                  <img
+                    src={featuredArticle.cover.url}
+                    alt={featuredArticle.cover.alt}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <ThumbnailFallback />
+                )}
+              </div>
 
-            return (
-              <article
-                key={article.slug}
-                className={`article-card group relative rounded-sm border border-[var(--line)] bg-[var(--surface)] p-6 transition hover:border-[var(--accent)] focus-within:border-[var(--accent)] ${
-                  viewMode === 'list'
-                    ? 'flex flex-col gap-5 sm:flex-row sm:items-start'
-                    : 'flex flex-col'
-                }`}
-              >
-                {article.cover && (
+              <div className="flex flex-col p-6 sm:p-7">
+                <p className="mb-2 inline-flex items-center gap-2 text-xs font-medium text-[var(--secondary)]">
+                  <span
+                    aria-hidden="true"
+                    className="h-1.5 w-1.5 rounded-full bg-[var(--secondary)]"
+                  />
+                  Em destaque
+                </p>
+                <h2 className="text-2xl font-semibold leading-tight tracking-tight text-[var(--ink)] sm:text-3xl">
+                  <Link
+                    href={`/artigos/${featuredArticle.slug}/`}
+                    className="after:absolute after:inset-0 after:content-[''] group-hover:text-[var(--accent)] focus:outline-none"
+                  >
+                    {featuredArticle.title}
+                  </Link>
+                </h2>
+
+                <p className="mt-3 line-clamp-3 text-base leading-relaxed text-[var(--muted)]">
+                  {featuredArticle.summary}
+                </p>
+
+                <ArticleMetadata article={featuredArticle} />
+              </div>
+            </article>
+          )}
+
+          {remainingArticles.length > 0 && (
+            <div
+              className={
+                viewMode === 'grid'
+                  ? `${featuredArticle ? 'mt-6 ' : ''}grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3`
+                  : 'flex flex-col gap-5'
+              }
+            >
+              {remainingArticles.map((article) => (
+                <article
+                  key={article.slug}
+                  className={`article-card group relative overflow-hidden rounded-md border border-[var(--line)] bg-[var(--surface)] transition-colors hover:border-[var(--muted)] focus-within:border-[var(--accent)] ${
+                    viewMode === 'list'
+                      ? 'flex flex-col sm:flex-row'
+                      : 'flex flex-col'
+                  }`}
+                >
                   <div
-                    className={`overflow-hidden rounded-sm border border-[var(--line)] bg-[var(--background)] ${
+                    className={`relative aspect-video overflow-hidden bg-[var(--surface-raised)] ${
                       viewMode === 'list'
-                        ? 'sm:w-56 sm:shrink-0'
-                        : 'mb-5'
+                        ? 'w-full border-b border-[var(--line)] sm:w-64 sm:shrink-0 sm:border-r sm:border-b-0'
+                        : 'w-full border-b border-[var(--line)]'
                     }`}
                   >
-                    <img
-                      src={article.cover.url}
-                      alt={article.cover.alt}
-                      className="aspect-video w-full object-cover"
-                    />
+                    {article.cover ? (
+                      <img
+                        src={article.cover.url}
+                        alt={article.cover.alt}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <ThumbnailFallback />
+                    )}
                   </div>
-                )}
 
-                <div className="flex flex-1 flex-col">
-                  {formattedDate && (
-                    <div className="text-xs text-[var(--muted)]">
-                      <time dateTime={article.publishedAt}>{formattedDate}</time>
-                    </div>
-                  )}
+                  <div className="flex flex-1 flex-col p-5">
+                    <h2 className="text-lg font-semibold leading-snug tracking-tight text-[var(--ink)]">
+                      <Link
+                        href={`/artigos/${article.slug}/`}
+                        className="after:absolute after:inset-0 after:content-[''] group-hover:text-[var(--accent)] focus:outline-none"
+                      >
+                        {article.title}
+                      </Link>
+                    </h2>
 
-                  <h2 className="mt-3 text-2xl tracking-tight">
-                    <Link
-                      href={`/artigos/${article.slug}/`}
-                      className="after:absolute after:inset-0 after:content-[''] group-hover:underline focus:outline-none"
-                    >
-                      {article.title}
-                    </Link>
-                  </h2>
+                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-[var(--muted)]">
+                      {article.summary}
+                    </p>
 
-                  <p className="mt-3 leading-relaxed text-[var(--muted)]">
-                    {article.summary}
-                  </p>
-
-                  {hashtags.length > 0 && (
-                    <ul
-                      aria-label="Hashtags"
-                      className="mt-4 flex flex-wrap gap-1.5"
-                    >
-                      {hashtags.map((tag) => (
-                        <li
-                          key={tag}
-                          className="rounded-sm border border-[var(--line)] bg-[var(--background)] px-2 py-0.5 text-xs text-[var(--muted)]"
-                        >
-                          #{tag}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  <p className="mt-auto pt-5 text-sm text-[var(--muted)]">
-                    Por {article.author}
-                  </p>
-                </div>
-              </article>
-            )
-          })}
+                    <ArticleMetadata article={article} />
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       ) : articles.length === 0 ? (
-        <p className="mt-10 rounded-sm border border-[var(--line)] bg-[var(--surface)] p-6 text-sm text-[var(--muted)]">
+        <p className="mt-10 rounded-md border border-[var(--line)] bg-[var(--surface)] p-6 text-sm text-[var(--muted)]">
           {mode === 'demo'
             ? 'Nenhum artigo de demonstração disponível no momento.'
             : 'Os primeiros artigos estão em preparação e aparecerão aqui após publicação.'}
         </p>
       ) : (
-        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-sm border border-[var(--line)] bg-[var(--surface)] p-6 text-sm text-[var(--muted)]">
-          <p>
-            Nenhum artigo encontrado com os filtros selecionados.
-          </p>
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-md border border-[var(--line)] bg-[var(--surface)] p-6 text-sm text-[var(--muted)]">
+          <p>Nenhum artigo encontrado com os filtros selecionados.</p>
           <button
             type="button"
             onClick={clearAllFilters}
-            className="cursor-pointer rounded-sm border border-[var(--line)] bg-[var(--surface-raised)] px-3.5 py-2 text-xs text-[var(--accent)] transition hover:border-[var(--accent)]"
+            className="cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface-raised)] px-3.5 py-2 text-xs font-medium text-[var(--ink)] transition hover:border-[var(--muted)]"
           >
             Limpar filtros
           </button>
@@ -286,12 +375,12 @@ export function BlogExplorer({
               {pagination.currentPage > 1 ? (
                 <Link
                   href={getBlogPageHref(pagination.currentPage - 1, basePath)}
-                  className="rounded-sm border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--ink)] transition hover:border-[var(--muted)] hover:bg-[var(--surface-raised)]"
                 >
                   ← Anterior
                 </Link>
               ) : (
-                <span className="rounded-sm border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--muted)] opacity-50">
+                <span className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--muted)] opacity-50">
                   ← Anterior
                 </span>
               )}
@@ -307,10 +396,10 @@ export function BlogExplorer({
                       key={pageNumber}
                       href={getBlogPageHref(pageNumber, basePath)}
                       aria-current={active ? 'page' : undefined}
-                      className={`rounded-sm border px-3 py-1.5 tabular-nums transition ${
+                      className={`rounded-md border px-3 py-1.5 tabular-nums transition ${
                         active
                           ? 'border-[var(--accent)] bg-[var(--accent)] font-medium text-[var(--on-accent)]'
-                          : 'border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]'
+                          : 'border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--muted)] hover:text-[var(--ink)]'
                       }`}
                     >
                       {pageNumber}
@@ -322,12 +411,12 @@ export function BlogExplorer({
               {pagination.currentPage < pagination.totalPages ? (
                 <Link
                   href={getBlogPageHref(pagination.currentPage + 1, basePath)}
-                  className="rounded-sm border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--ink)] transition hover:border-[var(--muted)] hover:bg-[var(--surface-raised)]"
                 >
                   Próxima →
                 </Link>
               ) : (
-                <span className="rounded-sm border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--muted)] opacity-50">
+                <span className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--muted)] opacity-50">
                   Próxima →
                 </span>
               )}
@@ -340,7 +429,7 @@ export function BlogExplorer({
                 onClick={() =>
                   setClientPage((page) => Math.max(1, page - 1))
                 }
-                className="cursor-pointer rounded-sm border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--ink)] transition hover:border-[var(--muted)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 ← Anterior
               </button>
@@ -357,10 +446,10 @@ export function BlogExplorer({
                       type="button"
                       aria-current={active ? 'page' : undefined}
                       onClick={() => setClientPage(pageNumber)}
-                      className={`cursor-pointer rounded-sm border px-3 py-1.5 tabular-nums transition ${
+                      className={`cursor-pointer rounded-md border px-3 py-1.5 tabular-nums transition ${
                         active
                           ? 'border-[var(--accent)] bg-[var(--accent)] font-medium text-[var(--on-accent)]'
-                          : 'border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]'
+                          : 'border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--muted)] hover:text-[var(--ink)]'
                       }`}
                     >
                       {pageNumber}
@@ -377,7 +466,7 @@ export function BlogExplorer({
                     Math.min(pagination.totalPages, page + 1),
                   )
                 }
-                className="cursor-pointer rounded-sm border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-[var(--ink)] transition hover:border-[var(--muted)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Próxima →
               </button>
