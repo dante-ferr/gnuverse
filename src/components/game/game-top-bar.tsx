@@ -8,6 +8,7 @@ import styles from './game-shell.module.css'
 
 type Props = {
   user: User | null
+  avatarUrl?: string | null
   wallet: Wallet | null
   secondsToCoin: number
   busy: boolean
@@ -21,6 +22,7 @@ type Props = {
 
 export function GameTopBar({
   user,
+  avatarUrl,
   wallet,
   secondsToCoin,
   busy,
@@ -49,6 +51,7 @@ export function GameTopBar({
       {showAccount && (
         <AccountBanner
           user={user}
+          avatarUrl={avatarUrl}
           wallet={wallet}
           secondsToCoin={secondsToCoin}
           busy={busy}

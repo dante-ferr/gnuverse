@@ -28,3 +28,10 @@
   box-sizing: border-box;
   font-size: 16px;
 }
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}

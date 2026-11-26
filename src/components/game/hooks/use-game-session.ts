@@ -2,6 +2,7 @@
 
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { fetchCmsIdentity, resolveCmsBaseUrl } from '@/lib/cms-client'
+import { fetchOwnProfile } from '@/lib/profile-client'
 import { GameApi, resolveGameApiUrl } from '../api/game-api'
 import { type User, type Wallet } from '../model/types'
 
@@ -14,6 +15,7 @@ function useSessionState() {
   currentToken.current = token
   const hydratedToken = useRef('')
   const [user, setUser] = useState<User | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [notice, setNotice] = useState('')
   const [now, setNow] = useState(0)
@@ -21,6 +23,7 @@ function useSessionState() {
     hydratedToken.current = ''
     setToken('')
     setUser(null)
+    setAvatarUrl(null)
     setWallet(null)
     try {
       sessionStorage.removeItem(SESSION_KEY)
@@ -147,6 +150,30 @@ function useSessionState() {
       clear()
     }
   }
+  const refreshProfile = useCallback(async () => {
+    const activeToken = currentToken.current
+    if (!activeToken) {
+      setAvatarUrl(null)
+      return
+    }
+    try {
+      const profile = await fetchOwnProfile(activeToken)
+      if (currentToken.current === activeToken) {
+        setAvatarUrl(profile?.avatar?.url ?? null)
+      }
+    } catch {
+      /* Keep current header avatar when CMS is offline. */
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!token) {
+      setAvatarUrl(null)
+      return
+    }
+    void refreshProfile()
+  }, [token, refreshProfile])
+
   const secondsToCoin = wallet?.nextCoinAt
     ? Math.max(0, Math.ceil((wallet.nextCoinAt - now) / 1000))
     : 0
@@ -154,11 +181,13 @@ function useSessionState() {
     api,
     token,
     user,
+    avatarUrl,
     wallet,
     notice,
     secondsToCoin,
     authenticate,
     setSessionToken,
+    refreshProfile,
     logout,
     setWallet,
   }

@@ -10,7 +10,7 @@ type TeamUserDoc = {
   name?: string | null
   aboutBio?: string | null
   aboutOrder?: number | null
-  aboutPhoto?: PopulatedMedia | number | string | null
+  avatar?: PopulatedMedia | number | string | null
 }
 
 /**
@@ -38,7 +38,7 @@ export const teamEndpoints: Endpoint[] = [
         .filter((doc) => typeof doc.name === 'string' && doc.name.trim().length > 0)
         .map((doc) => {
           const media =
-            doc.aboutPhoto && typeof doc.aboutPhoto === 'object' ? doc.aboutPhoto : null
+            doc.avatar && typeof doc.avatar === 'object' ? doc.avatar : null
           const photo =
             media && typeof media.url === 'string' && media.url.trim().length > 0
               ? {

@@ -95,14 +95,16 @@ export function AuthPanel({
           </p>
         )}
       </form>
-      <Link className={styles.quiet} href={`${mode === 'register' ? '/login/' : '/cadastro/'}?next=${encodeURIComponent(returnTo)}`}>
-        {mode === 'register' ? 'Já tenho uma conta' : 'Quero criar uma conta'}
-      </Link>
-      {mode === 'login' && (
-        <Link className={styles.quiet} href="/recuperar-senha/">
-          Esqueci minha senha
+      <div className={`${authStyles.links} flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2`}>
+        <Link className={styles.quiet} href={`${mode === 'register' ? '/login/' : '/cadastro/'}?next=${encodeURIComponent(returnTo)}`}>
+          {mode === 'register' ? 'Já tenho uma conta' : 'Quero criar uma conta'}
         </Link>
-      )}
+        {mode === 'login' && (
+          <Link className={styles.quiet} href="/recuperar-senha/">
+            Esqueci minha senha
+          </Link>
+        )}
+      </div>
       <details className={styles.eventLog}>
         <summary>Privacidade</summary>
         <p>O apelido é público. O e-mail fica privado.</p>
@@ -110,7 +112,11 @@ export function AuthPanel({
       <Link className={styles.quiet} href={returnTo}>
         {returnTo.startsWith('/blog') || returnTo.startsWith('/artigos')
           ? 'Voltar ao blog'
-          : 'Voltar ao jogo'}
+          : returnTo.startsWith('/perfil')
+            ? 'Voltar ao perfil'
+            : returnTo.startsWith('/sobre')
+              ? 'Voltar à página Sobre'
+              : 'Voltar ao jogo'}
       </Link>
     </section>
   )

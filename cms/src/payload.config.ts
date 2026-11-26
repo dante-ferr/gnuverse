@@ -14,6 +14,7 @@ import { Media } from './collections/Media'
 import { accessManagementEndpoints } from './access-management/endpoints'
 import { chatModerationEndpoints } from './chat-moderation/endpoints'
 import { identityEndpoints } from './identity/endpoints'
+import { profileEndpoints } from './profile/endpoints'
 import { teamEndpoints } from './team/endpoints'
 import { ensureHostAdmin } from './identity/ensure-host-admin'
 import { markLegacyAccountsVerified } from './identity/legacy-verification'
@@ -77,6 +78,7 @@ export default buildConfig({
     ...accessManagementEndpoints,
     ...chatModerationEndpoints,
     ...identityEndpoints,
+    ...profileEndpoints,
     ...teamEndpoints,
   ],
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },
