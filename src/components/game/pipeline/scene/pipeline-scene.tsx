@@ -71,7 +71,7 @@ type Props = {
 }
 
 /** Keyboard pan speed in screen pixels per second (frame-rate independent). */
-const KEY_PAN_SPEED = 600
+const KEY_PAN_SPEED = 1200
 /** Zoom per wheel pixel: factor = exp(-delta * k), so notches and trackpads feel alike. */
 const WHEEL_ZOOM_RATE = 0.0015
 const WHEEL_DELTA_CLAMP = 120

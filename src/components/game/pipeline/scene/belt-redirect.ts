@@ -13,6 +13,7 @@ import {
   type BeltCrossPlan,
   type PlannedTunnel,
 } from './belt-cross.ts'
+import { getBeltPlaceDirection } from '../belt-place-options.ts'
 import { BeltStroke, type StrokeCell } from './belt-stroke.ts'
 import { projectStraightEnd } from './grid-math.ts'
 
@@ -77,7 +78,8 @@ export function createBeltRedirectSession(
   belt: RedirectBelt,
   options?: BeltRedirectOptions,
 ): StructurePlacementSession {
-  const stroke = new BeltStroke(belt.direction)
+  // A plain click applies the selected orientation; a drag overrides it.
+  const stroke = new BeltStroke(getBeltPlaceDirection())
   stroke.push({ x: belt.x, y: belt.y })
   const initialDirection = belt.direction
   const existingSpeed = belt.speed ?? 1
