@@ -1206,6 +1206,10 @@
   cursor: wait;
 }
 .chunkPledgeQuick {
+  /* Also carries .chunkBuyButton (hover pinning); undo its floating layout. */
+  position: static;
+  transform: none;
+  box-sizing: border-box;
   width: 100%;
   font: inherit;
   padding: 4px 8px;
