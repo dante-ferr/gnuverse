@@ -48,6 +48,11 @@ export type PacketMotionState = {
   course: Map<string, { px: number; py: number }[]>
   /** Geometry stamp for `beltByCell`. Updates when belts change without a new tick. */
   layoutStamp: number
+  /**
+   * Chunk that frame cell (0,0) belongs to. Buying a chunk west or north moves it,
+   * which shifts every cell coordinate; stored cells must shift with it.
+   */
+  originChunk: { cx: number; cy: number } | null
 }
 
 export function createPacketMotionState(): PacketMotionState {
@@ -61,6 +66,7 @@ export function createPacketMotionState(): PacketMotionState {
     paths: new Map(),
     course: new Map(),
     layoutStamp: -1,
+    originChunk: null,
   }
 }
 
@@ -82,6 +88,7 @@ export function syncPacketMotion(
   cellSize: number,
 ) {
   const tickMs = rules.tickMs > 0 ? rules.tickMs : 250
+  rebaseOnOriginShift(state, frame, rules, cellSize)
   state.sinks = state.sinks.filter((sink) => nowMs - sink.startedAtMs < tickMs)
 
   const tickAdvanced = frame.tick !== state.lastTick
@@ -191,6 +198,50 @@ export function syncPacketMotion(
   )
   state.lastTick = frame.tick
   state.syncedAtMs = nowMs
+}
+
+/**
+ * Translate stored cells and pixels when the frame origin chunk moves, so
+ * packets keep animating in place instead of flying across the room.
+ */
+function rebaseOnOriginShift(
+  state: PacketMotionState,
+  frame: PipelineFrame,
+  rules: PipelineRules,
+  cellSize: number,
+) {
+  const origin = frame.originChunk ?? { cx: 0, cy: 0 }
+  const previous = state.originChunk
+  state.originChunk = { cx: origin.cx, cy: origin.cy }
+  if (!previous) return
+  const dx = (previous.cx - origin.cx) * rules.chunkSize
+  const dy = (previous.cy - origin.cy) * rules.chunkSize
+  if (dx === 0 && dy === 0) return
+  const dpx = dx * cellSize
+  const dpy = dy * cellSize
+  for (const cell of state.from.values()) {
+    cell.x += dx
+    cell.y += dy
+  }
+  for (const cell of state.at.values()) {
+    cell.x += dx
+    cell.y += dy
+  }
+  for (const sink of state.sinks) {
+    sink.startPx += dpx
+    sink.startPy += dpy
+    sink.endPx += dpx
+    sink.endPy += dpy
+  }
+  for (const points of state.course.values()) {
+    for (const point of points) {
+      point.px += dpx
+      point.py += dpy
+    }
+  }
+  state.paths = new Map()
+  state.beltByCell = indexBelts(frame)
+  state.layoutStamp = beltLayoutStamp(frame.belts)
 }
 
 function tunnelTransitPool(frame: PipelineFrame) {
