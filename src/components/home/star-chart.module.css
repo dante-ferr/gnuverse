@@ -1,0 +1,448 @@
+.hero {
+  --pad-top: clamp(2rem, 6vw, 5rem);
+  --pad-bottom: clamp(1.5rem, 3vw, 2.5rem);
+
+  position: relative;
+  isolation: isolate;
+  min-height: clamp(600px, calc(100svh - 56px), 900px);
+  display: flex;
+  overflow: hidden;
+  /* Atmospheric cosmic depth behind the constellation, keeping the left copy legible. */
+  background:
+    radial-gradient(
+      ellipse 56% 68% at 76% 48%,
+      color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+      color-mix(in srgb, #1a5b6e 7%, transparent) 42%,
+      transparent 74%
+    ),
+    radial-gradient(
+      ellipse 42% 44% at 10% 10%,
+      color-mix(in srgb, var(--accent) 4%, transparent) 0%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 38% 36% at 92% 90%,
+      color-mix(in srgb, var(--accent) 5%, transparent) 0%,
+      transparent 70%
+    );
+}
+
+/* Layers: sky SVG (0) < shooting stars (1) < hero content (2) < star buttons (3) < tooltip (4). */
+.sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.arcs circle {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1px;
+}
+
+/* Background starfield matching AmbientStarfield, softened only behind the left headline. */
+.starfield {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 1;
+  pointer-events: none;
+  overflow: hidden;
+  -webkit-mask-image: radial-gradient(
+    ellipse 42% 46% at 22% 50%,
+    rgba(0, 0, 0, 0.22) 0%,
+    rgba(0, 0, 0, 0.22) 55%,
+    black 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 42% 46% at 22% 50%,
+    rgba(0, 0, 0, 0.22) 0%,
+    rgba(0, 0, 0, 0.22) 55%,
+    black 100%
+  );
+}
+
+.fieldStar {
+  position: absolute;
+  border-radius: 50%;
+  will-change: opacity, transform;
+}
+
+.starWhite {
+  background-color: #ffffff;
+}
+
+.starCyan {
+  background-color: #b8f2ec;
+}
+
+.starGlow {
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.45);
+}
+
+.twinkle {
+  animation-name: twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* Shooting stars overlay. */
+.shootingLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shootingStar {
+  position: absolute;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 72%, transparent) 58%,
+    #ffffff 100%
+  );
+  transform-origin: left center;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-name: shoot;
+  animation-timing-function: cubic-bezier(0.16, 0.72, 0.36, 1);
+  animation-fill-mode: forwards;
+}
+
+.shootingStar::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffffff;
+  transform: translate(50%, -50%);
+}
+
+.links line {
+  stroke: var(--muted);
+  stroke-width: 0.75px;
+  opacity: 0.44;
+  transition: stroke 160ms ease, opacity 160ms ease;
+}
+
+.hasActive .links line {
+  opacity: 0.2;
+}
+
+.links .linkActive,
+.hasActive .links .linkActive {
+  stroke: var(--accent);
+  opacity: 0.9;
+}
+
+.dot {
+  fill: var(--muted);
+  opacity: 0.9;
+  transition: fill 160ms ease, opacity 160ms ease;
+}
+
+.core .dot {
+  fill: var(--ink);
+}
+
+.ring {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 0.75px;
+  opacity: 0.55;
+  animation: pulse 5s ease-in-out infinite;
+  transition: stroke 160ms ease;
+}
+
+.label {
+  fill: var(--muted);
+  font-family: var(--display-font);
+  font-size: 11px;
+  opacity: 0.85;
+  transition: fill 160ms ease, opacity 160ms ease;
+}
+
+.year {
+  opacity: 0.65;
+}
+
+.core .label {
+  fill: var(--ink);
+  opacity: 0.78;
+}
+
+.hasActive .node .label {
+  opacity: 0.45;
+}
+
+.nodeNeighbor .dot,
+.hasActive .nodeNeighbor .label {
+  fill: var(--ink);
+  opacity: 1;
+}
+
+.nodeActive .dot {
+  fill: var(--accent);
+  opacity: 1;
+}
+
+.nodeActive .ring {
+  stroke: var(--accent);
+  opacity: 1;
+  animation: none;
+}
+
+.hasActive .nodeActive .label {
+  fill: var(--accent);
+  opacity: 1;
+}
+
+/* Content layer: wrapper passes clicks through; real copy elements receive them. */
+.inner {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  width: min(100%, 1440px);
+  margin-inline: auto;
+  padding: var(--pad-top) clamp(1.25rem, 7vw, 6.5rem) var(--pad-bottom);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 1fr auto;
+  column-gap: 2rem;
+  pointer-events: none;
+}
+
+.copy {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: start;
+  pointer-events: none;
+}
+
+.copy > * {
+  pointer-events: auto;
+}
+
+.hint {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  transition: opacity 160ms ease;
+}
+
+.hasActive .hint {
+  opacity: 0;
+}
+
+/* Native HTML button hotspots overlaid on each star coordinate. */
+.hotspots {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.hotspot {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+}
+
+.hotspot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Tooltip anchored to the active node; side classes flip its placement. */
+.tooltip {
+  --gap-x: 12px;
+  --gap-y: 18px;
+
+  position: absolute;
+  z-index: 4;
+  left: var(--x);
+  top: var(--y);
+  width: max-content;
+  max-width: min(280px, calc(100vw - 2rem));
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background-color: var(--surface);
+  pointer-events: none;
+  transform: translate(var(--tx), var(--ty));
+}
+
+.alignStart {
+  --tx: calc(var(--gap-x) * -1);
+}
+
+.alignEnd {
+  --tx: calc(-100% + var(--gap-x));
+}
+
+.below {
+  --ty: var(--gap-y);
+}
+
+.above {
+  --ty: calc(-100% - var(--gap-y));
+}
+
+.tooltipHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.tooltipHead strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tooltipYear {
+  color: var(--accent);
+  font-family: var(--display-font);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltipText {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes shoot {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translate3d(0, 0, 0) scaleX(0.35);
+  }
+  18% {
+    opacity: 0.95;
+  }
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translate3d(var(--travel), 0, 0) scaleX(1);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* Medium widths: hide static constellation labels so the headline stays clear. */
+@media (max-width: 1100px) {
+  .label {
+    display: none;
+  }
+
+  .nodeActive .label {
+    display: inline;
+  }
+}
+
+@media (max-width: 800px) {
+  .hero {
+    min-height: 640px;
+  }
+
+  .inner {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
+    row-gap: 1.5rem;
+  }
+
+  .copy {
+    grid-row: 1;
+  }
+
+  .hint {
+    grid-column: 1;
+    white-space: normal;
+  }
+}
+
+/* Narrow screens: span the tooltip across the hero instead of anchoring by x. */
+@media (max-width: 640px) {
+  .tooltip {
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    max-width: none;
+    --tx: 0px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .twinkle,
+  .ring {
+    animation: none;
+    transform: none;
+  }
+
+  .shootingLayer,
+  .shootingStar {
+    display: none;
+    animation: none;
+  }
+
+  .links line,
+  .dot,
+  .ring,
+  .label,
+  .hint {
+    transition: none;
+  }
+}

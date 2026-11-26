@@ -2,13 +2,13 @@
 
 :root {
   color-scheme: dark;
-  --background: #0b1014;
-  --surface: #111a20;
-  --surface-raised: #17252c;
+  --background: #0d1017;
+  --surface: #141821;
+  --surface-raised: #1b212d;
   --foreground: #edf4f4;
   --ink: #edf4f4;
-  --muted: #9eb0b7;
-  --line: #293c45;
+  --muted: #a3a8ae;
+  --line: #262e3d;
   --accent: #52d6c9;
   --accent-hover: #86e7dd;
   --accent-soft: #143a38;
@@ -16,11 +16,12 @@
   --secondary: #ff8b7d;
   --secondary-soft: #3d2828;
   --display-font:
-    ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
-  --body-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-  --scene: #0e171d;
-  --scene-line: #1f3038;
-  --ground: #152229;
+    var(--font-plex-mono), ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  --body-font:
+    var(--font-plex-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --scene: var(--background);   
+  --scene-line: var(--line);
+  --ground: var(--surface);
   --ground-edge: #6a7b83;
   --block-face: #667b83;
 }
@@ -39,10 +40,19 @@ body {
   color: var(--ink);
   font-family: var(--body-font);
 }
+body > header {
+  position: relative;
+  z-index: 10;
+}
+body > main {
+  position: relative;
+  z-index: 1;
+}
 h1,
 h2,
 h3 {
-  font-family: var(--display-font);
+  font-family: var(--body-font);
+  letter-spacing: -0.02em;
 }
 button,
 input,
@@ -117,11 +127,12 @@ summary {
 .article-body figure,
 .article-body img {
   margin: 1.75rem 0;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 .article-body img {
   max-width: 100%;
   height: auto;
+  border: 1px solid var(--line);
 }
 .article-body figcaption {
   margin-top: 0.5rem;
@@ -129,10 +140,7 @@ summary {
   color: var(--muted);
 }
 .article-card {
-  border-radius: 4px;
-}
-.article-card:hover {
-  box-shadow: inset 0 2px var(--accent);
+  border-radius: 6px;
 }
 html:has(.pipeline-game-root),
 body:has(.pipeline-game-root) {

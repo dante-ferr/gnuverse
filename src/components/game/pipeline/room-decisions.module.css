@@ -6,10 +6,10 @@
 
 .title {
   margin: 0;
-  font-family: var(--display-font);
-  font-size: 11px;
+  font-family: var(--body-font);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
@@ -64,21 +64,22 @@
 .primary {
   justify-self: start;
   padding: 6px 10px;
-  border-radius: 3px;
+  border-radius: 6px;
   font: inherit;
   font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
 }
 
 .button {
   border: 1px solid var(--line);
-  background: var(--surface);
+  background: var(--background);
   color: var(--ink);
 }
 
 .button:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--muted);
+  background: var(--surface-raised);
 }
 
 .primary {
@@ -142,8 +143,8 @@
   min-width: 0;
   padding: 6px 8px;
   border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--surface);
+  border-radius: 6px;
+  background: var(--background);
   color: var(--ink);
   font: inherit;
   font-size: 11px;
@@ -159,7 +160,8 @@
   gap: 6px;
   padding: 10px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 6px;
+  background: var(--background);
 }
 
 .cardHead {

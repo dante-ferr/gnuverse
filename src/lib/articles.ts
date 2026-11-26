@@ -3,12 +3,18 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { cache } from 'react'
 import type { PublishedQuiz } from '../../core/quiz/quiz'
+import type { TeamMember } from './team'
 import { categoryNames, type Article } from './article-meta'
 
 export { categoryNames, type Article }
 
 export const getContent = cache(
-  async (): Promise<{ mode: 'demo' | 'live'; articles: Article[]; quizzes: PublishedQuiz[] }> => {
+  async (): Promise<{
+    mode: 'demo' | 'live'
+    articles: Article[]
+    quizzes: PublishedQuiz[]
+    teamMembers?: TeamMember[]
+  }> => {
     try {
       return JSON.parse(
         await readFile(path.join(process.cwd(), '.content/articles.json'), 'utf8'),

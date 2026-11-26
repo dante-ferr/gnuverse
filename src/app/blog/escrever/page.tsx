@@ -18,12 +18,12 @@ export default async function WriteArticlePage() {
         >
           ← Voltar ao blog
         </Link>
-        <p className="mt-10 text-xs uppercase tracking-widest text-[var(--accent)]">
-          Redação editorial
-        </p>
-        <h1 className="mt-3 text-4xl tracking-tight sm:text-5xl">
+        <h1 className="mt-8 text-4xl font-semibold leading-[1.1] tracking-tight text-[var(--ink)] sm:text-5xl">
           Contribuir com um artigo
         </h1>
+        <p className="mt-3 max-w-[60ch] text-base leading-relaxed text-[var(--muted)]">
+          Escreva seu texto, anexe imagens e envie para a revisão editorial do coletivo.
+        </p>
       </header>
 
       <SubmissionPanel mode={mode} standalone />

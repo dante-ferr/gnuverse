@@ -1,68 +1,89 @@
 import Link from 'next/link'
+import { StarChart } from '@/components/home/star-chart'
 import styles from './home.module.css'
 
-function CollaborationDiagram() {
-  return (
-    <div className={styles.diagram} aria-hidden="true">
-      <svg viewBox="0 0 620 480" role="presentation">
-        <path className={styles.grid} d="M30 40H590M30 120H590M30 200H590M30 280H590M30 360H590M30 440H590M70 20V460M150 20V460M230 20V460M310 20V460M390 20V460M470 20V460M550 20V460" />
-        <path className={styles.connections} d="M110 130 260 210 410 110 510 210M260 210 190 350 410 350 510 210M110 130 190 350M410 110 410 350" />
-        <path className={styles.structure} d="M250 348h120l-12-48h-96l-12 48Zm15-48 10-48h70l13 48Zm20-48 8-48h37l13 48Zm18-48 4-45h24l5 45Z" />
-        <path className={styles.structureDetail} d="M250 348h120M265 300h96M275 252h70M283 204h50M303 159h24" />
-        <circle className={styles.nodeAccent} cx="110" cy="130" r="8" />
-        <circle className={styles.nodeAccent} cx="410" cy="110" r="8" />
-        <circle className={styles.nodeCoral} cx="510" cy="210" r="8" />
-        <circle className={styles.nodeCoral} cx="190" cy="350" r="8" />
-        <circle className={styles.nodeCore} cx="310" cy="204" r="5" />
-      </svg>
-      <span className={`${styles.coord} ${styles.coordTop}`}>N 01 / 07</span>
-      <span className={`${styles.coord} ${styles.coordBottom}`}>ESTRUTURA EM COMUM</span>
-    </div>
-  )
-}
+const pillars = [
+  {
+    number: '01',
+    title: 'Open Pipeline',
+    description:
+      'Jogo cooperativo em que a turma monta esteiras e máquinas para abastecer núcleos compartilhados.',
+    href: '/jogo/',
+    cta: 'Entrar no jogo',
+  },
+  {
+    number: '02',
+    title: 'Blog Autoral',
+    description:
+      'Textos escritos pelos participantes sobre software livre, acesso à tecnologia e autoria coletiva.',
+    href: '/blog/',
+    cta: 'Ler o blog',
+  },
+  {
+    number: '03',
+    title: 'Quizzes',
+    description: 'Perguntas rápidas para testar e fixar o que aprendemos sobre software livre.',
+    href: '/quizzes/',
+    cta: 'Responder quizzes',
+  },
+]
 
 export default function Home() {
   return (
     <main className={styles.home}>
-      <section className={styles.hero} aria-labelledby="home-title">
-        <div className={styles.copy}>
-          <p className={styles.kicker}>
-            <img
-              src="/gnuverse-logo.svg"
-              alt=""
-              width={28}
-              height={28}
-              className={styles.brandMark}
-              decoding="async"
-            />
-            GNUVERSE <span className={styles.separator}>/</span> SOFTWARE LIVRE
-          </p>
-          <h1 id="home-title">
-            Tecnologia
-            <br />
-            como <span>bem comum.</span>
-          </h1>
-          <p className={styles.lede}>
-            Investigar como o software livre amplia o acesso à tecnologia —
-            com ideias, experiências e construção coletiva.
-          </p>
-          <nav className={styles.actions} aria-label="Explorar o projeto">
-            <Link className={styles.primaryLink} href="/jogo/">
-              <span>Entrar no jogo</span>
-              <span aria-hidden="true">↗</span>
-            </Link>
-            <Link className={styles.secondaryLink} href="/blog/">
-              Ler o blog <span aria-hidden="true">↗</span>
-            </Link>
-          </nav>
-        </div>
-        <CollaborationDiagram />
-      </section>
+      <StarChart>
+        <h1 id="home-title" className={styles.title}>
+          Tecnologia
+          <br />
+          como bem comum.
+        </h1>
+        <p className={styles.lede}>
+          Investigar como o software livre amplia o acesso à tecnologia — com ideias,
+          experiências e construção coletiva.
+        </p>
+        <nav className={styles.actions} aria-label="Explorar o projeto">
+          <Link className={styles.primaryLink} href="/jogo/">
+            <span>Entrar no jogo</span>
+            <span aria-hidden="true">↗</span>
+          </Link>
+          <Link className={styles.secondaryLink} href="/blog/">
+            <span>Ler o blog</span>
+            <span aria-hidden="true">↗</span>
+          </Link>
+        </nav>
+      </StarChart>
 
-      <footer className={styles.footer} id="ponto-de-partida">
-        <p>Pesquisa, autoria e colaboração por 7 participantes.</p>
-        <p className={styles.course}>MATA68 <span>·</span> 2026.2</p>
-      </footer>
+      <div className={styles.inner}>
+        <section className={styles.pillars} aria-labelledby="pillars-title">
+          <h2 id="pillars-title" className={styles.visuallyHidden}>
+            Pilares do GNUverse
+          </h2>
+          <ul className={styles.pillarList}>
+            {pillars.map((pillar) => (
+              <li key={pillar.href} className={styles.pillar}>
+                <h3 className={styles.pillarTitle}>
+                  <span className={styles.pillarNumber}>{pillar.number} /</span> {pillar.title}
+                </h3>
+                <p className={styles.pillarText}>{pillar.description}</p>
+                <Link className={styles.pillarLink} href={pillar.href}>
+                  {pillar.cta} <span aria-hidden="true">→</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <footer className={styles.footer} id="ponto-de-partida">
+          <p>
+            <Link className={styles.footerLink} href="/sobre/">
+              Pesquisa, autoria e colaboração por 7 participantes.
+            </Link>
+          </p>
+          <p className={styles.course}>
+            MATA68 <span>·</span> 2026.2
+          </p>
+        </footer>
+      </div>
     </main>
   )
 }

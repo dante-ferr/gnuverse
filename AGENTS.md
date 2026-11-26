@@ -58,3 +58,46 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 
 - When a control asks the user to sign in or register, **redirect to a dedicated login or registration page**.
 - Do not embed login or registration forms inline where the action was requested (for example, do not keep a full auth form inside the blog submission panel or a game panel). Link or navigate to the shared auth pages instead.
+
+## UI & Visual Design System
+
+### Visual Direction & Surfaces
+- **Theme:** Dark mode using neutral charcoal/graphite surfaces instead of blue-tinted slate.
+  - Page canvas (`--background`): neutral dark charcoal (e.g. `#111214` or `#121315`).
+  - Elevated surface (`--surface`): `#181a1d`; interactive/raised surface (`--surface-raised`): `#202327`.
+  - Structural borders (`--line`): subtle neutral gray (`#2a2e33`) with 1px solid hairlines.
+- **Surface hierarchy:** Differentiate layers through background value shifts and 1px borders—do not rely on drop shadows (`shadow-lg`, `shadow-xl`) or translucent glass effects (`backdrop-blur`) to separate containers.
+- **Preserve game tokens:** Do not rename or modify `--scene`, `--scene-line`, `--ground`, `--ground-edge`, or `--block-face` in `globals.css`.
+
+### Typography
+- Load an intentional neo-grotesque sans-serif via `next/font/google` in `src/app/layout.tsx` (e.g., `IBM Plex Sans` or `Plus Jakarta Sans`) and a clean monospace font (`IBM Plex Mono` or `JetBrains Mono`) mapped to `--body-font` and `--display-font` / `--font-mono`.
+- **Headings (`h1`, `h2`, `h3`):** Always use the sans-serif font, never monospace. Apply tight letter-spacing (`tracking-tight` / `-0.02em`), line-height between `1.05` and `1.2`, and semibold/bold weight (`600`–`700`).
+- **Monospace usage:** Restrict monospace strictly to code snippets, tabular numbers (`tabular-nums`), URLs, and short technical metadata (max 1–2 words, e.g., timestamps or counters). Do not use monospace for section titles, marketing slogans, or uppercase eyebrow tags.
+- **Body copy:** Max line length of `60ch`–`68ch` for readability; use `--muted` for secondary text with sufficient contrast (at least WCAG AA against `--background` and `--surface`).
+
+### Color & Emphasis
+- **Accent restraint (`--accent`):** Reserve the primary accent color for primary action buttons, active navigation indicators, text links inside prose, and `:focus-visible` outlines.
+- **No partial headline tinting:** Keep headlines in a single foreground color (`--ink`). Do not color individual words inside an `h1` or `h2` for decorative emphasis.
+- **No decorative gradients:** Do not use linear or radial gradients (`bg-gradient-to-*`) on backgrounds, buttons, borders, or text.
+
+### Layout, Spacing & Controls
+- **Consistent geometry:** Standardize border-radius across all UI controls (buttons, inputs, selects, cards) to a single scale: `4px` (`rounded`) or `6px` (`rounded-md`). Do not mix sharp `0px` buttons on one page with rounded buttons on another.
+- **Visual content rule:** Never add purely decorative HUD/sci-fi graphics (corner brackets, fake coordinates like `N 01 / 07`, or abstract node-and-line diagrams). Every visual block must display real application data, functional navigation, or domain-relevant editorial content.
+- **Alignment & density:** Use an explicit grid with consistent horizontal padding and vertical rhythm. Prefer structured lists with 1px horizontal dividers over grids of identical floating cards when presenting 2–4 items.
+
+### Space Atmospheric Background (Home Page)
+- **Contrast & Visibility**: The starfield must be clearly visible against the dark charcoal background. Use bright, tiny star particles (1px to 2.5px) with opacity ranging from `0.2` to `0.85` scattered across the viewport, rather than extremely faint dots. Apply active, asynchronous twinkling animations to at least 30% of them.
+- **Shooting Stars (Estrelas Cadentes)**:
+  - Implement a few sparse, fast-moving "shooting star" effect lines. 
+  - They must travel quickly along a diagonal path (e.g. from top-left to bottom-right) leaving a sharp, faded linear streak of light (colored with a mix of `--accent` and white) that lasts less than 1.5s, appearing at random intervals (e.g. every 8 to 20 seconds) in unpredictable screen locations.
+  - Limit the active count to never have more than 1 or 2 visible at the exact same time, ensuring they remain an occasional event rather than constant clutter.
+- **Atmospheric Nebulae & Gradients**: Use a subtle, large radial-gradient backglow (max `12%` opacity, transitioning from `--accent`/blue-cyan to transparent) centered behind the constellation on the right, plus smaller fades on the edges to eliminate any flat, washed-out matte appearance. Keep the area directly behind the main hero text on the left less dense for maximum readability.
+- **Orbits & Circles**: Increase the visible weight and opacity (around `0.25`) of the fine, concentric orbit-like lines to solidify the celestial map artwork.
+- **Accessibility**: Ensure all movement (twinkling and shooting stars) is strictly wrapped in `prefers-reduced-motion: reduce` checks to pause animations for users who need them disabled.
+
+### Interior & Content Pages (`/blog/`, `/artigos/`, `/quizzes/`, `/jogo/`)
+- **Ambient starfield on content pages:** Keep a lightweight, low-density twinkling starfield behind interior pages (most noticeable in the side margins) to unify the GNUverse identity. Reserve constellations, orbit arcs, and shooting stars strictly for the Home page.
+- **No redundant back links:** Do not add a top-level `← GNUverse` link on main section pages when `SiteHeader` is already visible. (Back links are fine inside detail pages, e.g., an individual article returning to `/blog/`.)
+- **Flat filter/search toolbars:** Do not wrap search inputs, selects, and view toggles inside an extra outer bordered container ("box-inside-a-box"). Place controls directly on the canvas aligned to the page grid, separated from content by spacing or a single 1px horizontal divider (`--line`).
+- **Editorial cards:** Use full-bleed `16:9` cover thumbnails flush with the top edge of the card (`overflow: hidden`, `object-cover`, no inner padding around the image). Keep card padding (`16px`–`20px`) strictly for the text body (metadata in `--muted`, title in `IBM Plex Sans`, short excerpt).
+- **Respect global tokens:** Do not override `--background`, `--surface`, or `h1`/`h2`/`h3` font-family in page-level CSS modules with legacy slate colors or monospace headings.
