@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { fetchPublishedArticles } from './cms-content.mjs'
 import { fetchPublishedQuizzes } from './quiz-content.mjs'
+import { fetchTeamMembers } from './team-content.mjs'
 import { getContentCMSURL, loadLocalEnvironment } from '../cms/scripts/local-config.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -42,18 +43,22 @@ async function syncLexicalMedia(node, cmsURL, mediaDirectory, currentMedia, slug
 
 let articles
 let quizzes
+let teamMembers
 const mediaDirectory = path.join(root, 'public/cms-media')
 const currentMedia = new Set()
 await mkdir(mediaDirectory, { recursive: true })
 if (mode === 'demo') {
   const demoArticles = JSON.parse(await readFile(path.join(root, 'content/demo-article.json'), 'utf8'))
   const demoQuizzes = JSON.parse(await readFile(path.join(root, 'content/demo-quiz.json'), 'utf8'))
+  const demoTeam = JSON.parse(await readFile(path.join(root, 'content/demo-team.json'), 'utf8'))
   articles = Array.isArray(demoArticles) ? demoArticles : [demoArticles]
   quizzes = Array.isArray(demoQuizzes) ? demoQuizzes : [demoQuizzes]
+  teamMembers = Array.isArray(demoTeam) ? demoTeam : [demoTeam]
 } else {
   const cmsURL = getContentCMSURL()
   articles = await fetchPublishedArticles(cmsURL)
   quizzes = await fetchPublishedQuizzes(cmsURL, articles)
+  teamMembers = await fetchTeamMembers(cmsURL)
   for (const article of articles) {
     if (article.cover) {
       const media = article.cover
@@ -63,6 +68,12 @@ if (mode === 'demo') {
     }
     if (article.body?.root) {
       await syncLexicalMedia(article.body.root, cmsURL, mediaDirectory, currentMedia, article.slug)
+    }
+  }
+  for (const member of teamMembers) {
+    if (member.photo?.url) {
+      const localUrl = await syncMediaFile(member.photo.url, cmsURL, mediaDirectory, currentMedia, member.name)
+      member.photo = { url: localUrl, alt: member.photo.alt }
     }
   }
 }
@@ -76,8 +87,8 @@ for (const filename of await readdir(mediaDirectory)) {
 
 const directory = path.join(root, '.content')
 await mkdir(directory, { recursive: true })
-const snapshot = JSON.stringify({ mode, articles, quizzes }, null, 2)
+const snapshot = JSON.stringify({ mode, articles, quizzes, teamMembers }, null, 2)
 const temporary = path.join(directory, 'articles.tmp.json')
 await writeFile(temporary, snapshot)
 await rename(temporary, path.join(directory, 'articles.json'))
-console.log(`GNUverse: ${articles.length} artigo(s), modo ${mode}. Conteúdo preparado para exportação estática.`)
+console.log(`GNUverse: ${articles.length} artigo(s), ${quizzes.length} quiz(zes), ${teamMembers.length} integrante(s), modo ${mode}. Conteúdo preparado para exportação estática.`)

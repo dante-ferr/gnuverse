@@ -74,7 +74,11 @@ export default function Home() {
         </section>
 
         <footer className={styles.footer} id="ponto-de-partida">
-          <p>Pesquisa, autoria e colaboração por 7 participantes.</p>
+          <p>
+            <Link className={styles.footerLink} href="/sobre/">
+              Pesquisa, autoria e colaboração por 7 participantes.
+            </Link>
+          </p>
           <p className={styles.course}>
             MATA68 <span>·</span> 2026.2
           </p>

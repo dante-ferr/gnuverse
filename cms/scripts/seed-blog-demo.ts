@@ -151,24 +151,40 @@ async function main() {
         username: process.env.HOST_ADMIN_USERNAME?.trim().toLowerCase() || 'admin',
         name: process.env.HOST_ADMIN_NAME?.trim() || 'Ada Admin',
         role: 'admin' as const,
+        showOnAbout: true,
+        aboutOrder: 1,
+        aboutBio:
+          'Coordenação técnica, infraestrutura livre e arquitetura do projeto GNUverse.',
       },
       {
         email: 'revisor@gnuverse.local',
         username: 'rui_revisor',
         name: 'Rui Revisor',
         role: 'reviewer' as const,
+        showOnAbout: true,
+        aboutOrder: 2,
+        aboutBio:
+          'Revisão editorial, curadoria de referências abertas e acompanhamento dos quizzes.',
       },
       {
         email: 'autora@gnuverse.local',
         username: 'ana_autora',
         name: 'Ana Autora',
         role: 'author' as const,
+        showOnAbout: true,
+        aboutOrder: 3,
+        aboutBio:
+          'Pesquisa sobre autonomia digital, oficinas de software livre e autoria coletiva.',
       },
       {
         email: 'autor2@gnuverse.local',
         username: 'beto_autor',
         name: 'Beto Autor',
         role: 'author' as const,
+        showOnAbout: true,
+        aboutOrder: 4,
+        aboutBio:
+          'Redes comunitárias, laboratórios escolares com GNU/Linux e acessibilidade digital.',
       },
     ]
 
@@ -188,6 +204,9 @@ async function main() {
         name: account.name,
         role: account.role,
         password: DEMO_PASSWORD,
+        showOnAbout: account.showOnAbout,
+        aboutOrder: account.aboutOrder,
+        aboutBio: account.aboutBio,
         ...(emailVerificationEnabled ? { _verified: true } : {}),
       }
 

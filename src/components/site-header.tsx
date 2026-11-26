@@ -12,6 +12,7 @@ const pages = [
   { href: '/jogo/', label: 'Jogo' },
   { href: '/blog/', label: 'Blog' },
   { href: '/quizzes/', label: 'Quizzes' },
+  { href: '/sobre/', label: 'Sobre' },
 ]
 
 export function SiteHeader() {

@@ -179,6 +179,20 @@
   margin: 0;
 }
 
+.footerLink {
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 4px;
+  transition: color 160ms ease, text-decoration-color 160ms ease;
+}
+
+.footerLink:hover,
+.footerLink:focus-visible {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}
+
 .course {
   flex: none;
   color: var(--ink);
@@ -232,7 +246,8 @@
 @media (prefers-reduced-motion: reduce) {
   .primaryLink,
   .secondaryLink,
-  .pillarLink {
+  .pillarLink,
+  .footerLink {
     transition: none;
   }
 }

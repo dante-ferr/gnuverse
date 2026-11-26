@@ -1,0 +1,26 @@
+[
+  {
+    "id": "demo-1",
+    "name": "Ada Admin",
+    "bio": "Coordenação técnica, infraestrutura livre e arquitetura do projeto GNUverse.",
+    "order": 1
+  },
+  {
+    "id": "demo-2",
+    "name": "Rui Revisor",
+    "bio": "Revisão editorial, curadoria de referências abertas e acompanhamento dos quizzes.",
+    "order": 2
+  },
+  {
+    "id": "demo-3",
+    "name": "Ana Autora",
+    "bio": "Pesquisa sobre autonomia digital, oficinas de software livre e autoria coletiva.",
+    "order": 3
+  },
+  {
+    "id": "demo-4",
+    "name": "Beto Autor",
+    "bio": "Redes comunitárias, laboratórios escolares com GNU/Linux e acessibilidade digital.",
+    "order": 4
+  }
+]

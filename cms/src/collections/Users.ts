@@ -91,5 +91,42 @@ export const Users: CollectionConfig = {
       ],
       access: { create: adminField, update: adminField },
     },
+    {
+      name: 'showOnAbout',
+      label: 'Exibir na página Sobre',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Marca esta conta como integrante do grupo na página pública /sobre/.',
+      },
+      access: { create: adminField, update: adminField },
+    },
+    {
+      name: 'aboutOrder',
+      label: 'Ordem na página Sobre',
+      type: 'number',
+      required: false,
+      admin: {
+        description: 'Ordem de exibição no grid de participantes (menor aparece primeiro).',
+      },
+      access: { create: adminField, update: adminField },
+    },
+    {
+      name: 'aboutPhoto',
+      label: 'Foto de perfil (Sobre)',
+      type: 'upload',
+      relationTo: 'media',
+      required: false,
+    },
+    {
+      name: 'aboutBio',
+      label: 'Descrição curta (Sobre)',
+      type: 'textarea',
+      required: false,
+      maxLength: 300,
+      admin: {
+        description: 'Breve apresentação exibida no card da página /sobre/ (opcional).',
+      },
+    },
   ],
 }

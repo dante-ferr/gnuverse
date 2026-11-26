@@ -14,6 +14,7 @@ import { Media } from './collections/Media'
 import { accessManagementEndpoints } from './access-management/endpoints'
 import { chatModerationEndpoints } from './chat-moderation/endpoints'
 import { identityEndpoints } from './identity/endpoints'
+import { teamEndpoints } from './team/endpoints'
 import { ensureHostAdmin } from './identity/ensure-host-admin'
 import { markLegacyAccountsVerified } from './identity/legacy-verification'
 import { getLocalCMSURL, loadLocalEnvironment } from '../scripts/local-config.mjs'
@@ -72,7 +73,12 @@ export default buildConfig({
       ],
     },
   },
-  endpoints: [...accessManagementEndpoints, ...chatModerationEndpoints, ...identityEndpoints],
+  endpoints: [
+    ...accessManagementEndpoints,
+    ...chatModerationEndpoints,
+    ...identityEndpoints,
+    ...teamEndpoints,
+  ],
   i18n: { supportedLanguages: { pt }, fallbackLanguage: 'pt' },
   collections: [Users, Articles, Media, Quizzes],
   onInit: async (payload) => {
