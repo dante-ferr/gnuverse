@@ -301,7 +301,7 @@ export class HttpApplication {
         ) {
           if (path[3] === 'place') return rooms.place(room, user, participant, body)
           if (path[3] === 'place-machine') return rooms.placeMachine(room, user, participant, body)
-          if (path[3] === 'remove') return rooms.removeBelt(room, user, participant, body)
+          if (path[3] === 'remove') return rooms.removeCells(room, user, participant, body)
           if (path[3] === 'chat') return rooms.chat(room, user, participant, body)
           if (path[3] === 'buy-chunk') return rooms.buyChunk(room, user, participant, body)
           if (path[3] === 'buy-core') return rooms.buyCore(room, user, participant, body)
