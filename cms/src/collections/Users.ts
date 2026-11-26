@@ -22,6 +22,8 @@ export const Users: CollectionConfig = {
   slug: 'users',
   labels: { singular: 'Integrante', plural: 'Integrantes' },
   auth: {
+    // Long-lived token so "keep me signed in" survives browser restarts.
+    tokenExpiration: 60 * 60 * 24 * 30,
     loginWithUsername: {
       allowEmailLogin: true,
       requireEmail: true,

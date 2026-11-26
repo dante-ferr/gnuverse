@@ -77,11 +77,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           setNotice(outcome.message)
           return
         }
-        session.setSessionToken(outcome.token)
+        session.setSessionToken(outcome.token, data.get('remember') === 'on')
         router.replace(returnTo)
         return
       }
-      const outcome = await session.authenticate(mode, form)
+      const outcome = await session.authenticate(mode, form, new FormData(form).get('remember') === 'on')
       if (!outcome.verificationRequired) router.replace(returnTo)
     })
 

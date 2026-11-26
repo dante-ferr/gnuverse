@@ -86,6 +86,13 @@ export function AuthPanel({
             }
           />
         </label>
+        <label className={authStyles.remember}>
+          <input name="remember" type="checkbox" defaultChecked />
+          <span>
+            Manter conectado neste dispositivo
+            <small>Desmarque em computadores compartilhados.</small>
+          </span>
+        </label>
         <button className={styles.primary} disabled={busy}>
           {busy ? 'Aguarde…' : mode === 'register' ? 'Criar conta' : 'Entrar'}
         </button>

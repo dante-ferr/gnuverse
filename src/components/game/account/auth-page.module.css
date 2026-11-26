@@ -28,3 +28,32 @@
   box-sizing: border-box;
   font-size: 16px;
 }
+
+.card .form label.remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: none;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.card .form label.remember input {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.remember small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}

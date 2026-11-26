@@ -6,6 +6,25 @@ import { GameApi, resolveGameApiUrl } from '../api/game-api'
 import { type User, type Wallet } from '../model/types'
 
 const SESSION_KEY = 'gnuverse-game-session'
+
+/** Persistent (localStorage) when the user opted to stay signed in; otherwise per-tab. */
+function readStoredToken() {
+  try {
+    return localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+function writeStoredToken(token: string, remember: boolean) {
+  try {
+    localStorage.removeItem(SESSION_KEY)
+    sessionStorage.removeItem(SESSION_KEY)
+    if (token) (remember ? localStorage : sessionStorage).setItem(SESSION_KEY, token)
+  } catch {
+    /* In-memory sessions remain available. */
+  }
+}
 type Credentials = { token: string; user: User; wallet: Wallet }
 
 function useSessionState() {
@@ -22,11 +41,7 @@ function useSessionState() {
     setToken('')
     setUser(null)
     setWallet(null)
-    try {
-      sessionStorage.removeItem(SESSION_KEY)
-    } catch {
-      /* In-memory sessions remain available. */
-    }
+    writeStoredToken('', false)
   }, [])
   const expire = useCallback(() => {
     clear()
@@ -38,11 +53,7 @@ function useSessionState() {
   }), [token, expire])
 
   useEffect(() => {
-    try {
-      setToken(sessionStorage.getItem(SESSION_KEY) || '')
-    } catch {
-      /* Storage may be unavailable. */
-    }
+    setToken(readStoredToken())
     setNow(Date.now())
     const interval = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(interval)
@@ -95,6 +106,7 @@ function useSessionState() {
   async function authenticate(
     mode: 'login' | 'register',
     form: HTMLFormElement,
+    remember = false,
   ): Promise<{ verificationRequired: boolean }> {
     const data = new FormData(form)
     const result = await api.request<Credentials & {
@@ -110,11 +122,7 @@ function useSessionState() {
       setNotice(message)
       return { verificationRequired: true }
     }
-    try {
-      sessionStorage.setItem(SESSION_KEY, result.token)
-    } catch {
-      /* Keep session in memory. */
-    }
+    writeStoredToken(result.token, remember)
     hydratedToken.current = result.token
     setToken(result.token)
     setUser(result.user)
@@ -122,14 +130,11 @@ function useSessionState() {
     setNotice('')
     return { verificationRequired: false }
   }
-  const setSessionToken = useCallback((nextToken: string) => {
+  const setSessionToken = useCallback((nextToken: string, remember?: boolean) => {
     hydratedToken.current = ''
-    try {
-      if (nextToken) sessionStorage.setItem(SESSION_KEY, nextToken)
-      else sessionStorage.removeItem(SESSION_KEY)
-    } catch {
-      /* Keep session in memory. */
-    }
+    let persisted = false
+    try { persisted = Boolean(localStorage.getItem(SESSION_KEY)) } catch { /* ignore */ }
+    writeStoredToken(nextToken, remember ?? persisted)
     setToken(nextToken)
     if (!nextToken) {
       setUser(null)
