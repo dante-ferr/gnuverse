@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authenticateViaCms, resolveCmsBaseUrl } from '@/lib/cms-client'
 import { resolveGameApiUrl } from '../api/game-api'
+import { warmAuthBackends } from '../api/warmup'
 import { AuthPanel, type AuthMode } from './auth-panel'
 import { useGameSession } from '../hooks/use-game-session'
 import { useActionFeedback } from '../hooks/use-action-feedback'
@@ -18,6 +19,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
+    warmAuthBackends()
     const search = new URLSearchParams(window.location.search)
     const next = search.get('next')
     if (search.get('notice') === 'login-required') {

@@ -147,8 +147,7 @@ export class GameStore {
     }
   }
 
-  persist() {
-    const snapshot = JSON.stringify(this.state)
+  private persistSnapshot(snapshot: string) {
     if (this.save) {
       this.save.run(snapshot)
       return
@@ -161,12 +160,19 @@ export class GameStore {
     }
   }
 
+  persist() {
+    this.persistSnapshot(JSON.stringify(this.state))
+  }
+
   atomic<T>(fn: () => T): T {
     const previous = JSON.stringify(this.state)
     if (this.db) this.db.exec('BEGIN IMMEDIATE')
     try {
       const result = fn()
-      this.persist()
+      const next = JSON.stringify(this.state)
+      if (next !== previous) {
+        this.persistSnapshot(next)
+      }
       if (this.db) this.db.exec('COMMIT')
       return result
     } catch (error) {

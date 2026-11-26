@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { RecoveryPanel, usePublicGameApi } from './account-recovery-panel'
+import { warmAuthBackends } from '../api/warmup'
 import { useActionFeedback } from '../hooks/use-action-feedback'
 import styles from '../game-shell.module.css'
 import authStyles from './auth-page.module.css'
@@ -24,6 +25,10 @@ export function AccountRecoveryPage({
   const api = useMemo(() => usePublicGameApi(), [])
   const token = params.get('token')?.trim() ?? ''
   const [tokenError, setTokenError] = useState('')
+
+  useEffect(() => {
+    warmAuthBackends()
+  }, [])
 
   useEffect(() => {
     if (mode !== 'verify' || !token) return

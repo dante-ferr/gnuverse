@@ -60,6 +60,10 @@ export class HttpApplication {
       if (path[0] !== 'api') fail(404, 'Não encontrado.')
       if (req.method === 'GET' && path[1] === 'health' && path.length === 2)
         return json(res, 200, { ok: true })
+      if (req.method === 'GET' && path[1] === 'warmup' && path.length === 2) {
+        auth.warmup()
+        return json(res, 200, { ok: true })
+      }
       if (req.method === 'GET' && path[1] === 'rules' && path.length === 2) {
         const sandboxAllowed =
           rules.prototype === true && process.env.NODE_ENV !== 'production'
@@ -147,14 +151,7 @@ export class HttpApplication {
         return json(res, 200, await auth.verifyEmail(path[2]))
       }
       if (req.method === 'GET' && path[1] === 'me' && path.length === 2) {
-        const user = await auth.authenticate(req.headers.authorization)
-        return json(
-          res,
-          200,
-          store.atomic(() => {
-            return { user: publicUser(user), wallet: wallet.read(user) }
-          }),
-        )
+        return json(res, 200, await auth.me(req.headers.authorization))
       }
       if (req.method === 'POST' && path[1] === 'logout' && path.length === 2) {
         await auth.logout(req.headers.authorization)

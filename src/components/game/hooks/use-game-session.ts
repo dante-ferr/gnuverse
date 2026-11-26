@@ -12,11 +12,13 @@ function useSessionState() {
   const [token, setToken] = useState('')
   const currentToken = useRef(token)
   currentToken.current = token
+  const hydratedToken = useRef('')
   const [user, setUser] = useState<User | null>(null)
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [notice, setNotice] = useState('')
   const [now, setNow] = useState(0)
   const clear = useCallback(() => {
+    hydratedToken.current = ''
     setToken('')
     setUser(null)
     setWallet(null)
@@ -78,7 +80,11 @@ function useSessionState() {
           }
         })
         .catch(() => {})
-    void refresh()
+    if (hydratedToken.current === token) {
+      hydratedToken.current = ''
+    } else {
+      void refresh()
+    }
     const interval = setInterval(refresh, 5000)
     return () => {
       active = false
@@ -109,6 +115,7 @@ function useSessionState() {
     } catch {
       /* Keep session in memory. */
     }
+    hydratedToken.current = result.token
     setToken(result.token)
     setUser(result.user)
     setWallet(result.wallet)
@@ -116,6 +123,7 @@ function useSessionState() {
     return { verificationRequired: false }
   }
   const setSessionToken = useCallback((nextToken: string) => {
+    hydratedToken.current = ''
     try {
       if (nextToken) sessionStorage.setItem(SESSION_KEY, nextToken)
       else sessionStorage.removeItem(SESSION_KEY)

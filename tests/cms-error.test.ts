@@ -53,3 +53,69 @@ test('login surfaces Payload 403 confirmation errors instead of a generic 503', 
     await new Promise<void>((resolve) => server.close(() => resolve()))
   }
 })
+
+test('login completes in a single round-trip via /api/identity/login and falls back to /api/users/login on 404', async () => {
+  const requests: string[] = []
+  let legacyMode = false
+  const account = {
+    identity: { provider: 'cms', id: '42' },
+    email: 'player@example.test',
+    name: 'Player',
+    nickname: 'player',
+    roles: ['member'],
+  }
+  const server = createServer((req, res) => {
+    requests.push(`${req.method} ${req.url}`)
+    res.setHeader('Content-Type', 'application/json')
+    if (req.url === '/api/identity/login' && req.method === 'POST') {
+      if (legacyMode) {
+        res.writeHead(404)
+        res.end('{}')
+        return
+      }
+      res.writeHead(200)
+      res.end(JSON.stringify({ token: 'fast-jwt', account }))
+      return
+    }
+    if (req.url === '/api/users/login' && req.method === 'POST') {
+      res.writeHead(200)
+      res.end(JSON.stringify({ token: 'legacy-jwt' }))
+      return
+    }
+    if (req.url === '/api/identity/me' && req.method === 'GET') {
+      res.writeHead(200)
+      res.end(JSON.stringify({ account }))
+      return
+    }
+    if (req.url === '/api/access' && req.method === 'GET') {
+      res.writeHead(200)
+      res.end('{}')
+      return
+    }
+    res.writeHead(404)
+    res.end('{}')
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const { port } = server.address() as AddressInfo
+    const provider = new CMSIdentityProvider(`http://127.0.0.1:${port}`)
+
+    const fast = await provider.login('player@example.test', 'secret')
+    assert.equal(fast.token, 'fast-jwt')
+    assert.equal(fast.account.identity.id, '42')
+    assert.deepEqual(requests, ['POST /api/identity/login'])
+
+    requests.length = 0
+    legacyMode = true
+    const legacy = await provider.login('player@example.test', 'secret')
+    assert.equal(legacy.token, 'legacy-jwt')
+    assert.equal(legacy.account.identity.id, '42')
+    assert.deepEqual(requests, [
+      'POST /api/identity/login',
+      'POST /api/users/login',
+      'GET /api/identity/me',
+    ])
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  }
+})

@@ -12,8 +12,45 @@ import { resolveCMSBaseURL } from '../config/runtime-env.ts'
 /** Payload is an adapter to the identity contract, never a second credential database. */
 export class CMSIdentityProvider implements IdentityProvider {
   private base: string
+  private lastWarmAt = 0
+  private warmInFlight: Promise<void> | null = null
+
   constructor(base = resolveCMSBaseURL()) {
     this.base = base.replace(/\/$/, '')
+  }
+
+  warmup(): void {
+    const now = Date.now()
+    if (this.warmInFlight || now - this.lastWarmAt < 4 * 60_000) return
+    this.warmInFlight = fetch(`${this.base}/api/access`, {
+      method: 'GET',
+      redirect: 'error',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(60_000),
+    })
+      .then((response) => {
+        if (response.status < 500) this.lastWarmAt = Date.now()
+      })
+      .catch(() => {})
+      .finally(() => {
+        this.warmInFlight = null
+      })
+  }
+
+  private parseAccount(account: unknown): IdentityAccount {
+    const candidate = account as IdentityAccount | undefined
+    if (
+      !candidate ||
+      candidate.identity?.provider !== 'cms' ||
+      typeof candidate.identity.id !== 'string' ||
+      typeof candidate.email !== 'string' ||
+      typeof candidate.name !== 'string' ||
+      !Array.isArray(candidate.roles) ||
+      !candidate.roles.every((role: unknown) => ROLES.includes(role as (typeof ROLES)[number]))
+    ) {
+      fail(503, 'O serviço de contas retornou uma identidade inválida.')
+    }
+    return candidate
   }
 
   private async request(
@@ -37,6 +74,13 @@ export class CMSIdentityProvider implements IdentityProvider {
       })
     } catch {
       fail(503, 'O serviço de contas está indisponível. Tente novamente em instantes.')
+    }
+
+    if (response.status < 500) {
+      this.lastWarmAt = Date.now()
+    }
+    if (response.status === 404 && path === '/identity/login') {
+      return null
     }
 
     const result = await response.json().catch(() => ({}))
@@ -64,6 +108,7 @@ export class CMSIdentityProvider implements IdentityProvider {
         message &&
         (
           path === '/identity/verify-email' ||
+          path === '/identity/login' ||
           path === '/users/forgot-password' ||
           path === '/users/reset-password' ||
           path === '/users/login' ||
@@ -83,15 +128,18 @@ export class CMSIdentityProvider implements IdentityProvider {
   async login(identifier: string, password: string): Promise<IdentitySession> {
     const handle = identifier.toLowerCase().trim()
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handle)
-    const result = await this.request(
-      '/users/login',
-      undefined,
-      isEmail ? { email: handle, password } : { username: handle, password },
-    )
-    if (typeof result.token !== 'string') fail(503, 'O serviço de contas não retornou uma sessão válida.')
+    const payload = isEmail ? { email: handle, password } : { username: handle, password }
+    const result =
+      (await this.request('/identity/login', undefined, payload)) ??
+      (await this.request('/users/login', undefined, payload))
+    if (!result || typeof result.token !== 'string') {
+      fail(503, 'O serviço de contas não retornou uma sessão válida.')
+    }
     return {
       token: result.token,
-      account: await this.authenticate(result.token, 'A senha foi aceita, mas a sessão da conta não pôde ser aberta.'),
+      account: result.account !== undefined
+        ? this.parseAccount(result.account)
+        : await this.authenticate(result.token, 'A senha foi aceita, mas a sessão da conta não pôde ser aberta.'),
     }
   }
 
@@ -108,7 +156,9 @@ export class CMSIdentityProvider implements IdentityProvider {
     if (typeof result.token !== 'string') fail(503, 'O serviço de contas não retornou uma sessão válida.')
     return {
       token: result.token,
-      account: await this.authenticate(result.token, 'A conta foi criada, mas a sessão não pôde ser aberta.'),
+      account: result.account !== undefined
+        ? this.parseAccount(result.account)
+        : await this.authenticate(result.token, 'A conta foi criada, mas a sessão não pôde ser aberta.'),
     }
   }
 
@@ -131,11 +181,7 @@ export class CMSIdentityProvider implements IdentityProvider {
 
   async authenticate(token: string, sessionError?: string): Promise<IdentityAccount> {
     const { account } = await this.request('/identity/me', token, undefined, sessionError)
-    if (!account || account.identity?.provider !== 'cms' || typeof account.identity.id !== 'string' ||
-        typeof account.email !== 'string' || typeof account.name !== 'string' || !Array.isArray(account.roles) ||
-        !account.roles.every((role: unknown) => ROLES.includes(role as typeof ROLES[number])))
-      fail(503, 'O serviço de contas retornou uma identidade inválida.')
-    return account
+    return this.parseAccount(account)
   }
 
   async logout(token: string) {

@@ -1,6 +1,6 @@
 'use client'
 
-import type { FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import styles from '../game-shell.module.css'
 import authStyles from './auth-page.module.css'
@@ -22,6 +22,17 @@ export function AuthPanel({
   error,
   onSubmit,
 }: AuthPanelProps) {
+  const [slow, setSlow] = useState(false)
+
+  useEffect(() => {
+    if (!busy) {
+      setSlow(false)
+      return
+    }
+    const timer = setTimeout(() => setSlow(true), 3000)
+    return () => clearTimeout(timer)
+  }, [busy])
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     onSubmit(event.currentTarget)
@@ -78,6 +89,11 @@ export function AuthPanel({
         <button className={styles.primary} disabled={busy}>
           {busy ? 'Aguarde…' : mode === 'register' ? 'Criar conta' : 'Entrar'}
         </button>
+        {busy && slow && (
+          <p className={styles.message} role="status">
+            Conectando ao servidor de contas… O primeiro acesso após alguns minutos sem uso pode levar até um minuto.
+          </p>
+        )}
       </form>
       <Link className={styles.quiet} href={`${mode === 'register' ? '/login/' : '/cadastro/'}?next=${encodeURIComponent(returnTo)}`}>
         {mode === 'register' ? 'Já tenho uma conta' : 'Quero criar uma conta'}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CreateRoomPanel } from './construction/create-room-panel'
 import { createRoomFromForm, createSandboxRoom } from './api/create-room'
+import { warmAuthBackends } from './api/warmup'
 import { useActionFeedback } from './hooks/use-action-feedback'
 import { DEFAULT_ROOM_FILTERS, type RoomFilters, useRoomLobby } from './hooks/use-room-lobby'
 import { useGameSession } from './hooks/use-game-session'
@@ -28,6 +29,10 @@ export function PipelineLobby() {
   useEffect(() => {
     if (!session.user && filters.mine) setFilters({ mine: false })
   }, [session.user, filters.mine, setFilters])
+
+  useEffect(() => {
+    if (!session.token) warmAuthBackends()
+  }, [session.token])
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has('novo')) setShowCreate(true)

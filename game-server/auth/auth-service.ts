@@ -23,9 +23,19 @@ export class AuthService {
     if (!token) fail(401, 'Entre na sua conta.')
     return token
   }
+  warmup() {
+    this.identityProvider.warmup?.()
+  }
   async authenticate(authorization: string | undefined): Promise<User> {
     const account = await this.identityProvider.authenticate(this.token(authorization))
     return this.store.atomic(() => this.profile(account))
+  }
+  async me(authorization: string | undefined) {
+    const account = await this.identityProvider.authenticate(this.token(authorization))
+    return this.store.atomic(() => {
+      const user = this.profile(account)
+      return { user: publicUser(user), wallet: this.wallet.read(user) }
+    })
   }
   private profile(account: IdentityAccount, password?: string): User {
     const matches = (user: User) => user.identity?.provider === account.identity.provider && user.identity.id === account.identity.id

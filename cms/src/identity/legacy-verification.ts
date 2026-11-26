@@ -12,6 +12,7 @@ export async function markLegacyAccountsVerified(payload: Payload) {
   if (!emailVerificationEnabled) return
   const found = await payload.db.find<StoredUser>({
     collection: 'users',
+    where: { _verified: { exists: false } },
     limit: 0,
     pagination: false,
   })

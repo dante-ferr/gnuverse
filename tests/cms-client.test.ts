@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { authenticateViaCms, resolveCmsBaseUrl } from '../src/lib/cms-client.ts'
 import { GameApi, resolveGameApiUrl } from '../src/components/game/api/game-api.ts'
+import {
+  resetAuthWarmupForTests,
+  warmAuthBackends,
+} from '../src/components/game/api/warmup.ts'
 
 test('resolveCmsBaseUrl usa URL configurada, localhost em dev e null em produção sem variável', () => {
   assert.equal(
@@ -135,5 +139,42 @@ test('authenticateViaCms e GameApi traduzem falhas de rede para português', asy
         configurable: true,
       })
     }
+  }
+})
+
+test('warmAuthBackends dispara aquecimento paralelo para jogo e CMS com debounce', () => {
+  const originalFetch = globalThis.fetch
+  const prevGame = process.env.NEXT_PUBLIC_GAME_API_URL
+  const prevCms = process.env.NEXT_PUBLIC_CMS_URL
+  const calls: string[] = []
+  process.env.NEXT_PUBLIC_GAME_API_URL = 'https://game.gnuverse.test'
+  process.env.NEXT_PUBLIC_CMS_URL = 'https://cms.gnuverse.test'
+  resetAuthWarmupForTests()
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    calls.push(String(input))
+    return new Response('{}', { status: 200 })
+  }) as typeof fetch
+
+  try {
+    warmAuthBackends(500_000)
+    assert.deepEqual(calls, [
+      'https://game.gnuverse.test/api/warmup',
+      'https://cms.gnuverse.test/api/access',
+    ])
+
+    // Debounced within 4 minutes.
+    warmAuthBackends(500_000 + 60_000)
+    assert.equal(calls.length, 2)
+
+    // Fires again after the 4-minute window.
+    warmAuthBackends(500_000 + 5 * 60_000)
+    assert.equal(calls.length, 4)
+  } finally {
+    resetAuthWarmupForTests()
+    globalThis.fetch = originalFetch
+    if (prevGame === undefined) delete process.env.NEXT_PUBLIC_GAME_API_URL
+    else process.env.NEXT_PUBLIC_GAME_API_URL = prevGame
+    if (prevCms === undefined) delete process.env.NEXT_PUBLIC_CMS_URL
+    else process.env.NEXT_PUBLIC_CMS_URL = prevCms
   }
 })
