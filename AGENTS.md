@@ -58,3 +58,29 @@ The playable game is Open Pipeline v0.1, specified in [`docs/src/game/open-pipel
 
 - When a control asks the user to sign in or register, **redirect to a dedicated login or registration page**.
 - Do not embed login or registration forms inline where the action was requested (for example, do not keep a full auth form inside the blog submission panel or a game panel). Link or navigate to the shared auth pages instead.
+
+## UI & Visual Design System
+
+### Visual Direction & Surfaces
+- **Theme:** Dark mode using neutral charcoal/graphite surfaces instead of blue-tinted slate.
+  - Page canvas (`--background`): neutral dark charcoal (e.g. `#111214` or `#121315`).
+  - Elevated surface (`--surface`): `#181a1d`; interactive/raised surface (`--surface-raised`): `#202327`.
+  - Structural borders (`--line`): subtle neutral gray (`#2a2e33`) with 1px solid hairlines.
+- **Surface hierarchy:** Differentiate layers through background value shifts and 1px borders—do not rely on drop shadows (`shadow-lg`, `shadow-xl`) or translucent glass effects (`backdrop-blur`) to separate containers.
+- **Preserve game tokens:** Do not rename or modify `--scene`, `--scene-line`, `--ground`, `--ground-edge`, or `--block-face` in `globals.css`.
+
+### Typography
+- Load an intentional neo-grotesque sans-serif via `next/font/google` in `src/app/layout.tsx` (e.g., `IBM Plex Sans` or `Plus Jakarta Sans`) and a clean monospace font (`IBM Plex Mono` or `JetBrains Mono`) mapped to `--body-font` and `--display-font` / `--font-mono`.
+- **Headings (`h1`, `h2`, `h3`):** Always use the sans-serif font, never monospace. Apply tight letter-spacing (`tracking-tight` / `-0.02em`), line-height between `1.05` and `1.2`, and semibold/bold weight (`600`–`700`).
+- **Monospace usage:** Restrict monospace strictly to code snippets, tabular numbers (`tabular-nums`), URLs, and short technical metadata (max 1–2 words, e.g., timestamps or counters). Do not use monospace for section titles, marketing slogans, or uppercase eyebrow tags.
+- **Body copy:** Max line length of `60ch`–`68ch` for readability; use `--muted` for secondary text with sufficient contrast (at least WCAG AA against `--background` and `--surface`).
+
+### Color & Emphasis
+- **Accent restraint (`--accent`):** Reserve the primary accent color for primary action buttons, active navigation indicators, text links inside prose, and `:focus-visible` outlines.
+- **No partial headline tinting:** Keep headlines in a single foreground color (`--ink`). Do not color individual words inside an `h1` or `h2` for decorative emphasis.
+- **No decorative gradients:** Do not use linear or radial gradients (`bg-gradient-to-*`) on backgrounds, buttons, borders, or text.
+
+### Layout, Spacing & Controls
+- **Consistent geometry:** Standardize border-radius across all UI controls (buttons, inputs, selects, cards) to a single scale: `4px` (`rounded`) or `6px` (`rounded-md`). Do not mix sharp `0px` buttons on one page with rounded buttons on another.
+- **Visual content rule:** Never add purely decorative HUD/sci-fi graphics (corner brackets, fake coordinates like `N 01 / 07`, or abstract node-and-line diagrams). Every visual block must display real application data, functional navigation, or domain-relevant editorial content.
+- **Alignment & density:** Use an explicit grid with consistent horizontal padding and vertical rhythm. Prefer structured lists with 1px horizontal dividers over grids of identical floating cards when presenting 2–4 items.
