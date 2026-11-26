@@ -21,6 +21,27 @@ type Step = {
 
 const STEPS: Step[] = [
   {
+    title: 'O jogo é um software livre',
+    body: (
+      <>
+        <p>
+          A fábrica é como um projeto de <strong>software livre</strong>: muita gente contribui na
+          mesma base. Cada esteira é uma <strong>contribuição</strong> e passar o mouse mostra
+          o autor, como um <strong>git blame</strong>. Quem entra na sala ajuda a construir — e o que
+          foi liberado permanece para todos.
+        </p>
+        <p>
+          Os <strong>combinadores</strong> são o reuso: peças simples (as <strong>bibliotecas</strong>)
+          viram algo maior. As <strong>decisões</strong> e os <strong>checkpoints</strong> funcionam
+          como revisão e consenso entre colaboradores. Sozinha, a fábrica emperra; junto, ela cresce.
+        </p>
+      </>
+    ),
+    illustration: (rules) => (
+      <CombinersIllustration className={styles.illustration} rules={rules} />
+    ),
+  },
+  {
     title: 'Ligue a fonte ao núcleo',
     body: (
       <p>
