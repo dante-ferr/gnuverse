@@ -6,6 +6,7 @@ import * as migration_20261116_162100_article_hashtags_published_at from './2026
 import * as migration_20261118_120000_username_login from './20261118_120000_username_login';
 import * as migration_20261124_120000_quizzes from './20261124_120000_quizzes';
 import * as migration_20261124_130000_quiz_titles from './20261124_130000_quiz_titles';
+import * as migration_20261126_120000_about_profile_blog_interactions from './20261126_120000_about_profile_blog_interactions';
 
 export const migrations = [
   {
@@ -47,5 +48,10 @@ export const migrations = [
     up: migration_20261124_130000_quiz_titles.up,
     down: migration_20261124_130000_quiz_titles.down,
     name: '20261124_130000_quiz_titles',
+  },
+  {
+    up: migration_20261126_120000_about_profile_blog_interactions.up,
+    down: migration_20261126_120000_about_profile_blog_interactions.down,
+    name: '20261126_120000_about_profile_blog_interactions',
   },
 ];
