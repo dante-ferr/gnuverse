@@ -69,6 +69,8 @@ export interface Config {
   collections: {
     users: User;
     articles: Article;
+    'article-likes': ArticleLike;
+    'article-comments': ArticleComment;
     media: Media;
     quizzes: Quiz;
     'payload-kv': PayloadKv;
@@ -80,6 +82,8 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     articles: ArticlesSelect<false> | ArticlesSelect<true>;
+    'article-likes': ArticleLikesSelect<false> | ArticleLikesSelect<true>;
+    'article-comments': ArticleCommentsSelect<false> | ArticleCommentsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     quizzes: QuizzesSelect<false> | QuizzesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -144,6 +148,19 @@ export interface User {
    * Papel editorial do blog. Com a gestão compartilhada ativa, use Pessoas e acessos para papéis válidos em todo o site. Participante (member) é o cadastro público do jogo.
    */
   role: 'admin' | 'reviewer' | 'editor' | 'author' | 'member';
+  /**
+   * Marca esta conta como integrante do grupo na página pública /sobre/.
+   */
+  showOnAbout?: boolean | null;
+  /**
+   * Ordem de exibição no grid de participantes (menor aparece primeiro).
+   */
+  aboutOrder?: number | null;
+  avatar?: (number | null) | Media;
+  /**
+   * Breve apresentação exibida no card da página /sobre/ (opcional).
+   */
+  aboutBio?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -166,6 +183,36 @@ export interface User {
     | null;
   password?: string | null;
   collection: 'users';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media".
+ */
+export interface Media {
+  id: number;
+  alt: string;
+  credit: string;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    card?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -223,33 +270,27 @@ export interface Article {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media".
+ * via the `definition` "article-likes".
  */
-export interface Media {
+export interface ArticleLike {
   id: number;
-  alt: string;
-  credit: string;
+  article: number | Article;
+  user: number | User;
+  likeKey: string;
   updatedAt: string;
   createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-  sizes?: {
-    card?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "article-comments".
+ */
+export interface ArticleComment {
+  id: number;
+  article: number | Article;
+  author: number | User;
+  content: string;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -317,6 +358,14 @@ export interface PayloadLockedDocument {
         value: number | Article;
       } | null)
     | ({
+        relationTo: 'article-likes';
+        value: number | ArticleLike;
+      } | null)
+    | ({
+        relationTo: 'article-comments';
+        value: number | ArticleComment;
+      } | null)
+    | ({
         relationTo: 'media';
         value: number | Media;
       } | null)
@@ -373,6 +422,10 @@ export interface PayloadMigration {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   role?: T;
+  showOnAbout?: T;
+  aboutOrder?: T;
+  avatar?: T;
+  aboutBio?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -426,6 +479,28 @@ export interface ArticlesSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "article-likes_select".
+ */
+export interface ArticleLikesSelect<T extends boolean = true> {
+  article?: T;
+  user?: T;
+  likeKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "article-comments_select".
+ */
+export interface ArticleCommentsSelect<T extends boolean = true> {
+  article?: T;
+  author?: T;
+  content?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
