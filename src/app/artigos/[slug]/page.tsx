@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { RichText, type JSXConvertersFunction } from '@payloadcms/richtext-lexical/react'
 import { getContent } from '@/lib/articles'
 import { formatArticleDate } from '@/lib/blog-explorer'
+import { ArticleInteractions } from '@/components/blog/article-interactions'
 import { QuizCards } from '@/components/quiz/quiz-cards'
 import { ArticleReadReward } from '@/components/blog/article-read-reward'
 
@@ -133,6 +134,7 @@ export default async function ArticlePage({ params }: Props) {
           </aside>
         )}
       </article>
+      <ArticleInteractions slug={article.slug} mode={mode} />
       {relatedQuizzes.length > 0 && <section className="mt-12 border-t border-[var(--line)] pt-8" aria-label="Quizzes relacionados">
         <h2 className="text-2xl">Continue explorando</h2>
         <p className="mt-3 text-sm text-[var(--muted)]">O que esta leitura despertou? Experimente os quizzes relacionados.</p>
